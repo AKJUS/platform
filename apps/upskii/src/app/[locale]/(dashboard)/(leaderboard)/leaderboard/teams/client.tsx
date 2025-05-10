@@ -36,6 +36,7 @@ export default function LeaderboardClient({
   hasMore,
   initialPage = 1,
   calculationDate,
+  wsId,
 }: {
   data: LeaderboardEntry[];
   topThree: LeaderboardEntry[];
@@ -46,6 +47,7 @@ export default function LeaderboardClient({
   initialPage?: number;
   calculationDate: Date;
   totalPages?: number;
+  wsId: string;
 }) {
   const [filteredData, setFilteredData] = useState<LeaderboardEntry[]>(data);
   const [filteredInfo, setFilteredInfo] = useState<BasicInformation>(basicInfo);
@@ -195,13 +197,17 @@ export default function LeaderboardClient({
               )}
             </div>
 
-            <Link href="/leaderboard">
+            <Link href={`/${wsId}/leaderboard`}>
               <Button variant="outline" size="sm">
                 {t('individual')}
               </Button>
             </Link>
           </div>
-          <TopThreeCards topThree={filteredTopThree} teamMode={true} />
+          <TopThreeCards
+            wsId={wsId}
+            topThree={filteredTopThree}
+            teamMode={true}
+          />
 
           <div className="relative my-8 h-px w-full overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-slate-400 to-transparent opacity-20 dark:via-slate-600"></div>
@@ -241,6 +247,7 @@ export default function LeaderboardClient({
                 challenges={challenges}
                 selectedChallenge={selectedChallenge}
                 problems={problems}
+                wsId={wsId}
               />
 
               <div className="mt-6">

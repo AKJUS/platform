@@ -56,6 +56,7 @@ interface LeaderboardProps {
   challenges?: { id: string; title: string }[];
   selectedChallenge?: string;
   problems?: { id: string; title: string; challenge_id: string }[];
+  wsId: string;
 }
 
 export function Leaderboard({

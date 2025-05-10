@@ -59,7 +59,13 @@ export interface TeamData {
   };
 }
 
-export function TeamProfile({ teamData }: { teamData: TeamData | null }) {
+export function TeamProfile({
+  teamData,
+  wsId,
+}: {
+  teamData: TeamData | null;
+  wsId: string;
+}) {
   const locale = useLocale();
 
   if (!teamData) {
@@ -70,7 +76,7 @@ export function TeamProfile({ teamData }: { teamData: TeamData | null }) {
           The requested team could not be loaded.
         </p>
         <Button className="mt-4" asChild>
-          <Link href="/teams">View All Teams</Link>
+          <Link href={`/${wsId}/teams`}>View All Teams</Link>
         </Button>
       </div>
     );
@@ -168,11 +174,11 @@ export function TeamProfile({ teamData }: { teamData: TeamData | null }) {
     <div className="container max-w-6xl pb-16 pt-8">
       {/* Breadcrumb navigation */}
       <nav className="text-muted-foreground mb-8 flex items-center space-x-2 text-sm">
-        <Link href="/home" className="hover:text-foreground">
+        <Link href={`/${wsId}/home`} className="hover:text-foreground">
           Home
         </Link>
         <ChevronRight className="h-4 w-4" />
-        <Link href="/teams" className="hover:text-foreground">
+        <Link href={`/${wsId}/teams`} className="hover:text-foreground">
           Teams
         </Link>
         <ChevronRight className="h-4 w-4" />
@@ -248,7 +254,7 @@ export function TeamProfile({ teamData }: { teamData: TeamData | null }) {
                 Edit Profile
               </Button>
             )}
-            <Link href={'/leaderboard'}>
+            <Link href={`/${wsId}/leaderboard`}>
               <Button variant="outline">
                 <Trophy className="mr-1.5 h-4 w-4" />
                 View on Leaderboard

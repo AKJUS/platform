@@ -3,6 +3,7 @@
 import UserSettingsDialog from '@/app/[locale]/(marketing)/settings-dialog';
 import { createClient } from '@tuturuuu/supabase/next/client';
 import type { SupabaseUser } from '@tuturuuu/supabase/next/user';
+import { WorkspaceUser } from '@tuturuuu/types/primitives/WorkspaceUser';
 import { Avatar, AvatarFallback, AvatarImage } from '@tuturuuu/ui/avatar';
 import { Badge } from '@tuturuuu/ui/badge';
 import { Button } from '@tuturuuu/ui/button';
@@ -99,22 +100,47 @@ interface ProfileData {
 
 export default function UserProfileClient({
   profile,
+  wsId,
 }: {
   profile: ProfileData;
+  wsId: string;
 }) {
   const supabase = createClient();
 
-  const [user, setUser] = useState<SupabaseUser | null>(null);
+  const [user, setUser] = useState<SupabaseUser | WorkspaceUser | null>(null);
   const [copied, setCopied] = useState(false);
 
   const t = useTranslations('nova.profile-page');
 
+  const isCurrentUser = user?.id === profile.id;
+
   useEffect(() => {
     const fetchUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      setUser(user);
+      // Fetch the current user from Supabase
+
+      if (!isCurrentUser) {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        setUser(user);
+      }
+
+      // Fetch the profile data from Supabase
+      const { data, error } = await supabase
+        .from('users')
+        .select(
+          'id, display_name, avatar_url, handle, bio, created_at, user_private_details(email, new_email, birthday)'
+        )
+        .eq('id', profile.id)
+        .single();
+
+      if (error) {
+        console.error('Error fetching user data:', error);
+        return;
+      }
+      const { user_private_details, ...rest } = data;
+
+      setUser({ ...rest, ...user_private_details } as WorkspaceUser);
     };
     fetchUser();
   }, [supabase.auth]);
@@ -136,7 +162,6 @@ export default function UserProfileClient({
     }
   };
 
-  const isCurrentUser = user?.id === profile.id;
   const joinedDate = profile.joinedDate ? new Date(profile.joinedDate) : null;
   const formattedJoinedDate = joinedDate?.toLocaleDateString(undefined, {
     year: 'numeric',
@@ -265,11 +290,11 @@ export default function UserProfileClient({
       )}
       {/* Breadcrumb navigation */}
       <nav className="text-muted-foreground mb-8 flex items-center space-x-2 text-sm">
-        <Link href="/home" className="hover:text-foreground">
+        <Link href={`/${wsId}/home`} className="hover:text-foreground">
           {t('breadcrumb.home')}
         </Link>
         <ChevronRight className="h-4 w-4" />
-        <Link href="/leaderboard" className="hover:text-foreground">
+        <Link href={`/${wsId}/leaderboard`} className="hover:text-foreground">
           {t('breadcrumb.leaderboard')}
         </Link>
         <ChevronRight className="h-4 w-4" />
@@ -638,7 +663,7 @@ export default function UserProfileClient({
                         className="ml-auto"
                         asChild
                       >
-                        <Link href={`/challenges/${bestChallenge.id}`}>
+                        <Link href={`/${wsId}/challenges/${bestChallenge.id}`}>
                           <ExternalLink className="mr-2 h-4 w-4" />
                           {t('overview.view-challenge')}
                         </Link>
@@ -799,7 +824,7 @@ export default function UserProfileClient({
                       {t('challenges.no-challenges-description')}
                     </p>
                     <Button className="mt-4" asChild>
-                      <Link href="/challenges">
+                      <Link href={`/${wsId}/challenges`}>
                         {t('challenges.browse-challenges')}
                       </Link>
                     </Button>

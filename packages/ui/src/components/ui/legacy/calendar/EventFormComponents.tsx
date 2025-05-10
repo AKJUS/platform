@@ -13,8 +13,7 @@ import { Switch } from '@tuturuuu/ui/switch';
 import { Textarea } from '@tuturuuu/ui/textarea';
 import { getEventStyles } from '@tuturuuu/utils/color-helper';
 import { cn } from '@tuturuuu/utils/format';
-import dayjs from 'dayjs';
-import { AlertCircle, Clock, MapPin } from 'lucide-react';
+import { AlertCircle, Clock, MapPin, MessageSquare } from 'lucide-react';
 import { ReactNode } from 'react';
 
 // Color options aligned with SupportedColor type
@@ -121,15 +120,15 @@ export const EventDescriptionInput = ({
   disabled?: boolean;
 }) => (
   <div className="space-y-2">
-    <Label htmlFor="description" className="text-sm font-medium">
+    <Label className="flex items-center gap-2 text-sm font-medium">
+      <MessageSquare className="text-muted-foreground h-3.5 w-3.5" />
       Description
     </Label>
     <Textarea
-      id="description"
-      placeholder="Add description"
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="bg-muted/50 min-h-24 resize-none border-none focus-visible:ring-0 focus-visible:ring-offset-0"
+      placeholder="Add event details..."
+      className="min-h-[100px] resize-y whitespace-pre-wrap break-words"
       disabled={disabled}
     />
   </div>
@@ -204,7 +203,10 @@ export const EventDateTimePicker = ({
   disabled = false,
   icon,
   showTimeSelect = true,
-  minusOneDay = false,
+  minDate,
+  minTime,
+  scrollIntoViewOnOpen,
+  pickerButtonRef,
 }: {
   label: string;
   value: Date;
@@ -212,7 +214,10 @@ export const EventDateTimePicker = ({
   disabled?: boolean;
   icon?: ReactNode;
   showTimeSelect?: boolean;
-  minusOneDay?: boolean;
+  minDate?: Date;
+  minTime?: string;
+  scrollIntoViewOnOpen?: boolean;
+  pickerButtonRef?: React.RefObject<HTMLButtonElement | null>;
 }) => (
   <div className="space-y-2">
     <Label className="flex items-center gap-2 text-sm font-medium">
@@ -221,9 +226,13 @@ export const EventDateTimePicker = ({
     </Label>
     <div className={cn(disabled ? 'pointer-events-none opacity-50' : '')}>
       <DateTimePicker
-        date={minusOneDay ? dayjs(value).subtract(1, 'day').toDate() : value}
+        date={value}
         setDate={(date) => onChange(date)}
         showTimeSelect={showTimeSelect}
+        minDate={minDate}
+        minTime={minTime}
+        scrollIntoViewOnOpen={scrollIntoViewOnOpen}
+        pickerButtonRef={pickerButtonRef}
       />
     </div>
   </div>

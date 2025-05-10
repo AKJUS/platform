@@ -101,6 +101,8 @@ const AIFormSchema = z.object({
 
 export function UnifiedEventModal() {
   const { toast } = useToast();
+  const startPickerRef = useRef<HTMLButtonElement>(null);
+  const endPickerRef = useRef<HTMLButtonElement>(null);
 
   const {
     activeEvent,
@@ -112,6 +114,8 @@ export function UnifiedEventModal() {
     getEvents,
     settings,
   } = useCalendar();
+
+  const tz = settings?.timezone?.timezone;
 
   // State for manual event creation/editing
   const [event, setEvent] = useState<Partial<CalendarEvent>>({
@@ -156,6 +160,12 @@ export function UnifiedEventModal() {
   const [showOverlapWarning, setShowOverlapWarning] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
 
+  // Store previous time values for toggling all-day
+  const [prevTimes, setPrevTimes] = useState<{
+    timed: { start: string | null; end: string | null };
+    allday: { start: string | null; end: string | null };
+  }>({ timed: { start: null, end: null }, allday: { start: null, end: null } });
+
   // AI form
   const aiForm = useForm({
     resolver: zodResolver(AIFormSchema),
@@ -172,6 +182,11 @@ export function UnifiedEventModal() {
     api: '/api/v1/calendar/events/generate',
     schema: calendarEventsSchema,
   });
+
+  // Add this near the top of the component, after tz is defined
+  const categoriesKey = JSON.stringify(
+    settings?.categoryColors?.categories ?? []
+  );
 
   // Handle AI-generated events
   useEffect(() => {
@@ -192,7 +207,7 @@ export function UnifiedEventModal() {
 
       setActiveTab('preview');
     }
-  }, [object, isLoading, settings?.categoryColors?.categories]);
+  }, [object, isLoading, categoriesKey, tz]);
 
   // Reset form when modal opens/closes or active event changes
   useEffect(() => {
@@ -245,7 +260,7 @@ export function UnifiedEventModal() {
 
     // Clear any error messages
     setDateError(null);
-  }, [activeEvent, isModalOpen]);
+  }, [activeEvent, isModalOpen, tz]);
 
   // Function to check for overlapping events
   const checkForOverlaps = (eventToCheck: Partial<CalendarEvent>) => {
@@ -477,34 +492,46 @@ export function UnifiedEventModal() {
     if (!date) return;
 
     setEvent((prev) => {
+      let newStartDate = tz === 'auto' ? dayjs(date) : dayjs(date).tz(tz);
+      let endDate =
+        tz === 'auto'
+          ? dayjs(prev.end_at || '')
+          : dayjs(prev.end_at || '').tz(tz);
       const newEvent = { ...prev, start_at: date.toISOString() };
 
-      // If start time is after end time, push end time forward
-      const endDate = dayjs(prev.end_at || '');
-
-      if (dayjs(date).isAfter(endDate)) {
-        const duration = endDate.diff(dayjs(prev.start_at || ''), 'seconds');
-        const newEndDate = dayjs(date).add(duration, 'seconds');
-        newEvent.end_at = newEndDate.toISOString();
-      }
-
       if (isAllDay) {
-        newEvent.start_at = dayjs(newEvent.start_at)
-          .utc()
-          .startOf('day')
-          .toISOString();
-
-        newEvent.end_at = dayjs(newEvent.end_at)
-          .utc()
-          .startOf('day')
-          .toISOString();
+        // For all-day, keep end_at as is if it's after or equal to start_at + 1 day, otherwise set to start + 1 day
+        newEvent.start_at = newStartDate.startOf('day').toISOString();
+        let newEnd = dayjs(prev.end_at).isValid()
+          ? dayjs(prev.end_at)
+          : newStartDate.startOf('day').add(1, 'day');
+        if (!newEnd.isAfter(newStartDate.startOf('day'))) {
+          newEnd = newStartDate.startOf('day').add(1, 'day');
+        }
+        newEvent.end_at = newEnd.toISOString();
+      } else {
+        // If end time is before or equal to new start time, set end time to 1 hour after start
+        if (!endDate.isAfter(newStartDate)) {
+          const plusOneHour = newStartDate.add(1, 'hour');
+          if (plusOneHour.date() !== newStartDate.date()) {
+            newEvent.end_at = plusOneHour.toISOString();
+          } else {
+            newEvent.end_at = plusOneHour.toISOString();
+          }
+        }
       }
 
+      // Only show error if end <= start
+      if (
+        dayjs(newEvent.end_at).isSame(dayjs(newEvent.start_at)) ||
+        dayjs(newEvent.end_at).isBefore(dayjs(newEvent.start_at))
+      ) {
+        setDateError('End time must be after start time.');
+      } else {
+        setDateError(null);
+      }
       return newEvent;
     });
-
-    // Clear any error messages
-    setDateError(null);
   };
 
   // Handle end date change
@@ -512,64 +539,98 @@ export function UnifiedEventModal() {
     if (!date) return;
 
     setEvent((prev) => {
-      const newEvent = { ...prev, end_at: date.toISOString() };
-
-      // If end time is before start time, pull start time backward
-      const startDate = dayjs(prev.start_at || '');
-
-      if (dayjs(date).isBefore(startDate)) {
-        const duration = dayjs(date).diff(startDate, 'seconds');
-        const newStartDate = dayjs(date).subtract(duration, 'seconds');
-        newEvent.start_at = newStartDate.toISOString();
-      }
+      let newEndDate = tz === 'auto' ? dayjs(date) : dayjs(date).tz(tz);
+      let startDate =
+        tz === 'auto'
+          ? dayjs(prev.start_at || '')
+          : dayjs(prev.start_at || '').tz(tz);
+      const newEvent = { ...prev };
 
       if (isAllDay) {
-        newEvent.start_at = dayjs(newEvent.start_at)
-          .utc()
-          .startOf('day')
-          .toISOString();
+        // For all-day, set end_at to the start of the day after the selected end date
+        let newEnd = newEndDate.startOf('day').add(1, 'day');
+        // Ensure end is not before or equal to start
+        if (!newEnd.isAfter(startDate.startOf('day'))) {
+          newEnd = startDate.startOf('day').add(1, 'day');
+        }
+        newEvent.end_at = newEnd.toISOString();
+        // Don't change start_at here
+      } else {
+        // If end is not after start, increment end date by one day and set the entered time
+        if (!newEndDate.isAfter(startDate)) {
+          // Use the time from the user's input, but increment the date by one day
+          newEndDate = newEndDate.add(1, 'day');
+        }
+        // If end is after start, accept as is
+        newEvent.end_at = newEndDate.toISOString();
+      }
 
-        newEvent.end_at = dayjs(date)
-          .utc()
-          .add(1, 'day')
-          .endOf('day')
-          .toISOString();
+      if (!dayjs(newEvent.end_at).isAfter(dayjs(newEvent.start_at))) {
+        setDateError('End time must be after start time.');
+      } else {
+        setDateError(null);
       }
 
       return newEvent;
     });
-
-    // Clear any error messages
-    setDateError(null);
   };
 
   // Handle all-day toggle
   const handleAllDayChange = (checked: boolean) => {
     setEvent((prev) => {
-      let startDate = dayjs(prev.start_at);
-      let endDate = dayjs(prev.end_at);
-
+      let startDate =
+        tz === 'auto' ? dayjs(prev.start_at) : dayjs(prev.start_at).tz(tz);
+      // Backup previous times before updating
+      const timedBackup = prevTimes.timed;
+      const alldayBackup = prevTimes.allday;
       if (checked) {
-        // Set to all day: start at 00:00, end at 00:00 of next day (UTC)
-        startDate = startDate.utc().set('hour', 0).startOf('hour');
-
-        endDate = endDate.utc().isSame(endDate.startOf('day'), 'day')
-          ? endDate.utc().set('hour', 0).startOf('hour')
-          : endDate.utc().subtract(1, 'day').set('hour', 0).endOf('day');
+        setPrevTimes((old) => ({
+          ...old,
+          timed: { start: prev.start_at || null, end: prev.end_at || null },
+        }));
+        // Restore previous all-day range if it exists
+        if (alldayBackup.start && alldayBackup.end) {
+          return {
+            ...prev,
+            start_at: alldayBackup.start,
+            end_at: alldayBackup.end,
+          };
+        }
+        const newStart =
+          tz === 'auto'
+            ? startDate.startOf('day')
+            : startDate.tz(tz).startOf('day');
+        let newEnd = newStart.add(1, 'day');
+        return {
+          ...prev,
+          start_at: newStart.toISOString(),
+          end_at: newEnd.toISOString(),
+        };
       } else {
-        // Set to specific time: default to current time for start, +1 hour for end
-        const now = dayjs();
-        startDate = startDate.set('hour', now.hour()).startOf('hour');
-        endDate = endDate.set('hour', now.hour() + 1).startOf('hour');
+        setPrevTimes((old) => ({
+          ...old,
+          allday: { start: prev.start_at || null, end: prev.end_at || null },
+        }));
+        // Restore previous timed range if it exists
+        if (timedBackup.start && timedBackup.end) {
+          return {
+            ...prev,
+            start_at: timedBackup.start,
+            end_at: timedBackup.end,
+          };
+        }
+        let newStart =
+          tz === 'auto'
+            ? dayjs().startOf('hour')
+            : dayjs().startOf('hour').tz(tz);
+        let newEnd = newStart.add(1, 'hour');
+        return {
+          ...prev,
+          start_at: newStart.toISOString(),
+          end_at: newEnd.toISOString(),
+        };
       }
-
-      return {
-        ...prev,
-        start_at: startDate.toISOString(),
-        end_at: endDate.toISOString(),
-      };
     });
-
     setIsAllDay((prev) => !prev);
   };
 
@@ -822,8 +883,22 @@ export function UnifiedEventModal() {
     <Dialog open={isModalOpen} onOpenChange={(open) => !open && closeModal()}>
       <DialogContent className="max-h-[90vh] max-w-3xl overflow-hidden p-0">
         <DialogHeader className="border-b px-6 pb-4 pt-6">
-          <DialogTitle className="text-xl font-semibold">
-            {isEditing ? 'Edit Event' : 'Create Event'}
+          <DialogTitle className="flex items-center gap-2 text-xl font-semibold">
+            <span>{isEditing ? 'Edit Event' : 'Create Event'}</span>
+            {event.google_event_id &&
+              typeof event.google_event_id === 'string' &&
+              event.google_event_id.trim() !== '' && (
+                <div className="ml-3 flex items-center gap-2 rounded-md border bg-blue-50 px-3 py-1 text-sm dark:bg-blue-950/30">
+                  <img
+                    src="/media/google-calendar-icon.png"
+                    alt="Google Calendar"
+                    className="inline-block h-[18px] w-[18px] align-middle"
+                    title="Synced from Google Calendar"
+                    data-testid="google-calendar-logo"
+                  />
+                  <span className="text-xs font-medium">Google Calendar</span>
+                </div>
+              )}
           </DialogTitle>
           <DialogDescription>
             {isEditing
@@ -909,14 +984,51 @@ export function UnifiedEventModal() {
                           onChange={handleStartDateChange}
                           disabled={event.locked}
                           showTimeSelect={!isAllDay}
+                          scrollIntoViewOnOpen={true}
+                          pickerButtonRef={startPickerRef}
                         />
                         <EventDateTimePicker
                           label="End"
-                          value={new Date(event.end_at || new Date())}
+                          value={(() => {
+                            // For all-day, display end_at - 1 day
+                            if (isAllDay && event.end_at) {
+                              const end = new Date(event.end_at);
+                              end.setDate(end.getDate() - 1);
+                              return end;
+                            }
+                            return new Date(event.end_at || new Date());
+                          })()}
                           onChange={handleEndDateChange}
                           disabled={event.locked}
                           showTimeSelect={!isAllDay}
-                          minusOneDay={isAllDay}
+                          minDate={(() => {
+                            // Allow selecting the same day as the start date
+                            const start = new Date(
+                              event.start_at || new Date()
+                            );
+                            return new Date(
+                              start.getFullYear(),
+                              start.getMonth(),
+                              start.getDate()
+                            );
+                          })()}
+                          minTime={(() => {
+                            const start = new Date(
+                              event.start_at || new Date()
+                            );
+                            const end = new Date(event.end_at || new Date());
+                            // Only apply minTime if start and end are on the same day
+                            if (
+                              start.getFullYear() === end.getFullYear() &&
+                              start.getMonth() === end.getMonth() &&
+                              start.getDate() === end.getDate()
+                            ) {
+                              return `${start.getHours().toString().padStart(2, '0')}:${start.getMinutes().toString().padStart(2, '0')}`;
+                            }
+                            return undefined;
+                          })()}
+                          scrollIntoViewOnOpen={true}
+                          pickerButtonRef={endPickerRef}
                         />
                       </div>
                     </div>

@@ -22,6 +22,7 @@ interface RandomValues {
 interface TopThreeCardsProps {
   topThree: LeaderboardEntry[];
   teamMode?: boolean;
+  wsId: string;
 }
 
 export function TopThreeCards({
