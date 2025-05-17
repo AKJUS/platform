@@ -60,9 +60,9 @@ export async function generateMetadata({
 export default async function UserProfilePage({
   params,
 }: {
-  params: Promise<{ userId: string }>;
+  params: Promise<{ wsId: string; userId: string }>;
 }) {
-  const { userId: rawUserId } = await params;
+  const { wsId, userId: rawUserId } = await params;
 
   const locale = await getLocale();
   const sbAdmin = await createAdminClient();
@@ -368,5 +368,5 @@ export default async function UserProfilePage({
       ) || [],
   };
 
-  return <UserProfileClient profile={profileData} />;
+  return <UserProfileClient wsId={wsId} profile={profileData} />;
 }

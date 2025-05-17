@@ -168,7 +168,7 @@ function Calendar({
           month={month}
           onMonthChange={setMonth}
           defaultMonth={defaultMonth}
-          showOutsideDays={showOutsideDays}
+          showOutsideDays={true}
           className={cn('', className)}
           classNames={{
             root: 'bg-transparent',
@@ -191,18 +191,17 @@ function Calendar({
               'hover:bg-accent/50 hover:text-accent-foreground',
               'hover:aria-selected:bg-foreground hover:aria-selected:text-background'
             ),
-            selected: '!bg-foreground !text-background rounded-md',
+            selected: 'bg-foreground! text-background! rounded-md',
             today: 'bg-accent text-accent-foreground rounded-md font-medium',
-            outside: 'text-muted-foreground opacity-50',
+            outside: 'text-muted-foreground opacity-40 grayscale',
             disabled: 'text-muted-foreground opacity-50',
-            range_start: '!bg-foreground !text-background rounded-l-md',
-            range_end: '!bg-foreground !text-background rounded-r-md',
+            range_start: 'bg-foreground! text-background! rounded-l-md',
+            range_end: 'bg-foreground! text-background! rounded-r-md',
             range_middle: 'aria-selected:bg-foreground/20',
             hidden: 'invisible',
             month_grid: 'w-full',
             ...classNames,
           }}
-          fixedWeeks
         />
       </div>
     </div>

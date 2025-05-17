@@ -71,16 +71,11 @@ export default function ChallengeCard({
   >('disabled');
   const t = useTranslations('nova.challenge.cards');
 
-  // Memoize attempt calculations
-  const hasRemainingAttempts = useMemo(
-    () => (challenge.total_sessions || 0) < challenge.max_attempts,
-    [challenge.total_sessions, challenge.max_attempts]
-  );
+  const hasRemainingAttempts =
+    (challenge.total_sessions || 0) < challenge.max_attempts;
 
-  const hasRemainingDailyAttempts = useMemo(
-    () => (challenge.daily_sessions || 0) < challenge.max_daily_attempts,
-    [challenge.daily_sessions, challenge.max_daily_attempts]
-  );
+  const hasRemainingDailyAttempts =
+    (challenge.daily_sessions || 0) < challenge.max_daily_attempts;
 
   const updateStatus = useCallback(() => {
     if (!challenge.enabled) {
@@ -430,12 +425,12 @@ export default function ChallengeCard({
             </DropdownMenu>
           )}
         </CardHeader>
-        <CardContent className="flex-grow">
+        <CardContent className="grow">
           <p className="text-muted-foreground mb-4">{challenge.description}</p>
 
           <div className="grid gap-2">
             <div className="flex items-center">
-              <Clock className="text-primary h-4 w-4 flex-shrink-0" />
+              <Clock className="text-primary h-4 w-4 shrink-0" />
               <span className="text-muted-foreground ml-2 text-sm">
                 {t('duration')}: {formatDuration(challenge.duration)}
               </span>
