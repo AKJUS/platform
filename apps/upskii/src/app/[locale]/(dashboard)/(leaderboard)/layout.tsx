@@ -6,9 +6,14 @@ import { redirect } from 'next/navigation';
 
 export default async function RootLayout({
   children,
+  params,
 }: {
   children: React.ReactNode;
+  params: Promise<{
+    wsId: string;
+  }>;
 }) {
+  const { wsId } = await params;
   const sbAdmin = await createAdminClient();
   const supabase = await createClient();
 
@@ -19,7 +24,7 @@ export default async function RootLayout({
   if (!user?.email) redirect('/login');
 
   const { data: whitelisted } = await sbAdmin
-    .from('nova_roles')
+    .from('platform_email_roles')
     .select('enabled, allow_challenge_management, allow_role_management')
     .eq('email', user.email)
     .maybeSingle();
@@ -29,7 +34,7 @@ export default async function RootLayout({
     (!whitelisted?.allow_challenge_management &&
       !whitelisted?.allow_role_management)
   )
-    redirect('/home');
+    redirect(`/${wsId}/home`);
 
   return children;
 }
