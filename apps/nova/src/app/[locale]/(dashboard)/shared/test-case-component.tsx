@@ -13,12 +13,24 @@ export interface TestCaseComponentProps {
   className?: string;
 }
 
+const copyProtectionStyles: React.CSSProperties = {
+  WebkitUserSelect: 'none',
+  MozUserSelect: 'none',
+  msUserSelect: 'none',
+  userSelect: 'none',
+  WebkitTouchCallout: 'none',
+};
+
 export default function TestCaseComponent({
   testCases,
   className,
 }: TestCaseComponentProps) {
   return (
-    <div className={className}>
+    <div
+      className={className}
+      style={copyProtectionStyles}
+      onContextMenu={(e) => e.preventDefault()}
+    >
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-base">
@@ -26,8 +38,8 @@ export default function TestCaseComponent({
             Test Cases
           </CardTitle>
           <CardDescription>
-            These test cases below are just part of the ones used to evaluate
-            your prompt when submitted.
+            This may include just part of the test cases used to evaluate your
+            prompt when submitted.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -40,7 +52,15 @@ export default function TestCaseComponent({
                     <div className="space-y-2">
                       <p className="ml-2 text-sm font-medium">Input</p>
                       <div className="bg-muted rounded-md p-3 font-mono text-sm">
-                        {testcase.input}
+                        {testcase.input ? (
+                          <p className="whitespace-pre-wrap">
+                            {testcase.input}
+                          </p>
+                        ) : (
+                          <p className="text-muted-foreground italic">
+                            No input available
+                          </p>
+                        )}
                       </div>
                     </div>
                     <div className="space-y-2">
@@ -48,7 +68,15 @@ export default function TestCaseComponent({
                         Output (Expected)
                       </p>
                       <div className="bg-muted rounded-md p-3 font-mono text-sm">
-                        {testcase.output}
+                        {testcase.output ? (
+                          <p className="whitespace-pre-wrap">
+                            {testcase.output}
+                          </p>
+                        ) : (
+                          <p className="text-muted-foreground italic">
+                            No output available
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>

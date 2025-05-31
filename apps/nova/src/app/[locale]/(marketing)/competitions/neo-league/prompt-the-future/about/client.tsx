@@ -36,7 +36,54 @@ import { motion, useScroll, useTransform } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import Link from 'next/link';
-import React, { useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+
+// Define types for our animation data
+interface ParticleData {
+  top: string;
+  left: string;
+  blur: string;
+  xOffset: number;
+  opacity: number;
+  scale: number[];
+  duration: number;
+  delay: number;
+}
+
+interface CodeSnippetData {
+  top: string;
+  left: string;
+  rotation: number;
+  duration: number;
+  delay: number;
+  content: string;
+}
+
+interface FloatingParticleData {
+  top: string;
+  left: string;
+  xOffset: number;
+  duration: number;
+  delay: number;
+}
+
+interface CodeBackgroundData {
+  top: string;
+  left: string;
+  rotation: number;
+  duration: number;
+  delay: number;
+}
+
+interface MoreParticleData {
+  top: string;
+  left: string;
+  blur: string;
+  xOffset: number;
+  opacity: number;
+  duration: number;
+  delay: number;
+}
 
 // Animation variants
 const containerVariants = {
@@ -76,7 +123,7 @@ const floatingVariants = {
   },
 };
 
-export function AboutUsPage() {
+export function AboutUsClient() {
   const t = useTranslations('nova.about');
   const scrollRef = useRef(null);
   const { scrollYProgress } = useScroll({
@@ -86,6 +133,91 @@ export function AboutUsPage() {
 
   const opacity = useTransform(scrollYProgress, [0, 0.5], [1, 0]);
   const scale = useTransform(scrollYProgress, [0, 0.5], [1, 0.8]);
+
+  // States to hold animation values that will be generated client-side
+  const [particlesData, setParticlesData] = useState<ParticleData[]>([]);
+  const [codeSnippetsData, setCodeSnippetsData] = useState<CodeSnippetData[]>(
+    []
+  );
+  const [floatingParticlesData, setFloatingParticlesData] = useState<
+    FloatingParticleData[]
+  >([]);
+  const [codeBackgroundData, setCodeBackgroundData] = useState<
+    CodeBackgroundData[]
+  >([]);
+  const [moreParticlesData, setMoreParticlesData] = useState<
+    MoreParticleData[]
+  >([]);
+
+  useEffect(() => {
+    // Generate particles data
+    setParticlesData(
+      Array.from({ length: 30 }, () => ({
+        top: `${Math.random() * 100}%`,
+        left: `${Math.random() * 100}%`,
+        blur: Math.random() > 0.8 ? '1px' : '0px',
+        xOffset: Math.random() * 20 - 10,
+        opacity: Math.random() * 0.5 + 0.3,
+        scale: [Math.random() * 0.5 + 0.5, Math.random() * 1 + 1],
+        duration: 5 + Math.random() * 10,
+        delay: Math.random() * 5,
+      }))
+    );
+
+    // Generate code snippets data
+    setCodeSnippetsData(
+      Array.from({ length: 5 }, (_, i) => ({
+        top: `${20 + Math.random() * 60}%`,
+        left: `${Math.random() * 80}%`,
+        rotation: Math.random() * 20 - 10,
+        duration: 8 + Math.random() * 5,
+        delay: Math.random() * 5,
+        content:
+          [
+            'Generate creative solution',
+            'Optimize for clarity',
+            'Enhance user experience',
+            'Design innovative UI',
+            'Create engaging content',
+          ][i % 5] || '',
+      }))
+    );
+
+    // Generate floating particles data
+    setFloatingParticlesData(
+      Array.from({ length: 15 }, () => ({
+        top: `${Math.random() * 100}%`,
+        left: `${Math.random() * 100}%`,
+        xOffset: Math.random() * 10 - 5,
+        duration: 3 + Math.random() * 3,
+        delay: Math.random() * 5,
+      }))
+    );
+
+    // Generate code background data
+    setCodeBackgroundData(
+      Array.from({ length: 10 }, () => ({
+        top: `${Math.random() * 100}%`,
+        left: `${Math.random() * 100}%`,
+        rotation: Math.random() * 20 - 10,
+        duration: 3 + Math.random() * 5,
+        delay: Math.random() * 5,
+      }))
+    );
+
+    // Generate more particles data
+    setMoreParticlesData(
+      Array.from({ length: 20 }, () => ({
+        top: `${Math.random() * 100}%`,
+        left: `${Math.random() * 100}%`,
+        blur: Math.random() > 0.8 ? '1px' : '0px',
+        xOffset: Math.random() * 30 - 15,
+        opacity: Math.random() * 0.5 + 0.3,
+        duration: 5 + Math.random() * 5,
+        delay: Math.random() * 5,
+      }))
+    );
+  }, []);
 
   const getOrganizerInfo = (t: any, tKey: string, type = 'organizers') => ({
     name: t(`${type}.members.${tKey}.name` as unknown as any),
@@ -303,7 +435,7 @@ export function AboutUsPage() {
 
             <div
               className={cn(
-                'absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r',
+                'bg-linear-to-r absolute inset-x-0 top-0 h-1.5',
                 tierColors[sponsor.tier]
               )}
             />
@@ -324,7 +456,7 @@ export function AboutUsPage() {
                 <Badge
                   variant="outline"
                   className={cn(
-                    'mt-2 bg-gradient-to-r bg-clip-text text-transparent',
+                    'bg-linear-to-r mt-2 bg-clip-text text-transparent',
                     tierColors[sponsor.tier]
                   )}
                 >
@@ -433,39 +565,39 @@ export function AboutUsPage() {
           }}
         />
 
-        {/* Animated particles */}
-        {[...Array(30)].map((_, i) => (
+        {/* Animated particles - only rendered on client side */}
+        {particlesData.map((particle, i) => (
           <motion.div
             key={i}
             className="bg-primary/40 absolute h-1 w-1 rounded-full"
             style={{
-              top: `${Math.random() * 100}%`,
-              left: `${Math.random() * 100}%`,
-              filter: `blur(${Math.random() > 0.8 ? '1px' : '0px'})`,
+              top: particle.top,
+              left: particle.left,
+              filter: `blur(${particle.blur})`,
             }}
             animate={{
               y: [0, -100],
-              x: [0, Math.random() * 20 - 10],
-              opacity: [0, Math.random() * 0.5 + 0.3, 0],
-              scale: [Math.random() * 0.5 + 0.5, Math.random() * 1 + 1],
+              x: [0, particle.xOffset],
+              opacity: [0, particle.opacity, 0],
+              scale: particle.scale,
             }}
             transition={{
-              duration: 5 + Math.random() * 10,
+              duration: particle.duration,
               repeat: Infinity,
-              delay: Math.random() * 5,
+              delay: particle.delay,
             }}
           />
         ))}
 
         {/* Animated code snippets */}
-        {[...Array(5)].map((_, i) => (
+        {codeSnippetsData.map((snippet, i) => (
           <motion.div
             key={`code-${i}`}
             className="text-primary/20 absolute font-mono text-xs"
             style={{
-              top: `${20 + Math.random() * 60}%`,
-              left: `${Math.random() * 80}%`,
-              transform: `rotate(${Math.random() * 20 - 10}deg)`,
+              top: snippet.top,
+              left: snippet.left,
+              transform: `rotate(${snippet.rotation}deg)`,
             }}
             initial={{ opacity: 0 }}
             animate={{
@@ -473,12 +605,12 @@ export function AboutUsPage() {
               y: [0, -30],
             }}
             transition={{
-              duration: 8 + Math.random() * 5,
+              duration: snippet.duration,
               repeat: Infinity,
-              delay: Math.random() * 5,
+              delay: snippet.delay,
             }}
           >
-            {`prompt = "${['Generate creative solution', 'Optimize for clarity', 'Enhance user experience', 'Design innovative UI', 'Create engaging content'][i % 5]}"`}
+            {`prompt = "${snippet.content}"`}
           </motion.div>
         ))}
 
@@ -633,7 +765,7 @@ export function AboutUsPage() {
               <div className="border-primary/20 bg-foreground/5 relative aspect-video overflow-hidden rounded-xl border">
                 {/* Animated gradient background */}
                 <motion.div
-                  className="from-primary/20 absolute inset-0 bg-gradient-to-br via-purple-500/10 to-blue-500/5"
+                  className="from-primary/20 bg-linear-to-br absolute inset-0 via-purple-500/10 to-blue-500/5"
                   animate={{
                     background: [
                       'linear-gradient(to bottom right, rgba(var(--primary-rgb), 0.2), rgba(147, 51, 234, 0.1), rgba(59, 130, 246, 0.05))',
@@ -649,23 +781,23 @@ export function AboutUsPage() {
                 />
 
                 {/* Floating particles */}
-                {[...Array(15)].map((_, i) => (
+                {floatingParticlesData.map((particle, i) => (
                   <motion.div
                     key={i}
                     className="bg-primary/40 absolute h-1.5 w-1.5 rounded-full"
                     style={{
-                      top: `${Math.random() * 100}%`,
-                      left: `${Math.random() * 100}%`,
+                      top: particle.top,
+                      left: particle.left,
                     }}
                     animate={{
                       y: [0, -20],
-                      x: [0, Math.random() * 10 - 5],
+                      x: [0, particle.xOffset],
                       opacity: [0, 1, 0],
                     }}
                     transition={{
-                      duration: 3 + Math.random() * 3,
+                      duration: particle.duration,
                       repeat: Infinity,
-                      delay: Math.random() * 5,
+                      delay: particle.delay,
                     }}
                   />
                 ))}
@@ -677,13 +809,13 @@ export function AboutUsPage() {
                     whileInView={{ scale: 1, opacity: 1 }}
                     viewport={{ once: true }}
                     transition={{ type: 'spring', stiffness: 100 }}
-                    className="from-primary/30 mb-4 flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br to-purple-500/20 backdrop-blur-sm"
+                    className="from-primary/30 bg-linear-to-br mb-4 flex h-24 w-24 items-center justify-center rounded-full to-purple-500/20 backdrop-blur-sm"
                   >
                     <RocketIcon className="text-primary h-10 w-10" />
                   </motion.div>
 
                   <motion.h3
-                    className="from-primary mb-2 bg-gradient-to-r via-purple-500 to-blue-500 bg-clip-text text-center text-2xl font-bold text-transparent"
+                    className="from-primary bg-linear-to-r mb-2 via-purple-500 to-blue-500 bg-clip-text text-center text-2xl font-bold text-transparent"
                     initial={{ y: 10, opacity: 0 }}
                     whileInView={{ y: 0, opacity: 1 }}
                     viewport={{ once: true }}
@@ -712,23 +844,23 @@ export function AboutUsPage() {
       <section className="relative w-full py-24">
         <div className="absolute inset-0 bg-[radial-gradient(circle_800px_at_50%_-30%,rgba(var(--primary-rgb),0.1),transparent)]" />
 
-        {/* Animated code snippets background */}
+        {/* Animated code snippets background - only rendered on client side */}
         <div className="absolute inset-0 overflow-hidden opacity-5">
-          {[...Array(10)].map((_, i) => (
+          {codeBackgroundData.map((code, i) => (
             <motion.div
               key={i}
               className="absolute font-mono text-xs"
               style={{
-                top: `${Math.random() * 100}%`,
-                left: `${Math.random() * 100}%`,
-                transform: `rotate(${Math.random() * 20 - 10}deg)`,
+                top: code.top,
+                left: code.left,
+                transform: `rotate(${code.rotation}deg)`,
               }}
               initial={{ opacity: 0 }}
               animate={{ opacity: [0.3, 0.7, 0.3] }}
               transition={{
-                duration: 3 + Math.random() * 5,
+                duration: code.duration,
                 repeat: Infinity,
-                delay: Math.random() * 5,
+                delay: code.delay,
               }}
             >
               {`prompt = "Generate a creative solution for ${i}"`}
@@ -749,7 +881,7 @@ export function AboutUsPage() {
               </Badge>
               <h2 className="mb-6 text-4xl font-bold md:text-5xl">
                 {t('prompt-intro.title1')}
-                <span className="from-primary bg-gradient-to-r to-purple-500 bg-clip-text text-transparent">
+                <span className="from-primary bg-linear-to-r to-purple-500 bg-clip-text text-transparent">
                   {t('prompt-intro.title2')}
                 </span>
               </h2>
@@ -816,7 +948,7 @@ export function AboutUsPage() {
                       </motion.div>
                     </div>
                     <motion.h3
-                      className="from-primary mb-2 bg-gradient-to-r to-purple-500 bg-clip-text text-center text-xl font-bold text-transparent"
+                      className="from-primary bg-linear-to-r mb-2 to-purple-500 bg-clip-text text-center text-xl font-bold text-transparent"
                       whileHover={{ scale: 1.02 }}
                     >
                       {t('prompt-intro.cards.language-title')}
@@ -884,7 +1016,7 @@ export function AboutUsPage() {
                       </motion.div>
                     </div>
                     <motion.h3
-                      className="mb-2 bg-gradient-to-r from-purple-500 to-blue-500 bg-clip-text text-center text-xl font-bold text-transparent"
+                      className="bg-linear-to-r mb-2 from-purple-500 to-blue-500 bg-clip-text text-center text-xl font-bold text-transparent"
                       whileHover={{ scale: 1.02 }}
                     >
                       {t('prompt-intro.cards.creativity-title')}
@@ -959,7 +1091,7 @@ export function AboutUsPage() {
                       </motion.div>
                     </div>
                     <motion.h3
-                      className="to-primary mb-2 bg-gradient-to-r from-blue-500 bg-clip-text text-center text-xl font-bold text-transparent"
+                      className="to-primary bg-linear-to-r mb-2 from-blue-500 bg-clip-text text-center text-xl font-bold text-transparent"
                       whileHover={{ scale: 1.02 }}
                     >
                       {t('prompt-intro.cards.future-work-title')}
@@ -1043,7 +1175,7 @@ export function AboutUsPage() {
                 className="relative"
               >
                 <div className="border-primary/10 bg-foreground/5 relative aspect-square overflow-hidden rounded-2xl border">
-                  <div className="from-primary/10 absolute inset-0 bg-gradient-to-br via-transparent to-transparent" />
+                  <div className="from-primary/10 bg-linear-to-br absolute inset-0 via-transparent to-transparent" />
 
                   {/* Interactive prompt visualization */}
                   <div className="absolute inset-0 flex items-center justify-center p-8">
@@ -1134,7 +1266,7 @@ export function AboutUsPage() {
                 </p>
 
                 <div className="border-primary/10 relative h-40 overflow-hidden rounded-lg border">
-                  <div className="from-primary/10 absolute inset-0 bg-gradient-to-r to-transparent" />
+                  <div className="from-primary/10 bg-linear-to-r absolute inset-0 to-transparent" />
                   <motion.div
                     className="absolute inset-0 flex items-center justify-center"
                     animate={{
@@ -1171,7 +1303,7 @@ export function AboutUsPage() {
                 </p>
 
                 <div className="border-primary/10 relative h-40 overflow-hidden rounded-lg border">
-                  <div className="to-primary/10 absolute inset-0 bg-gradient-to-r from-transparent" />
+                  <div className="to-primary/10 bg-linear-to-r absolute inset-0 from-transparent" />
                   <div className="absolute inset-0 flex items-center justify-center">
                     <div className="grid grid-cols-2 gap-4">
                       <motion.div
@@ -1398,25 +1530,25 @@ export function AboutUsPage() {
       <section className="relative w-full py-16">
         <div className="absolute inset-0 bg-[radial-gradient(circle_600px_at_50%_50%,rgba(var(--primary-rgb),0.1),transparent)]" />
 
-        {/* Animated particles */}
-        {[...Array(20)].map((_, i) => (
+        {/* Animated particles - only rendered client side */}
+        {moreParticlesData.map((particle, i) => (
           <motion.div
             key={`particle-${i}`}
             className="bg-primary/30 absolute h-1 w-1 rounded-full"
             style={{
-              top: `${Math.random() * 100}%`,
-              left: `${Math.random() * 100}%`,
-              filter: `blur(${Math.random() > 0.8 ? '1px' : '0px'})`,
+              top: particle.top,
+              left: particle.left,
+              filter: `blur(${particle.blur})`,
             }}
             animate={{
               y: [0, -50],
-              x: [0, Math.random() * 30 - 15],
-              opacity: [0, Math.random() * 0.5 + 0.3, 0],
+              x: [0, particle.xOffset],
+              opacity: [0, particle.opacity, 0],
             }}
             transition={{
-              duration: 5 + Math.random() * 5,
+              duration: particle.duration,
               repeat: Infinity,
-              delay: Math.random() * 5,
+              delay: particle.delay,
             }}
           />
         ))}
@@ -1430,7 +1562,7 @@ export function AboutUsPage() {
           >
             <div className="flex flex-col items-center gap-8 md:flex-row">
               <motion.div
-                className="relative flex-shrink-0"
+                className="relative shrink-0"
                 whileHover={{ scale: 1.05 }}
                 transition={{ type: 'spring', stiffness: 300 }}
               >
@@ -1465,7 +1597,7 @@ export function AboutUsPage() {
               <div>
                 <h2 className="mb-4 text-3xl font-bold">
                   {t('tech-sponsor.title')}
-                  <span className="from-primary bg-gradient-to-r to-purple-500 bg-clip-text text-transparent">
+                  <span className="from-primary bg-linear-to-r to-purple-500 bg-clip-text text-transparent">
                     Tuturuuu
                   </span>
                 </h2>

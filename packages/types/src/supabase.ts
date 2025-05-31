@@ -2491,36 +2491,6 @@ export type Database = {
           },
         ];
       };
-      nova_roles: {
-        Row: {
-          allow_challenge_management: boolean;
-          allow_manage_all_challenges: boolean;
-          allow_role_management: boolean;
-          created_at: string;
-          email: string | null;
-          enabled: boolean;
-          id: string;
-        };
-        Insert: {
-          allow_challenge_management?: boolean;
-          allow_manage_all_challenges?: boolean;
-          allow_role_management?: boolean;
-          created_at?: string;
-          email?: string | null;
-          enabled: boolean;
-          id?: string;
-        };
-        Update: {
-          allow_challenge_management?: boolean;
-          allow_manage_all_challenges?: boolean;
-          allow_role_management?: boolean;
-          created_at?: string;
-          email?: string | null;
-          enabled?: boolean;
-          id?: string;
-        };
-        Relationships: [];
-      };
       nova_sessions: {
         Row: {
           challenge_id: string;
@@ -2941,6 +2911,82 @@ export type Database = {
             foreignKeyName: 'personal_notes_user_id_fkey';
             columns: ['user_id'];
             isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      platform_email_roles: {
+        Row: {
+          allow_challenge_management: boolean;
+          allow_manage_all_challenges: boolean;
+          allow_role_management: boolean;
+          created_at: string;
+          email: string;
+          enabled: boolean;
+        };
+        Insert: {
+          allow_challenge_management?: boolean;
+          allow_manage_all_challenges?: boolean;
+          allow_role_management?: boolean;
+          created_at?: string;
+          email: string;
+          enabled: boolean;
+        };
+        Update: {
+          allow_challenge_management?: boolean;
+          allow_manage_all_challenges?: boolean;
+          allow_role_management?: boolean;
+          created_at?: string;
+          email?: string;
+          enabled?: boolean;
+        };
+        Relationships: [];
+      };
+      platform_user_roles: {
+        Row: {
+          allow_challenge_management: boolean;
+          allow_manage_all_challenges: boolean;
+          allow_role_management: boolean;
+          created_at: string;
+          enabled: boolean;
+          user_id: string;
+        };
+        Insert: {
+          allow_challenge_management?: boolean;
+          allow_manage_all_challenges?: boolean;
+          allow_role_management?: boolean;
+          created_at?: string;
+          enabled?: boolean;
+          user_id: string;
+        };
+        Update: {
+          allow_challenge_management?: boolean;
+          allow_manage_all_challenges?: boolean;
+          allow_role_management?: boolean;
+          created_at?: string;
+          enabled?: boolean;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'platform_user_roles_user_id_fkey1';
+            columns: ['user_id'];
+            isOneToOne: true;
+            referencedRelation: 'nova_user_challenge_leaderboard';
+            referencedColumns: ['user_id'];
+          },
+          {
+            foreignKeyName: 'platform_user_roles_user_id_fkey1';
+            columns: ['user_id'];
+            isOneToOne: true;
+            referencedRelation: 'nova_user_leaderboard';
+            referencedColumns: ['user_id'];
+          },
+          {
+            foreignKeyName: 'platform_user_roles_user_id_fkey1';
+            columns: ['user_id'];
+            isOneToOne: true;
             referencedRelation: 'users';
             referencedColumns: ['id'];
           },
@@ -4083,18 +4129,21 @@ export type Database = {
         Row: {
           birthday: string | null;
           email: string | null;
+          full_name: string | null;
           new_email: string | null;
           user_id: string;
         };
         Insert: {
           birthday?: string | null;
           email?: string | null;
+          full_name?: string | null;
           new_email?: string | null;
           user_id: string;
         };
         Update: {
           birthday?: string | null;
           email?: string | null;
+          full_name?: string | null;
           new_email?: string | null;
           user_id?: string;
         };
@@ -4653,6 +4702,7 @@ export type Database = {
       workspace_courses: {
         Row: {
           created_at: string;
+          description: string | null;
           id: string;
           is_public: boolean;
           is_published: boolean;
@@ -4661,6 +4711,7 @@ export type Database = {
         };
         Insert: {
           created_at?: string;
+          description?: string | null;
           id?: string;
           is_public?: boolean;
           is_published?: boolean;
@@ -4669,6 +4720,7 @@ export type Database = {
         };
         Update: {
           created_at?: string;
+          description?: string | null;
           id?: string;
           is_public?: boolean;
           is_published?: boolean;
@@ -6744,6 +6796,20 @@ export type Database = {
         Args: Record<PropertyKey, never>;
         Returns: undefined;
       };
+      cleanup_role_inconsistencies: {
+        Args: Record<PropertyKey, never>;
+        Returns: undefined;
+      };
+      count_search_users: {
+        Args:
+          | { search_query: string }
+          | {
+              search_query: string;
+              role_filter?: string;
+              enabled_filter?: boolean;
+            };
+        Returns: number;
+      };
       create_ai_chat: {
         Args: { title: string; message: string; model: string };
         Returns: string;
@@ -7119,6 +7185,35 @@ export type Database = {
       revoke_all_cross_app_tokens: {
         Args: { p_user_id: string };
         Returns: undefined;
+      };
+      search_users: {
+        Args:
+          | { search_query: string; page_number: number; page_size: number }
+          | {
+              search_query: string;
+              page_number: number;
+              page_size: number;
+              role_filter?: string;
+              enabled_filter?: boolean;
+            };
+        Returns: {
+          id: string;
+          display_name: string;
+          deleted: boolean;
+          avatar_url: string;
+          handle: string;
+          bio: string;
+          created_at: string;
+          user_id: string;
+          enabled: boolean;
+          allow_challenge_management: boolean;
+          allow_manage_all_challenges: boolean;
+          allow_role_management: boolean;
+          email: string;
+          new_email: string;
+          birthday: string;
+          team_name: string[];
+        }[];
       };
       search_users_by_name: {
         Args: {

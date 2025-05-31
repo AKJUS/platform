@@ -14,6 +14,7 @@ export default async function Page({
   searchParams,
 }: {
   searchParams: Promise<{
+    wsId: string;
     page?: string;
     locale?: string;
   }>;
@@ -31,11 +32,12 @@ async function LeaderboardContent({
   searchParams,
 }: {
   searchParams: Promise<{
+    wsId: string;
     page?: string;
     locale?: string;
   }>;
 }) {
-  const { locale = 'en', page = '1' } = await searchParams;
+  const { wsId, locale = 'en', page = '1' } = await searchParams;
   const pageNumber = parseInt(page, 10);
 
   const {
@@ -59,6 +61,7 @@ async function LeaderboardContent({
       initialPage={pageNumber}
       calculationDate={new Date()}
       totalPages={totalPages}
+      wsId={wsId}
     />
   );
 }
@@ -149,7 +152,7 @@ async function fetchLeaderboard(locale: string, page: number = 1) {
 
   // Fetch whitelisted users
   const { data: whitelistedData, error: whitelistError } = await sbAdmin
-    .from('nova_roles')
+    .from('platform_email_roles')
     .select('email')
     .eq('enabled', true);
 

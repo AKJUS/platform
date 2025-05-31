@@ -8,6 +8,7 @@ import {
 } from '@tuturuuu/supabase/next/server';
 import { generateFunName } from '@tuturuuu/utils/name-helper';
 import { getLocale } from 'next-intl/server';
+import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 
 export const revalidate = 60;
@@ -86,17 +87,104 @@ async function fetchLeaderboard(
   };
 
   const limit = 20;
+
+  const supabase = await createClient();
+
+  // Get current user
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user?.id || !user?.email) {
+    throw new Error('Auth error or missing user');
+  }
+
   const sbAdmin = await createAdminClient();
 
-  // Fetch all challenges for filter options
+  // Check user's role and permissions
+  const { data: userRole, error: roleError } = await sbAdmin
+    .from('platform_user_roles')
+    .select('*')
+    .eq('user_id', user.id)
+    .single();
+
+  if (roleError) {
+    throw new Error('Error fetching user role:', roleError);
+  }
+
+  // Fetch all challenges with their whitelists in a single query
   const { data: challenges, error: challengesError } = await sbAdmin
     .from('nova_challenges')
-    .select('id, title')
+    .select('*, nova_challenge_whitelisted_emails(*)')
     .order('title', { ascending: true });
 
   if (challengesError) {
     console.error('Error fetching challenges:', challengesError.message);
     return defaultData;
+  }
+
+  // Extract challenges and construct whitelist data
+  const userWhitelistedChallengeIds = new Set(
+    challenges.flatMap((challenge) =>
+      challenge.nova_challenge_whitelisted_emails
+        .filter((whitelist) => whitelist.email === user.email)
+        .map((whitelist) => whitelist.challenge_id)
+    )
+  );
+
+  const { data: managedChallenges, error: managerError } = await sbAdmin
+    .from('nova_challenge_manager_emails')
+    .select('challenge_id')
+    .eq('email', user.email);
+
+  if (managerError) {
+    console.error('Error fetching managed challenges:', managerError);
+  }
+
+  // Build a Set of challenge IDs this admin can manage
+  const managedChallengeIds = new Set(
+    (managedChallenges || []).map((item) => item.challenge_id)
+  );
+
+  let filteredChallenges: {
+    id: string;
+    title: string;
+  }[] = [];
+
+  if (
+    userRole?.allow_challenge_management &&
+    userRole?.allow_manage_all_challenges
+  ) {
+    filteredChallenges = challenges;
+  }
+  // Normal admins - can see all user-visible challenges + challenges they can manage
+  else if (userRole?.allow_challenge_management) {
+    filteredChallenges = challenges.filter((challenge) => {
+      // Public challenges (enabled and non-restricted)
+      if (challenge.enabled && !challenge.whitelisted_only) {
+        return true;
+      }
+      // Specifically assigned to manage
+      if (managedChallengeIds.has(challenge.id)) {
+        return true;
+      }
+      // Whitelisted restricted challenges
+      if (userWhitelistedChallengeIds.has(challenge.id)) {
+        return true;
+      }
+
+      return false;
+    });
+  }
+  // Regular Users - can only see enabled non-restricted challenges
+  else {
+    filteredChallenges = challenges.filter(
+      (challenge) =>
+        challenge.enabled &&
+        (!challenge.whitelisted_only ||
+          userWhitelistedChallengeIds.has(challenge.id))
+    );
   }
 
   let rankedData: LeaderboardEntry[] = [];
@@ -124,6 +212,16 @@ async function fetchLeaderboard(
         (entry.challenge_scores as Record<string, number>) || {},
     }));
   } else {
+    const allowedChallengeId = filteredChallenges.find(
+      (challenge) => challenge.id === challengeId
+    )?.id;
+
+    if (!allowedChallengeId) {
+      const urlSearchParams = new URLSearchParams();
+      urlSearchParams.delete('challenge');
+      return redirect(`/leaderboard?${urlSearchParams.toString()}`);
+    }
+
     // Fetch user data for a specific challenge
     const { data: challengeLeaderboardData, error: challengeLeaderboardError } =
       await sbAdmin
@@ -165,9 +263,9 @@ async function fetchLeaderboard(
   }
 
   // Fetch whitelisted users
-  const { data: whitelistedData, error: whitelistError } = await sbAdmin
-    .from('nova_roles')
-    .select('email')
+  const { data: whitelistedUsers, error: whitelistError } = await sbAdmin
+    .from('platform_user_roles')
+    .select('user_id, ...users!inner(id,display_name,avatar_url)')
     .eq('enabled', true);
 
   if (whitelistError) {
@@ -175,61 +273,25 @@ async function fetchLeaderboard(
     return defaultData;
   }
 
-  // Add whitelisted users to leaderboard if they don't exist
-  if (whitelistedData?.length > 0) {
+  if (whitelistedUsers?.length > 0) {
     const existingUserIds = rankedData.map((entry) => entry.id);
-    const whitelistedEmails = whitelistedData
-      .filter((user) => user.email)
-      .map((user) => user.email);
 
-    if (whitelistedEmails.length > 0) {
-      // Get all user IDs in one query
-      const { data: userDataBatch } = await sbAdmin
-        .from('user_private_details')
-        .select('user_id, email')
-        .in('email', whitelistedEmails);
-
-      // Get all user profiles in one query
-      const userIds =
-        userDataBatch
-          ?.filter(
-            (data) => data.user_id && !existingUserIds.includes(data.user_id)
-          )
-          .map((data) => data.user_id) || [];
-
-      if (userIds.length > 0) {
-        const { data: userProfiles } = await sbAdmin
-          .from('users')
-          .select('id, display_name, avatar_url')
-          .in('id', userIds);
-
-        // Map user profiles by their user ID
-        const userProfileMap = new Map();
-        userProfiles?.forEach((profile) => {
-          userProfileMap.set(profile.id, profile);
+    // Filter out users who are already in the leaderboard
+    whitelistedUsers
+      .filter((user) => user.user_id && !existingUserIds.includes(user.user_id))
+      .forEach((userData) => {
+        rankedData.push({
+          id: userData.user_id,
+          name:
+            userData?.display_name ||
+            generateFunName({ id: userData.user_id, locale }),
+          avatar: userData?.avatar_url || '',
+          score: 0,
+          rank: rankedData.length + 1,
+          challenge_scores: {},
+          problem_scores: {},
         });
-
-        // Add whitelisted users to rankedData
-        userDataBatch?.forEach((userData) => {
-          if (userData.user_id && !existingUserIds.includes(userData.user_id)) {
-            const userProfile = userProfileMap.get(userData.user_id);
-            if (userProfile) {
-              rankedData.push({
-                id: userData.user_id,
-                name:
-                  userProfile.display_name ||
-                  generateFunName({ id: userData.user_id, locale }),
-                avatar: userProfile.avatar_url || null,
-                score: 0,
-                rank: rankedData.length + 1,
-                challenge_scores: {},
-                problem_scores: {},
-              });
-            }
-          }
-        });
-      }
-    }
+      });
   }
 
   // Sort by score if we modified the data (e.g. added whitelisted users)
@@ -246,11 +308,6 @@ async function fetchLeaderboard(
   });
 
   const topThree = rankedData.slice(0, 3);
-
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
   const currentUser = rankedData.find((entry) => entry.id === user?.id);
 
@@ -270,7 +327,7 @@ async function fetchLeaderboard(
     data: paginatedData,
     topThree,
     basicInfo,
-    challenges: challenges || [],
+    challenges: filteredChallenges,
     hasMore: rankedData.length > page * limit,
     totalPages,
   };

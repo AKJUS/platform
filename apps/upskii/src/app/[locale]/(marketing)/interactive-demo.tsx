@@ -1,3 +1,5 @@
+'use client';
+
 import { Button } from '@tuturuuu/ui/button';
 import { Card } from '@tuturuuu/ui/card';
 import { Bot, MessageSquare, Send, Sparkles, User } from '@tuturuuu/ui/icons';
@@ -61,7 +63,7 @@ export default function InteractiveDemo() {
   return (
     <div className="relative">
       {/* Decorative elements */}
-      <div className="from-primary/5 absolute inset-0 rounded-xl bg-gradient-to-b via-transparent to-transparent" />
+      <div className="from-primary/5 bg-linear-to-b absolute inset-0 rounded-xl via-transparent to-transparent" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_500px_at_50%_0%,rgba(var(--primary-rgb),0.1),transparent)]" />
 
       <div className="relative mx-auto max-w-3xl">

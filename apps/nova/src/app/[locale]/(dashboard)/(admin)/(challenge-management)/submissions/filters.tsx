@@ -2,6 +2,7 @@
 
 import { Button } from '@tuturuuu/ui/button';
 import { LayoutGrid, LayoutList } from '@tuturuuu/ui/icons';
+import { Input } from '@tuturuuu/ui/input';
 import {
   Select,
   SelectContent,
@@ -12,6 +13,7 @@ import {
 import { cn } from '@tuturuuu/utils/format';
 import { useTranslations } from 'next-intl';
 import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
 
 interface ChallengeOption {
   id: string;
@@ -24,6 +26,12 @@ interface ProblemOption {
   challenge_id: string;
 }
 
+interface UserOption {
+  id: string;
+  display_name: string;
+  email: string;
+}
+
 interface SubmissionFiltersProps {
   searchQuery: string;
   setSearchQuery?: (query: string) => void;
@@ -33,9 +41,12 @@ interface SubmissionFiltersProps {
   handleChallengeChange?: (value: string) => void;
   selectedProblem: string;
   handleProblemChange?: (value: string) => void;
+  selectedUser: string;
+  handleUserChange?: (value: string) => void;
   handleClearFilters?: () => void;
   challenges: ChallengeOption[];
   filteredProblems: ProblemOption[];
+  users: UserOption[];
   serverSide?: boolean;
 }
 
@@ -47,14 +58,50 @@ export function SubmissionFilters({
   handleChallengeChange,
   selectedProblem,
   handleProblemChange,
+  selectedUser,
+  handleUserChange,
   handleClearFilters,
   challenges,
   filteredProblems,
+  users,
   serverSide = false,
 }: SubmissionFiltersProps) {
   const router = useRouter();
   const pathname = usePathname();
   const t = useTranslations('nova.submission-page.filters');
+  const [userSearch, setUserSearch] = useState('');
+  const [filteredUsers, setFilteredUsers] = useState<UserOption[]>(users);
+
+  // Filter users based on search input
+  useEffect(() => {
+    const searchLower = userSearch.toLowerCase().trim();
+    if (searchLower === '') {
+      setFilteredUsers(users);
+    } else {
+      const filtered = users.filter((user) =>
+        user.email.toLowerCase().includes(searchLower)
+      );
+      setFilteredUsers(filtered);
+    }
+  }, [userSearch, users]);
+
+  // Fallback for translation
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const userInputRef = useRef<HTMLInputElement>(null);
+
+  const onUserChange = (value: string) => {
+    if (serverSide) {
+      const params = new URLSearchParams(window.location.search);
+      if (searchQuery) params.set('search', searchQuery);
+      if (selectedChallenge) params.set('challengeId', selectedChallenge);
+      if (selectedProblem) params.set('problemId', selectedProblem);
+      if (value !== 'all') params.set('userId', value);
+      const queryString = params.toString();
+      router.push(`${pathname}${queryString ? `?${queryString}` : ''}`);
+    } else if (handleUserChange) {
+      handleUserChange(value);
+    }
+  };
 
   // Handle challenge change
   const onChallengeChange = (value: string) => {
@@ -103,80 +150,127 @@ export function SubmissionFilters({
 
   return (
     <div className="mb-6 rounded-lg border p-4">
-      <div className="flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
-        <div className="flex flex-col space-y-2 md:flex-row md:space-x-2 md:space-y-0">
-          <Select
-            value={selectedChallenge || 'all'}
-            onValueChange={onChallengeChange}
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filter by Challenge" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t('title')}</SelectItem>
-              {challenges.map((challenge) => (
-                <SelectItem key={challenge.id} value={challenge.id}>
-                  {challenge.title}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <Select
+          value={selectedChallenge || 'all'}
+          onValueChange={onChallengeChange}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Filter by Challenge" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t('title')}</SelectItem>
+            {challenges.map((challenge) => (
+              <SelectItem key={challenge.id} value={challenge.id}>
+                {challenge.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-          <Select
-            value={selectedProblem || 'all'}
-            onValueChange={onProblemChange}
-          >
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Filter by Problem" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t('all-problems')}</SelectItem>
-              {filteredProblems.map((problem) => (
-                <SelectItem key={problem.id} value={problem.id}>
-                  {problem.title}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <Select
+          value={selectedProblem || 'all'}
+          onValueChange={onProblemChange}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Filter by Problem" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t('all-problems')}</SelectItem>
+            {filteredProblems.map((problem) => (
+              <SelectItem key={problem.id} value={problem.id}>
+                {problem.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-          <div className="flex items-center space-x-2">
-            {(selectedChallenge || selectedProblem || searchQuery) && (
+        {/* Custom user filter dropdown */}
+        <div className="relative">
+          <Input
+            placeholder="Search by email..."
+            value={userSearch}
+            onChange={(e) => {
+              setUserSearch(e.target.value);
+              setUserDropdownOpen(true);
+              if (e.target.value === '') {
+                onUserChange(''); // Clear user filter when search bar is empty
+              }
+            }}
+            className="mb-2 h-8"
+            autoComplete="off"
+            onFocus={() => setUserDropdownOpen(true)}
+            ref={userInputRef}
+          />
+          {userDropdownOpen && (
+            <div
+              className="bg-background absolute z-20 mt-1 max-h-[200px] w-full overflow-y-auto rounded-md border shadow-lg"
+              tabIndex={-1}
+              onBlur={() => setTimeout(() => setUserDropdownOpen(false), 150)}
+            >
+              {filteredUsers.map((user) => (
+                <div
+                  key={user.id}
+                  className={`hover:bg-accent cursor-pointer px-4 py-2 ${selectedUser === user.id ? 'font-semibold' : ''}`}
+                  onMouseDown={() => {
+                    onUserChange(user.id);
+                    setUserDropdownOpen(false);
+                    setUserSearch(user.email);
+                    if (userInputRef.current) userInputRef.current.blur();
+                  }}
+                >
+                  {user.email}
+                </div>
+              ))}
+              {filteredUsers.length === 0 && (
+                <div className="text-muted-foreground px-4 py-2">
+                  No users found
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center space-x-2">
+          {(selectedChallenge ||
+            selectedProblem ||
+            selectedUser ||
+            searchQuery) && (
+            <Button
+              variant="outline"
+              onClick={onClearFilters}
+              className="whitespace-nowrap"
+            >
+              {t('clear-filters')}
+            </Button>
+          )}
+
+          {setViewMode && (
+            <div className="flex overflow-hidden rounded-md border">
               <Button
-                variant="outline"
-                onClick={onClearFilters}
-                className="whitespace-nowrap"
+                variant="ghost"
+                size="icon"
+                onClick={() => setViewMode('table')}
+                className={cn(
+                  'h-9 rounded-none px-3',
+                  viewMode === 'table' && 'bg-accent text-accent-foreground'
+                )}
               >
-                {t('clear-filters')}
+                <LayoutList className="h-4 w-4" />
               </Button>
-            )}
-
-            {setViewMode && (
-              <div className="flex overflow-hidden rounded-md border">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setViewMode('table')}
-                  className={cn(
-                    'h-9 rounded-none px-3',
-                    viewMode === 'table' && 'bg-accent text-accent-foreground'
-                  )}
-                >
-                  <LayoutList className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setViewMode('grid')}
-                  className={cn(
-                    'h-9 rounded-none px-3',
-                    viewMode === 'grid' && 'bg-accent text-accent-foreground'
-                  )}
-                >
-                  <LayoutGrid className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
-          </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setViewMode('grid')}
+                className={cn(
+                  'h-9 rounded-none px-3',
+                  viewMode === 'grid' && 'bg-accent text-accent-foreground'
+                )}
+              >
+                <LayoutGrid className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </div>
