@@ -47,6 +47,7 @@ export interface DataTableProps<TData, TValue> {
   toolbarImportContent?: ReactNode;
   toolbarExportContent?: ReactNode;
   className?: string;
+  preserveParams?: string[];
   onRefresh?: () => void;
   // eslint-disable-next-line no-unused-vars
   onSearch?: (query: string) => void;
@@ -217,7 +218,7 @@ export function DataTable<TData, TValue>({
               t={t}
               table={table}
               count={count}
-              className="bg-foreground/[0.025] dark:bg-foreground/5 rounded-lg border px-4 py-2 backdrop-blur-xl"
+              className="rounded-lg border bg-foreground/[0.025] px-4 py-2 backdrop-blur-xl dark:bg-foreground/5"
               setParams={setParams}
             />
             <div className="h-4" />

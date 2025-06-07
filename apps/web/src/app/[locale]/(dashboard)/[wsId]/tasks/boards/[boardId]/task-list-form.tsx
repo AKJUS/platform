@@ -30,7 +30,7 @@ export function TaskListForm({ boardId, onListCreated }: Props) {
     return (
       <Button
         variant="outline"
-        className="flex h-full w-[350px] items-center gap-2 border-dashed"
+        className="flex h-3/4 w-[350px] items-center gap-2 border-dashed"
         onClick={() => setIsAdding(true)}
       >
         <Plus className="h-4 w-4" />
@@ -42,7 +42,7 @@ export function TaskListForm({ boardId, onListCreated }: Props) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="bg-card text-card-foreground flex h-min w-[350px] flex-col gap-2 rounded-lg border p-3"
+      className="flex h-min w-[350px] flex-col gap-2 rounded-lg border bg-card p-3 text-card-foreground"
     >
       <Input
         placeholder="List name"

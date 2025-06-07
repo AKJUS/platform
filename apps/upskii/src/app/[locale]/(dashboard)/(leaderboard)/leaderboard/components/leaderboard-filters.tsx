@@ -62,20 +62,20 @@ export function LeaderboardFilters({
 
       <div className="flex flex-col-reverse gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="relative w-full md:w-96">
-          <div className="absolute left-0 top-0 -z-10 h-full w-full rounded-md bg-blue-100/50 dark:bg-blue-500/5"></div>
+          <div className="absolute top-0 left-0 -z-10 h-full w-full rounded-md bg-blue-100/50 dark:bg-blue-500/5"></div>
           <div className="group relative">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-blue-600/70 dark:text-blue-400/70" />
+            <Search className="absolute top-2.5 left-3 h-4 w-4 text-blue-600/70 dark:text-blue-400/70" />
             <Input
               placeholder={t('search-competitors')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full border-gray-300 bg-white pl-9 pr-9 text-gray-700 placeholder:text-gray-500 focus-visible:border-blue-500/50 focus-visible:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200 dark:placeholder:text-slate-500 dark:focus-visible:border-blue-500/50 dark:focus-visible:ring-blue-500/20 dark:focus-visible:ring-offset-slate-900"
+              className="w-full border-gray-300 bg-white pr-9 pl-9 text-gray-700 placeholder:text-gray-500 focus-visible:border-blue-500/50 focus-visible:ring-blue-500/20 dark:border-slate-700 dark:bg-slate-900/60 dark:text-slate-200 dark:placeholder:text-slate-500 dark:focus-visible:border-blue-500/50 dark:focus-visible:ring-blue-500/20 dark:focus-visible:ring-offset-slate-900"
             />
             {searchQuery && (
               <Button
                 variant="ghost"
                 size="icon"
-                className="absolute right-2 top-2 h-5 w-5 rounded-full p-0 text-gray-400 opacity-70 hover:bg-gray-100 hover:text-gray-700 hover:opacity-100 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                className="absolute top-2 right-2 h-5 w-5 rounded-full p-0 text-gray-400 opacity-70 hover:bg-gray-100 hover:text-gray-700 hover:opacity-100 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
                 onClick={() => setSearchQuery('')}
               >
                 <X className="h-3 w-3" />
@@ -84,7 +84,7 @@ export function LeaderboardFilters({
 
             {/* Animated glow effect on focus */}
             <motion.div
-              className="absolute -inset-[1px] -z-10 rounded-md opacity-0 blur-sm transition-opacity duration-300 group-focus-within:opacity-100"
+              className="absolute -inset-px -z-10 rounded-md opacity-0 blur-sm transition-opacity duration-300 group-focus-within:opacity-100"
               style={{
                 background: 'linear-gradient(to right, #3B82F6, #8B5CF6)',
               }}

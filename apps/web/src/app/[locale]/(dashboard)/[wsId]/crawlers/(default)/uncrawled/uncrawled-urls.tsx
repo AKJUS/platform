@@ -228,7 +228,7 @@ export default function UncrawledUrls({ wsId }: { wsId: string }) {
         <div className="space-y-4">
           {Object.entries(groupedUrls).length > 0 ? (
             <>
-              <div className="bg-card divide-y rounded-md border">
+              <div className="divide-y rounded-md border bg-card">
                 {Object.entries(groupedUrls).map(([originId, urls]) => (
                   <div key={originId} className="p-4">
                     <div className="mb-2 flex items-center justify-between">
@@ -254,15 +254,15 @@ export default function UncrawledUrls({ wsId }: { wsId: string }) {
                       {urls?.map((url) => (
                         <div
                           key={url.url}
-                          className="bg-muted/50 flex items-center justify-between rounded-md p-2"
+                          className="flex items-center justify-between rounded-md bg-muted/50 p-2"
                         >
                           <div className="flex items-center gap-2 overflow-hidden">
                             <span className="truncate text-sm">{url.url}</span>
-                            <span className="flex-shrink-0 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs text-blue-500">
+                            <span className="shrink-0 rounded-full bg-blue-500/10 px-2 py-0.5 text-xs text-blue-500">
                               {new URL(url.url).hostname}
                             </span>
                           </div>
-                          <div className="flex-shrink-0">
+                          <div className="shrink-0">
                             <CrawlButton wsId={wsId} url={url.url} />
                           </div>
                         </div>
@@ -273,7 +273,7 @@ export default function UncrawledUrls({ wsId }: { wsId: string }) {
               </div>
 
               <div className="flex items-center justify-between">
-                <p className="text-muted-foreground text-sm">
+                <p className="text-sm text-muted-foreground">
                   Showing {(currentPage - 1) * currentPageSize + 1} to{' '}
                   {Math.min(
                     currentPage * currentPageSize,
@@ -334,7 +334,7 @@ export default function UncrawledUrls({ wsId }: { wsId: string }) {
             </>
           ) : (
             !loading && (
-              <p className="text-muted-foreground text-center">
+              <p className="text-center text-muted-foreground">
                 No uncrawled URLs found
               </p>
             )

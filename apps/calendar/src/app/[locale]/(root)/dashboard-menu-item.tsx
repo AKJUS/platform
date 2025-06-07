@@ -1,7 +1,6 @@
 import { DEV_MODE } from '@/constants/common';
 import { useQuery } from '@tanstack/react-query';
 import { createClient } from '@tuturuuu/supabase/next/client';
-import { Workspace } from '@tuturuuu/types/primitives/Workspace';
 import {
   DropdownMenuGroup,
   DropdownMenuItem,
@@ -25,7 +24,13 @@ export default function DashboardMenuItem() {
     <>
       <DropdownMenuSeparator />
       <DropdownMenuGroup>
-        <Link href={`/${workspaces?.[0]?.id || 'onboarding'}`}>
+        <Link
+          href={`${
+            DEV_MODE
+              ? `http://localhost:7803/${workspaces?.[0]?.id || 'onboarding'}`
+              : `https://tuturuuu.com/${workspaces?.[0]?.id || 'onboarding'}`
+          }`}
+        >
           <DropdownMenuItem className="cursor-pointer">
             <ActivitySquare className="mr-2 h-4 w-4" />
             <span>{t('dashboard')}</span>
@@ -54,7 +59,7 @@ async function fetchWorkspaces() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) return [] as Workspace[];
+  if (!user) return [];
 
   const { data: workspaces, error: error } = await supabase
     .from('workspaces')
@@ -63,6 +68,6 @@ async function fetchWorkspaces() {
     )
     .eq('workspace_members.user_id', user.id);
 
-  if (error) return [] as Workspace[];
-  return workspaces as Workspace[];
+  if (error) return [];
+  return workspaces;
 }

@@ -1,6 +1,7 @@
 import { supportedLocales } from '@/i18n/routing';
 
 export const APP_PUBLIC_PATHS = [
+  '/home',
   '/login',
   '/pricing',
   '/about',
@@ -8,8 +9,6 @@ export const APP_PUBLIC_PATHS = [
   '/features',
   '/products',
   '/solutions',
-  '/changelog',
-  '/pitch',
   '/careers',
   '/security',
   '/security/bug-bounty',
