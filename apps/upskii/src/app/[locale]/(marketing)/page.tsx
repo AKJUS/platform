@@ -2,6 +2,7 @@
 
 import GradientHeadline from '../gradient-headline';
 import AiFeatures from './ai-features';
+import { Workspace } from '@tuturuuu/types/db';
 import { Badge } from '@tuturuuu/ui/badge';
 import { Button } from '@tuturuuu/ui/button';
 import { Card } from '@tuturuuu/ui/card';
@@ -21,9 +22,33 @@ import {
 } from '@tuturuuu/ui/icons';
 import { Separator } from '@tuturuuu/ui/separator';
 import { type Variants, motion } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 export default function MarketingPage() {
+  const t = useTranslations('boarding-pages.home');
+  // Fetch workspaces from the API
+  const [wsId, setWsId] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchWsId() {
+      const response = await fetch('/api/v1/users/me/default-workspace');
+      if (response.ok) {
+        const defaultWs = await response.json();
+        if (defaultWs?.id) {
+          setWsId(defaultWs.id);
+          return;
+        }
+      }
+
+      // Fallback to first workspace if no default workspace
+      const workspaces = await getWorkspaces();
+      setWsId(workspaces?.[0]?.id || null);
+    }
+    fetchWsId();
+  }, []);
   // Enhanced floating effect variants with reduced movement for better performance
   const floatingVariants = {
     initial: { y: 0 },
@@ -36,7 +61,7 @@ export default function MarketingPage() {
         ease: 'easeInOut',
       },
     },
-  } as Variants;
+  } satisfies Variants;
 
   return (
     <>
@@ -56,13 +81,11 @@ export default function MarketingPage() {
                 className="group relative mb-8 overflow-hidden border-transparent backdrop-blur-sm"
               >
                 <motion.div
-                  className="bg-foreground/10 absolute inset-0 opacity-100 transition-opacity"
+                  className="absolute inset-0 bg-foreground/10 opacity-100 transition-opacity"
                   whileHover={{ opacity: 1 }}
                 />
                 <Sparkles className="mr-2 h-4 w-4" />
-                <span className="relative z-10">
-                  Transform Your Learning Journey
-                </span>
+                <span className="relative z-10">{t('hero.badge')}</span>
               </Badge>
             </motion.div>
 
@@ -70,22 +93,20 @@ export default function MarketingPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.6 }}
-              className="text-foreground mb-6 text-balance text-center text-4xl font-bold tracking-tight md:text-6xl lg:text-7xl"
+              className="mb-6 text-center text-4xl font-bold tracking-tight text-balance text-foreground md:text-6xl lg:text-7xl"
             >
-              Your Complete
+              {t('hero.title-1')}
               <br />
-              <GradientHeadline title="Educational Platform" />
+              <GradientHeadline title={t('hero.title-2')} />
             </motion.h1>
 
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4, duration: 0.8 }}
-              className="text-foreground/50 mb-8 max-w-2xl text-balance text-center text-lg"
+              className="mb-8 max-w-2xl text-center text-lg text-balance text-foreground/50"
             >
-              A modern learning platform that empowers educators and students
-              with AI-enhanced features, interactive content, and real-time
-              collaboration tools.
+              {t('hero.description')}
             </motion.div>
 
             <motion.div
@@ -96,10 +117,13 @@ export default function MarketingPage() {
             >
               <motion.div
                 whileHover={{ scale: 1.05, y: -2 }}
-                whileTap={{ scale: 0.95 }}
                 transition={{ type: 'spring', stiffness: 400 }}
               >
-                <GetStartedButton text="Get Started" href="/home" />
+                <GetStartedButton
+                  text={t('common.get-started')}
+                  href={wsId ? `/${wsId}/home` : '/onboarding'}
+                  disabled={!wsId && wsId !== null}
+                />
               </motion.div>
               <motion.div
                 whileHover={{ scale: 1.05, y: -2 }}
@@ -112,13 +136,13 @@ export default function MarketingPage() {
                     className="group relative overflow-hidden"
                   >
                     <motion.span
-                      className="bg-primary/10 absolute inset-0"
+                      className="absolute inset-0 bg-primary/10"
                       initial={{ x: '-100%' }}
                       whileHover={{ x: '100%' }}
                       transition={{ duration: 0.5 }}
                     />
                     <span className="relative z-10 flex items-center">
-                      Platform Guide
+                      {t('hero.platform-guide')}
                       <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
                     </span>
                   </Button>
@@ -133,14 +157,13 @@ export default function MarketingPage() {
           <div className="mx-auto max-w-6xl px-4">
             <div className="mb-16 text-center">
               <Badge variant="outline" className="mb-4">
-                Platform Features
+                {t('key-features.badge')}
               </Badge>
               <h2 className="mb-4 text-3xl font-bold md:text-4xl">
-                Everything You Need for Modern Education
+                {t('key-features.title')}
               </h2>
               <p className="text-muted-foreground">
-                Our platform combines powerful teaching tools with an intuitive
-                learning experience
+                {t('key-features.description')}
               </p>
             </div>
 
@@ -148,44 +171,38 @@ export default function MarketingPage() {
               {[
                 {
                   icon: <Video className="h-6 w-6" />,
-                  title: 'Course Creation & Management',
-                  description:
-                    'Create and manage course content with ease, including videos, PDFs, and interactive quizzes.',
+                  title: t('key-features.feature-1.title'),
+                  description: t('key-features.feature-1.description'),
                   gradient: 'from-blue-500/20 via-primary/20 to-indigo-500/20',
                 },
                 {
                   icon: <Brain className="h-6 w-6" />,
-                  title: 'AI-Enhanced Learning',
-                  description:
-                    'Personalized learning experiences powered by AI to generate quizzes, provide feedback, and assist teachers.',
+                  title: t('key-features.feature-2.title'),
+                  description: t('key-features.feature-2.description'),
                   gradient: 'from-purple-500/20 via-primary/20 to-blue-500/20',
                 },
                 {
                   icon: <MessageSquare className="h-6 w-6" />,
-                  title: 'Live Classes & Interaction',
-                  description:
-                    'Host live classes with video conferencing, real-time chat, and interactive sessions.',
+                  title: t('key-features.feature-3.title'),
+                  description: t('key-features.feature-3.description'),
                   gradient: 'from-emerald-500/20 via-primary/20 to-teal-500/20',
                 },
                 {
                   icon: <BookOpen className="h-6 w-6" />,
-                  title: 'Certificates & Achievements',
-                  description:
-                    'Automatically issue certificates and badges upon course completion to recognize achievements.',
+                  title: t('key-features.feature-4.title'),
+                  description: t('key-features.feature-4.description'),
                   gradient: 'from-amber-500/20 via-primary/20 to-orange-500/20',
                 },
                 {
                   icon: <Users className="h-6 w-6" />,
-                  title: 'Community & Collaboration',
-                  description:
-                    'Foster a collaborative learning environment with discussion forums and peer learning.',
+                  title: t('key-features.feature-5.title'),
+                  description: t('key-features.feature-5.description'),
                   gradient: 'from-pink-500/20 via-primary/20 to-rose-500/20',
                 },
                 {
                   icon: <School className="h-6 w-6" />,
-                  title: 'Course Marketplace',
-                  description:
-                    'Browse, purchase, and enroll in a wide variety of courses offered by verified educators.',
+                  title: t('key-features.feature-6.title'),
+                  description: t('key-features.feature-6.description'),
                   gradient: 'from-cyan-500/20 via-primary/20 to-sky-500/20',
                 },
               ].map((feature, index) => (
@@ -198,10 +215,10 @@ export default function MarketingPage() {
                   whileHover={{ scale: 1.02 }}
                   className="group"
                 >
-                  <Card className="border-primary/10 bg-foreground/10 relative h-full overflow-hidden">
+                  <Card className="relative h-full overflow-hidden border-primary/10 bg-foreground/10">
                     <div className="relative z-10 flex h-full flex-col space-y-4 p-6">
                       <div className="flex items-center gap-4">
-                        <div className="bg-primary/10 text-primary rounded-full p-3">
+                        <div className="rounded-full bg-primary/10 p-3 text-primary">
                           {feature.icon}
                         </div>
                       </div>
@@ -213,7 +230,7 @@ export default function MarketingPage() {
 
                     {/* Animated gradient background */}
                     <motion.div
-                      className={`absolute inset-0 -z-10 bg-gradient-to-br ${feature.gradient} opacity-0 blur-xl transition-opacity duration-500 group-hover:opacity-100`}
+                      className={`absolute inset-0 -z-10 bg-linear-to-br ${feature.gradient} opacity-0 blur-xl transition-opacity duration-500 group-hover:opacity-100`}
                       animate={{
                         scale: [1, 1.2, 1],
                         rotate: [0, 5, 0],
@@ -233,7 +250,7 @@ export default function MarketingPage() {
 
         {/* For Teachers Section */}
         <section id="for-teachers" className="relative w-full py-24">
-          <div className="bg-primary/5 absolute inset-0" />
+          <div className="absolute inset-0 bg-primary/5" />
           <div className="absolute inset-0 bg-[radial-gradient(circle_500px_at_50%_50%,rgba(var(--primary-rgb),0.1),transparent)]" />
 
           <div className="relative mx-auto max-w-6xl px-4">
@@ -244,21 +261,20 @@ export default function MarketingPage() {
                 viewport={{ once: true }}
                 className="space-y-6"
               >
-                <Badge variant="outline">For Educators</Badge>
+                <Badge variant="outline">{t('for-teachers.badge')}</Badge>
                 <h2 className="text-3xl font-bold md:text-4xl">
-                  Empower Your Teaching
+                  {t('for-teachers.title')}
                 </h2>
                 <p className="text-foreground/60">
-                  Our platform provides educators with powerful tools to create
-                  engaging content, interact with students, and track progress.
+                  {t('for-teachers.description')}
                 </p>
                 <div className="space-y-4">
                   {[
-                    'Create and manage courses with ease',
-                    'Upload videos and learning materials',
-                    'Generate AI-powered quizzes and assessments',
-                    'Host live classes and webinars',
-                    'Issue certificates to students',
+                    t('for-teachers.details-1'),
+                    t('for-teachers.details-2'),
+                    t('for-teachers.details-3'),
+                    t('for-teachers.details-4'),
+                    t('for-teachers.details-5'),
                   ].map((item, index) => (
                     <motion.div
                       key={index}
@@ -268,7 +284,7 @@ export default function MarketingPage() {
                       transition={{ delay: index * 0.1 }}
                       className="flex items-center gap-2"
                     >
-                      <div className="bg-primary/10 text-primary rounded-full p-1">
+                      <div className="rounded-full bg-primary/10 p-1 text-primary">
                         <CheckCircle className="h-4 w-4" />
                       </div>
                       <span>{item}</span>
@@ -283,7 +299,7 @@ export default function MarketingPage() {
                   <Link href="/guide#for-teachers">
                     <Button className="mt-4">
                       <span className="relative z-10 flex items-center gap-2">
-                        Become a Teacher
+                        {t('for-teachers.button')}
                         <RocketIcon className="h-4 w-4" />
                       </span>
                     </Button>
@@ -297,8 +313,8 @@ export default function MarketingPage() {
                 viewport={{ once: true }}
                 className="relative"
               >
-                <div className="bg-background/30 relative aspect-video rounded-xl border backdrop-blur-sm">
-                  <div className="from-primary/10 absolute inset-0 rounded-xl bg-gradient-to-br via-transparent to-transparent" />
+                <div className="relative aspect-video rounded-xl border bg-background/30 backdrop-blur-sm">
+                  <div className="absolute inset-0 rounded-xl bg-linear-to-br from-primary/10 via-transparent to-transparent" />
                   <div className="relative p-8">
                     <motion.div
                       initial={{ opacity: 0, y: 20 }}
@@ -309,21 +325,18 @@ export default function MarketingPage() {
                       {[
                         {
                           icon: <GraduationCap className="h-5 w-5" />,
-                          title: 'Course Creation',
-                          description:
-                            'Intuitive tools to build and organize your course content',
+                          title: t('for-teachers.feature-1.title'),
+                          description: t('for-teachers.feature-1.description'),
                         },
                         {
                           icon: <Users className="h-5 w-5" />,
-                          title: 'Student Management',
-                          description:
-                            'Track student progress, engagement, and provide personalized feedback',
+                          title: t('for-teachers.feature-2.title'),
+                          description: t('for-teachers.feature-2.description'),
                         },
                         {
                           icon: <Brain className="h-5 w-5" />,
-                          title: 'AI Teaching Assistant',
-                          description:
-                            'Generate content, quizzes, and get help with planning your lessons',
+                          title: t('for-teachers.feature-3.title'),
+                          description: t('for-teachers.feature-3.description'),
                         },
                       ].map((item, index) => (
                         <motion.div
@@ -332,14 +345,14 @@ export default function MarketingPage() {
                           whileInView={{ opacity: 1, y: 0 }}
                           viewport={{ once: true }}
                           transition={{ delay: index * 0.1 }}
-                          className="bg-background/10 flex items-start gap-4 rounded-lg border p-4 backdrop-blur-sm"
+                          className="flex items-start gap-4 rounded-lg border bg-background/10 p-4 backdrop-blur-sm"
                         >
-                          <div className="bg-foreground/10 text-primary rounded-full p-2">
+                          <div className="rounded-full bg-foreground/10 p-2 text-primary">
                             {item.icon}
                           </div>
                           <div>
                             <h3 className="font-semibold">{item.title}</h3>
-                            <p className="text-muted-foreground text-sm">
+                            <p className="text-sm text-muted-foreground">
                               {item.description}
                             </p>
                           </div>
@@ -363,21 +376,20 @@ export default function MarketingPage() {
                 viewport={{ once: true }}
                 className="order-1 space-y-6 md:order-2"
               >
-                <Badge variant="outline">For Students</Badge>
+                <Badge variant="outline">{t('for-students.badge')}</Badge>
                 <h2 className="text-3xl font-bold md:text-4xl">
-                  Learn at Your Own Pace
+                  {t('for-students.title')}
                 </h2>
                 <p className="text-foreground/60">
-                  Access high-quality courses, interact with instructors and
-                  peers, and earn certificates to showcase your skills.
+                  {t('for-students.description')}
                 </p>
                 <div className="space-y-4">
                   {[
-                    'Browse courses from verified educators',
-                    'Learn with interactive videos and materials',
-                    'Get AI-powered learning recommendations',
-                    'Join live classes and discussions',
-                    'Earn certificates and badges',
+                    t('for-students.details-1'),
+                    t('for-students.details-2'),
+                    t('for-students.details-3'),
+                    t('for-students.details-4'),
+                    t('for-students.details-5'),
                   ].map((item, index) => (
                     <motion.div
                       key={index}
@@ -387,7 +399,7 @@ export default function MarketingPage() {
                       transition={{ delay: index * 0.1 }}
                       className="flex items-center gap-2"
                     >
-                      <div className="bg-primary/10 text-primary rounded-full p-1">
+                      <div className="rounded-full bg-primary/10 p-1 text-primary">
                         <CheckCircle className="h-4 w-4" />
                       </div>
                       <span>{item}</span>
@@ -402,7 +414,7 @@ export default function MarketingPage() {
                   <Link href="/guide#for-students">
                     <Button className="mt-4">
                       <span className="relative z-10 flex items-center gap-2">
-                        Find Courses
+                        {t('for-students.button')}
                         <ArrowRight className="h-4 w-4" />
                       </span>
                     </Button>
@@ -416,18 +428,20 @@ export default function MarketingPage() {
                 viewport={{ once: true }}
                 className="relative order-2 md:order-1"
               >
-                <Card className="border-foreground/10 bg-foreground/5 overflow-hidden">
+                <Card className="overflow-hidden border-foreground/10 bg-foreground/5">
                   <div className="space-y-4 p-6">
-                    <h3 className="text-xl font-bold">Course Categories</h3>
+                    <h3 className="text-xl font-bold">
+                      {t('for-students.course-categories.title')}
+                    </h3>
                     <Separator className="bg-foreground/10" />
                     <div className="grid grid-cols-2 gap-3">
                       {[
-                        'Programming & Development',
-                        'Business & Entrepreneurship',
-                        'Digital Marketing',
-                        'Design & Creativity',
-                        'Personal Development',
-                        'Language Learning',
+                        t('for-students.course-categories.category-1'),
+                        t('for-students.course-categories.category-2'),
+                        t('for-students.course-categories.category-3'),
+                        t('for-students.course-categories.category-4'),
+                        t('for-students.course-categories.category-5'),
+                        t('for-students.course-categories.category-6'),
                       ].map((category, index) => (
                         <motion.div
                           key={index}
@@ -435,15 +449,15 @@ export default function MarketingPage() {
                           whileInView={{ opacity: 1, scale: 1 }}
                           viewport={{ once: true }}
                           transition={{ delay: index * 0.05 }}
-                          className="bg-foreground/10 hover:border-primary/20 rounded-lg border border-transparent p-3 text-sm transition-colors"
+                          className="rounded-lg border border-transparent bg-foreground/10 p-3 text-sm transition-colors hover:border-primary/20"
                         >
                           {category}
                         </motion.div>
                       ))}
                     </div>
                     <Separator className="bg-foreground/10" />
-                    <p className="text-muted-foreground text-sm">
-                      Explore hundreds of courses across various categories
+                    <p className="text-sm text-muted-foreground">
+                      {t('for-students.course-categories.footer')}
                     </p>
                   </div>
                 </Card>
@@ -457,7 +471,7 @@ export default function MarketingPage() {
 
         {/* Multilingual Support Section */}
         <section className="relative w-full py-24">
-          <div className="bg-primary/5 absolute inset-0" />
+          <div className="absolute inset-0 bg-primary/5" />
           <div className="absolute inset-0 bg-[radial-gradient(circle_500px_at_50%_50%,rgba(var(--primary-rgb),0.1),transparent)]" />
 
           <div className="relative mx-auto max-w-6xl px-4">
@@ -468,20 +482,21 @@ export default function MarketingPage() {
                 viewport={{ once: true }}
                 className="space-y-6"
               >
-                <Badge variant="outline">Multilingual Support</Badge>
+                <Badge variant="outline">
+                  {t('multilingual-support.badge')}
+                </Badge>
                 <h2 className="text-3xl font-bold md:text-4xl">
-                  Learn in Your Language
+                  {t('multilingual-support.title')}
                 </h2>
                 <p className="text-foreground/60">
-                  Our platform supports multiple languages, including English
-                  and Vietnamese, making education accessible to everyone.
+                  {t('multilingual-support.description')}
                 </p>
                 <div className="space-y-4">
                   {[
-                    'Fully bilingual interface (English/Vietnamese)',
-                    'Course content in multiple languages',
-                    'Language-specific learning resources',
-                    'Localized support and community',
+                    t('multilingual-support.details-1'),
+                    t('multilingual-support.details-2'),
+                    t('multilingual-support.details-3'),
+                    t('multilingual-support.details-4'),
                   ].map((item, index) => (
                     <motion.div
                       key={index}
@@ -491,7 +506,7 @@ export default function MarketingPage() {
                       transition={{ delay: index * 0.1 }}
                       className="flex items-center gap-2"
                     >
-                      <div className="bg-primary/10 text-primary rounded-full p-1">
+                      <div className="rounded-full bg-primary/10 p-1 text-primary">
                         <CheckCircle className="h-4 w-4" />
                       </div>
                       <span>{item}</span>
@@ -510,7 +525,7 @@ export default function MarketingPage() {
                   <Card className="border-foreground/10 bg-foreground/5 p-6">
                     <div className="flex flex-col items-center text-center">
                       <h3 className="mb-2 text-xl font-bold">English</h3>
-                      <p className="text-muted-foreground mb-4 text-sm">
+                      <p className="mb-4 text-sm text-muted-foreground">
                         Access our full platform and all courses in English
                       </p>
                       <div className="text-4xl font-bold">EN</div>
@@ -519,7 +534,7 @@ export default function MarketingPage() {
                   <Card className="border-foreground/10 bg-foreground/5 p-6">
                     <div className="flex flex-col items-center text-center">
                       <h3 className="mb-2 text-xl font-bold">Tiếng Việt</h3>
-                      <p className="text-muted-foreground mb-4 text-sm">
+                      <p className="mb-4 text-sm text-muted-foreground">
                         Truy cập nền tảng và các khóa học bằng tiếng Việt
                       </p>
                       <div className="text-4xl font-bold">VI</div>
@@ -541,14 +556,13 @@ export default function MarketingPage() {
           >
             <Badge variant="outline" className="mb-4">
               <Sparkles className="mr-2 h-4 w-4" />
-              Get Started Today
+              {t('cta-section.badge')}
             </Badge>
             <h2 className="mb-4 text-4xl font-bold md:text-5xl">
-              Join Our Educational Community
+              {t('cta-section.title')}
             </h2>
-            <p className="text-muted-foreground mb-8">
-              Start your learning journey or begin creating and sharing your
-              knowledge with students around the world.
+            <p className="mb-8 text-muted-foreground">
+              {t('cta-section.description')}
             </p>
             <motion.div
               className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center"
@@ -557,10 +571,14 @@ export default function MarketingPage() {
               viewport={{ once: true }}
               transition={{ delay: 0.2 }}
             >
-              <GetStartedButton text="Get Started" href="/home" />
+              <GetStartedButton
+                text={t('common.get-started')}
+                href={wsId ? `/${wsId}/home` : '/login'}
+                disabled={!wsId && wsId !== null}
+              />
               <Link href="/about">
                 <Button variant="outline" className="group">
-                  Learn More
+                  {t('cta-section.button')}
                   <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover:translate-x-1" />
                 </Button>
               </Link>
@@ -570,4 +588,12 @@ export default function MarketingPage() {
       </div>
     </>
   );
+}
+
+async function getWorkspaces() {
+  const response = await fetch('/api/v1/workspaces');
+  if (!response.ok) notFound();
+
+  const data = await response.json();
+  return data as Workspace[];
 }

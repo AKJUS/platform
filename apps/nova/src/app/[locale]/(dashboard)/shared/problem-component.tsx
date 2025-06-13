@@ -9,12 +9,24 @@ interface Props {
   };
 }
 
+const copyProtectionStyles: React.CSSProperties = {
+  WebkitUserSelect: 'none',
+  MozUserSelect: 'none',
+  msUserSelect: 'none',
+  userSelect: 'none',
+  WebkitTouchCallout: 'none',
+};
+
 export default function ProblemComponent({ problem }: Props) {
   return (
-    <div className={`space-y-6`}>
+    <div
+      className="space-y-6"
+      style={copyProtectionStyles}
+      onContextMenu={(e) => e.preventDefault()}
+    >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <BookOpen className="text-primary h-5 w-5" />
+          <BookOpen className="h-5 w-5 text-primary" />
           <h2 className="text-xl font-bold">{problem.title}</h2>
         </div>
         <Badge variant="outline" className="px-3 py-1">
@@ -26,51 +38,53 @@ export default function ProblemComponent({ problem }: Props) {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
-              <Info className="text-primary h-4 w-4" />
+              <Info className="h-4 w-4 text-primary" />
               Problem Description
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="prose prose-sm dark:prose-invert max-w-none">
+            <div className="prose prose-sm max-w-none dark:prose-invert">
               <p className="whitespace-pre-wrap">{problem.description}</p>
             </div>
           </CardContent>
         </Card>
 
-        {(problem.example_input || problem.example_output) && (
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base">
-                <FileText className="text-primary h-4 w-4" />
-                Example
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {problem.example_input && (
-                <div>
-                  <h3 className="mb-2 text-sm font-medium">Input:</h3>
-                  <div className="bg-muted rounded-md p-3 font-mono text-sm">
-                    {problem.example_input}
-                  </div>
-                </div>
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <FileText className="h-4 w-4 text-primary" />
+              Example
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <h3 className="mb-2 text-sm font-medium">Input:</h3>
+            <div className="rounded-md bg-muted p-3 font-mono text-sm">
+              {problem.example_input ? (
+                <p className="whitespace-pre-wrap">{problem.example_input}</p>
+              ) : (
+                <p className="text-muted-foreground italic">
+                  No input available
+                </p>
               )}
+            </div>
 
-              {problem.example_output && (
-                <div>
-                  <h3 className="mb-2 text-sm font-medium">Output:</h3>
-                  <div className="bg-muted rounded-md p-3 font-mono text-sm">
-                    {problem.example_output}
-                  </div>
-                </div>
+            <h3 className="mb-2 text-sm font-medium">Output:</h3>
+            <div className="rounded-md bg-muted p-3 font-mono text-sm">
+              {problem.example_output ? (
+                <p className="whitespace-pre-wrap">{problem.example_output}</p>
+              ) : (
+                <p className="text-muted-foreground italic">
+                  No output available
+                </p>
               )}
-            </CardContent>
-          </Card>
-        )}
+            </div>
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
-              <Code className="text-primary h-4 w-4" />
+              <Code className="h-4 w-4 text-primary" />
               Tips for Solving
             </CardTitle>
           </CardHeader>

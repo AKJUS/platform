@@ -1,85 +1,142 @@
 'use client';
 
-import CriteriaEvaluation from './components/CriteriaEvaluation';
-import TestCaseEvaluation from './components/TestCaseEvaluation';
-import ScoreBadge from '@/components/common/ScoreBadge';
-import type { NovaSubmissionData } from '@tuturuuu/types/db';
+import { SubmissionCard } from '@/components/common/SubmissionCard';
+import { NovaSubmissionData } from '@tuturuuu/types/db';
 import { Badge } from '@tuturuuu/ui/badge';
 import { Button } from '@tuturuuu/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@tuturuuu/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@tuturuuu/ui/card';
 import {
   ArrowLeft,
+  BookOpen,
   Calendar,
-  CheckSquare,
-  Clipboard,
-  ClipboardCheck,
-  FileCode,
-  Mail,
-  PencilRuler,
-  Timer,
+  RefreshCw,
+  User,
 } from '@tuturuuu/ui/icons';
-import { Separator } from '@tuturuuu/ui/separator';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@tuturuuu/ui/tabs';
+import { Progress } from '@tuturuuu/ui/progress';
+import { toast } from '@tuturuuu/ui/sonner';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-interface Props {
+interface SubmissionClientProps {
   submission: NovaSubmissionData;
 }
 
-export default function SubmissionClient({ submission }: Props) {
-  const [copied, setCopied] = useState(false);
+interface ReEvaluationProgress {
+  step: string;
+  progress: number;
+  message: string;
+  data?: any;
+}
+
+export default function SubmissionClient({
+  submission,
+}: SubmissionClientProps) {
   const router = useRouter();
+  const [isReEvaluating, setIsReEvaluating] = useState(false);
+  const [reEvaluationProgress, setReEvaluationProgress] =
+    useState<ReEvaluationProgress | null>(null);
 
-  function formatDate(dateString: string) {
-    if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  }
+  // Helper function to determine score color
+  const getScoreColor = (score: number | null) => {
+    if (score === null) return 'bg-gray-200';
+    if (score >= 8) return 'bg-emerald-500';
+    if (score >= 5) return 'bg-amber-500';
+    return 'bg-red-500';
+  };
 
-  function copyToClipboard(text: string) {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }
+  // Helper function to determine badge variant
+  const getBadgeVariant = (score: number | null) => {
+    if (score === null) return 'outline';
+    if (score >= 8) return 'success';
+    if (score >= 5) return 'warning';
+    return 'destructive';
+  };
 
-  function getSessionDuration(): string {
-    if (!submission.session?.start_time || !submission.session?.end_time) {
-      return 'N/A';
-    }
+  // Helper function to format score
+  const formatScore = (score: number | null) => {
+    return score !== null ? `${score.toFixed(2)}/10` : 'Not scored';
+  };
+
+  // Calculate progress percentage for progress bars
+  const getProgressPercentage = (score: number | null) => {
+    return score !== null ? (score / 10) * 100 : 0;
+  };
+
+  const handleReEvaluate = async () => {
+    if (isReEvaluating) return;
 
     try {
-      const startTime = new Date(submission.session.start_time).getTime();
-      const endTime = new Date(submission.session.end_time).getTime();
+      setIsReEvaluating(true);
+      setReEvaluationProgress({
+        step: 'starting',
+        progress: 0,
+        message: 'Starting re-evaluation...',
+      });
 
-      if (isNaN(startTime) || isNaN(endTime) || endTime <= startTime) {
-        return 'N/A';
+      const response = await fetch(
+        `/api/v1/submissions/${submission.id}/re-evaluate`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to start re-evaluation');
       }
 
-      const durationMinutes = Math.floor((endTime - startTime) / 60000);
-      return `${durationMinutes} min`;
+      if (!response.body) {
+        throw new Error('No response body');
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      while (true) {
+        const { done, value } = await reader.read();
+
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              setReEvaluationProgress(data);
+
+              if (data.step === 'completed') {
+                toast.success('Re-evaluation completed successfully!');
+                // Refresh the page to show updated results
+                setTimeout(() => {
+                  router.refresh();
+                }, 1000);
+              } else if (data.step === 'error') {
+                toast.error(`Re-evaluation failed: ${data.message}`);
+              }
+            } catch (error) {
+              console.error('Error parsing SSE data:', error);
+            }
+          }
+        }
+      }
     } catch (error) {
-      console.error('Error calculating session duration:', error);
-      return 'N/A';
+      console.error('Error during re-evaluation:', error);
+      toast.error('Failed to re-evaluate submission');
+    } finally {
+      setIsReEvaluating(false);
+      setTimeout(() => {
+        setReEvaluationProgress(null);
+      }, 2000);
     }
-  }
+  };
 
   return (
-    <div className="container mx-auto py-8">
-      {/* <pre>{JSON.stringify(submission, null, 2)}</pre> */}
-
+    <div className="container space-y-6 py-8">
       <div className="mb-6 flex items-center gap-4">
         <Button
           onClick={() => router.push('/submissions')}
@@ -89,299 +146,151 @@ export default function SubmissionClient({ submission }: Props) {
         >
           <ArrowLeft className="h-4 w-4" />
         </Button>
-        <div>
+        <div className="flex flex-col gap-2">
           <h1 className="text-3xl font-bold">Submission Details</h1>
           <p className="text-muted-foreground">ID: {submission.id}</p>
         </div>
+        <div className="ml-auto">
+          <Button
+            onClick={handleReEvaluate}
+            disabled={isReEvaluating}
+            variant="outline"
+            className="gap-2"
+          >
+            <RefreshCw
+              className={`h-4 w-4 ${isReEvaluating ? 'animate-spin' : ''}`}
+            />
+            {isReEvaluating ? 'Re-evaluating...' : 'Re-evaluate'}
+          </Button>
+        </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        {/* Left Column - User & Challenge Info */}
-        <div className="space-y-6 md:col-span-1">
-          {/* User Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle>User</CardTitle>
-              <CardDescription>Submission author</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center gap-3">
-                {submission.user?.avatar_url ? (
-                  <img
-                    src={submission.user.avatar_url}
-                    alt={submission.user.display_name || 'User'}
-                    className="h-12 w-12 rounded-full"
-                  />
-                ) : (
-                  <div className="bg-primary/10 flex h-12 w-12 items-center justify-center rounded-full text-lg font-semibold">
-                    {submission.user?.display_name?.charAt(0) || '?'}
-                  </div>
-                )}
-                <div>
-                  <h3 className="font-medium">
-                    {submission.user?.display_name || 'Unknown User'}
-                  </h3>
-                  {submission.user?.email && (
-                    <div className="text-muted-foreground flex items-center text-sm">
-                      <Mail className="mr-1 h-3.5 w-3.5" />
-                      <span>{submission.user.email}</span>
-                    </div>
-                  )}
+      {/* Re-evaluation Progress */}
+      {reEvaluationProgress && (
+        <Card className="border border-dynamic-blue/20 bg-dynamic-blue/10">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-dynamic-blue">
+              Re-evaluation Progress
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-1">
+              <div className="flex justify-between text-sm">
+                <span className="text-dynamic-blue">
+                  {reEvaluationProgress.message}
+                </span>
+                <span className="text-dynamic-blue">
+                  {Math.round(reEvaluationProgress.progress)}%
+                </span>
+              </div>
+              <Progress value={reEvaluationProgress.progress} className="h-2" />
+            </div>
+            <p className="text-xs text-dynamic-blue">
+              Current step: {reEvaluationProgress.step}
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="flex flex-col gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Submission Summary</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4 md:flex-row">
+            <div className="w-full space-y-4">
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">User</p>
+                <div className="flex gap-2">
+                  <User className="h-4 w-4 text-primary/70" />
+                  <span className="font-medium">
+                    {submission.user.display_name || 'Anonymous'}
+                  </span>
                 </div>
               </div>
 
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  if (submission.user?.id) {
-                    router.push(`/profile/${submission.user.id}`);
-                  }
-                }}
-                className="w-full"
-                disabled={!submission.user?.id}
-              >
-                View User Profile
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* Challenge & Problem Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Challenge & Problem</CardTitle>
-              <CardDescription>Submission details</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {submission.challenge && (
-                <div>
-                  <h3 className="text-muted-foreground mb-1 text-sm font-medium">
-                    Challenge
-                  </h3>
-                  <p className="font-medium">{submission.challenge.title}</p>
-                  {submission.challenge.id && (
-                    <Button
-                      variant="link"
-                      size="sm"
-                      className="mt-1 h-auto px-0"
-                      onClick={() =>
-                        router.push(`/challenges/${submission.challenge!.id}`)
-                      }
-                    >
-                      View Challenge
-                    </Button>
-                  )}
+              <div className="space-y-1">
+                <p className="text-sm text-muted-foreground">Problem</p>
+                <div className="flex items-center gap-2">
+                  <BookOpen className="h-4 w-4 text-primary/70" />
+                  <Link
+                    href={`/problems/${submission.problem.id}`}
+                    className="font-medium hover:underline"
+                  >
+                    {submission.problem.title}
+                  </Link>
                 </div>
-              )}
-
-              {submission.problem && (
-                <div>
-                  <h3 className="text-muted-foreground mb-1 text-sm font-medium">
-                    Problem
-                  </h3>
-                  <p className="font-medium">{submission.problem.title}</p>
-                  {submission.problem.id && (
-                    <Button
-                      variant="link"
-                      size="sm"
-                      className="mt-1 h-auto px-0"
-                      onClick={() =>
-                        router.push(`/problems/${submission.problem!.id}`)
-                      }
-                    >
-                      View Problem
-                    </Button>
-                  )}
-                </div>
-              )}
+              </div>
 
               {submission.created_at && (
-                <div>
-                  <h3 className="text-muted-foreground mb-1 text-sm font-medium">
-                    Submitted
-                  </h3>
-                  <p className="flex items-center gap-1">
-                    <Calendar className="h-4 w-4" />
-                    <span>{formatDate(submission.created_at)}</span>
-                  </p>
-                </div>
-              )}
-
-              {submission.session && (
-                <div>
-                  <h3 className="text-muted-foreground mb-1 text-sm font-medium">
-                    Session
-                  </h3>
-                  <p>
-                    <Badge variant="outline" className="font-mono text-xs">
-                      {submission.session.id.substring(0, 8)}...
-                    </Badge>
-                  </p>
-                  <div className="mt-2 flex items-center gap-2 text-sm">
-                    <Timer className="text-muted-foreground h-4 w-4" />
-                    <span>{getSessionDuration()}</span>
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">Submitted</p>
+                  <div className="flex items-center gap-2">
+                    <Calendar className="h-4 w-4 text-primary/70" />
+                    <span className="font-medium">
+                      {new Date(submission.created_at).toLocaleString()}
+                    </span>
                   </div>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
 
-          {/* Score Summary Card */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle>Score Summary</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex justify-center">
-                <ScoreBadge
-                  score={submission.total_score || 0}
-                  maxScore={10}
-                  className="flex h-32 w-32 flex-col justify-center text-center text-2xl"
-                >
-                  <div className="font-bold">
-                    {submission.total_score?.toFixed(1) || '0.0'}
-                  </div>
-                  <div className="text-xs opacity-80">/10</div>
-                </ScoreBadge>
-              </div>
-
-              <Separator />
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <p className="text-muted-foreground flex items-center text-xs">
-                    <CheckSquare className="mr-1 h-3.5 w-3.5" />
-                    Test Cases
-                  </p>
-                  <p className="text-sm font-semibold">
-                    {submission.test_case_score?.toFixed(1) || '0.0'}/10
-                  </p>
-                  <p className="text-muted-foreground text-xs">
-                    {submission.passed_tests}/{submission.total_tests || 1}{' '}
-                    passed
-                  </p>
-                </div>
-
-                <div className="space-y-1">
-                  <p className="text-muted-foreground flex items-center text-xs">
-                    <PencilRuler className="mr-1 h-3.5 w-3.5" />
-                    Criteria
-                  </p>
-                  <p className="text-sm font-semibold">
-                    {submission.criteria_score?.toFixed(1) || '0.0'}/10
-                  </p>
-                  <p className="text-muted-foreground text-xs">
-                    {submission.sum_criterion_score?.toFixed(1) || '0.0'}/
-                    {(submission.total_criteria || 1) * 10} points
-                  </p>
+            <div className="w-full">
+              {/* Total Score - Highlighted */}
+              <div className="mb-8 flex flex-col items-center justify-center">
+                <p className="mb-2 text-sm font-medium text-muted-foreground">
+                  Total Score
+                </p>
+                <div className="relative flex h-32 w-32 items-center justify-center rounded-full border-8 border-muted">
+                  <div
+                    className={`absolute inset-0 rounded-full ${getScoreColor(submission.total_score)}`}
+                    style={{
+                      clipPath: `circle(${getProgressPercentage(submission.total_score)}% at center)`,
+                    }}
+                  />
+                  <span className="relative z-10 text-4xl font-bold">
+                    {submission.total_score !== null
+                      ? submission.total_score.toFixed(1)
+                      : '-'}
+                  </span>
                 </div>
               </div>
-            </CardContent>
-            <CardFooter>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  if (submission?.challenge?.id) {
-                    router.push(
-                      `/challenges/${submission.challenge.id}/results`
-                    );
-                  }
-                }}
-                className="w-full"
-                disabled={!submission?.challenge?.id}
-              >
-                View Challenge Results
-              </Button>
-            </CardFooter>
-          </Card>
-        </div>
 
-        {/* Right Column - Content and Evaluation */}
-        <div className="space-y-6 md:col-span-2">
-          {/* Prompt & Output */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Submission Content</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Tabs defaultValue="prompt" className="w-full">
-                <TabsList className="mb-4">
-                  <TabsTrigger
-                    value="prompt"
-                    className="flex items-center gap-1"
-                  >
-                    <FileCode className="h-4 w-4" />
-                    Prompt
-                  </TabsTrigger>
-                </TabsList>
-                <TabsContent value="prompt" className="mt-0">
-                  <div className="relative">
-                    <pre className="bg-muted/50 max-h-[400px] overflow-auto rounded-md p-4 text-sm">
-                      {submission.prompt || 'No prompt available'}
-                    </pre>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-2 top-2"
-                      onClick={() => copyToClipboard(submission.prompt || '')}
+              {/* Test Case and Criteria Scores */}
+              <div className="space-y-4">
+                <div className="space-y-3 rounded-lg bg-muted/50 p-4">
+                  <div className="flex items-center justify-between">
+                    <p className="font-medium">Test Case Score</p>
+                    <Badge
+                      variant={getBadgeVariant(submission.test_case_score)}
+                      className="px-2 py-1"
                     >
-                      {copied ? (
-                        <ClipboardCheck className="h-4 w-4" />
-                      ) : (
-                        <Clipboard className="h-4 w-4" />
-                      )}
-                    </Button>
+                      {formatScore(submission.test_case_score)}
+                    </Badge>
                   </div>
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
+                </div>
 
-          {/* Evaluation Tabs */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Evaluation Results</CardTitle>
-              <CardDescription>
-                Test cases and criteria assessment
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Tabs defaultValue="tests" className="w-full">
-                <TabsList className="mb-4">
-                  <TabsTrigger
-                    value="tests"
-                    className="flex items-center gap-1"
-                  >
-                    <CheckSquare className="h-4 w-4" />
-                    Test Cases
-                    <Badge variant="secondary" className="ml-2">
-                      {submission.passed_tests}/{submission.total_tests || 1}
+                <div className="space-y-3 rounded-lg bg-muted/50 p-4">
+                  <div className="flex items-center justify-between">
+                    <p className="font-medium">Criteria Score</p>
+                    <Badge
+                      variant={getBadgeVariant(submission.criteria_score)}
+                      className="px-2 py-1"
+                    >
+                      {formatScore(submission.criteria_score)}
                     </Badge>
-                  </TabsTrigger>
-                  <TabsTrigger
-                    value="criteria"
-                    className="flex items-center gap-1"
-                  >
-                    <PencilRuler className="h-4 w-4" />
-                    Criteria
-                    <Badge variant="secondary" className="ml-2">
-                      {submission.criteria?.length || 0}
-                    </Badge>
-                  </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="tests" className="mt-0">
-                  <TestCaseEvaluation submission={submission} />
-                </TabsContent>
-
-                <TabsContent value="criteria" className="mt-0">
-                  <CriteriaEvaluation submission={submission} />
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
-        </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <SubmissionCard
+          submission={submission}
+          isCurrent={false}
+          onRequestFetch={() => {}} // Already have full data
+          isLoading={false}
+        />
       </div>
     </div>
   );

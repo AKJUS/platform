@@ -69,20 +69,18 @@ const formSchema = z.object({
 export type ProblemFormValues = z.infer<typeof formSchema>;
 
 interface ProblemFormProps {
-  problemId?: string;
+  isEditing?: boolean;
   defaultValues?: ProblemFormValues;
   onSubmit: (values: ProblemFormValues) => void;
   isSubmitting: boolean;
 }
 
 export default function ProblemForm({
-  problemId,
+  isEditing = false,
   defaultValues,
   onSubmit,
   isSubmitting,
 }: ProblemFormProps) {
-  const isEditing = !!problemId;
-
   const [challenges, setChallenges] = useState<NovaChallenge[]>([]);
 
   // Initialize form with default values
@@ -140,11 +138,12 @@ export default function ProblemForm({
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <Tabs defaultValue="details">
-          <TabsList>
+          <TabsList className="max-w-full justify-start overflow-x-auto">
             <TabsTrigger value="details">Details</TabsTrigger>
             <TabsTrigger value="testCases">Test Cases</TabsTrigger>
           </TabsList>
-          <ScrollArea className="h-[500px]">
+
+          <ScrollArea className="h-64 md:h-96">
             <TabsContent value="details">
               <Card>
                 <CardHeader>
@@ -180,7 +179,7 @@ export default function ProblemForm({
                         <FormControl>
                           <Textarea
                             placeholder="Enter problem description"
-                            className="min-h-[150px]"
+                            className="min-h-32"
                             {...field}
                           />
                         </FormControl>
@@ -357,7 +356,7 @@ export default function ProblemForm({
                           control={form.control}
                           name={`testCases.${index}.hidden`}
                           render={({ field }) => (
-                            <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                            <FormItem className="flex flex-row items-start space-y-0 space-x-3">
                               <FormControl>
                                 <div className="flex items-center space-x-2">
                                   <Checkbox
@@ -374,7 +373,7 @@ export default function ProblemForm({
                       </div>
                     ))
                   ) : (
-                    <p className="text-muted-foreground text-sm">
+                    <p className="text-sm text-muted-foreground">
                       No test cases added yet.
                     </p>
                   )}

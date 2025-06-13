@@ -37,7 +37,7 @@ export async function generateMetadata({
   // Construct OG image URL using userId
   const ogImageUrl = new URL(
     `/api/og/${userId}`,
-    process.env.NEXT_PUBLIC_APP_URL || 'https://nova.tuturuuu.com'
+    process.env.NEXT_PUBLIC_APP_URL || 'https://nova.ai.vn'
   ).toString();
 
   return {
@@ -60,9 +60,9 @@ export async function generateMetadata({
 export default async function UserProfilePage({
   params,
 }: {
-  params: Promise<{ userId: string }>;
+  params: Promise<{ wsId: string; userId: string }>;
 }) {
-  const { userId: rawUserId } = await params;
+  const { wsId, userId: rawUserId } = await params;
 
   const locale = await getLocale();
   const sbAdmin = await createAdminClient();
@@ -368,5 +368,5 @@ export default async function UserProfilePage({
       ) || [],
   };
 
-  return <UserProfileClient profile={profileData} />;
+  return <UserProfileClient wsId={wsId} profile={profileData} />;
 }

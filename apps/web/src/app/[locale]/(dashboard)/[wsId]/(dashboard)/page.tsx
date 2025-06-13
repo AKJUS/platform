@@ -1,12 +1,7 @@
 import type { FinanceDashboardSearchParams } from '../finance/(dashboard)/page';
-import AdvancedAnalytics from './advanced-analytics';
-import AuroraActions from './aurora-actions';
 import { InventoryCategoryStatistics } from './categories/inventory';
 import { UsersCategoryStatistics } from './categories/users';
-import CommodityComparison from './commodity-comparison';
-import Dashboard from './dashboard';
 import FinanceStatistics from './finance';
-import PricePredictionChart from './price-prediction-chart';
 import {
   BatchesStatistics,
   InventoryProductsStatistics,
@@ -22,16 +17,11 @@ import {
   WarehousesStatistics,
 } from './statistics';
 import LoadingStatisticCard from '@/components/loading-statistic-card';
-import {
-  getPermissions,
-  getWorkspace,
-  verifySecret,
-} from '@/lib/workspace-helper';
+import { getWorkspace, verifySecret } from '@/lib/workspace-helper';
 import { createClient } from '@tuturuuu/supabase/next/server';
 import type { AuroraForecast } from '@tuturuuu/types/db';
 import FeatureSummary from '@tuturuuu/ui/custom/feature-summary';
 import { Separator } from '@tuturuuu/ui/separator';
-import { getCurrentSupabaseUser } from '@tuturuuu/utils/user-helper';
 import { getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
@@ -50,12 +40,7 @@ export default async function WorkspaceHomePage({
   const t = await getTranslations();
   const { wsId } = await params;
 
-  const user = await getCurrentSupabaseUser();
   const workspace = await getWorkspace(wsId);
-
-  const { containsPermission } = await getPermissions({
-    wsId,
-  });
 
   const forecast = await getForecast();
   const mlMetrics = await getMLMetrics();
@@ -85,7 +70,7 @@ export default async function WorkspaceHomePage({
         description={
           <>
             {t('ws-home.description_p1')}{' '}
-            <span className="text-foreground font-semibold underline">
+            <span className="font-semibold text-foreground underline">
               {workspace.name || t('common.untitled')}
             </span>{' '}
             {t('ws-home.description_p2')}
@@ -93,7 +78,7 @@ export default async function WorkspaceHomePage({
         }
       />
 
-      {(await verifySecret({
+      {/* {(await verifySecret({
         forceAdmin: true,
         wsId,
         name: 'ENABLE_AI',
@@ -116,7 +101,7 @@ export default async function WorkspaceHomePage({
               />
             </div>
           </>
-        )}
+        )} */}
 
       {ENABLE_AI_ONLY || (
         <>
@@ -246,7 +231,7 @@ async function getStatsMetrics() {
 
 // async function getHourlyData(wsId: string) {
 //   if (wsId !== ROOT_WORKSPACE_ID) return { data: [], count: 0 };
-//   const supabase = await createAdminClient();
+//   const sbAdmin = await createAdminClient();
 
 //   const queryBuilder = supabase.rpc('get_hourly_prompt_completion_tokens', {
 //     past_hours: 24,
@@ -260,7 +245,7 @@ async function getStatsMetrics() {
 
 // async function getDailyData(wsId: string) {
 //   if (wsId !== ROOT_WORKSPACE_ID) return { data: [], count: 0 };
-//   const supabase = await createAdminClient();
+//   const sbAdmin = await createAdminClient();
 
 //   const queryBuilder = supabase.rpc('get_daily_prompt_completion_tokens');
 
@@ -272,7 +257,7 @@ async function getStatsMetrics() {
 
 // async function getMonthlyData(wsId: string) {
 //   if (wsId !== ROOT_WORKSPACE_ID) return { data: [], count: 0 };
-//   const supabase = await createAdminClient();
+//   const sbAdmin = await createAdminClient();
 
 //   const queryBuilder = supabase.rpc('get_monthly_prompt_completion_tokens');
 

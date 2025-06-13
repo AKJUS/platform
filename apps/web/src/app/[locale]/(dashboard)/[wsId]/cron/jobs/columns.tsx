@@ -41,7 +41,7 @@ function renderStatus(
   switch (status) {
     case 'active':
       return (
-        <div className="text-dynamic-green flex items-center gap-1">
+        <div className="flex items-center gap-1 text-dynamic-green">
           <CheckCircle className="h-5 w-5" />
           <span>{t('cron-job-data-table.active')}</span>
         </div>
@@ -49,7 +49,7 @@ function renderStatus(
 
     case 'inactive':
       return (
-        <div className="text-dynamic-red flex items-center gap-1">
+        <div className="flex items-center gap-1 text-dynamic-red">
           <PowerOff className="h-5 w-5" />
           <span>{t('cron-job-data-table.inactive')}</span>
         </div>
@@ -57,7 +57,7 @@ function renderStatus(
 
     case 'running':
       return (
-        <div className="text-dynamic-blue flex items-center gap-1">
+        <div className="flex items-center gap-1 text-dynamic-blue">
           <Clock className="h-5 w-5" />
           <span>{t('cron-job-data-table.running')}</span>
         </div>
@@ -65,7 +65,7 @@ function renderStatus(
 
     case 'failed':
       return (
-        <div className="text-dynamic-red flex items-center gap-1">
+        <div className="flex items-center gap-1 text-dynamic-red">
           <XCircle className="h-5 w-5" />
           <span>{t('cron-job-data-table.failed')}</span>
         </div>
@@ -92,7 +92,7 @@ export const getColumns = (
       />
     ),
     cell: ({ row }) => (
-      <div className="line-clamp-1 min-w-[8rem]">{row.getValue('id')}</div>
+      <div className="line-clamp-1 min-w-32">{row.getValue('id')}</div>
     ),
   },
   {
@@ -105,7 +105,7 @@ export const getColumns = (
       />
     ),
     cell: ({ row }) => (
-      <Link href={row.original.href || '#'} className="min-w-[8rem]">
+      <Link href={row.original.href || '#'} className="min-w-32">
         <span className="font-semibold hover:underline">
           {row.getValue('name') || '-'}
         </span>
@@ -124,10 +124,10 @@ export const getColumns = (
     cell: ({ row }) => {
       const schedule = row.getValue('schedule') as string;
       return (
-        <div className="flex min-w-[8rem] flex-col">
+        <div className="flex min-w-32 flex-col">
           <span>{schedule || '-'}</span>
           {schedule && (
-            <span className="text-muted-foreground text-xs">
+            <span className="text-xs text-muted-foreground">
               {cronstrue.toString(schedule)}
             </span>
           )}
@@ -145,7 +145,7 @@ export const getColumns = (
       />
     ),
     cell: ({ row }) => (
-      <div className="min-w-[8rem]">
+      <div className="min-w-32">
         {row.getValue('last_run')
           ? moment(row.getValue('last_run')).format('DD/MM/YYYY HH:mm')
           : '-'}
@@ -171,7 +171,7 @@ export const getColumns = (
         nextRun || (schedule ? getNextRunTime(schedule, lastRun) : '-');
 
       return (
-        <div className="min-w-[8rem]">
+        <div className="min-w-32">
           {nextRunTime !== '-'
             ? moment(nextRunTime).format('DD/MM/YYYY HH:mm')
             : '-'}
@@ -192,7 +192,7 @@ export const getColumns = (
       const status = row.original.active;
 
       return (
-        <div className="min-w-[8rem] font-semibold">
+        <div className="min-w-32 font-semibold">
           {renderStatus(t, status ? 'active' : 'inactive')}
         </div>
       );
@@ -208,7 +208,7 @@ export const getColumns = (
       />
     ),
     cell: ({ row }) => (
-      <div className="min-w-[8rem]">
+      <div className="min-w-32">
         {moment(row.getValue('created_at')).format('DD/MM/YYYY')}
       </div>
     ),
