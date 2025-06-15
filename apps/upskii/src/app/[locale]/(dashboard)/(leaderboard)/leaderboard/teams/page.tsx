@@ -14,6 +14,7 @@ export default async function Page({
   searchParams,
 }: {
   searchParams: Promise<{
+    wsId: string;
     page?: string;
     locale?: string;
   }>;
@@ -31,11 +32,12 @@ async function TeamsLeaderboardContent({
   searchParams,
 }: {
   searchParams: Promise<{
+    wsId: string;
     page?: string;
     locale?: string;
   }>;
 }) {
-  const { page = '1' } = await searchParams;
+  const { wsId, page = '1' } = await searchParams;
   const pageNumber = parseInt(page, 10);
 
   const {
@@ -59,6 +61,7 @@ async function TeamsLeaderboardContent({
       initialPage={pageNumber}
       calculationDate={new Date()}
       totalPages={totalPages}
+      wsId={wsId}
     />
   );
 }
