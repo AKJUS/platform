@@ -1,124 +1,157 @@
 'use client';
 
 import { Nav } from './nav';
+import { NavLink } from '@/components/navigation';
+import { PROD_MODE } from '@/constants/common';
+import { useQuery } from '@tanstack/react-query';
+import { Workspace } from '@tuturuuu/types/db';
+import { WorkspaceUser } from '@tuturuuu/types/primitives/WorkspaceUser';
 import { LogoTitle } from '@tuturuuu/ui/custom/logo-title';
 import { Structure as BaseStructure } from '@tuturuuu/ui/custom/structure';
-import { cn } from '@tuturuuu/utils/format';
-import { debounce } from 'lodash';
+import { WorkspaceSelect } from '@tuturuuu/ui/custom/workspace-select';
+import { ROOT_WORKSPACE_ID } from '@tuturuuu/utils/constants';
+import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import Link from 'next/link';
-import { ReactNode, useCallback, useState } from 'react';
+import { usePathname } from 'next/navigation';
+import { ReactNode, Suspense, useState } from 'react';
 
-interface NavItem {
-  name: string;
-  href: string;
-  icon: React.ReactNode;
-  requiresAdmin?: boolean;
-  subItems?: { name: string; href: string }[];
-}
-
-interface StructureProps {
-  allowChallengeManagement: boolean;
-  allowRoleManagement: boolean;
-  defaultLayout?: number[];
-  defaultCollapsed: boolean;
-  navCollapsedSize: number;
-  navItems: NavItem[];
+interface MailProps {
+  wsId: string;
+  workspace: Workspace | null;
+  defaultCollapsed?: boolean;
+  user: WorkspaceUser | null;
+  links: (NavLink | null)[];
   actions: ReactNode;
   userPopover: ReactNode;
   children: ReactNode;
 }
 
-export default function Structure({
-  allowChallengeManagement,
-  allowRoleManagement,
-  defaultLayout = [20, 80],
+export function Structure({
+  wsId,
   defaultCollapsed = false,
-  navCollapsedSize,
-  navItems,
+  user,
+  links,
   actions,
   userPopover,
   children,
-}: StructureProps) {
+}: MailProps) {
+  const t = useTranslations();
+  const pathname = usePathname();
   const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
 
-  // Add debounced function for saving sidebar sizes
-  const debouncedSaveSizes = useCallback(
-    debounce(async (sizes: { sidebar: number; main: number }) => {
-      await fetch('/api/v1/infrastructure/sidebar/sizes', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(sizes),
-      });
-    }, 500),
-    []
-  );
+  const isRootWorkspace = wsId === ROOT_WORKSPACE_ID;
 
-  // Add debounced function for saving sidebar collapsed state
-  const debouncedSaveCollapsed = useCallback(
-    debounce(async (collapsed: boolean) => {
-      await fetch('/api/v1/infrastructure/sidebar', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ collapsed }),
-      });
-    }, 500),
-    []
-  );
+  const filteredLinks = links.filter((link) => {
+    // If the link is disabled, don't render it
+    if (!link || link?.disabled) return null;
+
+    // If the link is disabled on production, don't render it
+    if (link?.disableOnProduction && PROD_MODE) return null;
+
+    // If the link requires root membership, check if user email ends with @tuturuuu.com
+    if (link?.requireRootMember && !user?.email?.endsWith('@tuturuuu.com'))
+      return null;
+
+    // If the link requires the root workspace, check if the current workspace is the root workspace
+    if (link?.requireRootWorkspace && !isRootWorkspace) return null;
+
+    // If the link is only allowed for certain roles, check if the current role is allowed
+    if (link?.allowedRoles && link.allowedRoles.length > 0) return null;
+
+    return link;
+  });
+
+  const matchedLinks = filteredLinks
+    .filter((link) => link !== null)
+    .filter(
+      (link) =>
+        link.href &&
+        (pathname.startsWith(link.href) ||
+          link.aliases?.some((alias) => pathname.startsWith(alias)))
+    )
+    .sort((a, b) => (b.href?.length || 0) - (a.href?.length || 0));
+
+  const currentLink = matchedLinks?.[0];
 
   const sidebarHeader = (
-    <Link href="/" className="flex w-full items-center gap-2">
-      <div
-        className={cn(
-          isCollapsed
-            ? 'flex w-full items-center justify-center'
-            : 'inline-block w-fit',
-          'flex-none'
-        )}
+    <>
+      {isCollapsed || (
+        <Link href="/" className="flex flex-none items-center gap-2">
+          <div className="flex-none">
+            <Image
+              src="/media/logos/transparent.png"
+              className="h-8 w-8"
+              width={32}
+              height={32}
+              alt="logo"
+            />
+          </div>
+          <LogoTitle />
+        </Link>
+      )}
+
+      <Suspense
+        fallback={
+          <div className="h-10 w-32 animate-pulse rounded-lg bg-foreground/5" />
+        }
       >
-        <Image
-          src="/media/logos/nova-transparent.png"
-          className="h-8 w-8"
-          width={32}
-          height={32}
-          alt="logo"
+        <WorkspaceSelect
+          t={t}
+          hideLeading={isCollapsed}
+          localUseQuery={useQuery}
+          customRedirectSuffix={`home`}
         />
-      </div>
-      {isCollapsed || <LogoTitle text="Upskii" />}
-    </Link>
+      </Suspense>
+    </>
   );
 
   const sidebarContent = (
     <Nav
-      allowChallengeManagement={allowChallengeManagement}
-      allowRoleManagement={allowRoleManagement}
+      wsId={wsId}
+      currentUser={user}
       isCollapsed={isCollapsed}
-      navItems={navItems}
+      links={links}
       onClick={() => window.innerWidth < 768 && setIsCollapsed(true)}
     />
   );
 
-  const mobileHeader = <span className="font-semibold">Menu</span>;
+  const header = null;
+
+  const mobileHeader = (
+    <>
+      <div className="flex flex-none items-center gap-2">
+        <Link href="/" className="flex flex-none items-center gap-2">
+          <Image
+            src="/media/logos/nova-transparent.png"
+            className="h-8 w-8"
+            width={32}
+            height={32}
+            alt="logo"
+          />
+        </Link>
+      </div>
+      <div className="mx-2 h-4 w-px flex-none rotate-30 bg-foreground/20" />
+      <div className="flex items-center gap-2 text-lg font-semibold break-all">
+        {currentLink?.icon && (
+          <div className="flex-none">{currentLink.icon}</div>
+        )}
+        <span className="line-clamp-1">{currentLink?.title}</span>
+      </div>
+    </>
+  );
 
   return (
     <BaseStructure
-      defaultLayout={defaultLayout}
-      navCollapsedSize={navCollapsedSize}
       isCollapsed={isCollapsed}
       setIsCollapsed={setIsCollapsed}
-      debouncedSaveSizes={debouncedSaveSizes}
-      debouncedSaveCollapsed={debouncedSaveCollapsed}
+      header={header}
       mobileHeader={mobileHeader}
       sidebarHeader={sidebarHeader}
       sidebarContent={sidebarContent}
       actions={actions}
       userPopover={userPopover}
       children={children}
-      className="p-0 md:pt-0"
     />
   );
 }

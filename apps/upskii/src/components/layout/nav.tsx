@@ -1,176 +1,396 @@
 'use client';
 
-import { Button } from '@tuturuuu/ui/button';
+import { NavLink } from '@/components/navigation';
+import { ENABLE_KEYBOARD_SHORTCUTS, PROD_MODE } from '@/constants/common';
+import { WorkspaceUser } from '@tuturuuu/types/primitives/WorkspaceUser';
+import { buttonVariants } from '@tuturuuu/ui/button';
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@tuturuuu/ui/collapsible';
-import { ChevronDown } from '@tuturuuu/ui/icons';
+import { ChevronRight } from '@tuturuuu/ui/icons';
+import { Separator } from '@tuturuuu/ui/separator';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@tuturuuu/ui/tooltip';
+import { ROOT_WORKSPACE_ID } from '@tuturuuu/utils/constants';
 import { cn } from '@tuturuuu/utils/format';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-
-interface NavItem {
-  name: string;
-  href: string;
-  icon: React.ReactNode;
-  requiresChallengeManagement?: boolean;
-  requiresRoleManagement?: boolean;
-  subItems?: { name: string; href: string }[];
-}
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 interface NavProps {
-  allowChallengeManagement: boolean;
-  allowRoleManagement: boolean;
+  wsId: string;
+  currentUser: WorkspaceUser | null;
   isCollapsed: boolean;
-  navItems: NavItem[];
+  links: (NavLink | null)[];
   onClick?: () => void;
 }
 
 export function Nav({
-  allowChallengeManagement,
-  allowRoleManagement,
+  wsId,
+  currentUser,
+  links,
   isCollapsed,
-  navItems,
   onClick,
 }: NavProps) {
+  const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const isRootWorkspace = wsId === ROOT_WORKSPACE_ID;
+  const [urlToLoad, setUrlToLoad] = useState<string>();
+  const [openGroups, setOpenGroups] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (urlToLoad && urlToLoad === pathname) setUrlToLoad(undefined);
+  }, [pathname, searchParams]);
+
+  function hasFocus(selector: string) {
+    return Array.from(document.querySelectorAll(selector)).some(function (el) {
+      return el === document.activeElement;
+    });
+  }
+
+  function parseShortcut(shortcut: string) {
+    const parts = shortcut.split('+');
+    return {
+      ctrl: parts.includes('CTRL'),
+      shift: parts.includes('SHIFT'),
+      key: parts.find((part) => part.length === 1),
+    };
+  }
+
+  function shouldShowLink(link: NavLink) {
+    // If the link is disabled, don't render it
+    if (link?.disabled) return false;
+
+    // If the link is disabled on production, don't render it
+    if (link?.disableOnProduction && PROD_MODE) return false;
+
+    // If the link requires root membership, check if user email ends with @tuturuuu.com
+    if (
+      link?.requireRootMember &&
+      !currentUser?.email?.endsWith('@tuturuuu.com')
+    )
+      return false;
+
+    // If the link requires the root workspace, check if the current workspace is the root workspace
+    if (link?.requireRootWorkspace && !isRootWorkspace) return false;
+
+    // If the link is only allowed for certain roles, check if the current role is allowed
+    if (link?.allowedRoles && link.allowedRoles.length > 0) return false;
+
+    return true;
+  }
+
+  function isLinkActive(link: NavLink) {
+    if (!link.href && !link.children) return false;
+
+    const links = [...(link.aliases || []), link.href].filter(Boolean);
+    const matchExact = link.matchExact ?? false;
+
+    if (link.href) {
+      return (
+        links
+          .map(
+            (href) =>
+              typeof href === 'string' &&
+              (matchExact
+                ? pathname === href
+                : (pathname?.startsWith(href) ?? false))
+          )
+          .filter(Boolean).length > 0
+      );
+    }
+
+    // For grouped links, check if any child is active
+    if (link.children) {
+      return link.children.some((child) => {
+        if (!shouldShowLink(child)) return false;
+        const childLinks = [...(child.aliases || []), child.href].filter(
+          Boolean
+        );
+        return childLinks.some(
+          (href) =>
+            typeof href === 'string' &&
+            (child.matchExact
+              ? pathname === href
+              : (pathname?.startsWith(href) ?? false))
+        );
+      });
+    }
+
+    return false;
+  }
+
+  // Collect all links for keyboard shortcuts
+  const allLinks = links.reduce((acc: NavLink[], link) => {
+    if (!link) return acc;
+    if (!shouldShowLink(link)) return acc;
+
+    if (link.children) {
+      const visibleChildren = link.children.filter(shouldShowLink);
+      acc.push(...visibleChildren);
+    } else if (link.href) {
+      acc.push(link);
+    }
+
+    return acc;
+  }, []);
+
+  useEffect(() => {
+    function down(e: KeyboardEvent) {
+      allLinks.forEach((link) => {
+        if (!link || !link.shortcut || !link.href) return;
+        const { ctrl, shift, key } = parseShortcut(link.shortcut);
+        if (
+          !hasFocus('input, select, textarea') &&
+          e.key.toUpperCase() === key?.toUpperCase() &&
+          ctrl === e.ctrlKey &&
+          shift === e.shiftKey
+        ) {
+          e.preventDefault();
+          if (!link.newTab && link.href.split('?')[0] !== pathname)
+            setUrlToLoad(link.href.split('?')[0]);
+          router.push(link.href);
+        }
+      });
+    }
+
+    if (ENABLE_KEYBOARD_SHORTCUTS) document.addEventListener('keydown', down);
+
+    return () => {
+      if (ENABLE_KEYBOARD_SHORTCUTS)
+        document.removeEventListener('keydown', down);
+    };
+  }, [allLinks, pathname]);
+
+  // Auto-expand groups with active children
+  useEffect(() => {
+    const newOpenGroups = new Set<string>();
+    links.forEach((link, idx) => {
+      if (link && link.children && isLinkActive(link)) {
+        newOpenGroups.add(`group-${idx}`);
+      }
+    });
+    setOpenGroups(newOpenGroups);
+  }, [pathname, links]);
+
+  function toggleGroup(groupKey: string) {
+    const newOpenGroups = new Set(openGroups);
+    if (newOpenGroups.has(groupKey)) {
+      newOpenGroups.delete(groupKey);
+    } else {
+      newOpenGroups.add(groupKey);
+    }
+    setOpenGroups(newOpenGroups);
+  }
+
+  function renderLink(link: NavLink, key: string) {
+    const isActive = isLinkActive(link);
+
+    if (isCollapsed) {
+      return (
+        <Tooltip key={key} delayDuration={0}>
+          <TooltipTrigger asChild>
+            <Link
+              scroll={false}
+              href={link.href || '#'}
+              className={cn(
+                buttonVariants({
+                  variant: isActive ? 'secondary' : 'ghost',
+                  size: 'icon',
+                }),
+                'h-9 w-9 max-sm:hover:bg-transparent',
+                urlToLoad === link.href &&
+                  'animate-pulse bg-accent text-accent-foreground'
+              )}
+              onClick={() => {
+                if (
+                  link.href &&
+                  !link.newTab &&
+                  link.href.split('?')[0] !== pathname
+                )
+                  setUrlToLoad(link.href.split('?')[0]);
+                onClick?.();
+              }}
+            >
+              {link.icon}
+              <span className="sr-only">{link.title}</span>
+            </Link>
+          </TooltipTrigger>
+          <TooltipContent
+            side="right"
+            className={cn(
+              'flex items-center gap-4 border bg-background text-foreground',
+              ((ENABLE_KEYBOARD_SHORTCUTS && link.shortcut) || link.trailing) &&
+                'flex-col items-start gap-1'
+            )}
+          >
+            {link.title}
+            {((ENABLE_KEYBOARD_SHORTCUTS && link.shortcut) ||
+              link.trailing) && (
+              <span
+                className={cn(
+                  'text-muted-foreground',
+                  (ENABLE_KEYBOARD_SHORTCUTS && link.shortcut) || link.trailing
+                    ? 'rounded-lg border bg-foreground/5 px-2 py-0.5'
+                    : 'ml-auto'
+                )}
+              >
+                {ENABLE_KEYBOARD_SHORTCUTS && link.shortcut
+                  ? link.shortcut
+                      .replace('CTRL', '⌘')
+                      .replace('SHIFT', '⇧')
+                      .replace(/\+/g, '')
+                  : link.trailing}
+              </span>
+            )}
+          </TooltipContent>
+        </Tooltip>
+      );
+    }
+
+    return (
+      <Link
+        key={key}
+        href={link.href || '#'}
+        className={cn(
+          buttonVariants({
+            variant: isActive ? 'secondary' : 'ghost',
+            size: 'sm',
+          }),
+          urlToLoad === link.href &&
+            'animate-pulse bg-accent text-accent-foreground',
+          'w-full justify-between gap-2 max-sm:hover:bg-transparent'
+        )}
+        onClick={() => {
+          if (link.href && !link.newTab && link.href.split('?')[0] !== pathname)
+            setUrlToLoad(link.href.split('?')[0]);
+          onClick?.();
+        }}
+      >
+        <div className="flex items-center">
+          {link.icon && (
+            <>
+              {link.icon}
+              <span className="w-2" />
+            </>
+          )}
+          {link.title}
+        </div>
+        {((ENABLE_KEYBOARD_SHORTCUTS && link.shortcut) || link.trailing) && (
+          <span
+            className={cn(
+              'text-muted-foreground',
+              isActive && 'bg-background text-foreground',
+              ENABLE_KEYBOARD_SHORTCUTS && link.shortcut
+                ? 'hidden rounded-lg border bg-foreground/5 px-2 py-0.5 md:block'
+                : 'ml-auto'
+            )}
+          >
+            {ENABLE_KEYBOARD_SHORTCUTS && link.shortcut
+              ? link.shortcut
+                  .replace('CTRL', '⌘')
+                  .replace('SHIFT', '⇧')
+                  .replace(/\+/g, '')
+              : link.trailing}
+          </span>
+        )}
+      </Link>
+    );
+  }
+
+  function renderGroupedLink(link: NavLink, groupKey: string) {
+    const isActive = isLinkActive(link);
+    const isOpen = openGroups.has(groupKey);
+    const visibleChildren = link.children?.filter(shouldShowLink) || [];
+
+    if (visibleChildren.length === 0) return null;
+
+    if (isCollapsed) {
+      // In collapsed mode, show children as separate items
+      return visibleChildren.map((child, childIdx) =>
+        renderLink(child, `${groupKey}-child-${childIdx}`)
+      );
+    }
+
+    return (
+      <Collapsible
+        key={groupKey}
+        open={isOpen}
+        onOpenChange={() => toggleGroup(groupKey)}
+      >
+        <CollapsibleTrigger asChild>
+          <button
+            className={cn(
+              buttonVariants({
+                variant: isActive ? 'secondary' : 'ghost',
+                size: 'sm',
+              }),
+              'w-full justify-between gap-2 max-sm:hover:bg-transparent'
+            )}
+          >
+            <div className="flex items-center">
+              {link.icon && (
+                <>
+                  {link.icon}
+                  <span className="w-2" />
+                </>
+              )}
+              {link.title}
+            </div>
+            <ChevronRight
+              className={cn(
+                'h-4 w-4 transition-transform',
+                isOpen && 'rotate-90'
+              )}
+            />
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="mt-1 space-y-1">
+          <div className="ml-6 space-y-1">
+            {visibleChildren.map((child, childIdx) =>
+              renderLink(child, `${groupKey}-child-${childIdx}`)
+            )}
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+    );
+  }
 
   return (
     <nav className={cn('grid gap-1 p-2', isCollapsed && 'justify-center')}>
-      {navItems
-        .filter(
-          (item) =>
-            (item.requiresChallengeManagement
-              ? allowChallengeManagement
-              : true) &&
-            (item.requiresRoleManagement ? allowRoleManagement : true)
-        )
-        .map((item) => (
-          <div key={item.href}>
-            {item.subItems && item.subItems.length ? (
-              <Collapsible>
-                <CollapsibleTrigger asChild>
-                  {isCollapsed ? (
-                    <Tooltip delayDuration={0}>
-                      <TooltipTrigger asChild>
-                        <Button variant="ghost" className="h-9 w-9">
-                          {item.icon}
-                          <span className="sr-only">{item.name}</span>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent
-                        side="right"
-                        className="bg-background text-foreground flex items-center gap-4 border"
-                      >
-                        {item.name}
-                      </TooltipContent>
-                    </Tooltip>
-                  ) : (
-                    <Button variant="ghost" className="w-full justify-between">
-                      <span className="flex items-center gap-2">
-                        {item.icon}
-                        {item.name}
-                      </span>
-                      <ChevronDown className="h-4 w-4" />
-                    </Button>
-                  )}
-                </CollapsibleTrigger>
-                <CollapsibleContent
-                  className={cn('space-y-2', isCollapsed ? 'ml-0' : 'ml-4')}
-                >
-                  {item.subItems.map((subItem) =>
-                    isCollapsed ? (
-                      <Tooltip key={subItem.href} delayDuration={0}>
-                        <TooltipTrigger asChild>
-                          <Link href={subItem.href} onClick={onClick}>
-                            <Button
-                              variant={
-                                pathname === subItem.href
-                                  ? 'secondary'
-                                  : 'ghost'
-                              }
-                              className={cn(
-                                'h-9 w-9',
-                                pathname === subItem.href &&
-                                  'bg-accent text-accent-foreground'
-                              )}
-                            >
-                              <div className="h-4 w-4" />
-                              <span className="sr-only">{subItem.name}</span>
-                            </Button>
-                          </Link>
-                        </TooltipTrigger>
-                        <TooltipContent
-                          side="right"
-                          className="bg-background text-foreground flex items-center gap-4 border"
-                        >
-                          {subItem.name}
-                        </TooltipContent>
-                      </Tooltip>
-                    ) : (
-                      <Link
-                        key={subItem.href}
-                        href={subItem.href}
-                        onClick={onClick}
-                      >
-                        <Button
-                          variant="ghost"
-                          className={cn(
-                            'w-full justify-start',
-                            pathname === subItem.href &&
-                              'bg-accent text-accent-foreground'
-                          )}
-                        >
-                          {subItem.name}
-                        </Button>
-                      </Link>
-                    )
-                  )}
-                </CollapsibleContent>
-              </Collapsible>
-            ) : isCollapsed ? (
-              <Tooltip delayDuration={0}>
-                <TooltipTrigger asChild>
-                  <Link href={item.href} onClick={onClick}>
-                    <Button
-                      variant={pathname === item.href ? 'secondary' : 'ghost'}
-                      className={cn(
-                        'h-9 w-9',
-                        pathname === item.href &&
-                          'bg-accent text-accent-foreground'
-                      )}
-                    >
-                      {item.icon}
-                      <span className="sr-only">{item.name}</span>
-                    </Button>
-                  </Link>
-                </TooltipTrigger>
-                <TooltipContent
-                  side="right"
-                  className="bg-background text-foreground flex items-center gap-4 border"
-                >
-                  {item.name}
-                </TooltipContent>
-              </Tooltip>
-            ) : (
-              <Link href={item.href} onClick={onClick}>
-                <Button
-                  variant={pathname === item.href ? 'secondary' : 'ghost'}
-                  className={cn(
-                    'w-full justify-start gap-2',
-                    pathname === item.href && 'bg-accent text-accent-foreground'
-                  )}
-                >
-                  {item.icon}
-                  {item.name}
-                </Button>
-              </Link>
-            )}
-          </div>
-        ))}
+      {links
+        .map((link, idx) => {
+          const key = `nav-item-${idx}`;
+
+          if (!link) return <Separator key={key} className="my-1" />;
+
+          if (!shouldShowLink(link)) return null;
+
+          // Handle grouped links with children
+          if (link.children) {
+            return renderGroupedLink(link, `group-${idx}`);
+          }
+
+          // Handle regular links
+          if (link.href) {
+            return renderLink(link, key);
+          }
+
+          return null;
+        })
+        .filter(Boolean)
+        .flat() // Flatten because grouped links can return arrays
+        // filter out consecutive Separator components
+        .filter((item, idx, arr) => {
+          if (item?.type === Separator) {
+            const nextItem = arr[idx + 1];
+            if (!nextItem || nextItem?.type === Separator) return false;
+          }
+          return true;
+        })}
     </nav>
   );
 }

@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@tuturuuu/ui/avatar';
 import { Badge } from '@tuturuuu/ui/badge';
 import { ExternalLink, Medal, Sparkles, Trophy } from '@tuturuuu/ui/icons';
 import { cn } from '@tuturuuu/utils/format';
-import { motion, useReducedMotion } from 'framer-motion';
+import { type Variants, motion, useReducedMotion } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
@@ -22,6 +22,7 @@ interface RandomValues {
 interface TopThreeCardsProps {
   topThree: LeaderboardEntry[];
   teamMode?: boolean;
+  wsId: string;
 }
 
 export function TopThreeCards({
@@ -62,7 +63,7 @@ export function TopThreeCards({
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0 },
-  };
+  } satisfies Variants;
 
   const getCardStyles = (index: number) => {
     if (index === 0) {
@@ -89,8 +90,8 @@ export function TopThreeCards({
         prize: '111M VND',
         prizeColor: '#9CA3AF',
         rank: '2',
-        badgeClass: 'text-gray-600 dark:text-gray-300',
-        scoreClass: 'text-gray-600 dark:text-gray-300',
+        badgeClass: 'text-muted-foreground dark:text-gray-300',
+        scoreClass: 'text-muted-foreground dark:text-gray-300',
         hexBorderClass: 'border-gray-400/50',
         particleColors: ['#E5E7EB', '#9CA3AF', '#6B7280'],
         gradientClass: 'from-gray-500/20 via-gray-400/10 to-gray-300/5',
@@ -154,7 +155,7 @@ export function TopThreeCards({
           >
             <div
               className={cn(
-                'group relative flex w-full flex-col items-center justify-center overflow-hidden rounded-xl border border-gray-200 p-6 pt-32 transition-all dark:border-slate-700',
+                'group relative flex w-full flex-col items-center justify-center overflow-hidden rounded-xl border p-6 pt-32 transition-all dark:border-slate-700',
                 hoveredCard === index
                   ? 'shadow-lg dark:shadow-[0_0_30px_rgba(0,0,0,0.3)]'
                   : 'shadow-md dark:shadow-2xl'
@@ -167,14 +168,14 @@ export function TopThreeCards({
               }}
             >
               {/* Light/dark mode backgrounds */}
-              <div className="absolute inset-0 -z-10 bg-gradient-to-b from-gray-50 to-white opacity-100 dark:opacity-0"></div>
-              <div className="absolute inset-0 -z-10 bg-gradient-to-b from-slate-900 to-slate-950 opacity-0 dark:opacity-100"></div>
+              <div className="absolute inset-0 -z-10 bg-linear-to-b from-gray-50 to-white opacity-100 dark:opacity-0"></div>
+              <div className="absolute inset-0 -z-10 bg-linear-to-b from-slate-900 to-slate-950 opacity-0 dark:opacity-100"></div>
 
               {/* Animated background gradient */}
               <div className="absolute inset-0 -z-10 opacity-0 transition-opacity duration-500 group-hover:opacity-100">
                 <motion.div
                   className={cn(
-                    'absolute inset-0 bg-gradient-to-br opacity-20 dark:opacity-30',
+                    'absolute inset-0 bg-linear-to-br opacity-20 dark:opacity-30',
                     styles.gradientClass
                   )}
                   animate={{
@@ -245,10 +246,10 @@ export function TopThreeCards({
               />
 
               {/* Rank number in hexagon */}
-              <div className="absolute left-1/2 top-8 -translate-x-1/2 scale-75 sm:scale-100 dark:top-8">
+              <div className="absolute top-8 left-1/2 -translate-x-1/2 scale-75 sm:scale-100 dark:top-8">
                 <div className="relative">
                   <div
-                    className="hex-shape flex h-14 w-14 items-center justify-center bg-gradient-to-br from-gray-100 to-gray-200 shadow dark:shadow-none"
+                    className="hex-shape flex h-14 w-14 items-center justify-center bg-linear-to-br from-gray-100 to-gray-200 shadow dark:shadow-none"
                     style={{
                       background:
                         index === 0
@@ -288,7 +289,7 @@ export function TopThreeCards({
 
               {/* Trophy or medal icon with glow */}
               <motion.div
-                className="relative mb-6 mt-4 dark:mt-4"
+                className="relative mt-4 mb-6 dark:mt-4"
                 animate={
                   prefersReducedMotion
                     ? {}
@@ -379,7 +380,7 @@ export function TopThreeCards({
                 {index === 0 && !prefersReducedMotion && (
                   <>
                     <motion.div
-                      className="absolute -right-2 -top-2 z-20"
+                      className="absolute -top-2 -right-2 z-20"
                       animate={{
                         rotate: [-10, 10, -10],
                         scale: [1, 1.2, 1],
@@ -393,7 +394,7 @@ export function TopThreeCards({
                       <Sparkles className="h-5 w-5 text-yellow-500 dark:text-yellow-300" />
                     </motion.div>
                     <motion.div
-                      className="absolute -left-2 bottom-0 z-20"
+                      className="absolute bottom-0 -left-2 z-20"
                       animate={{
                         rotate: [10, -10, 10],
                         scale: [1, 1.1, 1],
@@ -425,7 +426,7 @@ export function TopThreeCards({
                 <Badge
                   variant="outline"
                   className={cn(
-                    'mb-4 border-gray-200 bg-gray-50 text-xs dark:border-slate-700 dark:bg-slate-900/80',
+                    'mb-4 bg-gray-50 text-xs dark:border-slate-700 dark:bg-slate-900/80',
                     styles.badgeClass
                   )}
                 >
@@ -471,7 +472,7 @@ export function TopThreeCards({
               {/* View profile button */}
               <Link
                 href={`/${teamMode ? 'profile/teams' : 'profile'}/${entry.id.replace(/-/g, '')}`}
-                className="mt-4 flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600 opacity-0 transition-opacity hover:bg-gray-200 group-hover:opacity-100 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                className="mt-4 flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 hover:bg-gray-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
               >
                 {t('view-profile')} <ExternalLink className="ml-1 h-3 w-3" />
               </Link>

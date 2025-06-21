@@ -57,7 +57,7 @@ export const getQuizSetColumns = (
     cell: ({ row }) => (
       <Link
         href={row.original.href || '#'}
-        className="min-w-[8rem] font-semibold hover:underline"
+        className="min-w-32 font-semibold hover:underline"
       >
         {row.getValue('name') || '-'}
       </Link>
@@ -73,7 +73,7 @@ export const getQuizSetColumns = (
       />
     ),
     cell: ({ row }) => (
-      <div className="flex min-w-[8rem] flex-wrap gap-1 font-semibold">
+      <div className="flex min-w-32 flex-wrap gap-1 font-semibold">
         {(
           row.getValue('linked_modules') as unknown as
             | {
@@ -93,7 +93,7 @@ export const getQuizSetColumns = (
               <Link
                 href={`/${extraData.wsId}/education/courses/${module.course_id}/modules/${module.module_id}`}
                 key={`${module.course_name}-${module.module_name}`}
-                className="bg-foreground/5 w-fit rounded border px-2 py-0.5 hover:underline"
+                className="w-fit rounded border bg-foreground/5 px-2 py-0.5 hover:underline"
               >
                 {module.course_name} / {module.module_name}
               </Link>

@@ -1,8 +1,8 @@
 'use client';
 
-import { WorkspaceCourseModuleRowActions } from './row-actions';
 import { ColumnDef } from '@tanstack/react-table';
 import { WorkspaceCourseModule } from '@tuturuuu/types/db';
+import { WorkspaceCourseModuleRowActions } from '@tuturuuu/ui/custom/education/modules/course-module-row-actions';
 import { DataTableColumnHeader } from '@tuturuuu/ui/custom/tables/data-table-column-header';
 import { Check, X } from '@tuturuuu/ui/icons';
 import moment from 'moment';
@@ -58,7 +58,7 @@ export const getWorkspaceCourseModuleColumns = (
     cell: ({ row }) => (
       <Link
         href={row.original.href || '#'}
-        className="min-w-[8rem] font-semibold hover:underline"
+        className="min-w-32 font-semibold hover:underline"
       >
         {row.getValue('name') || '-'}
       </Link>

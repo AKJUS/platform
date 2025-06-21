@@ -20,7 +20,7 @@ import { useState } from 'react';
 import * as z from 'zod';
 
 interface Props {
-  oldEmail?: string;
+  oldEmail?: string | null;
   newEmail?: string | null;
   disabled?: boolean;
 }
@@ -136,7 +136,7 @@ export default function EmailInput({ oldEmail, newEmail, disabled }: Props) {
               disabled
             />
 
-            <FormDescription className="md:max-w-[31rem]">
+            <FormDescription className="md:max-w-124">
               {changeEmailDescription}
             </FormDescription>
           </div>

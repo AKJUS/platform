@@ -38,6 +38,7 @@ export default function LeaderboardClient({
   initialPage = 1,
   calculationDate,
   totalPages = 0,
+  wsId,
 }: {
   data: LeaderboardEntry[];
   topThree: LeaderboardEntry[];
@@ -48,6 +49,7 @@ export default function LeaderboardClient({
   initialPage?: number;
   calculationDate: Date;
   totalPages?: number;
+  wsId: string;
 }) {
   const [filteredData, setFilteredData] = useState<LeaderboardEntry[]>(data);
   const [filteredInfo, setFilteredInfo] = useState<BasicInformation>(basicInfo);
@@ -174,7 +176,7 @@ export default function LeaderboardClient({
                   transition={{ duration: 2, repeat: Infinity }}
                 />
               </div>
-              <h2 className="bg-gradient-to-r from-yellow-500 via-amber-500 to-orange-500 bg-clip-text text-xl font-bold text-transparent dark:from-yellow-400 dark:via-amber-400 dark:to-orange-400">
+              <h2 className="bg-linear-to-r from-yellow-500 via-amber-500 to-orange-500 bg-clip-text text-xl font-bold text-transparent dark:from-yellow-400 dark:via-amber-400 dark:to-orange-400">
                 {t('top-performers.title')}
               </h2>
               {selectedChallenge !== 'all' && (
@@ -188,18 +190,22 @@ export default function LeaderboardClient({
               )}
             </div>
 
-            <Link href="/leaderboard/teams">
+            <Link href={`/${wsId}/leaderboard/teams`}>
               <Button variant="outline" size="sm">
                 {t('team')}
               </Button>
             </Link>
           </div>
-          <TopThreeCards topThree={filteredTopThree} teamMode={false} />
+          <TopThreeCards
+            wsId={wsId}
+            topThree={filteredTopThree}
+            teamMode={false}
+          />
 
           <div className="relative my-8 h-px w-full overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-slate-400 to-transparent opacity-20 dark:via-slate-600"></div>
+            <div className="absolute inset-0 bg-linear-to-r from-transparent via-slate-400 to-transparent opacity-20 dark:via-slate-600"></div>
             <motion.div
-              className="absolute inset-0 h-px w-1/3 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"
+              className="absolute inset-0 h-px w-1/3 bg-linear-to-r from-blue-500 via-purple-500 to-pink-500"
               animate={{ x: ['-100%', '400%'] }}
               transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
             />
@@ -207,7 +213,7 @@ export default function LeaderboardClient({
         </div>
 
         <div className="flex flex-col gap-6 md:flex-row md:items-start">
-          <div className="flex w-full flex-grow flex-col gap-6">
+          <div className="flex w-full grow flex-col gap-6">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -234,23 +240,24 @@ export default function LeaderboardClient({
                 challenges={challenges}
                 selectedChallenge={selectedChallenge}
                 problems={problems}
+                wsId={wsId}
               />
 
               <div className="mt-6">
-                <div className="bg-foreground/[0.025] dark:bg-foreground/5 flex flex-wrap items-center justify-between gap-2 rounded-lg border px-4 py-2 text-center backdrop-blur-xl">
-                  <div className="text-muted-foreground flex-none text-sm">
-                    <span className="text-primary font-semibold">
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-foreground/[0.025] px-4 py-2 text-center backdrop-blur-xl dark:bg-foreground/5">
+                  <div className="flex-none text-sm text-muted-foreground">
+                    <span className="font-semibold text-primary">
                       {filteredInfo.totalParticipants}
                     </span>{' '}
                     participant(s)
                   </div>
 
                   <div className="flex flex-wrap items-center justify-center gap-2 md:gap-4">
-                    <div className="text-muted-foreground w-fit text-sm">
+                    <div className="w-fit text-sm text-muted-foreground">
                       Page{' '}
-                      <span className="text-primary font-semibold">{page}</span>{' '}
+                      <span className="font-semibold text-primary">{page}</span>{' '}
                       of{' '}
-                      <span className="text-primary font-semibold">
+                      <span className="font-semibold text-primary">
                         {totalPages ||
                           Math.ceil(filteredInfo.totalParticipants / 20)}
                       </span>
@@ -312,26 +319,26 @@ export default function LeaderboardClient({
               transition={{ duration: 0.5, delay: 0.4 }}
             >
               <div className="relative space-y-6">
-                <Card className="overflow-hidden border-gray-200 bg-white dark:border-slate-800 dark:bg-slate-900/80">
+                <Card className="overflow-hidden bg-white dark:border-slate-800 dark:bg-slate-900/80">
                   <CardContent className="p-6">
                     <h3 className="mb-3 text-lg font-bold text-gray-900 dark:text-slate-200">
                       {t('tutorials.title')}
                     </h3>
-                    <ul className="space-y-3 text-sm text-gray-600 dark:text-slate-400">
+                    <ul className="space-y-3 text-sm text-muted-foreground dark:text-slate-400">
                       <li className="flex items-start gap-2">
-                        <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400">
                           1
                         </span>
                         <span>{t('tutorials.step-1')}</span>
                       </li>
                       <li className="flex items-start gap-2">
-                        <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400">
                           2
                         </span>
                         <span>{t('tutorials.step-2')}</span>
                       </li>
                       <li className="flex items-start gap-2">
-                        <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-400">
                           3
                         </span>
                         <span>{t('tutorials.step-3')}</span>
@@ -340,15 +347,15 @@ export default function LeaderboardClient({
                   </CardContent>
                 </Card>
 
-                <Card className="overflow-hidden border-gray-200 bg-white dark:border-slate-800 dark:bg-slate-900/80">
-                  <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-yellow-400 to-yellow-600" />
+                <Card className="overflow-hidden bg-white dark:border-slate-800 dark:bg-slate-900/80">
+                  <div className="absolute inset-x-0 top-0 h-1 bg-linear-to-r from-yellow-400 to-yellow-600" />
                   <CardContent className="p-6">
                     <h3 className="mb-3 text-lg font-bold text-gray-900 dark:text-slate-200">
                       {t('rewards.current-rewards')}
                     </h3>
                     <ul className="space-y-3">
                       <li className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-yellow-100 dark:bg-yellow-900/30">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-yellow-100 dark:bg-yellow-900/30">
                           <Trophy className="h-4 w-4 text-yellow-600 dark:text-yellow-400" />
                         </div>
                         <div>
@@ -361,8 +368,8 @@ export default function LeaderboardClient({
                         </div>
                       </li>
                       <li className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
-                          <Medal className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800">
+                          <Medal className="h-4 w-4 text-muted-foreground dark:text-gray-400" />
                         </div>
                         <div>
                           <p className="font-medium text-gray-900 dark:text-slate-200">
@@ -374,7 +381,7 @@ export default function LeaderboardClient({
                         </div>
                       </li>
                       <li className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
                           <Medal className="h-4 w-4 text-amber-700 dark:text-amber-500" />
                         </div>
                         <div>
@@ -387,7 +394,7 @@ export default function LeaderboardClient({
                         </div>
                       </li>
                       <li className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-purple-100 dark:bg-purple-900/30">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-purple-100 dark:bg-purple-900/30">
                           <Award className="h-4 w-4 text-purple-700 dark:text-purple-400" />
                         </div>
                         <div>
@@ -400,7 +407,7 @@ export default function LeaderboardClient({
                         </div>
                       </li>
                       <li className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-pink-100 dark:bg-pink-900/30">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-pink-100 dark:bg-pink-900/30">
                           <Target className="h-4 w-4 text-pink-700 dark:text-pink-400" />
                         </div>
                         <div>
@@ -413,7 +420,7 @@ export default function LeaderboardClient({
                         </div>
                       </li>
                       <li className="flex items-center gap-3">
-                        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30">
                           <Clock className="h-4 w-4 text-blue-700 dark:text-blue-400" />
                         </div>
                         <div>
