@@ -2,7 +2,7 @@ import {
   createAdminClient,
   createClient,
 } from '@tuturuuu/supabase/next/server';
-import { NextRequest, NextResponse } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 
 export async function GET(
   _: NextRequest,
@@ -33,7 +33,7 @@ export async function GET(
     }
 
     const { error: roleError } = await supabase
-      .from('nova_roles')
+      .from('platform_email_roles')
       .select('*')
       .eq('email', user.email)
       .eq('allow_role_management', true)

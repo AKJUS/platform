@@ -1,13 +1,13 @@
-import UserProfileClient from './client';
 import { createAdminClient } from '@tuturuuu/supabase/next/server';
 import { generateFunName } from '@tuturuuu/utils/name-helper';
 import {
   calculatePercentage,
   calculateScore,
 } from '@tuturuuu/utils/nova/scores/calculate';
-import { Metadata } from 'next';
-import { getLocale } from 'next-intl/server';
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { getLocale } from 'next-intl/server';
+import UserProfileClient from './client';
 
 // Dynamic metadata for profile pages
 export async function generateMetadata({
@@ -37,7 +37,7 @@ export async function generateMetadata({
   // Construct OG image URL using userId
   const ogImageUrl = new URL(
     `/api/og/${userId}`,
-    process.env.NEXT_PUBLIC_APP_URL || 'https://nova.tuturuuu.com'
+    process.env.NEXT_PUBLIC_APP_URL || 'https://nova.ai.vn'
   ).toString();
 
   return {
@@ -60,9 +60,9 @@ export async function generateMetadata({
 export default async function UserProfilePage({
   params,
 }: {
-  params: Promise<{ userId: string }>;
+  params: Promise<{ wsId: string; userId: string }>;
 }) {
-  const { userId: rawUserId } = await params;
+  const { wsId, userId: rawUserId } = await params;
 
   const locale = await getLocale();
   const sbAdmin = await createAdminClient();
@@ -212,7 +212,8 @@ export default async function UserProfilePage({
   );
 
   // Get user's rank from leaderboard
-  const { data: leaderboardData = [] } = await sbAdmin.from('nova_sessions')
+  const { data: leaderboardData = [] } = await sbAdmin
+    .from('nova_sessions')
     .select(`
       user_id,
       nova_submissions_with_scores(
@@ -368,5 +369,5 @@ export default async function UserProfilePage({
       ) || [],
   };
 
-  return <UserProfileClient profile={profileData} />;
+  return <UserProfileClient wsId={wsId} profile={profileData} />;
 }

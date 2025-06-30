@@ -1,7 +1,7 @@
-import { TeamProfile } from './client';
 import { createAdminClient } from '@tuturuuu/supabase/next/server';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
+import { TeamProfile } from './client';
 
 interface TeamData {
   id: string;
@@ -34,27 +34,33 @@ interface TeamData {
 export default async function TeamPage({
   params,
 }: {
-  params: Promise<{ teamId: string }>;
+  params: Promise<{ wsId: string; teamId: string }>;
 }) {
-  const { teamId: id } = await params;
+  const { wsId, teamId: id } = await params;
 
   return (
     <Suspense
       fallback={<div className="p-8 text-center">Loading team data...</div>}
     >
-      <TeamPageContent teamId={id} />
+      <TeamPageContent teamId={id} wsId={wsId} />
     </Suspense>
   );
 }
 
-async function TeamPageContent({ teamId }: { teamId: string }) {
+async function TeamPageContent({
+  teamId,
+  wsId,
+}: {
+  teamId: string;
+  wsId: string;
+}) {
   const teamData = await fetchTeamData(teamId);
 
   if (!teamData) {
-    redirect('/profile/teams');
+    redirect(`/profile/teams`);
   }
 
-  return <TeamProfile teamData={teamData} />;
+  return <TeamProfile wsId={wsId} teamData={teamData} />;
 }
 
 async function fetchTeamData(id: string): Promise<TeamData | null> {
@@ -101,8 +107,9 @@ async function fetchTeamData(id: string): Promise<TeamData | null> {
     }
 
     // Fetch submission data with detailed scoring info
-    const { data: submissionsData, error: submissionsError } =
-      await sbAdmin.from('nova_submissions_with_scores').select(`
+    const { data: submissionsData, error: submissionsError } = await sbAdmin
+      .from('nova_submissions_with_scores')
+      .select(`
       id,
       user_id,
       problem_id,

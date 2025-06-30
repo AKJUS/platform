@@ -1,14 +1,21 @@
-import ProblemComponent from '../../../../shared/problem-component';
-import PromptComponent from '../../../../shared/prompt-component';
-import TestCaseComponent from '../../../../shared/test-case-component';
-import PromptForm from './prompt-form';
-import { createClient } from '@tuturuuu/supabase/next/server';
-import { NovaProblem, NovaProblemTestCase } from '@tuturuuu/types/db';
+import {
+  createAdminClient,
+  createClient,
+} from '@tuturuuu/supabase/next/server';
+import type {
+  NovaProblem,
+  NovaProblemTestCase,
+  NovaSubmissionWithScores,
+} from '@tuturuuu/types/db';
 import { Button } from '@tuturuuu/ui/button';
 import { Card, CardContent } from '@tuturuuu/ui/card';
 import { ArrowLeft } from '@tuturuuu/ui/icons';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@tuturuuu/ui/tabs';
 import Link from 'next/link';
+import ProblemComponent from '../../../../shared/problem-component';
+import PromptComponent from '../../../../shared/prompt-component';
+import PromptForm from '../../../../shared/prompt-form';
+import TestCaseComponent from '../../../../shared/test-case-component';
 
 type ExtendedNovaProblem = NovaProblem & {
   test_cases: NovaProblemTestCase[];
@@ -23,6 +30,7 @@ interface Props {
 export default async function Page({ params }: Props) {
   const { problemId } = await params;
   const problem = await getProblem(problemId);
+  const submissions = await getSubmissions(problemId);
 
   if (!problem) {
     return (
@@ -48,10 +56,10 @@ export default async function Page({ params }: Props) {
 
       <div className="relative grid h-[calc(100vh-4rem)] grid-cols-1 gap-4 overflow-scroll p-6 md:grid-cols-2">
         <div className="flex h-full w-full flex-col gap-4 overflow-hidden">
-          <Card className="border-foreground/10 bg-foreground/5 h-full overflow-y-auto">
+          <Card className="h-full overflow-y-auto border-foreground/10 bg-foreground/5">
             <CardContent className="p-0">
               <Tabs defaultValue="problem" className="w-full">
-                <TabsList className="bg-foreground/10 w-full rounded-b-none rounded-t-lg">
+                <TabsList className="w-full rounded-t-lg rounded-b-none bg-foreground/10">
                   <TabsTrigger value="problem" className="flex-1">
                     Problem
                   </TabsTrigger>
@@ -72,7 +80,7 @@ export default async function Page({ params }: Props) {
 
         <div className="relative flex h-full w-full flex-col gap-4 overflow-hidden">
           <PromptComponent>
-            <PromptForm problem={problem} />
+            <PromptForm problem={problem} submissions={submissions} />
           </PromptComponent>
         </div>
       </div>
@@ -83,11 +91,11 @@ export default async function Page({ params }: Props) {
 async function getProblem(
   problemId: string
 ): Promise<ExtendedNovaProblem | null> {
-  const supabase = await createClient();
+  const sbAdmin = await createAdminClient();
 
   try {
     // Fetch problem details
-    const { data: problem, error: problemError } = await supabase
+    const { data: problem, error: problemError } = await sbAdmin
       .from('nova_problems')
       .select('*')
       .eq('id', problemId)
@@ -99,10 +107,9 @@ async function getProblem(
     }
 
     // Fetch test cases for the problem
-    const { data: testCases, error: testcaseError } = await supabase
+    const { data: testCases, error: testcaseError } = await sbAdmin
       .from('nova_problem_test_cases')
       .select('*')
-      .eq('hidden', false)
       .eq('problem_id', problemId);
 
     if (testcaseError) {
@@ -118,4 +125,35 @@ async function getProblem(
     console.error('Unexpected error fetching problem:', error);
     return null;
   }
+}
+
+async function getSubmissions(
+  problemId: string
+): Promise<NovaSubmissionWithScores[]> {
+  const sbAdmin = await createAdminClient();
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (authError || !user?.id) {
+    throw new Error('Unauthorized');
+  }
+
+  const { data: submissions, error } = await sbAdmin
+    .from('nova_submissions_with_scores')
+    .select('*')
+    .eq('problem_id', problemId)
+    .is('session_id', null)
+    .eq('user_id', user.id)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.error('Error fetching submissions:', error);
+    return [];
+  }
+
+  return submissions;
 }

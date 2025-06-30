@@ -1,24 +1,19 @@
-import { DEV_MODE } from '@/constants/common';
-import { useEnterSubmit } from '@/lib/hooks/use-enter-submit';
-import { type UseChatHelpers } from '@tuturuuu/ai/types';
+import type { UseChatHelpers } from '@tuturuuu/ai/types';
 import type { AIChat } from '@tuturuuu/types/db';
 import { Button } from '@tuturuuu/ui/button';
-import { StatedFile } from '@tuturuuu/ui/custom/file-uploader';
+import type { StatedFile } from '@tuturuuu/ui/custom/file-uploader';
 import { Dialog } from '@tuturuuu/ui/dialog';
 import {
   Bolt,
-  Cat,
   File,
   FileText,
   Globe,
-  IconArrowElbow,
   ImageIcon,
   Languages,
   Lock,
-  Origami,
   Paperclip,
-  Rabbit,
   RefreshCw,
+  Send,
   Sparkles,
   X,
 } from '@tuturuuu/ui/icons';
@@ -30,13 +25,13 @@ import {
   TooltipTrigger,
 } from '@tuturuuu/ui/tooltip';
 import { cn } from '@tuturuuu/utils/format';
-import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import type React from 'react';
 import { useEffect, useState } from 'react';
 import Textarea from 'react-textarea-autosize';
-
-export type ResponseMode = 'short' | 'medium' | 'long';
+import { DEV_MODE } from '@/constants/common';
+import { useEnterSubmit } from '@/lib/hooks/use-enter-submit';
 
 export interface PromptProps
   extends Pick<UseChatHelpers, 'input' | 'setInput'> {
@@ -54,9 +49,6 @@ export interface PromptProps
   setShowExtraOptions: React.Dispatch<React.SetStateAction<boolean>>;
   toggleChatFileUpload: () => void;
   toggleChatVisibility: () => void;
-  mode: ResponseMode;
-  // eslint-disable-next-line no-unused-vars
-  setMode: (mode: ResponseMode) => void;
   disabled?: boolean;
 }
 
@@ -76,8 +68,6 @@ export function PromptForm({
   setShowExtraOptions,
   toggleChatFileUpload,
   toggleChatVisibility,
-  mode,
-  setMode,
   disabled,
 }: PromptProps) {
   const t = useTranslations();
@@ -246,7 +236,7 @@ export function PromptForm({
           <div className="scrollbar-none flex w-full items-center gap-2 overflow-x-auto font-semibold">
             {model && (
               <>
-                <div className="border-dynamic-orange/20 bg-dynamic-orange/10 text-dynamic-orange flex shrink-0 items-center gap-1 rounded border px-2 py-1 text-xs font-semibold">
+                <div className="flex shrink-0 items-center gap-1 rounded border border-dynamic-orange/20 bg-dynamic-orange/10 px-2 py-1 text-xs font-semibold text-dynamic-orange">
                   <Sparkles className="h-3 w-3" />
                   <span>
                     {provider && (
@@ -260,59 +250,6 @@ export function PromptForm({
                 {disabled || (
                   <Separator orientation="vertical" className="h-4" />
                 )}
-              </>
-            )}
-
-            {disabled || (
-              <>
-                <Button
-                  size="xs"
-                  type="button"
-                  variant={mode === 'short' ? undefined : 'secondary'}
-                  className={cn(
-                    'border text-xs',
-                    mode === 'short'
-                      ? 'border-dynamic-blue/20 bg-dynamic-blue/10 text-dynamic-blue hover:bg-dynamic-blue/20'
-                      : 'bg-background text-foreground/70 hover:bg-foreground/5'
-                  )}
-                  onClick={() => setMode('short')}
-                  disabled={disabled}
-                >
-                  <Rabbit className="mr-1 h-4 w-4" />
-                  {t('ai_chat.short_and_concise')}
-                </Button>
-                <Button
-                  size="xs"
-                  type="button"
-                  variant={mode === 'medium' ? undefined : 'secondary'}
-                  className={cn(
-                    'border text-xs',
-                    mode === 'medium'
-                      ? 'border-dynamic-purple/20 bg-dynamic-purple/10 text-dynamic-purple hover:bg-dynamic-purple/20'
-                      : 'bg-background text-foreground/70 hover:bg-foreground/5'
-                  )}
-                  onClick={() => setMode('medium')}
-                  disabled={disabled}
-                >
-                  <Cat className="mr-1 h-4 w-4" />
-                  {t('ai_chat.medium_and_informative')}
-                </Button>
-                <Button
-                  size="xs"
-                  type="button"
-                  variant={mode === 'long' ? undefined : 'secondary'}
-                  className={cn(
-                    'border text-xs',
-                    mode === 'long'
-                      ? 'border-dynamic-green/20 bg-dynamic-green/10 text-dynamic-green hover:bg-dynamic-green/20'
-                      : 'bg-background text-foreground/70 hover:bg-foreground/5'
-                  )}
-                  onClick={() => setMode('long')}
-                  disabled={disabled}
-                >
-                  <Origami className="mr-1 h-4 w-4" />
-                  {t('ai_chat.long_and_detailed')}
-                </Button>
               </>
             )}
             {/* <Button
@@ -622,7 +559,7 @@ export function PromptForm({
                       : 'pointer-events-auto ml-1 w-10 opacity-100'
                   )}
                 >
-                  <IconArrowElbow />
+                  <Send />
                   <span className="sr-only">{t('ai_chat.send_message')}</span>
                 </Button>
               </TooltipTrigger>
@@ -637,7 +574,7 @@ export function PromptForm({
               {pdfs.length > 0 && (
                 <Tooltip delayDuration={0}>
                   <TooltipTrigger asChild>
-                    <div className="bg-foreground text-background flex w-fit items-center gap-1 rounded px-2 py-1 font-semibold">
+                    <div className="flex w-fit items-center gap-1 rounded bg-foreground px-2 py-1 font-semibold text-background">
                       <FileText className="h-4 w-4" />
                       {pdfs.length} PDFs
                     </div>
@@ -676,7 +613,7 @@ export function PromptForm({
               {images.length > 0 && (
                 <Tooltip delayDuration={0}>
                   <TooltipTrigger asChild>
-                    <div className="bg-foreground text-background flex w-fit items-center gap-1 rounded px-2 py-1 font-semibold">
+                    <div className="flex w-fit items-center gap-1 rounded bg-foreground px-2 py-1 font-semibold text-background">
                       <ImageIcon className="h-4 w-4" />
                       {images.length} Images
                     </div>
@@ -689,7 +626,7 @@ export function PromptForm({
                           className="group flex items-center gap-2 rounded"
                         >
                           <div className="size-8">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            {/** biome-ignore lint/performance/noImgElement: <Raw image> */}
                             <img
                               src={URL.createObjectURL(f.rawFile)}
                               alt={f.rawFile.name}
@@ -722,7 +659,7 @@ export function PromptForm({
               {others.length > 0 && (
                 <Tooltip delayDuration={0}>
                   <TooltipTrigger asChild>
-                    <div className="bg-foreground text-background flex w-fit items-center gap-1 rounded px-2 py-1 font-semibold">
+                    <div className="flex w-fit items-center gap-1 rounded bg-foreground px-2 py-1 font-semibold text-background">
                       <File className="h-4 w-4" />
                       {others.length} Files
                     </div>
@@ -778,7 +715,7 @@ export function PromptForm({
             }
             spellCheck={false}
             maxRows={7}
-            className="scrollbar-none placeholder-foreground/50 focus-within:outline-hidden w-full resize-none bg-transparent py-2 sm:text-sm"
+            className="scrollbar-none w-full resize-none bg-transparent py-2 placeholder-foreground/50 focus-within:outline-hidden sm:text-sm"
             disabled={disabled}
           />
         </div>

@@ -1,12 +1,12 @@
 'use client';
 
-import { GroupTagRowActions } from './row-actions';
-import { ColumnDef } from '@tanstack/react-table';
-import { UserGroupTag } from '@tuturuuu/types/primitives/UserGroupTag';
+import type { ColumnDef } from '@tanstack/react-table';
+import type { UserGroupTag } from '@tuturuuu/types/primitives/UserGroupTag';
 import { ColorPicker } from '@tuturuuu/ui/color-picker';
 import { DataTableColumnHeader } from '@tuturuuu/ui/custom/tables/data-table-column-header';
 import moment from 'moment';
 import Link from 'next/link';
+import { GroupTagRowActions } from './row-actions';
 
 export const groupTagColumns = (
   t: any,
@@ -43,7 +43,7 @@ export const groupTagColumns = (
       />
     ),
     cell: ({ row }) => (
-      <div className="line-clamp-1 max-w-[8rem] break-all">
+      <div className="line-clamp-1 max-w-32 break-all">
         {row.getValue('id')}
       </div>
     ),
@@ -58,7 +58,7 @@ export const groupTagColumns = (
       />
     ),
     cell: ({ row }) => (
-      <div className="line-clamp-1 max-w-[8rem] break-all">
+      <div className="line-clamp-1 max-w-32 break-all">
         <Link className="cursor-pointer" href={row.original.href || '#'}>
           <ColorPicker
             text={row.getValue('name')}
@@ -79,7 +79,7 @@ export const groupTagColumns = (
       />
     ),
     cell: ({ row }) => (
-      <div className="line-clamp-1 max-w-[8rem] break-all">
+      <div className="line-clamp-1 max-w-32 break-all">
         {row.getValue('color') ? `#${row.getValue('color')}` : '-'}
       </div>
     ),
@@ -94,7 +94,7 @@ export const groupTagColumns = (
       />
     ),
     cell: ({ row }) => (
-      <div className="line-clamp-2 max-w-[8rem] break-all">
+      <div className="line-clamp-2 max-w-32 break-all">
         {row.getValue('created_at')
           ? moment(row.getValue('created_at')).format('DD/MM/YYYY, HH:mm:ss')
           : '-'}

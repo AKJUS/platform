@@ -1,6 +1,5 @@
 'use client';
 
-import ProblemForm, { type ProblemFormValues } from './problem-form';
 import {
   Dialog,
   DialogContent,
@@ -12,6 +11,7 @@ import {
 import { toast } from '@tuturuuu/ui/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import ProblemForm, { type ProblemFormValues } from './problem-form';
 
 interface CreateProblemDialogProps {
   trigger: React.ReactNode;
@@ -21,6 +21,7 @@ export default function CreateProblemDialog({
   trigger,
 }: CreateProblemDialogProps) {
   const router = useRouter();
+
   const [open, setOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -78,14 +79,16 @@ export default function CreateProblemDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="flex h-[80vh] flex-col gap-4 sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Create New Problem</DialogTitle>
           <DialogDescription>
             Create a new prompt engineering problem for users to practice with.
           </DialogDescription>
         </DialogHeader>
-        <ProblemForm onSubmit={onSubmit} isSubmitting={isSubmitting} />
+        <div className="flex-1 overflow-y-auto">
+          <ProblemForm onSubmit={onSubmit} isSubmitting={isSubmitting} />
+        </div>
       </DialogContent>
     </Dialog>
   );

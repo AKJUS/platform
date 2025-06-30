@@ -2,10 +2,10 @@ import { DEV_MODE } from './common';
 
 export const siteConfig = {
   name: 'Tuturuuu Nova',
-  url: DEV_MODE ? 'http://localhost:7805' : 'https://nova.tuturuuu.com',
+  url: DEV_MODE ? 'http://localhost:7805' : 'https://nova.ai.vn',
   ogImage: DEV_MODE
     ? 'http://localhost:7805/api/og'
-    : 'https://nova.tuturuuu.com/api/og',
+    : 'https://nova.ai.vn/api/og',
   links: {
     twitter: 'https://twitter.com/tutur3u',
     github: 'https://github.com/tutur3u/platform',
@@ -59,5 +59,6 @@ export const appConfig: AppConfig = {
     privateKeyId: process.env.GOOGLE_VERTEX_PRIVATE_KEY_ID,
     credentials: process.env.GOOGLE_APPLICATION_CREDENTIALS,
   },
-  defaultModel: process.env.DEFAULT_AI_MODEL || 'gemini-2.0-flash-001',
+  defaultModel:
+    process.env.DEFAULT_AI_MODEL || 'gemini-2.0-flash-lite-preview-02-05',
 };

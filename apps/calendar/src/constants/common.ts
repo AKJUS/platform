@@ -3,6 +3,9 @@ import { supportedLocales } from '@/i18n/routing';
 export const DEV_MODE = process.env.NODE_ENV === 'development';
 export const PROD_MODE = process.env.NODE_ENV === 'production';
 
+export const PORT = process.env.PORT || 7001;
+export const CENTRAL_PORT = process.env.CENTRAL_PORT || 7803;
+
 export const BASE_URL =
   process.env.BASE_URL || PROD_MODE
     ? 'https://calendar.tuturuuu.com'
@@ -12,8 +15,6 @@ export const API_URL =
   process.env.API_URL || PROD_MODE
     ? 'https://calendar.tuturuuu.com/api'
     : 'http://localhost:7001/api';
-
-export const ROOT_WORKSPACE_ID = '00000000-0000-0000-0000-000000000000';
 
 export const LOCALE_COOKIE_NAME = 'NEXT_LOCALE';
 export const THEME_COOKIE_NAME = 'NEXT_THEME';

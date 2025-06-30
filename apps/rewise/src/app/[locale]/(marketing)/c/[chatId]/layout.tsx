@@ -1,9 +1,9 @@
-import { siteConfig } from '@/constants/configs';
 import { createAdminClient } from '@tuturuuu/supabase/next/server';
-import { AIChat } from '@tuturuuu/types/db';
-import { Metadata } from 'next';
+import type { AIChat } from '@tuturuuu/types/db';
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { ReactNode } from 'react';
+import type { ReactNode } from 'react';
+import { siteConfig } from '@/constants/configs';
 
 interface Props {
   params: Promise<{
@@ -13,9 +13,9 @@ interface Props {
 }
 
 const getChat = async (chatId: string) => {
-  const supabase = await createAdminClient();
+  const sbAdmin = await createAdminClient();
 
-  const { data, error } = await supabase
+  const { data, error } = await sbAdmin
     .from('ai_chats')
     .select('*')
     .eq('id', chatId)

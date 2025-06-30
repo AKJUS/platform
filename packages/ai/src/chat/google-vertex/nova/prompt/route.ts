@@ -1,30 +1,24 @@
 import { google } from '@ai-sdk/google';
-import { vertex } from '@ai-sdk/google-vertex/edge';
 import type { SafetySetting } from '@google/generative-ai';
 import type {
   NovaSubmissionCriteria,
   NovaSubmissionTestCase,
-  ResponseMode,
 } from '@tuturuuu/ai/types';
 import {
   createAdminClient,
   createClient,
 } from '@tuturuuu/supabase/next/server';
-import { generateObject } from 'ai';
-import { type NextRequest, NextResponse } from 'next/server';
+import type { NovaProblem } from '@tuturuuu/types/db';
+import { checkPermission } from '@tuturuuu/utils/nova/submissions/check-permission';
+import { generateObject, streamObject } from 'ai';
+import type { NextRequest } from 'next/server';
 import { z } from 'zod';
-
-const DEFAULT_MODEL_NAME = 'gemini-1.5-flash-002';
-
-// Add a simple round-robin selection function that favors Google
-function getModelProvider() {
-  // Use timestamp to create simple round-robin with 70% preference for Google
-  // const timestamp = Date.now();
-  // return timestamp % 10 < 7 ? 'google' : 'vertex';
-
-  // Always use Google (higher rate limit)
-  return 'google';
-}
+import {
+  MAIN_EVALUATION_PROMPT,
+  OUTPUT_COMPARISON_PROMPT,
+  PLAGIARISM_DETECTION_PROMPT,
+  TEST_CASE_EVALUATION_PROMPT,
+} from './prompts';
 
 export const runtime = 'edge';
 export const maxDuration = 60;
@@ -43,561 +37,949 @@ const modelSafetySettings = [
   },
 ] as SafetySetting[];
 
-const vertexModel =
-  process.env.NODE_ENV === 'production'
-    ? getModelProvider() === 'vertex'
-      ? vertex(DEFAULT_MODEL_NAME, {
-          safetySettings: modelSafetySettings,
-        })
-      : google(DEFAULT_MODEL_NAME, {
-          safetySettings: modelSafetySettings,
-        })
-    : google(DEFAULT_MODEL_NAME, {
-        safetySettings: modelSafetySettings,
-      });
+// Initialize model with appropriate provider
+const critizierModel = google('gemini-2.0-flash', {
+  safetySettings: modelSafetySettings,
+});
 
+const evaluatorModel = google('gemini-2.0-flash', {
+  safetySettings: modelSafetySettings,
+});
+
+// Schema definitions
+const PlagiarismSchema = z.object({
+  similarity_score: z.number().min(0).max(1),
+  is_plagiarism: z.boolean(),
+  reasoning: z.string(),
+});
+
+const CriteriaEvaluationSchema = z.object({
+  criteriaEvaluation: z
+    .array(
+      z.object({
+        id: z
+          .string()
+          .describe('ID of the evaluation criterion from the context'),
+        name: z.string().describe('Name of the evaluation criterion'),
+        description: z.string().describe('Description of the criterion'),
+        score: z.number().min(0).max(10).describe('Score out of 10'),
+        feedback: z
+          .string()
+          .describe(
+            'Detailed feedback for the criterion with specific examples'
+          ),
+        strengths: z
+          .array(z.string())
+          .describe('Key strengths related to this criterion'),
+        improvements: z
+          .array(z.string())
+          .describe('Suggestions for improvement related to this criterion'),
+      })
+    )
+    .describe('Array of criteria evaluations'),
+  overallAssessment: z
+    .string()
+    .describe('A brief overall assessment of the submission'),
+  totalScore: z
+    .number()
+    .describe('The calculated total score across all criteria'),
+});
+
+const TestCaseEvaluationSchema = z
+  .array(
+    z.object({
+      id: z
+        .string()
+        .describe(
+          'The ID of the original test case from the context (DO NOT HALLUCINATE)'
+        ),
+      input: z.string().describe('The input for the test case'),
+      output: z.string().describe('The output for the test case'),
+      reasoning: z
+        .string()
+        .max(2000)
+        .optional()
+        .describe(
+          'Optional reasoning for this output, the reasoning is at most 2000 characters.'
+        ),
+    })
+  )
+  .describe('Array of test case evaluations');
+
+const TestCaseCheckSchema = z.object({
+  matched: z
+    .boolean()
+    .describe(
+      'True if the model output is semantically equivalent to the expected answer'
+    ),
+  confidence: z
+    .number()
+    .min(0)
+    .max(1)
+    .describe('Confidence level in the match assessment (0-1)'),
+  reasoning: z
+    .string()
+    .describe("Brief explanation of why outputs match or don't match"),
+});
+
+// Progress update schema
+const ProgressUpdateSchema = z.object({
+  step: z.string().describe('Current step being performed'),
+  progress: z.number().min(0).max(100).describe('Progress percentage'),
+  message: z.string().describe('Human-readable progress message'),
+  data: z.any().optional().describe('Optional step-specific data'),
+});
+
+type ProgressUpdate = z.infer<typeof ProgressUpdateSchema>;
+
+// Helper function to safely serialize progress data
+function safeSerializeProgress(update: ProgressUpdate): string {
+  try {
+    // Sanitize the message to prevent JSON parsing issues
+    const sanitized = {
+      ...update,
+      message: update.message
+        .replace(/[\n\r]/g, ' ') // Replace newlines with spaces
+        .replace(/\\/g, '\\\\') // Escape backslashes
+        .replace(/"/g, '\\"') // Escape quotes
+        .trim(),
+      step: update.step.trim(),
+    };
+
+    // If there's data, sanitize it as well
+    if (sanitized.data) {
+      // Convert data to string and sanitize if it's not already a primitive
+      if (typeof sanitized.data === 'object') {
+        try {
+          sanitized.data = JSON.parse(JSON.stringify(sanitized.data));
+        } catch {
+          // If data can't be serialized, remove it to prevent errors
+          sanitized.data = { error: 'Data serialization failed' };
+        }
+      }
+    }
+
+    return JSON.stringify(sanitized);
+  } catch (error) {
+    console.error('Error serializing progress update:', error);
+    // Return a safe fallback
+    return JSON.stringify({
+      step: 'error',
+      progress: 0,
+      message: 'Serialization error occurred',
+      data: { originalError: String(error) },
+    });
+  }
+}
+
+// API route handler
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ problemId: string }> }
 ) {
-  const supabase = createClient();
+  const encoder = new TextEncoder();
+  const supabase = await createClient();
   const sbAdmin = await createAdminClient();
 
   let submissionId: string | null = null;
 
+  const stream = new ReadableStream({
+    async start(controller) {
+      try {
+        const sendProgress = (update: ProgressUpdate) => {
+          try {
+            const serializedData = safeSerializeProgress(update);
+            const data = `data: ${serializedData}\n\n`;
+            controller.enqueue(encoder.encode(data));
+          } catch (error) {
+            console.error('Failed to send progress update:', error);
+            // Send a safe error message instead
+            const errorData = `data: ${JSON.stringify({
+              step: 'error',
+              progress: 0,
+              message: 'Communication error occurred',
+            })}\n\n`;
+            controller.enqueue(encoder.encode(errorData));
+          }
+        };
+
+        // Parse request data
+        sendProgress({
+          step: 'initialization',
+          progress: 5,
+          message: 'Initializing evaluation process...',
+        });
+
+        const { prompt, sessionId } = (await req.json()) as {
+          id?: string;
+          model?: string;
+          prompt?: string;
+          sessionId?: string;
+        };
+
+        // Authenticate user
+        const {
+          data: { user },
+          error: authError,
+        } = await supabase.auth.getUser();
+
+        if (authError || !user?.id) {
+          throw new Error('Unauthorized');
+        }
+
+        if (!prompt) {
+          throw new Error('Incomplete data provided');
+        }
+
+        const { problemId } = await params;
+
+        if (!problemId) {
+          throw new Error('Incomplete data provided');
+        }
+
+        sendProgress({
+          step: 'fetching_problem',
+          progress: 10,
+          message: 'Fetching problem details...',
+        });
+
+        // Fetch problem details
+        const { data: problem, error: problemError } =
+          await fetchProblem(problemId);
+
+        if (problemError || !problem) {
+          throw new Error('Error fetching problem');
+        }
+
+        // Validate prompt length
+        if (prompt.length > problem.max_prompt_length) {
+          throw new Error('Prompt is too long');
+        }
+
+        sendProgress({
+          step: 'checking_permissions',
+          progress: 15,
+          message: 'Checking submission permissions...',
+        });
+
+        // Check submission permissions
+        const { canSubmit, message } = await checkPermission({
+          problemId,
+          sessionId: sessionId || null,
+        });
+
+        if (!canSubmit) {
+          throw new Error(message || 'Permission denied');
+        }
+
+        sendProgress({
+          step: 'plagiarism_check',
+          progress: 20,
+          message: 'Performing plagiarism analysis...',
+        });
+
+        // Check for plagiarism
+        const plagiarismResults = await checkPlagiarism(problem, prompt);
+
+        sendProgress({
+          step: 'fetching_test_data',
+          progress: 25,
+          message: 'Loading test cases and evaluation criteria...',
+        });
+
+        // Fetch test cases and challenge criteria
+        const { testCases, challengeCriteria } =
+          await fetchTestCasesAndCriteria(problem);
+
+        // Build evaluation context
+        const ctx = buildEvaluationContext(
+          problem,
+          testCases,
+          challengeCriteria,
+          prompt,
+          plagiarismResults
+        );
+
+        sendProgress({
+          step: 'creating_submission',
+          progress: 30,
+          message: 'Creating submission record...',
+        });
+
+        // Create submission record early
+        const submission = await createSubmissionRecord(
+          prompt,
+          problemId,
+          sessionId,
+          user.id,
+          'Evaluation in progress...'
+        );
+
+        if (!submission) {
+          throw new Error('Failed to create submission record');
+        }
+
+        submissionId = submission.id;
+
+        sendProgress({
+          step: 'evaluating_criteria',
+          progress: 40,
+          message: 'Evaluating prompt against criteria...',
+          data: { submissionId },
+        });
+
+        // Step 1: Stream criteria evaluation if criteria exist
+        let evaluation: any = {
+          criteriaEvaluation: [],
+          overallAssessment: 'No evaluation performed (no criteria available)',
+          totalScore: 0,
+        };
+
+        if (challengeCriteria && challengeCriteria.length > 0) {
+          const criteriaResult = await streamCriteriaEvaluation(
+            ctx,
+            sendProgress
+          );
+          evaluation = criteriaResult;
+
+          // Save criteria evaluations
+          const criteriaInserts = processCriteriaEvaluations(
+            evaluation.criteriaEvaluation,
+            challengeCriteria,
+            submissionId
+          );
+          await saveCriteriaEvaluations(criteriaInserts);
+        } else {
+          sendProgress({
+            step: 'criteria_skipped',
+            progress: 60,
+            message: 'No criteria found, skipping criteria evaluation...',
+          });
+        }
+
+        sendProgress({
+          step: 'evaluating_test_cases',
+          progress: 65,
+          message: 'Running test case evaluations...',
+        });
+
+        let testCaseInserts: Array<
+          NovaSubmissionTestCase & {
+            confidence?: number;
+            reasoning?: string;
+          }
+        > = [];
+
+        // Step 2: Stream test case evaluation if test cases exist
+        if (testCases && testCases.length > 0) {
+          const testCaseEvaluation = await streamTestCaseEvaluation(
+            {
+              userPrompt: prompt,
+              testCaseInputs: testCases.map((tc) => ({
+                id: tc.id,
+                input: tc.input,
+              })),
+            },
+            sendProgress
+          );
+
+          sendProgress({
+            step: 'processing_test_results',
+            progress: 85,
+            message: 'Processing test case results...',
+          });
+
+          // Process and save test case results
+          testCaseInserts = await processTestCaseResults(
+            testCaseEvaluation,
+            testCases,
+            problem,
+            prompt,
+            submissionId,
+            sendProgress
+          );
+
+          await saveTestCaseResults(testCaseInserts);
+        } else {
+          sendProgress({
+            step: 'test_cases_skipped',
+            progress: 85,
+            message: 'No test cases found, skipping test case evaluation...',
+          });
+        }
+
+        sendProgress({
+          step: 'finalizing',
+          progress: 95,
+          message: 'Finalizing submission...',
+        });
+
+        // Update submission with final assessment
+        await sbAdmin
+          .from('nova_submissions')
+          .update({ overall_assessment: evaluation.overallAssessment })
+          .eq('id', submissionId);
+
+        sendProgress({
+          step: 'completed',
+          progress: 100,
+          message: 'Evaluation completed successfully!',
+          data: {
+            submissionId: submissionId,
+            response: evaluation,
+            matchedTestCases: testCaseInserts.filter((tc) => tc.matched).length,
+            totalTestCases: testCaseInserts.length,
+          },
+        });
+
+        controller.close();
+      } catch (error: any) {
+        console.error('🚨 Server error:', error);
+
+        // Clean up the submission if it was created but processing failed
+        if (submissionId) {
+          try {
+            await sbAdmin
+              .from('nova_submissions')
+              .delete()
+              .eq('id', submissionId);
+          } catch (deleteError) {
+            console.error('Failed to delete submission:', deleteError);
+          }
+        }
+
+        const errorUpdate = {
+          step: 'error',
+          progress: 0,
+          message: `Error: ${error.message}`,
+          data: { error: error.message },
+        };
+
+        controller.enqueue(
+          encoder.encode(`data: ${JSON.stringify(errorUpdate)}\n\n`)
+        );
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+    },
+  });
+}
+
+// Stream criteria evaluation with real-time updates
+async function streamCriteriaEvaluation(
+  ctx: any,
+  sendProgress: (update: ProgressUpdate) => void
+) {
   try {
-    const { prompt, sessionId } = (await req.json()) as {
-      id?: string;
-      model?: string;
-      prompt?: string;
-      sessionId?: string;
-      mode?: ResponseMode;
-    };
+    const systemInstruction = MAIN_EVALUATION_PROMPT.replace(
+      '{{context}}',
+      JSON.stringify(ctx)
+    );
 
-    const {
-      data: { user },
-    } = await (await supabase).auth.getUser();
-
-    if (!user) {
-      return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
-    }
-
-    if (!prompt) {
-      return NextResponse.json(
-        { message: 'Incomplete data provided' },
-        { status: 400 }
-      );
-    }
-
-    const { problemId } = await params;
-
-    if (!problemId) {
-      return NextResponse.json(
-        { message: 'Incomplete data provided' },
-        { status: 400 }
-      );
-    }
-
-    const { data: problem, error: problemError } = await sbAdmin
-      .from('nova_problems')
-      .select('*')
-      .eq('id', problemId)
-      .single();
-
-    if (problemError) {
-      return NextResponse.json(
-        { message: 'Error fetching problem' },
-        { status: 500 }
-      );
-    }
-
-    if (prompt.length > problem.max_prompt_length) {
-      return NextResponse.json(
-        { message: 'Prompt is too long' },
-        { status: 400 }
-      );
-    }
-
-    // Add plagiarism detection check against problem description
-    const plagiarismSchema = z.object({
-      similarity_score: z.number().min(0).max(1),
-      is_plagiarism: z.boolean(),
-      reasoning: z.string(),
+    sendProgress({
+      step: 'criteria_ai_processing',
+      progress: 45,
+      message: 'AI is analyzing your prompt against evaluation criteria...',
     });
 
-    let plagiarismResults = null;
-    try {
-      const { object: plagiarismCheck } = await generateObject({
-        model: vertexModel,
-        schema: plagiarismSchema,
-        prompt: `
-Task: Determine if the user's submitted prompt is substantially similar to the problem description, examples, or expected outputs.
+    const result = streamObject({
+      model: critizierModel,
+      schema: CriteriaEvaluationSchema,
+      prompt: ctx.userPrompt,
+      system: systemInstruction,
+    });
 
-Problem Description: """${problem.description}"""
-Example Input: """${problem.example_input}"""
-Example Output: """${problem.example_output}"""
-User Prompt: """${prompt}"""
+    let progressIncrement = 0;
 
-Return a JSON object with:
-- similarity_score: a number between 0 (completely different) and 1 (identical or nearly identical)
-- is_plagiarism: boolean, true if this appears to be a direct copy with minimal modification
-- reasoning: brief explanation of your assessment
+    for await (const delta of result.partialObjectStream) {
+      progressIncrement += 2;
 
-Be lenient in this evaluation - it's acceptable for submissions to incorporate elements from the problem description as long as they add meaningful prompt engineering value. Only flag submissions as plagiarism if they are nearly identical copies with little to no original contribution.
-`,
-        temperature: 0.1,
+      sendProgress({
+        step: 'criteria_streaming',
+        progress: Math.min(45 + progressIncrement, 58),
+        message: 'Receiving criteria evaluation results...',
+        data: { partialEvaluation: delta },
       });
-
-      plagiarismResults = plagiarismCheck;
-      console.log('Plagiarism check results:', plagiarismResults);
-    } catch (error) {
-      console.error('Error during plagiarism check:', error);
-      // Continue with evaluation even if plagiarism check fails
     }
 
-    const { data: testCases, error: testCaseError } = await sbAdmin
-      .from('nova_problem_test_cases')
-      .select('*')
-      .eq('problem_id', problemId);
+    const finalObject = await result.object;
 
-    if (testCaseError) {
-      return NextResponse.json(
-        { message: 'Error fetching test cases' },
-        { status: 500 }
+    // Validate that all criteria evaluations have valid IDs
+    if (finalObject.criteriaEvaluation) {
+      const criteriaIdsInContext = new Set(ctx.criteria.map((c: any) => c.id));
+      const missingIds = finalObject.criteriaEvaluation.filter(
+        (ce: any) => !criteriaIdsInContext.has(ce.id)
       );
+
+      if (missingIds.length > 0) {
+        console.warn(
+          `Found ${missingIds.length} criteria evaluations with IDs not in the context`
+        );
+      }
     }
 
-    const { data: challengeCriteria, error: challengeCriteriaError } =
-      await sbAdmin
-        .from('nova_challenge_criteria')
-        .select('*')
-        .eq('challenge_id', problem.challenge_id);
-
-    if (challengeCriteriaError) {
-      return NextResponse.json(
-        { message: 'Error fetching challenge criteria' },
-        { status: 500 }
-      );
-    }
-
-    // Step 1: Evaluate the prompt with the AI model
-    const ctx = {
-      title: problem.title,
-      description: problem.description,
-      exampleInput: problem.example_input,
-      exampleOutput: problem.example_output,
-      testCaseInputs: testCases.map((testCase) => ({
-        id: testCase.id,
-        input: testCase.input,
-      })),
-      criteria: challengeCriteria.map((criteria) => ({
-        name: criteria.name,
-        description: criteria.description,
-      })),
-      userPrompt: prompt,
-      plagiarismCheck: plagiarismResults,
-    };
-
-    const testCaseSchema = z.object({
-      matched: z
-        .boolean()
-        .describe(
-          'True if the model output is semantically equivalent to the expected answer'
-        ),
-      confidence: z
-        .number()
-        .min(0)
-        .max(1)
-        .describe('Confidence level in the match assessment (0-1)'),
-      reasoning: z
-        .string()
-        .describe("Brief explanation of why outputs match or don't match"),
+    sendProgress({
+      step: 'criteria_completed',
+      progress: 60,
+      message: 'Criteria evaluation completed!',
+      data: { evaluation: finalObject },
     });
 
-    const EvaluationSchema = z.object({
-      testCaseEvaluation: z
-        .array(
-          z.object({
-            id: z
-              .string()
-              .describe(
-                'The ID of the original test case from the context (DO NOT HALLUCINATE)'
-              ),
-            input: z.string().describe('The input for the test case'),
-            output: z.string().describe('The output for the test case'),
-            reasoning: z
-              .string()
-              .optional()
-              .describe('Optional reasoning for this output'),
-          })
-        )
-        .describe('Array of test case evaluations'),
-      criteriaEvaluation: z
-        .array(
-          z.object({
-            name: z.string().describe('Name of the evaluation criterion'),
-            description: z.string().describe('Description of the criterion'),
-            score: z.number().min(0).max(10).describe('Score out of 10'),
-            feedback: z
-              .string()
-              .describe(
-                'Detailed feedback for the criterion with specific examples'
-              ),
-            strengths: z
-              .array(z.string())
-              .describe('Key strengths related to this criterion'),
-            improvements: z
-              .array(z.string())
-              .describe(
-                'Suggestions for improvement related to this criterion'
-              ),
-          })
-        )
-        .describe('Array of criteria evaluations'),
-      overallAssessment: z
-        .string()
-        .describe('A brief overall assessment of the submission'),
-      totalScore: z
-        .number()
-        .describe('The calculated total score across all criteria'),
+    return finalObject;
+  } catch (error) {
+    console.error('AI criteria evaluation error:', error);
+    throw new Error('Failed to evaluate prompt criteria');
+  }
+}
+
+// Stream test case evaluation with real-time updates
+async function streamTestCaseEvaluation(
+  ctx: any,
+  sendProgress: (update: ProgressUpdate) => void
+) {
+  try {
+    const testCaseInstruction = TEST_CASE_EVALUATION_PROMPT.replace(
+      '{{context}}',
+      JSON.stringify(ctx)
+    );
+
+    sendProgress({
+      step: 'test_case_ai_processing',
+      progress: 70,
+      message: 'AI is generating outputs for test cases...',
     });
 
-    const systemInstruction = `
-# Prompt Engineering Evaluation System
+    const result = streamObject({
+      model: evaluatorModel,
+      schema: TestCaseEvaluationSchema,
+      prompt: ctx.userPrompt,
+      system: testCaseInstruction,
+    });
 
-You are an expert evaluator in a prompt engineering competition. Your task is to accurately and objectively assess submissions based on predefined criteria.
+    let progressIncrement = 0;
 
-## Input Information
-You will receive:
-- Problem title and description (may be in any language)
-- Example input/output pairs (may be in any language)
-- Test case inputs
-- Evaluation criteria
-- User's submitted prompt/solution (may be in any language)
+    for await (const delta of result.partialObjectStream) {
+      progressIncrement += 1;
 
-## Your Evaluation Process
-Follow this systematic approach:
-
-1. **Analyze the Problem**: Thoroughly understand the problem requirements regardless of language
-   - Identify core objectives and constraints
-   - Note any edge cases or special considerations
-
-2. **Similarity Consideration**: Be aware that for short or straightforward problems, similarity to the problem description is expected
-   - Do NOT penalize users for necessary inclusion of problem elements
-   - Focus on evaluating the effectiveness of the prompt rather than its originality
-   - Only consider similarity problematic if the submission adds no instructional value
-
-3. **Process Test Cases**: For each test case:
-   - Apply the user's prompt/solution to generate an appropriate output
-   - Document your reasoning process
-   - Record both the generated output and your reasoning
-   - IMPORTANT: Evaluate whether the prompt effectively guides an AI to produce correct outputs
-
-4. **Evaluate Against Criteria**: For each criterion:
-   - Assess how effectively the submission addresses the specific criterion
-   - Provide a score from 0-10 (decimal values allowed)
-   - Give detailed feedback with specific examples from the submission
-   - Identify key strengths and suggest specific improvements
-   - Ensure the prompt provides useful guidance for generating correct outputs
-
-5. **Multi-language Considerations**:
-   - Evaluate the solution's effectiveness regardless of language
-   - Focus on functionality and approach, not linguistic elements
-   - Consider cultural/regional context when relevant
-
-## Scoring Guidelines
-
-| Score | Description |
-|-------|-------------|
-| 9-10  | Exceptional: The submission demonstrates masterful understanding and execution, with innovative approaches that effectively address all aspects of the problem. The solution is elegant, efficient, and shows deep insight. |
-| 7-8.9 | Strong: The submission shows strong understanding and good execution with minor limitations. Most aspects are well-addressed with only small inefficiencies or missed optimizations. |
-| 5-6.9 | Adequate: The submission demonstrates basic understanding with some effective elements but has notable limitations or inefficiencies. Core requirements are met, but implementation could be significantly improved. |
-| 3-4.9 | Limited: The submission shows partial understanding but has significant gaps, errors, or inefficient approaches. It addresses some aspects but misses key components. |
-| 1-2.9 | Minimal: The submission attempts to address the problem but is mostly incorrect or ineffective. Major misconceptions or fundamental errors are present. |
-| 0-0.9 | Insufficient: The submission is entirely off-topic, irrelevant, or simply restates the problem without providing any solution approach. |
-
-## Output Format Requirements
-- Structure your evaluation according to the JSON schema provided
-- Provide specific, actionable feedback for each criterion
-- Ensure scores align with the detailed rubric above
-- CRITICAL: Return ONLY a valid JSON object without any markdown formatting or additional text
-
-Here is the problem context:
-${JSON.stringify(ctx)}
-`;
-
-    let evaluation;
-
-    try {
-      const { object } = await generateObject({
-        model: vertexModel,
-        schema: EvaluationSchema,
-        prompt,
-        system: systemInstruction,
+      sendProgress({
+        step: 'test_case_streaming',
+        progress: Math.min(70 + progressIncrement, 82),
+        message: `Generating output ${Array.isArray(delta) ? delta.length : 0} of ${ctx.testCaseInputs.length}...`,
+        data: {
+          partialResults: delta,
+          phase: 'generation', // Explicitly mark as generation phase
+          generatedCount: Array.isArray(delta) ? delta.length : 0,
+          totalCount: ctx.testCaseInputs.length,
+        },
       });
-
-      evaluation = object;
-    } catch (error) {
-      console.error('AI evaluation error:', error);
-      return NextResponse.json(
-        { message: 'Failed to evaluate prompt' },
-        { status: 500 }
-      );
     }
 
-    // Step 3: Create the submission record
+    const finalObject = await result.object;
+
+    // Validate that all test case evaluations have valid IDs
+    if (finalObject && Array.isArray(finalObject)) {
+      const testCaseIdsInContext = new Set(
+        ctx.testCaseInputs.map((tc: any) => tc.id)
+      );
+      const missingIds = finalObject.filter(
+        (tc: any) => !testCaseIdsInContext.has(tc.id)
+      );
+
+      if (missingIds.length > 0) {
+        console.warn(
+          `Found ${missingIds.length} test case evaluations with IDs not in the context`
+        );
+      }
+    }
+
+    sendProgress({
+      step: 'test_case_completed',
+      progress: 83,
+      message: 'Test case generation completed!',
+      data: {
+        testCaseResults: finalObject,
+        phase: 'generation_complete',
+      },
+    });
+
+    return finalObject;
+  } catch (error) {
+    console.error('AI test case evaluation error:', error);
+    throw new Error('Failed to evaluate test cases');
+  }
+}
+
+// Helper functions
+
+async function fetchProblem(problemId: string) {
+  const sbAdmin = await createAdminClient();
+
+  return await sbAdmin
+    .from('nova_problems')
+    .select('*')
+    .eq('id', problemId)
+    .single();
+}
+
+async function checkPlagiarism(problem: NovaProblem, prompt: string) {
+  try {
+    const plagiarismPrompt = PLAGIARISM_DETECTION_PROMPT.replace(
+      '{{problem_description}}',
+      problem.description
+    )
+      .replace('{{example_input}}', problem.example_input)
+      .replace('{{example_output}}', problem.example_output)
+      .replace('{{user_prompt}}', prompt);
+
+    const { object: plagiarismCheck } = await generateObject({
+      model: critizierModel,
+      schema: PlagiarismSchema,
+      prompt: plagiarismPrompt,
+      temperature: 0.1,
+    });
+
+    console.log('Plagiarism check results:', plagiarismCheck);
+    return plagiarismCheck;
+  } catch (error) {
+    console.error('Error during plagiarism check:', error);
+    // Return null to continue with evaluation even if plagiarism check fails
+    return null;
+  }
+}
+
+async function fetchTestCasesAndCriteria(problem: NovaProblem) {
+  const sbAdmin = await createAdminClient();
+
+  const { data: testCases, error: testCaseError } = await sbAdmin
+    .from('nova_problem_test_cases')
+    .select('*')
+    .eq('problem_id', problem.id);
+
+  if (testCaseError) {
+    throw new Error(`Failed to fetch test cases: ${testCaseError.message}`);
+  }
+
+  const { data: challengeCriteria, error: challengeCriteriaError } =
+    await sbAdmin
+      .from('nova_challenge_criteria')
+      .select('*')
+      .eq('challenge_id', problem.challenge_id);
+
+  if (challengeCriteriaError) {
+    throw new Error(
+      `Failed to fetch challenge criteria: ${challengeCriteriaError.message}`
+    );
+  }
+
+  return { testCases, challengeCriteria };
+}
+
+function buildEvaluationContext(
+  problem: any,
+  testCases: any[],
+  challengeCriteria: any[],
+  prompt: string,
+  plagiarismResults: any
+) {
+  return {
+    title: problem.title,
+    description: problem.description,
+    exampleInput: problem.example_input,
+    exampleOutput: problem.example_output,
+    testCaseInputs: testCases.map((testCase) => ({
+      id: testCase.id,
+      input: testCase.input,
+    })),
+    criteria: challengeCriteria.map((criteria) => ({
+      id: criteria.id,
+      name: criteria.name,
+      description: criteria.description,
+    })),
+    userPrompt: prompt,
+    plagiarismCheck: plagiarismResults,
+  };
+}
+
+async function createSubmissionRecord(
+  prompt: string,
+  problemId: string,
+  sessionId: string | undefined,
+  userId: string,
+  overallAssessment: string
+) {
+  try {
+    const sbAdmin = await createAdminClient();
+
     const { data: submission, error: submissionError } = await sbAdmin
       .from('nova_submissions')
       .insert({
         prompt,
         problem_id: problemId,
-        session_id: sessionId,
-        user_id: user.id,
-        overall_assessment: evaluation.overallAssessment || '',
+        session_id: sessionId || null,
+        user_id: userId,
+        overall_assessment: overallAssessment,
       })
       .select('id')
       .single();
 
     if (submissionError) {
       console.error('Submission error:', submissionError);
-      // If the error is due to missing columns, proceed without those fields
-      const { data: fallbackSubmission, error: fallbackError } = await sbAdmin
-        .from('nova_submissions')
-        .insert({
-          prompt,
-          problem_id: problemId,
-          session_id: sessionId,
-          user_id: user.id,
-          overall_assessment: evaluation.overallAssessment || '',
-        })
-        .select('id')
-        .single();
+      throw new Error('Failed to create submission record');
+    }
 
-      if (fallbackError) {
-        return NextResponse.json(
-          { message: 'Failed to create submission record' },
-          { status: 500 }
-        );
-      }
+    return submission;
+  } catch (error) {
+    console.error('Error creating submission record:', error);
+    throw error;
+  }
+}
 
-      submissionId = fallbackSubmission.id;
+function processCriteriaEvaluations(
+  criteriaEvaluation: any[],
+  challengeCriteria: any[],
+  submissionId: string | null
+) {
+  if (!submissionId) {
+    throw new Error('Submission ID is required');
+  }
+
+  const criteriaInserts: Array<
+    NovaSubmissionCriteria & {
+      strengths?: string[];
+      improvements?: string[];
+    }
+  > = [];
+
+  for (const criteriaEval of criteriaEvaluation) {
+    // Match by ID instead of name
+    const matchingCriteria = challengeCriteria.find(
+      (c) => c.id === criteriaEval.id
+    );
+
+    if (matchingCriteria) {
+      criteriaInserts.push({
+        submission_id: submissionId,
+        criteria_id: matchingCriteria.id,
+        score: criteriaEval.score,
+        feedback: criteriaEval.feedback,
+        strengths: criteriaEval.strengths || [],
+        improvements: criteriaEval.improvements || [],
+      });
     } else {
-      submissionId = submission.id;
+      console.warn(`No matching criteria found for ID: ${criteriaEval.id}`);
     }
+  }
 
-    // Step 4: Save test case results
-    const testCaseEvaluation = evaluation.testCaseEvaluation || [];
-    const testCaseInserts: Array<
-      NovaSubmissionTestCase & {
-        confidence?: number;
-        reasoning?: string;
-      }
-    > = [];
+  return criteriaInserts;
+}
 
-    for (const testCase of testCaseEvaluation) {
-      const matchingTestCase = testCases.find((tc) => tc.id === testCase.id);
-      if (matchingTestCase) {
-        console.log(
-          `Evaluating test case - Input: ${testCase.input}, AI Output: ${testCase.output}, Expected: ${matchingTestCase.output}`
+async function saveCriteriaEvaluations(criteriaInserts: any[]) {
+  if (criteriaInserts.length > 0) {
+    try {
+      const sbAdmin = await createAdminClient();
+
+      const { error: criteriaInsertsError } = await sbAdmin
+        .from('nova_submission_criteria')
+        .insert(
+          criteriaInserts.map(
+            ({
+              submission_id,
+              criteria_id,
+              score,
+              feedback,
+              strengths,
+              improvements,
+            }) => ({
+              submission_id,
+              criteria_id,
+              score,
+              feedback,
+              strengths,
+              improvements,
+            })
+          )
         );
 
-        // --- Enhanced LLM-based evaluation ---
-        const evaluationPrompt = `
-# Output Evaluation Task
-
-You are tasked with evaluating whether a language model's output matches the expected output for a prompt engineering problem. This evaluation is critical for determining the effectiveness of a user's prompt.
-
-## Context
-- **Problem Description**: """${problem.description}"""
-- **Input**: """${testCase.input}"""
-- **Expected Output**: """${matchingTestCase.output}"""
-- **Model Output**: """${testCase.output}"""
-- **User's Prompt that generated this output**: """${prompt}"""
-
-## Evaluation Instructions
-
-1. **Semantic Equivalence Analysis**:
-   - Determine if the outputs convey the same meaning and fulfill the same function
-   - Consider paraphrasing, synonyms, formatting differences, and alternative expressions
-   - Account for valid variations in style, tone, or presentation
-   - For numerical outputs, check mathematical equivalence rather than exact format
-
-2. **Contextual Appropriateness**:
-   - Assess if both outputs satisfy the requirements specified in the problem description
-   - Consider whether differences affect functionality or are merely stylistic
-   - Verify that the output provides a correct solution to the specific input
-
-3. **Language Considerations**:
-   - If outputs are in different languages, focus on whether they convey equivalent information
-   - Account for cultural or linguistic variations in expression
-
-4. **Strictness of Evaluation**:
-   - Be strict with correctness - the model output must correctly address the input
-   - Minor formatting differences are acceptable, but logical/functional correctness is essential
-   - Focus particularly on whether the user's prompt effectively guided the AI to generate the correct output
-
-5. **Prompt Effectiveness Analysis**:
-   - Consider whether the user's prompt effectively guided the model to produce a correct output
-   - Look for clear, specific instructions in the prompt that helped the model understand what was needed
-   - Note if the prompt fails to provide sufficient guidance or merely copies problem information
-
-## Decision Framework
-- **Match (true)**: Outputs are functionally equivalent and correctly solve the problem
-- **No Match (false)**: Outputs differ in meaningful ways that affect their function, accuracy or correctness
-
-## Required Response Format
-Provide your evaluation as a JSON object with three fields:
-- **matched**: boolean (true/false) indicating semantic equivalence
-- **confidence**: number (0-1) indicating your confidence level
-- **reasoning**: brief explanation of your assessment, including specific differences if not matched
-
-Focus on objective assessment rather than subjective judgment.
-`;
-
-        let isMatch = false;
-        let confidence = 0;
-        let reasoning = '';
-
-        try {
-          const { object } = await generateObject({
-            model: vertexModel,
-            schema: testCaseSchema,
-            prompt: evaluationPrompt,
-          });
-
-          isMatch = object.matched;
-          confidence = object.confidence || 0;
-          reasoning = object.reasoning || '';
-
-          testCaseInserts.push({
-            submission_id: submissionId,
-            test_case_id: matchingTestCase.id,
-            output: testCase.output,
-            matched: isMatch,
-            confidence,
-            reasoning,
-          });
-        } catch (error) {
-          console.error('Error evaluating test case with LLM:', error);
-          isMatch = false;
-        }
+      if (criteriaInsertsError) {
+        console.error('Error inserting criteria:', criteriaInsertsError);
       }
+    } catch (error) {
+      console.error('Failed to create criteria evaluations:', error);
+      // Don't throw error here to avoid failing the entire request
     }
+  }
+}
 
-    if (testCaseInserts.length > 0) {
-      try {
-        const { error: testCaseInsertsError } = await sbAdmin
-          .from('nova_submission_test_cases')
-          .insert(
-            testCaseInserts.map(
-              ({
-                submission_id,
-                test_case_id,
-                output,
-                matched,
-                confidence,
-                reasoning,
-              }) => ({
-                submission_id,
-                test_case_id,
-                output,
-                matched,
-                confidence,
-                reasoning,
-              })
-            )
-          );
+async function processTestCaseResults(
+  testCaseEvaluation: any[],
+  testCases: any[],
+  problem: any,
+  prompt: string,
+  submissionId: string | null,
+  sendProgress?: (update: ProgressUpdate) => void
+) {
+  if (!submissionId) {
+    throw new Error('Submission ID is required');
+  }
 
-        if (testCaseInsertsError) {
-          console.error('Error inserting test cases:', testCaseInsertsError);
-        }
-      } catch (error) {
-        console.error('Failed to create test case results:', error);
-      }
+  const testCaseInserts: Array<
+    NovaSubmissionTestCase & {
+      confidence?: number;
+      reasoning?: string;
     }
+  > = [];
 
-    // Step 5: Save criteria evaluations
-    const criteriaEvaluation = evaluation.criteriaEvaluation || [];
-    const criteriaInserts: Array<
-      NovaSubmissionCriteria & {
-        strengths?: string[];
-        improvements?: string[];
-      }
-    > = [];
+  let processedCount = 0;
+  const totalCount = testCaseEvaluation.length;
 
-    for (const criteriaEval of criteriaEvaluation) {
-      const matchingCriteria = challengeCriteria.find(
-        (c) => c.name === criteriaEval.name
+  // Send initial evaluation phase message
+  if (sendProgress) {
+    sendProgress({
+      step: 'processing_test_results',
+      progress: 85,
+      message: 'Starting evaluation of test case outputs...',
+      data: {
+        phase: 'evaluation_start',
+        totalTestCases: totalCount,
+      },
+    });
+  }
+
+  for (const testCase of testCaseEvaluation) {
+    const matchingTestCase = testCases.find((tc) => tc.id === testCase.id);
+    if (matchingTestCase) {
+      console.log(
+        `Evaluating test case - Input: ${testCase.input}, AI Output: ${testCase.output}, Expected: ${matchingTestCase.output}`
       );
-      if (matchingCriteria) {
-        criteriaInserts.push({
-          submission_id: submissionId,
-          criteria_id: matchingCriteria.id,
-          score: criteriaEval.score,
-          feedback: criteriaEval.feedback,
-          strengths: criteriaEval.strengths || [],
-          improvements: criteriaEval.improvements || [],
+
+      // Evaluate output match using AI
+      const { isMatch, confidence, reasoning } = await evaluateOutputMatch(
+        problem,
+        testCase,
+        matchingTestCase,
+        prompt
+      );
+
+      testCaseInserts.push({
+        submission_id: submissionId,
+        test_case_id: matchingTestCase.id,
+        output: testCase.output,
+        matched: isMatch,
+        confidence,
+        reasoning,
+      });
+
+      processedCount++;
+
+      // Send progress update with current match results
+      if (sendProgress) {
+        const currentMatched = testCaseInserts.filter(
+          (tc) => tc.matched
+        ).length;
+        const progressPercentage =
+          85 + Math.round((processedCount / totalCount) * 10); // 85-95% range
+
+        sendProgress({
+          step: 'processing_test_results',
+          progress: progressPercentage,
+          message: `Evaluated ${processedCount}/${totalCount} test cases (${currentMatched} passed)`,
+          data: {
+            phase: 'evaluation',
+            testCaseResults: testCaseInserts.map((tc) => ({
+              id: tc.test_case_id,
+              matched: tc.matched,
+              output: tc.output,
+              confidence: tc.confidence,
+              reasoning: tc.reasoning,
+            })),
+            matchedTestCases: currentMatched,
+            totalTestCases: processedCount,
+            isPartialResults: processedCount < totalCount,
+          },
         });
       }
     }
+  }
 
-    if (criteriaInserts.length > 0) {
-      try {
-        const { error: criteriaInsertsError } = await sbAdmin
-          .from('nova_submission_criteria')
-          .insert(
-            criteriaInserts.map(
-              ({
-                submission_id,
-                criteria_id,
-                score,
-                feedback,
-                strengths,
-                improvements,
-              }) => ({
-                submission_id,
-                criteria_id,
-                score,
-                feedback,
-                strengths,
-                improvements,
-              })
-            )
-          );
+  return testCaseInserts;
+}
 
-        if (criteriaInsertsError) {
-          console.error('Error inserting criteria:', criteriaInsertsError);
-        }
-      } catch (error) {
-        console.error('Failed to create criteria evaluations:', error);
+async function evaluateOutputMatch(
+  problem: any,
+  testCase: any,
+  matchingTestCase: any,
+  prompt: string
+) {
+  try {
+    const evaluationPrompt = OUTPUT_COMPARISON_PROMPT.replace(
+      '{{problem_description}}',
+      problem.description
+    )
+      .replace('{{test_input}}', testCase.input)
+      .replace('{{expected_output}}', matchingTestCase.output)
+      .replace('{{model_output}}', testCase.output)
+      .replace('{{user_prompt}}', prompt);
+
+    const { object } = await generateObject({
+      model: critizierModel,
+      schema: TestCaseCheckSchema,
+      prompt: evaluationPrompt,
+    });
+
+    return {
+      isMatch: object.matched,
+      confidence: object.confidence || 0,
+      reasoning: object.reasoning || '',
+    };
+  } catch (error) {
+    console.error('Error evaluating test case with LLM:', error);
+    return {
+      isMatch: false,
+      confidence: 0,
+      reasoning: 'Error during evaluation',
+    };
+  }
+}
+
+async function saveTestCaseResults(testCaseInserts: any[]) {
+  if (testCaseInserts.length > 0) {
+    try {
+      const sbAdmin = await createAdminClient();
+
+      const { error: testCaseInsertsError } = await sbAdmin
+        .from('nova_submission_test_cases')
+        .insert(
+          testCaseInserts.map(
+            ({
+              submission_id,
+              test_case_id,
+              output,
+              matched,
+              confidence,
+              reasoning,
+            }) => ({
+              submission_id,
+              test_case_id,
+              output,
+              matched,
+              confidence,
+              reasoning,
+            })
+          )
+        );
+
+      if (testCaseInsertsError) {
+        console.error('Error inserting test cases:', testCaseInsertsError);
       }
+    } catch (error) {
+      console.error('Failed to create test case results:', error);
     }
-
-    // Step 6: Return the evaluation results and submission ID
-    return NextResponse.json(
-      {
-        submissionId: submissionId,
-        response: evaluation,
-        matchedTestCases: testCaseInserts.filter((tc) => tc.matched).length,
-        totalTestCases: testCaseInserts.length,
-      },
-      { status: 200 }
-    );
-  } catch (error: any) {
-    console.error('🚨 Server error:', error);
-
-    // Delete the submission if it was created
-    if (submissionId) {
-      try {
-        await sbAdmin.from('nova_submissions').delete().eq('id', submissionId);
-      } catch (deleteError) {
-        console.error('Failed to delete submission:', deleteError);
-      }
-    }
-
-    return NextResponse.json(
-      { message: `Internal server error: ${error.message}` },
-      { status: 500 }
-    );
   }
 }

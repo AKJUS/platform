@@ -1,13 +1,13 @@
 'use client';
 
-import GroupAttendanceStats from './attendance-stats';
-import { UserGroupRowActions } from './row-actions';
-import { ColumnDef } from '@tanstack/react-table';
-import { UserGroup } from '@tuturuuu/types/primitives/UserGroup';
+import type { ColumnDef } from '@tanstack/react-table';
+import type { UserGroup } from '@tuturuuu/types/primitives/UserGroup';
 import { DataTableColumnHeader } from '@tuturuuu/ui/custom/tables/data-table-column-header';
 import { Check, X } from '@tuturuuu/ui/icons';
 import moment from 'moment';
 import Link from 'next/link';
+import GroupAttendanceStats from './attendance-stats';
+import { UserGroupRowActions } from './row-actions';
 
 export const getUserGroupColumns = (
   t: any,
@@ -57,7 +57,7 @@ export const getUserGroupColumns = (
     cell: ({ row }) => (
       <Link
         href={row.original.href || '#'}
-        className="min-w-[8rem] font-semibold hover:underline"
+        className="min-w-32 font-semibold hover:underline"
       >
         {row.getValue('name') || '-'}
       </Link>

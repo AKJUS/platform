@@ -1,10 +1,10 @@
 'use client';
 
-import { WorkspaceQuizRowActions } from './row-actions';
-import { ColumnDef } from '@tanstack/react-table';
-import { WorkspaceQuiz } from '@tuturuuu/types/db';
+import type { ColumnDef } from '@tanstack/react-table';
+import type { WorkspaceQuiz } from '@tuturuuu/types/db';
 import { DataTableColumnHeader } from '@tuturuuu/ui/custom/tables/data-table-column-header';
 import moment from 'moment';
+import { WorkspaceQuizRowActions } from './row-actions';
 
 export const getWorkspaceQuizColumns = (
   t: any,
@@ -52,7 +52,7 @@ export const getWorkspaceQuizColumns = (
       />
     ),
     cell: ({ row }) => (
-      <div className="min-w-[8rem]">{row.getValue('question') || '-'}</div>
+      <div className="min-w-32">{row.getValue('question') || '-'}</div>
     ),
   },
   {

@@ -1,7 +1,6 @@
 'use client';
 
-import ChallengeForm, { ChallengeFormValues } from './challengeForm';
-import { type NovaExtendedChallenge } from '@tuturuuu/types/db';
+import type { NovaExtendedChallenge } from '@tuturuuu/types/db';
 import {
   Dialog,
   DialogContent,
@@ -11,9 +10,10 @@ import {
   DialogTrigger,
 } from '@tuturuuu/ui/dialog';
 import { toast } from '@tuturuuu/ui/hooks/use-toast';
-import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
+import ChallengeForm, { type ChallengeFormValues } from './challengeForm';
 
 interface Props {
   challenge: NovaExtendedChallenge;
@@ -198,17 +198,19 @@ export default function EditChallengeDialog({ challenge, trigger }: Props) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="flex h-[80vh] flex-col gap-4 sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle> {t('edit')}</DialogTitle>
           <DialogDescription>{t('edit-description')}</DialogDescription>
         </DialogHeader>
-        <ChallengeForm
-          challengeId={challenge.id}
-          defaultValues={formattedDefaultValues}
-          onSubmit={onSubmit}
-          isSubmitting={isSubmitting}
-        />
+        <div className="flex-1 overflow-y-auto px-4">
+          <ChallengeForm
+            challengeId={challenge.id}
+            defaultValues={formattedDefaultValues}
+            onSubmit={onSubmit}
+            isSubmitting={isSubmitting}
+          />
+        </div>
       </DialogContent>
     </Dialog>
   );

@@ -1,11 +1,11 @@
 'use client';
 
-import { RowActions } from './row-actions';
-import { ColumnDef } from '@tanstack/react-table';
+import type { ColumnDef } from '@tanstack/react-table';
 import type { WorkspaceCronExecution } from '@tuturuuu/types/db';
 import { DataTableColumnHeader } from '@tuturuuu/ui/custom/tables/data-table-column-header';
 import moment from 'moment';
 import Link from 'next/link';
+import { RowActions } from './row-actions';
 
 export const getColumns = (
   t: any,
@@ -23,7 +23,7 @@ export const getColumns = (
       />
     ),
     cell: ({ row }) => (
-      <div className="line-clamp-1 min-w-[8rem]">{row.getValue('id')}</div>
+      <div className="line-clamp-1 min-w-32">{row.getValue('id')}</div>
     ),
   },
   {
@@ -36,7 +36,7 @@ export const getColumns = (
       />
     ),
     cell: ({ row }) => (
-      <Link href={row.original.href || '#'} className="min-w-[8rem]">
+      <Link href={row.original.href || '#'} className="min-w-32">
         <span className="font-semibold hover:underline">
           {row.getValue('job') || '-'}
         </span>
@@ -53,7 +53,7 @@ export const getColumns = (
       />
     ),
     cell: ({ row }) => (
-      <div className="min-w-[8rem]">{row.getValue('status') || '-'}</div>
+      <div className="min-w-32">{row.getValue('status') || '-'}</div>
     ),
   },
   {
@@ -66,7 +66,7 @@ export const getColumns = (
       />
     ),
     cell: ({ row }) => (
-      <div className="min-w-[8rem]">
+      <div className="min-w-32">
         {moment(row.getValue('started_at')).format('DD/MM/YYYY HH:mm:ss')}
       </div>
     ),
@@ -81,7 +81,7 @@ export const getColumns = (
       />
     ),
     cell: ({ row }) => (
-      <div className="min-w-[8rem]">
+      <div className="min-w-32">
         {row.getValue('finished_at')
           ? moment(row.getValue('finished_at')).format('DD/MM/YYYY HH:mm:ss')
           : '-'}
@@ -98,7 +98,7 @@ export const getColumns = (
       />
     ),
     cell: ({ row }) => (
-      <div className="min-w-[8rem]">
+      <div className="min-w-32">
         {moment(row.getValue('created_at')).format('DD/MM/YYYY')}
       </div>
     ),

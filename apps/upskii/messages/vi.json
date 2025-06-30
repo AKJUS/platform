@@ -1,4 +1,47 @@
 {
+  "quiz-set-statistics": {
+    "title": "Thống Kê",
+    "description": "Xem thống kê chi tiết về các bài kiểm tra của bạn, bao gồm điểm trung bình, tỷ lệ hoàn thành và nhiều thông tin khác.",
+    "average_pass_rate": "Tỷ Lệ Đạt Trung Bình",
+    "average_score": "Điểm Trung Bình",
+    "total_participants": "Tổng Số Người Tham Gia",
+    "total_quizzes": "Tổng Số Bài Kiểm Tra",
+    "active_quizzes": "Bài kiểm tra hiện có",
+    "total_attempts": "Tổng Số Lượt Làm Bài",
+    "accross_all_quizzes": "Trên tất cả bài kiểm tra",
+    "individual_quiz_performance": "Số Liệu Từng Bài Kiểm Tra",
+    "back": "Quay Lại",
+    "pass_rate": "Tỷ Lệ Đạt",
+    "active_students": "Học Viên Đang Hoạt Động",
+    "unique_participants": "Người tham gia khác nhau",
+    "last_attempt": "Lần Làm Bài Gần Nhất",
+    "no_quizzes": "Không Có Dữ Liệu Bài Kiểm Tra",
+    "no_quizzes_description": "Không tìm thấy lượt làm bài nào cho bộ câu hỏi này. Học viên chưa bắt đầu làm bài kiểm tra."
+  },
+  "home-hero": {
+    "welcome": "Xin chào, {username}!",
+    "badge": "Trải nghiệm học tập nâng cao với AI",
+    "title": "Khám phá các công cụ hiện đại, bài học sinh động và cộng tác dễ dàng",
+    "cards": {
+      "courses": {
+        "title": "Khóa học",
+        "description": "Nắm vững các kỹ thuật thiết kế prompt từ cơ bản đến nâng cao thông qua bài học từng bước và ví dụ thực tiễn."
+      },
+      "quizzes": {
+        "title": "Câu hỏi ôn tập",
+        "description": "Kiểm tra mức độ hiểu biết của bạn với các câu hỏi tương tác giúp củng cố kiến thức và nâng cao kỹ năng thiết kế prompt."
+      },
+      "challenges": {
+        "title": "Thử thách",
+        "description": "Tham gia các thử thách sáng tạo để vượt qua giới hạn và khám phá các giải pháp prompt đột phá cùng AI."
+      },
+      "ai-chat": {
+        "title": "Trò chuyện với AI",
+        "description": "Luyện tập kỹ năng thiết kế prompt qua các cuộc đối thoại thời gian thực với AI, nhận phản hồi ngay lập tức và cải thiện hiệu quả."
+      }
+    },
+    "get-certificate": "Nhận chứng chỉ của bạn"
+  },
   "score-calculator": {
     "test_formula": "(Số Bài Đạt / Tổng Số Bài Kiểm Tra) × 10 × Trọng Số",
     "criteria_formula": "(Tổng Điểm Tiêu Chí / (Tổng Số Tiêu Chí × 10)) × 10 × Trọng Số",
@@ -157,7 +200,29 @@
     "chatbots": "Thư viện chatbot",
     "my_chatbots": "Chatbot của tôi",
     "my_chatbots_description": "Quản lý chatbot tùy chỉnh của bạn với các lệnh nhắc và câu trả lời của riêng bạn.",
-    "new_chatbot": "Chatbot mới"
+    "new_chatbot": "Chatbot mới",
+    "short_and_concise": "Ngắn gọn và súc tích",
+    "medium_and_informative": "Vừa đủ thông tin",
+    "long_and_detailed": "Dài và chi tiết",
+    "api_key": "Chìa khóa API",
+    "enter-api-key": "Hãy cung cấp chìa khóa API của bạn",
+    "api-key-valid-desc": "API Key hợp lệ và đã được lưu trữ",
+    "api-key-invalid-title": "API Key không hợp lệ",
+    "api-key-valid-title": "API Key hợp lệ",
+    "api-key-invalid-desc": "Vui lòng cung cấp API Key hợp lệ hoặc thử lại",
+    "api-key-required-format": "Vui lòng cung cấp một định dạng hợp lệ",
+    "api-key-saved-title": "Key API được lưu",
+    "validate": "Kiểm tra",
+    "save-api-key": "Lưu trữ",
+    "imagine_placeholder": "Hãy tưởng tượng...",
+    "api-key-saved-desc": "Key API của bạn đã được lưu. \nVui lòng làm mới trang để bắt đầu sử dụng AI.",
+    "api_input": "Nhập API Key",
+    "api_input_description": "Nhập chìa khóa API của bạn để sử dụng những tính năng AI",
+    "delete-api-key": "Xóa chìa khóa API",
+    "api-key-deleted-title": "Chìa khóa API đã được xóa",
+    "api-key-deleted-desc": "Chìa khóa API của bạn đã được xóa",
+    "api-key-required": "Vui lòng cung cấp khóa API của bạn để tiếp tục",
+    "get-api-key-from": "Nhận khóa API của bạn từ"
   },
   "api-key-data-table": {
     "id": "Mã số",
@@ -256,6 +321,7 @@
     "events": "Sự kiện"
   },
   "common": {
+    "statistics": "Thống kê",
     "allow_manage_all_challenges": "Cho phép quản lý tất cả các thử thách",
     "name_placeholder": "Nhập tên",
     "name": "Tên",
@@ -280,7 +346,7 @@
     "coming_soon": "Sắp ra mắt",
     "get-started": "Bắt đầu ngay",
     "get-started-desc": "Đăng ký miễn phí và bắt đầu sử dụng nền tảng của chúng tôi ngay hôm nay.",
-    "copyright": "Bản quyền © 2025 Công ty Cổ phần Tuturuuu – Mọi quyền được bảo lưu.",
+    "copyright": "Bản quyền © 2025 Công ty Cổ phần Tuturuuu (MST: 0318898402) – Mọi quyền được bảo lưu.",
     "legal": "Pháp lý",
     "terms": "Điều khoản sử dụng",
     "privacy": "Chính sách bảo mật",
@@ -401,6 +467,7 @@
     "years_old": "tuổi",
     "year_old": "tuổi",
     "average": "Trung bình",
+    "logo": "Logo {name}",
     "no_content_yet": "Chưa có nội dung",
     "words": "từ",
     "word": "từ",
@@ -546,7 +613,17 @@
     "searching": "Đang tìm kiếm",
     "or": "Hoặc",
     "joined": "Tham gia",
-    "guide": "Hướng dẫn"
+    "guide": "Hướng dẫn",
+    "example_content": "Nội dung mẫu",
+    "whats_the_title": "Tiêu đề là gì?",
+    "write_something": "Hãy viết gì đó...",
+    "error_saving_content": "Lỗi khi lưu nội dung của bạn",
+    "not_completed": "Chưa hoàn thành",
+    "crawlers": "Crawlers",
+    "queues": "Queues",
+    "learning": "Học tập",
+    "teaching": "Giảng dạy",
+    "management": "Quản lý"
   },
   "contact": {
     "title": "Liên hệ với chúng tôi",
@@ -572,6 +649,7 @@
     "name": "Tên",
     "is_public": "Công khai",
     "is_published": "Đã xuất bản",
+    "is_completed": "Đã hoàn thành",
     "modules": "Mô-đun",
     "created_at": "Ngày tạo"
   },
@@ -703,6 +781,532 @@
     "diagnoses": "Chẩn đoán",
     "vitals": "Chỉ số",
     "vital-groups": "Nhóm chỉ số"
+  },
+  "boarding-pages": {
+    "home": {
+      "hero": {
+        "badge": "Chuyển Đổi Hành Trình Học Tập Của Bạn",
+        "title-1": "Nền Tảng Giáo Dục",
+        "title-2": "Toàn Diện Của Bạn",
+        "description": "Một nền tảng học tập hiện đại trao quyền cho giáo viên và học viên với các tính năng tăng cường bởi AI, nội dung tương tác và công cụ hợp tác thời gian thực.",
+        "platform-guide": "Hướng Dẫn Nền Tảng"
+      },
+      "key-features": {
+        "badge": "Tính Năng Nền Tảng",
+        "title": "Tất Cả Những Gì Bạn Cần Cho Giáo Dục Hiện Đại",
+        "description": "Nền tảng của chúng tôi kết hợp các công cụ giảng dạy mạnh mẽ với trải nghiệm học tập trực quan",
+        "feature-1": {
+          "title": "Tạo & Quản Lý Khóa Học",
+          "description": "Tạo và quản lý nội dung khóa học một cách dễ dàng, bao gồm video, PDF và bài kiểm tra tương tác."
+        },
+        "feature-2": {
+          "title": "Học Tập Tăng Cường Bởi AI",
+          "description": "Trải nghiệm học tập cá nhân hóa được hỗ trợ bởi AI để tạo bài kiểm tra, cung cấp phản hồi và hỗ trợ giáo viên."
+        },
+        "feature-3": {
+          "title": "Lớp Học Trực Tiếp & Tương Tác",
+          "description": "Tổ chức các lớp học trực tiếp với hội nghị video, trò chuyện thời gian thực và các phiên tương tác."
+        },
+        "feature-4": {
+          "title": "Chứng Chỉ & Thành Tựu",
+          "description": "Tự động cấp chứng chỉ và huy hiệu khi hoàn thành khóa học để ghi nhận thành tích."
+        },
+        "feature-5": {
+          "title": "Cộng Đồng & Hợp Tác",
+          "description": "Nuôi dưỡng môi trường học tập hợp tác với diễn đàn thảo luận và học tập từ đồng đẳng."
+        },
+        "feature-6": {
+          "title": "Thị Trường Khóa Học",
+          "description": "Duyệt, mua và đăng ký vào nhiều khóa học đa dạng được cung cấp bởi các nhà giáo dục đã xác minh."
+        }
+      },
+      "for-teachers": {
+        "badge": "Dành Cho Nhà Giáo Dục",
+        "title": "Trao Quyền Cho Việc Giảng Dạy Của Bạn",
+        "description": "Nền tảng của chúng tôi cung cấp cho nhà giáo dục các công cụ mạnh mẽ để tạo nội dung hấp dẫn, tương tác với học viên và theo dõi tiến độ.",
+        "details-1": "Tạo và quản lý khóa học một cách dễ dàng",
+        "details-2": "Tải lên video và tài liệu học tập",
+        "details-3": "Tạo bài kiểm tra và đánh giá được hỗ trợ bởi AI",
+        "details-4": "Tổ chức các lớp học trực tiếp và hội thảo trực tuyến",
+        "details-5": "Cấp chứng chỉ cho học viên",
+        "button": "Trở Thành Giáo Viên",
+        "feature-1": {
+          "title": "Tạo Khóa Học",
+          "description": "Công cụ trực quan để xây dựng và tổ chức nội dung khóa học của bạn"
+        },
+        "feature-2": {
+          "title": "Quản Lý Học Viên",
+          "description": "Theo dõi tiến độ, sự tham gia của học viên và cung cấp phản hồi cá nhân hóa"
+        },
+        "feature-3": {
+          "title": "Trợ Lý Giảng Dạy AI",
+          "description": "Tạo nội dung, bài kiểm tra và nhận sự hỗ trợ lập kế hoạch bài giảng"
+        }
+      },
+      "for-students": {
+        "badge": "Dành Cho Học Viên",
+        "title": "Học Theo Nhịp Độ Riêng Của Bạn",
+        "description": "Truy cập khóa học chất lượng cao, tương tác với giảng viên và bạn học, và nhận chứng chỉ để thể hiện kỹ năng của bạn.",
+        "details-1": "Duyệt khóa học từ nhà giáo dục đã xác minh",
+        "details-2": "Học với video và tài liệu tương tác",
+        "details-3": "Nhận đề xuất học tập được hỗ trợ bởi AI",
+        "details-4": "Tham gia lớp học trực tiếp và thảo luận",
+        "details-5": "Nhận chứng chỉ và huy hiệu",
+        "course-categories": {
+          "title": "Danh Mục Khóa Học",
+          "category-1": "Lập Trình & Phát Triển",
+          "category-2": "Kinh Doanh & Khởi Nghiệp",
+          "category-3": "Marketing Kỹ Thuật Số",
+          "category-4": "Thiết Kế & Sáng Tạo",
+          "category-5": "Phát Triển Cá Nhân",
+          "category-6": "Học Ngôn Ngữ",
+          "footer": "Khám phá hàng trăm khóa học trên nhiều danh mục khác nhau"
+        },
+        "button": "Tìm Khóa Học"
+      },
+      "multilingual-support": {
+        "badge": "Hỗ Trợ Đa Ngôn Ngữ",
+        "title": "Học Bằng Ngôn Ngữ Của Bạn",
+        "description": "Nền tảng của chúng tôi hỗ trợ nhiều ngôn ngữ, bao gồm tiếng Anh và tiếng Việt, giúp giáo dục trở nên dễ tiếp cận với mọi người.",
+        "details-1": "Giao diện hoàn toàn song ngữ (Anh/Việt)",
+        "details-2": "Nội dung khóa học bằng nhiều ngôn ngữ",
+        "details-3": "Tài nguyên học tập theo từng ngôn ngữ cụ thể",
+        "details-4": "Hỗ trợ và cộng đồng địa phương hóa"
+      },
+      "cta-section": {
+        "badge": "Bắt Đầu Ngay Hôm Nay",
+        "title": "Tham Gia Cộng Đồng Giáo Dục Của Chúng Tôi",
+        "description": "Bắt đầu hành trình học tập của bạn hoặc bắt đầu tạo và chia sẻ kiến thức của bạn với học viên trên toàn thế giới.",
+        "button": "Tìm Hiểu Thêm"
+      },
+      "common": {
+        "get-started": "Bắt Đầu"
+      }
+    },
+    "guide": {
+      "hero": {
+        "badge": "Hướng Dẫn Nền Tảng",
+        "title": "Cách Sử Dụng Nền Tảng Của Chúng Tôi",
+        "description": "Hướng dẫn toàn diện giúp bạn bắt đầu và tận dụng tối đa nền tảng giáo dục của chúng tôi."
+      },
+      "for-students": {
+        "title": "Dành Cho Học Viên",
+        "detailed-guide": {
+          "title": "Bắt Đầu",
+          "description": "Làm theo các bước đơn giản này để bắt đầu hành trình học tập của bạn.",
+          "step-1": {
+            "title": "Tạo Tài Khoản Của Bạn",
+            "description": "Đăng ký bằng email hoặc tài khoản Google của bạn. Xác minh email để kích hoạt tài khoản và thiết lập hồ sơ của bạn với thông tin cơ bản."
+          },
+          "step-2": {
+            "title": "Khám Phá Danh Mục Khóa Học",
+            "description": "Duyệt qua các khóa học đa dạng của chúng tôi. Sử dụng bộ lọc để tìm khóa học theo chủ đề, cấp độ khó, thời lượng hoặc đánh giá giảng viên."
+          },
+          "step-3": {
+            "title": "Đăng Ký Khóa Học",
+            "description": "Chọn khóa học phù hợp với sở thích và mục tiêu học tập của bạn. Đăng ký các khóa học miễn phí ngay lập tức hoặc hoàn tất thanh toán cho các khóa học cao cấp."
+          },
+          "step-4": {
+            "title": "Bắt Đầu Học",
+            "description": "Truy cập tài liệu khóa học, xem bài giảng video, hoàn thành bài tập và tham gia thảo luận để nâng cao trải nghiệm học tập của bạn."
+          }
+        },
+        "key-features": {
+          "title": "Tính Năng Chính",
+          "description": "Khám phá các công cụ và tính năng mạnh mẽ được thiết kế để nâng cao trải nghiệm học tập của bạn.",
+          "feature-1": {
+            "title": "Bài Giảng Video",
+            "description": "Nội dung video chất lượng cao với các yếu tố tương tác và khả năng ghi chú khi bạn xem."
+          },
+          "feature-2": {
+            "title": "Tài Liệu Khóa Học",
+            "description": "Truy cập tài nguyên có thể tải xuống, tài liệu đọc và nội dung bổ sung."
+          },
+          "feature-3": {
+            "title": "Diễn Đàn Thảo Luận",
+            "description": "Tương tác với giảng viên và các học viên khác để làm rõ thắc mắc và chia sẻ hiểu biết."
+          },
+          "feature-4": {
+            "title": "Trợ Lý Học Tập AI",
+            "description": "Nhận trợ giúp cá nhân hóa, giải thích và đề xuất học tập từ trợ lý AI của chúng tôi."
+          },
+          "feature-5": {
+            "title": "Chứng Chỉ",
+            "description": "Nhận chứng chỉ được xác minh khi hoàn thành khóa học để thể hiện thành tích của bạn."
+          },
+          "feature-6": {
+            "title": "Bảng Điều Khiển Học Tập",
+            "description": "Theo dõi tiến độ của bạn, quản lý các khóa học đã đăng ký và xem các đề xuất."
+          }
+        },
+        "tips": {
+          "title": "Mẹo Để Thành Công",
+          "description": "Tận dụng tối đa hành trình học tập của bạn với những mẹo hữu ích này.",
+          "tip-1": "Thiết lập lịch học đều đặn để xây dựng tính nhất quán",
+          "tip-2": "Ghi chú trong khi xem bài giảng và đọc tài liệu",
+          "tip-3": "Tích cực tham gia vào diễn đàn thảo luận và phiên hỏi đáp",
+          "tip-4": "Hoàn thành tất cả bài tập và bài kiểm tra để củng cố việc học",
+          "tip-5": "Sử dụng trợ lý AI khi bạn cần trợ giúp thêm hoặc làm rõ",
+          "tip-6": "Kết nối với các học viên khác để hình thành nhóm học tập",
+          "tip-7": "Áp dụng những gì bạn học thông qua các bài tập thực hành",
+          "tip-8": "Cung cấp phản hồi cho giảng viên để cải thiện chất lượng khóa học",
+          "tip-9": "Nghỉ giải lao giữa các buổi học để tránh kiệt sức",
+          "tip-10": "Đặt mục tiêu học tập thực tế và theo dõi tiến độ của bạn"
+        }
+      },
+      "for-teachers": {
+        "title": "Dành Cho Giáo Viên",
+        "detailed-guide": {
+          "title": "Trở Thành Giáo Viên",
+          "description": "Làm theo các bước này để bắt đầu tạo và chia sẻ kiến thức của bạn trên nền tảng của chúng tôi.",
+          "step-1": {
+            "title": "Đăng Ký Tư Cách Giáo Viên",
+            "description": "Đăng ký tài khoản, sau đó đăng ký xác minh giáo viên bằng cách cung cấp thông tin về bằng cấp và lý lịch của bạn để xem xét."
+          },
+          "step-2": {
+            "title": "Thiết Lập Hồ Sơ Giáo Viên",
+            "description": "Hoàn thành hồ sơ giáo viên của bạn với chuyên môn, kinh nghiệm giảng dạy, trình độ học vấn và ảnh chuyên nghiệp để xây dựng niềm tin với học viên tiềm năng."
+          },
+          "step-3": {
+            "title": "Tạo Khóa Học Đầu Tiên",
+            "description": "Sử dụng công cụ tạo khóa học để thiết kế chương trình giảng dạy, tải lên nội dung, tạo bài đánh giá và thiết lập các yếu tố tương tác."
+          },
+          "step-4": {
+            "title": "Xuất Bản và Quảng Bá",
+            "description": "Gửi khóa học của bạn để xem xét, thiết lập giá (nếu có) và sử dụng các công cụ nền tảng để quảng bá khóa học đến các học viên tiềm năng."
+          }
+        },
+        "key-features": {
+          "title": "Công Cụ Giáo Viên",
+          "description": "Tận dụng các công cụ và tính năng mạnh mẽ để tạo khóa học hấp dẫn.",
+          "feature-1": {
+            "title": "Quản Lý Video",
+            "description": "Tải lên, chỉnh sửa và quản lý nội dung video với giải pháp lưu trữ video tích hợp của chúng tôi."
+          },
+          "feature-2": {
+            "title": "Tạo Nội Dung Bằng AI",
+            "description": "Tạo bài kiểm tra, bài tập và nội dung bổ sung với sự hỗ trợ của AI."
+          },
+          "feature-3": {
+            "title": "Giảng Dạy Trực Tiếp",
+            "description": "Tổ chức các lớp học trực tiếp, hội thảo trực tuyến và các phiên tương tác với học viên của bạn."
+          },
+          "feature-4": {
+            "title": "Phân Tích Học Viên",
+            "description": "Theo dõi tiến độ, sự tham gia và hiệu suất của học viên với phân tích chi tiết."
+          },
+          "feature-5": {
+            "title": "Công Cụ Đánh Giá",
+            "description": "Tạo nhiều loại đánh giá khác nhau bao gồm các bài kiểm tra, bài tập và dự án."
+          },
+          "feature-6": {
+            "title": "Trình Thiết Kế Chứng Chỉ",
+            "description": "Thiết kế chứng chỉ tùy chỉnh sẽ được tự động cấp cho các học viên thành công."
+          }
+        },
+        "tips": {
+          "title": "Phương Pháp Tốt Nhất",
+          "description": "Mẹo và chiến lược để giúp bạn tạo khóa học hấp dẫn và xây dựng sự nghiệp giảng dạy thành công.",
+          "tip-1": "Cấu trúc nội dung khóa học của bạn theo một trình tự hợp lý, tiến bộ",
+          "tip-2": "Giữ bài giảng video ngắn gọn (5-10 phút) và tập trung vào một chủ đề duy nhất",
+          "tip-3": "Bao gồm nhiều loại nội dung: video, bài đọc, hoạt động, thảo luận",
+          "tip-4": "Cung cấp mục tiêu học tập rõ ràng ở đầu mỗi phần",
+          "tip-5": "Sử dụng công cụ AI để tạo nội dung bổ sung và bài đánh giá",
+          "tip-6": "Phản hồi nhanh chóng các câu hỏi của học viên và bài đăng thảo luận",
+          "tip-7": "Lên lịch các buổi học trực tiếp thường xuyên để tương tác trực tiếp với học viên",
+          "tip-8": "Cập nhật nội dung khóa học thường xuyên để giữ cho nó cập nhật và phù hợp",
+          "tip-9": "Thu thập và phản hồi phản hồi của học viên để cải thiện khóa học của bạn",
+          "tip-10": "Sử dụng phân tích để xác định các lĩnh vực mà học viên có thể đang gặp khó khăn"
+        },
+        "cta-section": {
+          "title": "Bạn Săn Sàng Chia Sẻ Kiến Thức?",
+          "description": "Tham gia cộng đồng giáo viên của chúng tôi và bắt đầu tạo khóa học của riêng bạn.",
+          "button": "Trở Thành Giáo Viên"
+        }
+      }
+    },
+    "about": {
+      "hero": {
+        "badge": "Về Chúng Tôi",
+        "title": "Sứ Mệnh Của Chúng Tôi Là Chuyển Đổi Giáo Dục",
+        "description": "Chúng tôi đang xây dựng một nền tảng trao quyền cho các nhà giáo dục và học viên thông qua công nghệ, làm cho giáo dục chất lượng cao trở nên dễ tiếp cận với tất cả mọi người, ở mọi nơi."
+      },
+      "mission-vision": {
+        "slogan-1": "Giáo Dục Cho Mọi Người,",
+        "slogan-2": "Mọi Nơi",
+        "mission": {
+          "title": "Sứ Mệnh Của Chúng Tôi",
+          "description": "Sứ mệnh của chúng tôi là dân chủ hóa giáo dục bằng cách cung cấp một nền tảng kết nối các nhà giáo dục nhiệt huyết với những người học nhiệt tình từ khắp nơi trên thế giới. Chúng tôi tin rằng giáo dục chất lượng nên dễ tiếp cận với tất cả mọi người, bất kể vị trí hay xuất thân."
+        },
+        "vision": {
+          "title": "Tầm Nhìn Của Chúng Tôi",
+          "description": "Chúng tôi hình dung một thế giới nơi bất kỳ ai cũng có thể học bất cứ điều gì, bất cứ lúc nào, bất cứ nơi đâu. Một tương lai nơi công nghệ nâng cao trải nghiệm học tập, nơi AI hỗ trợ cả giáo viên và học viên, và nơi giáo dục được cá nhân hóa theo nhu cầu và phong cách học tập của từng cá nhân."
+        },
+        "button": "Khám Phá Nền Tảng Của Chúng Tôi"
+      },
+      "impact": {
+        "title": "Tác Động Của Chúng Tôi",
+        "description": "Chúng tôi tự hào về sự khác biệt mà chúng tôi đang tạo ra trong giáo dục trên toàn thế giới.",
+        "impact-1": "Người Học Tích Cực",
+        "impact-2": "Giáo Viên Đã Xác Minh",
+        "impact-3": "Khóa Học Có Sẵn",
+        "impact-4": "Chứng Chỉ Đã Cấp"
+      },
+      "values": {
+        "title": "Giá Trị Cốt Lõi Của Chúng Tôi",
+        "description": "Những nguyên tắc hướng dẫn mọi việc chúng tôi làm.",
+        "value-1": {
+          "title": "Giáo Dục Dễ Tiếp Cận",
+          "description": "Chúng tôi tin rằng giáo dục chất lượng nên có sẵn cho tất cả mọi người, bất kể vị trí hay xuất thân."
+        },
+        "value-2": {
+          "title": "Cộng Đồng",
+          "description": "Chúng tôi nuôi dưỡng các cộng đồng hòa nhập nơi các nhà giáo dục và người học có thể kết nối, hợp tác và cùng nhau phát triển."
+        },
+        "value-3": {
+          "title": "Đổi Mới",
+          "description": "Chúng tôi liên tục phát triển nền tảng của mình với công nghệ tiên tiến để nâng cao trải nghiệm dạy và học."
+        },
+        "value-4": {
+          "title": "Học Tập Suốt Đời",
+          "description": "Chúng tôi hỗ trợ hành trình phát triển cá nhân và nghề nghiệp liên tục trong suốt cuộc đời."
+        },
+        "value-5": {
+          "title": "Chính Trực",
+          "description": "Chúng tôi duy trì các tiêu chuẩn đạo đức cao và tính minh bạch trong tất cả các hoạt động và mối quan hệ của mình."
+        },
+        "value-6": {
+          "title": "Lấy Người Học Làm Trung Tâm",
+          "description": "Chúng tôi thiết kế nền tảng của mình với nhu cầu và trải nghiệm của người học ở vị trí hàng đầu trong các quyết định của chúng tôi."
+        }
+      },
+      "team": {
+        "title": "Gặp Gỡ Đội Ngũ Lãnh Đạo Của Chúng Tôi",
+        "description": "Các nhà giáo dục và chuyên gia công nghệ nhiệt huyết cam kết chuyển đổi giáo dục trực tuyến.",
+        "member-1": {
+          "role": "CEO & Đồng Sáng Lập",
+          "bio": "Cựu giám đốc điều hành công nghệ giáo dục với hơn 15 năm kinh nghiệm trong đổi mới EdTech."
+        },
+        "member-2": {
+          "role": "CTO & Đồng Sáng Lập",
+          "bio": "Nhà nghiên cứu AI và kiến trúc sư phần mềm chuyên về công nghệ giáo dục và học tập cá nhân hóa."
+        },
+        "member-3": {
+          "role": "Giám Đốc Học Tập",
+          "bio": "Nhà tâm lý học giáo dục với chuyên môn trong phát triển chương trình giảng dạy và phương pháp học tập trực tuyến."
+        },
+        "member-4": {
+          "role": "Giám Đốc Sản Phẩm",
+          "bio": "Lãnh đạo sản phẩm với kinh nghiệm xây dựng các nền tảng giáo dục lấy người dùng làm trung tâm và các giải pháp học tập có thể mở rộng."
+        }
+      },
+      "approach": {
+        "title": "Cách Tiếp Cận Của Chúng Tôi",
+        "description": "Chúng tôi kết hợp các nguyên tắc giáo dục truyền thống với công nghệ đổi mới để tạo ra trải nghiệm học tập hấp dẫn, hiệu quả và dễ tiếp cận.",
+        "approach-1": {
+          "title": "Thiết Kế Lấy Con Người Làm Trung Tâm",
+          "description": "Nền tảng của chúng tôi được thiết kế với các nhà giáo dục và người học trong tâm trí, tập trung vào giao diện trực quan và trải nghiệm mượt mà."
+        },
+        "approach-2": {
+          "title": "Học Tập Được Tăng Cường Bởi AI",
+          "description": "Chúng tôi tận dụng trí tuệ nhân tạo để cá nhân hóa trải nghiệm học tập, cung cấp phản hồi ngay lập tức và hỗ trợ các nhà giáo dục trong việc tạo nội dung."
+        },
+        "approach-3": {
+          "title": "Hợp Tác Cộng Đồng",
+          "description": "Chúng tôi thúc đẩy kết nối giữa học viên và giáo viên trên toàn cầu, tạo ra môi trường học tập hợp tác."
+        },
+        "approach-4": {
+          "title": "Cải Tiến Liên Tục",
+          "description": "Chúng tôi thường xuyên cập nhật nền tảng của mình dựa trên phản hồi của người dùng và nghiên cứu và công nghệ giáo dục mới nổi."
+        },
+        "detail-1": {
+          "title": "Học Tập Cá Nhân Hóa",
+          "description": "Được điều chỉnh theo nhu cầu cá nhân"
+        },
+        "detail-2": {
+          "title": "Tích Hợp AI",
+          "description": "Hỗ trợ học tập tiên tiến"
+        },
+        "detail-3": {
+          "title": "Chứng Nhận",
+          "description": "Chứng chỉ được công nhận bởi ngành"
+        }
+      },
+      "cta-section": {
+        "title": "Tham Gia Hành Trình Giáo Dục Của Chúng Tôi",
+        "description": "Dù bạn là học viên háo hức học hỏi hay nhà giáo dục sẵn sàng chia sẻ kiến thức của mình, nền tảng của chúng tôi được xây dựng dành cho bạn.",
+        "button": "Khám Phá Nền Tảng",
+        "contact-button": "Liên Hệ Với Chúng Tôi"
+      }
+    },
+    "faq": {
+      "badge": "Câu Hỏi Thường Gặp",
+      "title": "Câu Hỏi Thường Gặp",
+      "subtitle": "Tìm câu trả lời cho những câu hỏi phổ biến nhất về nền tảng giáo dục của chúng tôi.",
+      "still-have-questions": "Vẫn còn thắc mắc?",
+      "cant-find-answer": "Nếu bạn không tìm thấy câu trả lời cho câu hỏi của mình, vui lòng liên hệ với đội ngũ hỗ trợ của chúng tôi.",
+      "contact-support": "Liên Hệ Hỗ Trợ",
+      "categories": {
+        "general": "Chung",
+        "for-students": "Dành Cho Học Viên",
+        "for-educators": "Dành Cho Giáo Viên",
+        "technical": "Kỹ Thuật"
+      },
+      "general": {
+        "problem-1": {
+          "question": "Nền tảng giáo dục này là gì?",
+          "answer": "Nền tảng của chúng tôi là một hệ sinh thái giáo dục toàn diện được thiết kế cho cả giáo viên và học viên. Nó cung cấp các công cụ để tạo khóa học, học tập tương tác, lớp học trực tuyến, tính năng được hỗ trợ bởi AI và chứng nhận."
+        },
+        "problem-2": {
+          "question": "Làm thế nào để tạo tài khoản?",
+          "answer": "Bạn có thể đăng ký bằng địa chỉ email hoặc tài khoản Google của mình. Sau khi xác minh, bạn sẽ có thể tùy chỉnh hồ sơ của mình và truy cập tất cả các tính năng của nền tảng."
+        },
+        "problem-3": {
+          "question": "Nền tảng có sẵn bằng nhiều ngôn ngữ không?",
+          "answer": "Có, nền tảng của chúng tôi hỗ trợ đầy đủ cả tiếng Anh và tiếng Việt. Bạn có thể dễ dàng chuyển đổi giữa các ngôn ngữ từ cài đặt tài khoản của mình hoặc nút chuyển đổi ngôn ngữ trong menu điều hướng."
+        },
+        "problem-4": {
+          "question": "Nền tảng này có miễn phí để sử dụng không?",
+          "answer": "Chúng tôi cung cấp cả khóa học miễn phí và cao cấp. Giáo viên có thể đặt giá riêng cho các khóa học của họ, và chúng tôi cũng cung cấp tài nguyên giáo dục và công cụ miễn phí cho tất cả người dùng."
+        }
+      },
+      "for-students": {
+        "problem-1": {
+          "question": "Làm thế nào để đăng ký một khóa học?",
+          "answer": "Duyệt qua danh mục khóa học của chúng tôi, chọn một khóa học bạn quan tâm và nhấp vào nút \"Đăng ký\". Đối với các khóa học trả phí, bạn sẽ được nhắc hoàn tất quá trình thanh toán trước khi được truy cập."
+        },
+        "problem-2": {
+          "question": "Tôi có thể truy cập tài liệu khóa học ngoại tuyến không?",
+          "answer": "Một số tài liệu khóa học như PDF có thể được tải xuống để sử dụng ngoại tuyến. Nội dung video yêu cầu kết nối internet để phát trực tuyến, nhưng chúng tôi đang làm việc để cung cấp tùy chọn xem ngoại tuyến trong tương lai."
+        },
+        "problem-3": {
+          "question": "Làm thế nào để nhận chứng chỉ sau khi hoàn thành khóa học?",
+          "answer": "Chứng chỉ được cấp tự động khi bạn hoàn thành tất cả các tài liệu khóa học bắt buộc và vượt qua bất kỳ bài đánh giá nào với điểm số tối thiểu cần thiết. Bạn có thể tải xuống và chia sẻ chứng chỉ của mình từ trang hồ sơ của bạn."
+        },
+        "problem-4": {
+          "question": "Nếu tôi cần giúp đỡ với nội dung khóa học thì sao?",
+          "answer": "Mỗi khóa học có một phần thảo luận nơi bạn có thể đặt câu hỏi. Bạn cũng có thể liên hệ trực tiếp với giáo viên, hoặc sử dụng trợ lý học tập được hỗ trợ bởi AI của chúng tôi để nhận phản hồi và làm rõ ngay lập tức."
+        }
+      },
+      "for-educators": {
+        "problem-1": {
+          "question": "Làm thế nào để trở thành giáo viên được xác minh?",
+          "answer": "Để trở thành giáo viên được xác minh, hãy vào cài đặt hồ sơ của bạn và chọn \"Đăng ký Giảng dạy\". Bạn sẽ cần cung cấp giấy tờ tùy thân và chứng chỉ để xác minh. Sau khi được phê duyệt, bạn có thể tạo và xuất bản các khóa học."
+        },
+        "problem-2": {
+          "question": "Có những công cụ nào để tạo khóa học?",
+          "answer": "Nền tảng của chúng tôi cung cấp một công cụ tạo khóa học toàn diện với các tùy chọn để tải lên video, tài liệu, tạo bài kiểm tra, bài tập và nội dung tương tác. Bạn cũng có thể sử dụng các công cụ AI của chúng tôi để giúp tạo nội dung giáo dục và đánh giá."
+        },
+        "problem-3": {
+          "question": "Thanh toán được xử lý như thế nào cho các khóa học trả phí?",
+          "answer": "Chúng tôi xử lý tất cả các thanh toán và phân phối doanh thu cho giáo viên theo mô hình chia sẻ doanh thu của chúng tôi. Thanh toán được xử lý an toàn, và thu nhập có thể được rút thông qua nhiều phương thức thanh toán khác nhau."
+        },
+        "problem-4": {
+          "question": "Tôi có thể tổ chức lớp học trực tuyến không?",
+          "answer": "Có, nền tảng của chúng tôi bao gồm các tính năng hội nghị video tích hợp để tổ chức lớp học trực tuyến, hội thảo trực tuyến và các phiên học một-một với học viên. Bạn có thể lên lịch sự kiện, ghi lại phiên học và chia sẻ màn hình trong các lớp học trực tuyến."
+        }
+      },
+      "technical": {
+        "problem-1": {
+          "question": "Những thiết bị và trình duyệt nào được hỗ trợ?",
+          "answer": "Nền tảng của chúng tôi hoạt động trên tất cả các trình duyệt hiện đại (Chrome, Firefox, Safari, Edge) và có khả năng đáp ứng cho các thiết bị di động, máy tính bảng và máy tính để bàn. Chúng tôi khuyên bạn nên sử dụng phiên bản mới nhất của trình duyệt bạn ưa thích để có trải nghiệm tốt nhất."
+        },
+        "problem-2": {
+          "question": "Dữ liệu của tôi trên nền tảng được bảo mật như thế nào?",
+          "answer": "Chúng tôi rất coi trọng bảo mật dữ liệu và áp dụng các biện pháp mã hóa và bảo mật theo tiêu chuẩn ngành. Thông tin cá nhân được bảo vệ, và chúng tôi tuân thủ các quy định bảo vệ dữ liệu quốc tế."
+        },
+        "problem-3": {
+          "question": "Tôi nên làm gì nếu gặp sự cố kỹ thuật?",
+          "answer": "Để được hỗ trợ kỹ thuật, hãy truy cập Trung tâm Trợ giúp của chúng tôi hoặc liên hệ với đội ngũ hỗ trợ của chúng tôi thông qua trang \"Liên hệ\". Bao gồm chi tiết về sự cố, bao gồm bất kỳ thông báo lỗi nào, thiết bị của bạn và thông tin trình duyệt."
+        }
+      }
+    },
+    "contact": {
+      "page": {
+        "badge": "Liên Hệ",
+        "title": "Liên Hệ Chúng Tôi",
+        "description": "Có câu hỏi hoặc cần hỗ trợ? Chúng tôi luôn sẵn sàng giúp đỡ. Hãy liên hệ với đội ngũ của chúng tôi và chúng tôi sẽ phản hồi sớm nhất có thể."
+      },
+      "info": {
+        "title": "Thông Tin Liên Hệ",
+        "email": {
+          "label": "Email",
+          "value": "support@upskii.com"
+        },
+        "phone": {
+          "label": "Điện Thoại",
+          "value": "+1 (123) 456-7890"
+        },
+        "address": {
+          "label": "Địa Chỉ",
+          "value": "Văn phòng vật lý sắp ra mắt"
+        },
+        "hours": {
+          "title": "Giờ Hỗ Trợ",
+          "weekdays": {
+            "days": "Thứ Hai - Thứ Sáu",
+            "hours": "9:00 - 18:00 EST"
+          },
+          "saturday": {
+            "days": "Thứ Bảy",
+            "hours": "10:00 - 16:00 EST"
+          },
+          "sunday": {
+            "days": "Chủ Nhật",
+            "hours": "Đóng Cửa"
+          }
+        }
+      },
+      "quick_links": {
+        "title": "Liên Kết Nhanh",
+        "faq": "Câu Hỏi Thường Gặp",
+        "guide": "Hướng Dẫn Nền Tảng"
+      },
+      "form": {
+        "title": "Gửi Tin Nhắn Cho Chúng Tôi",
+        "fields": {
+          "name": {
+            "label": "Họ Tên",
+            "placeholder": "Tên của bạn",
+            "error": "Tên phải có ít nhất 2 ký tự."
+          },
+          "email": {
+            "label": "Email",
+            "placeholder": "email.cua.ban@example.com",
+            "error": "Vui lòng nhập địa chỉ email hợp lệ."
+          },
+          "subject": {
+            "label": "Chủ Đề",
+            "placeholder": "Chọn một chủ đề",
+            "description": "Chọn chủ đề mô tả chính xác nhất yêu cầu của bạn.",
+            "error": "Vui lòng chọn một chủ đề.",
+            "options": {
+              "general_inquiry": "Câu Hỏi Chung",
+              "technical_support": "Hỗ Trợ Kỹ Thuật",
+              "billing": "Thanh Toán & Hóa Đơn",
+              "teacher_verification": "Xác Minh Giáo Viên",
+              "course_issue": "Vấn Đề Về Khóa Học",
+              "partnership": "Cơ Hội Hợp Tác",
+              "feedback": "Phản Hồi & Đề Xuất"
+            }
+          },
+          "message": {
+            "label": "Tin Nhắn",
+            "placeholder": "Vui lòng mô tả chi tiết câu hỏi hoặc vấn đề của bạn...",
+            "error": "Tin nhắn phải có ít nhất 10 ký tự."
+          }
+        },
+        "buttons": {
+          "submit": "Gửi Tin Nhắn",
+          "submitting": "Đang Gửi Tin Nhắn...",
+          "send_another": "Gửi Tin Nhắn Khác"
+        },
+        "success": {
+          "title": "Đã Gửi Tin Nhắn!",
+          "description": "Cảm ơn bạn đã liên hệ với chúng tôi. Chúng tôi đã nhận được tin nhắn của bạn và sẽ phản hồi trong thời gian sớm nhất."
+        }
+      }
+    }
   },
   "home": {
     "headline": "Lối tắt thông minh của bạn",
@@ -1111,7 +1715,7 @@
         },
         {
           "title": "Mở rộng Dễ dàng",
-          "description": "Phát triển từ một đến hàng nghìn người dùng mà không gặp trở ngại"
+          "description": "Phát triển từ một đến hàng nghìnhàng nghìn người dùng mà không gặp trở ngại"
         },
         {
           "title": "Phát triển Liên tục",
@@ -1141,7 +1745,31 @@
     "continue_with_google": "Tiếp tục với Google",
     "continue_with_github": "Tiếp tục với GitHub",
     "continue_with_apple": "Tiếp tục với Apple",
-    "continue_with_discord": "Tiếp tục với Discord"
+    "continue_with_discord": "Tiếp tục với Discord",
+    "powered-by": "Được hỗ trợ bởi {domain}",
+    "welcome": "Chào mừng",
+    "sign_in_to_your_account": "Đăng nhập vào tài khoản của bạn",
+    "invalid_credentials": "Email hoặc mật khẩu không hợp lệ",
+    "password_min_length": "Mật khẩu phải có ít nhất 8 ký tự",
+    "passwordless": "Không mật khẩu",
+    "with_password": "Với mật khẩu",
+    "two_factor_authentication": "Xác thực hai yếu tố",
+    "enter_authenticator_code": "Nhập mã 6 chữ số từ ứng dụng xác thực của bạn",
+    "verification_code_label": "Mã xác thực",
+    "verify_button": "Xác thực",
+    "choose_sign_in_method": "Chọn phương thức đăng nhập ưa thích của bạn",
+    "email": "Email",
+    "email_username_placeholder": "Nhập email hoặc tên người dùng",
+    "will_send_to": "Chúng tôi sẽ gửi mã xác thực đến",
+    "verification_code": "Mã xác thực",
+    "check_email": "Kiểm tra email của bạn để lấy mã xác thực",
+    "verify": "Xác thực",
+    "password": "Mật khẩu",
+    "password_placeholder": "Nhập mật khẩu của bạn",
+    "sign_in": "Đăng nhập",
+    "forgot_password": "Quên mật khẩu? Sử dụng đăng nhập không mật khẩu",
+    "will_sign_in_as": "Bạn sẽ đăng nhập bằng",
+    "or": "hoặc"
   },
   "logout": {
     "logout": "Đăng xuất",
@@ -1228,7 +1856,7 @@
           "answer5": "Nền tảng này có khả năng tùy biến cao với các tùy chọn gắn nhãn trắng, nhãn hiệu tùy chỉnh, quy trình công việc có thể định cấu hình và tích hợp API. \nBạn có thể điều chỉnh trải nghiệm học tập để phù hợp với nhu cầu của tổ chức bạn.",
           "question6": "Các yêu cầu phần cứng là gì?",
           "answer6": "Nền tảng dựa trên đám mây của chúng tôi hoạt động trên mọi trình duyệt web hiện đại. \nĐể tổ chức hội nghị truyền hình tối ưu, chúng tôi khuyên bạn nên kết nối Internet ổn định và cập nhật các thiết bị có chức năng camera và micrô.",
-          "question7": "Việc sao lưu dữ liệu được xử lí như thế nào?",
+          "question7": "Việc sao lưu dữ liệu ược xử lí như thế nào?",
           "answer7": "Chúng tôi duy trì các bản sao lưu tự động hàng ngày với khả năng lưu giữ trong 30 ngày, lưu trữ dự phòng theo địa lý và các giao thức khắc phục thảm họa. \nDữ liệu của bạn luôn an toàn và có thể truy cập được."
         }
       }
@@ -2207,7 +2835,8 @@
   "onboarding": {
     "just-a-moment": "Bước cuối cùng!",
     "just-a-moment-desc": "Chấp nhận lời mời để bắt đầu trải nghiệm",
-    "no-invites": "Bạn không có lời mời nào."
+    "no-invites": "Bạn không có lời mời nào.",
+    "back-to-home": "Trở về trang chủ"
   },
   "platform-token-usage": {
     "hourly_total_from_last_12_hours": "Tổng số token sử dụng hàng giờ trong 12 giờ gần đây",
@@ -2308,7 +2937,7 @@
     "change-password-description": "Đổi mật khẩu của bạn.",
     "delete-account": "Xóa tài khoản",
     "delete-account-description": "Xóa tài khoản của bạn.",
-    "delete-account-message": "Tài khoản của bạn sẽ bị xoá vĩnh viễn và không thể phục hồi. Nhập địa chỉ email của bạn để xác nhận xoá tài khoản.",
+    "delete-account-message": "Tài khoản của bạn sẽ bị xóa vĩnh viễn và không thể phục hồi. Nhập địa chỉ email của bạn để xác nhận xoá tài khoản.",
     "new_avatar": "Hình đại diện mới",
     "upload_avatar": "Hình đại diện mới",
     "remove_avatar": "Xóa hình đại diện",
@@ -2319,7 +2948,16 @@
     "bio-max-length": "Bio phải ít hơn {max} từ.",
     "display-name-min-error": "Tên hiển thị phải ít nhất {min} kí tự",
     "display-name-max-error": "Tên hiển thị phải ít hơn {max} kí tự",
-    "email-invalid": "Email không hợp lệ"
+    "full-name-min-error": "Họ và tên phải ít nhất {min} kí tự",
+    "full-name-max-error": "Họ và tên phải ít hơn {max} kí tự",
+    "email-invalid": "Email không hợp lệ",
+    "view-full-settings": "Xem cài đặt đầy đủ",
+    "full-name": "Họ và tên",
+    "full-name-description": "Tên đầy đủ của bạn sẽ được sử dụng để hiển thị trên chứng chỉ",
+    "profile-updated": "Cập nhật hồ sơ",
+    "full-name-updated": "Họ và tên của bạn đã được cập nhật thành công",
+    "error-occurred": "Đã có lỗi đã xảy ra",
+    "please-try-again": "Vui lòng thử lại sau"
   },
   "settings-appearance": {
     "appearance": "Hiển thị",
@@ -2393,8 +3031,11 @@
     "diet_and_nutrition": "Ăn uống",
     "progress": "Tiến độ",
     "metrics": "Chỉ số",
-    "crawlers": "Công cụ cào dữ liệu",
-    "queues": "Hàng chờ"
+    "crawlers": "Crawlers",
+    "queues": "Queues",
+    "learning": "Học tập",
+    "teaching": "Giảng dạy",
+    "management": "Quản lý"
   },
   "signup": {
     "get-started": "Bắt đầu ngay",
@@ -2935,7 +3576,20 @@
     "create_description": "Tạo một khóa học mới",
     "edit": "Chỉnh sửa khóa học",
     "name": "Tên khóa học",
-    "edit_description": "Chỉnh sửa khóa học hiện có"
+    "edit_description": "Chỉnh sửa khóa học hiện có",
+    "course_description": "Mô tả khóa học",
+    "card_view": "Dạng thẻ",
+    "table_view": "Dạng bảng",
+    "no_courses_found": "Chưa có khóa học nào",
+    "no_description_provided": "Không có mô tả",
+    "delete_confirm_title": "Xác nhận xóa \"{name}\"",
+    "certificate_template": "Mẫu chứng chỉ",
+    "select_certificate_template": "Chọn một mẫu chứng chỉ",
+    "image_preview_not_available": "Chưa có mẫu xem trước",
+    "image_preview_not_available_description": "Ảnh xem trước của mẫu chứng chỉ không có sẵn.",
+    "hide_certificate_preview": "Ẩn xem mẫu chứng chỉ",
+    "show_certificate_preview": "Hiển thị xem mẫu chứng chỉ",
+    "self_paced": "Học tự chủ"
   },
   "ws-crawlers": {
     "plural": "Công cụ cào dữ liệu",
@@ -3208,28 +3862,318 @@
     "create_description": "Tạo một hàng chờ mới"
   },
   "ws-quiz-sets": {
-    "plural": "Bộ trắc nghiệm",
-    "singular": "Bộ trắc nghiệm",
-    "description": "Quản lý các bộ trắc nghiệm trong không gian làm việc của bạn bao gồm các câu hỏi nhiều lựa chọn dành cho mục đích học tập.",
-    "create": "Tạo bộ trắc nghiệm",
-    "create_description": "Tạo bộ trắc nghiệm mới",
-    "name": "Tên bộ trắc nghiệm",
-    "edit": "Chỉnh sửa bộ",
-    "link-quizzes": "Liên kết câu hỏi",
-    "link-modules": "Liên kết mô-đun"
+    "plural": "Bộ câu hỏi",
+    "singular": "Bộ câu hỏi",
+    "name": "Tên bộ câu hỏi",
+    "description": "Bộ câu hỏi được sử dụng để nhóm các câu quiz lại với nhau cho mục đích học tập.",
+    "create_description": "Tạo một bộ câu hỏi mới",
+    "link-quizzes": "Liên kết bài kiểm tra",
+    "link-modules": "Liên kết học phần",
+    "editing": "Đang cập nhật...",
+    "creating": "Đang tạo...",
+    "create": "Tạo bộ câu hỏi",
+    "edit": "Chỉnh sửa bộ câu hỏi",
+    "form-sections": {
+      "basic": {
+        "title": "Thông tin cơ bản",
+        "subtitle": "Thiết lập các chi tiết cơ bản cho bài kiểm tra của bạn"
+      },
+      "timing-limit": {
+        "title": "Thông tin cơ bản",
+        "subtitle": "Thiết lập các chi tiết cơ bản cho bài kiểm tra của bạn"
+      },
+      "schedule": {
+        "title": "Lịch trình",
+        "subtitle": "Đặt thời gian khả dụng và thời hạn cho bài kiểm tra"
+      },
+      "settings": {
+        "title": "Cài đặt bài kiểm tra",
+        "subtitle": "Cấu hình hành vi bài kiểm tra và quyền của sinh viên"
+      }
+    },
+    "form-description": "Cấu hình cài đặt, thời gian và quyền của bài kiểm tra để tạo trải nghiệm học tập hấp dẫn cho sinh viên của bạn.",
+    "required-badge": "Bắt buộc",
+    "form-fields": {
+      "name": {
+        "title": "Tên bộ câu hỏi",
+        "description": "Chọn một tên rõ ràng, mô tả cho bài kiểm tra của bạn",
+        "placeholder": "Ví dụ: Kiểm tra Chương 5"
+      },
+      "attempt_limit": {
+        "title": "Giới hạn số lần làm bài",
+        "description": "Số lần tối đa người dùng có thể làm bài kiểm tra. Để 0 nếu không giới hạn.",
+        "placeholder": "Ví dụ: 3"
+      },
+      "time_limit_minutes": {
+        "title": "Giới hạn thời gian (phút)",
+        "description": "Thời gian cho phép hoàn thành bài kiểm tra tính bằng phút. Để 0 nếu không giới hạn thời gian.",
+        "placeholder": "Ví dụ: 60"
+      },
+      "available_date": {
+        "title": "Có hiệu lực từ",
+        "description": "Ngày và giờ bài kiểm tra có sẵn cho người tham gia."
+      },
+      "due_date": {
+        "title": "Ngày hết hạn",
+        "description": "Thời hạn nộp bài kiểm tra."
+      },
+      "explanation_mode": {
+        "title": "Chế độ giải thích",
+        "description": "Chọn thời điểm và cách học sinh có thể xem giải thích câu trả lời",
+        "placeholder": "Chọn thời điểm giải thích",
+        "select_never": "Không bao giờ hiển thị giải thích câu trả lời",
+        "select_correct_answer": "Chỉ hiển thị giải thích các câu trả lời đúng",
+        "select_all_answer": "Hiển thị giải thích của tất cả các câu trả lời"
+      },
+      "instruction": {
+        "title": "Hướng dẫn",
+        "description": "Cung cấp hướng dẫn chi tiết cho học sinh bằng trình soạn thảo văn bản đa dạng thức, hiển thị trước khi bắt đầu bài kiểm tra."
+      },
+      "allow_view_results": {
+        "title": "Cho phép xem kết quả ngay lập tức",
+        "description": "Cho phép người dùng xem điểm của họ ngay sau khi nộp bài."
+      },
+      "results_released": {
+        "title": "Đã công bố kết quả",
+        "description": "Đánh dấu kết quả bài kiểm tra đã công bố, cho phép xem phản hồi chi tiết và giải thích."
+      },
+      "allow_view_old_attempts": {
+        "title": "Cho phép xem lại các lần làm bài cũ",
+        "description": "Cho phép người dùng xem lại các lần làm bài kiểm tra trước đó của họ. Trước khi kết quả được công bố, người dùng chỉ có thể xem các câu trả lời đã nộp của mình. Khi kết quả được công bố, họ sẽ thấy các câu trả lời cùng với kết quả chi tiết và phản hồi."
+      }
+    }
   },
   "ws-quizzes": {
     "plural": "Câu hỏi trắc nghiệm",
     "singular": "Bộ trắc nghiệm",
     "create": "Tạo câu hỏi",
+    "edit_description": "Chỉnh sửa bộ trắc nghiệm",
     "create_description": "Tạo một bộ trắc nghiệm mới",
     "description": "Quản lý bộ trắc nghiệm trong không gian làm việc của bạn có các câu hỏi nhiều lựa chọn dành cho mục đích học tập.",
     "edit": "Chỉnh sửa bộ trắc nghiệm",
+    "edit-all": "Chỉnh sửa toàn bộ",
     "question": "Câu hỏi",
     "answer": "Câu trả lời",
-    "edit_description": "Chỉnh sửa bài kiểm tra hiện có",
-    "generation_error": "Đã xảy ra lỗi khi tạo bộ câu hỏi.",
-    "generation_accepted": "Các bộ câu hỏi do AI tạo ra đã được chấp nhận!"
+    "points": "Điểm",
+    "submitting": "Đang nộp...",
+    "submit": "Nộp",
+    "form": {
+      "edit-title": "Chỉnh sửa câu hỏi đố vui",
+      "create-title": "Tạo câu hỏi đố vui",
+      "create-description": "Tạo nhiều câu hỏi đố vui cùng lúc. Mỗi câu hỏi có thể có nhiều lựa chọn với giải thích. Người dùng cũng có thể sao chép và dán câu hỏi đố vui",
+      "edit-description": "Chỉnh sửa hoặc thêm nhiều câu hỏi đố vui cùng lúc. Mỗi câu hỏi có thể có nhiều lựa chọn với giải thích. Người dùng cũng có thể sao chép và dán câu hỏi đố vui",
+      "question-no": "Câu hỏi {no}",
+      "option-no": "Tùy chọn {no}",
+      "untitled-question": "Câu hỏi không có tiêu đề",
+      "content": {
+        "options": {
+          "label": "Tùy chọn trả lời",
+          "add-button": "Thêm tùy chọn",
+          "placeholder": "Tùy chọn {no}",
+          "total-options-text": "Tổng số tùy chọn",
+          "correct-label": "Đúng",
+          "explanation-label": "Giải thích",
+          "generate-explanation-button": "Tạo",
+          "explanation-placeholder": "Giải thích tại sao tùy chọn này đúng hoặc sai..."
+        },
+        "questions": {
+          "label": "Câu hỏi",
+          "placeholder": "Nhập câu hỏi của bạn vào đây...",
+          "count-many": "{count} Câu hỏi",
+          "count-one": "{count} Câu hỏi"
+        },
+        "correct-answers": {
+          "no-selected": "Chưa chọn câu trả lời đúng",
+          "single-selected": "Một câu trả lời đúng",
+          "multiple-selected": "Nhiều câu trả lời đúng"
+        }
+      },
+      "paste-confirm-modal": {
+        "title": "Xác nhận dán",
+        "description-plural": "Bạn sắp dán {length} câu hỏi đố vui. Xem lại nội dung bên dưới và chọn hành động.",
+        "description-single": "Bạn sắp dán 1 câu hỏi đố vui. Xem lại nội dung bên dưới và chọn hành động.",
+        "discard-button": "Hủy bỏ",
+        "confirm-button": "Xác nhận dán"
+      },
+      "add-another-button": "Thêm câu hỏi khác",
+      "paste-question-button": "Dán câu hỏi",
+      "create-button": "Tạo tất cả câu hỏi",
+      "edit-button": "Chỉnh sửa tất cả câu hỏi",
+      "creating": "Đang tạo...",
+      "updating": "Đang cập nhật...",
+      "error": {
+        "title": "Lỗi",
+        "fail-update": "Cập nhật câu đố thất bại",
+        "fail-create": "Tạo câu đố thất bại",
+        "unexpected": "Đã xảy ra lỗi không mong muốn",
+        "invalid-clipboard-title": "Lỗi",
+        "invalid-clipboard": "Định dạng câu đố không hợp lệ",
+        "invalid-clipboard-message": "Không thể dán dữ liệu câu đố. Vui lòng đảm bảo bạn có dữ liệu câu đố hợp lệ trong khay nhớ tạm.",
+        "explanation-generation-failed": "Không tạo được giải thích",
+        "quiz-copy-failed": "Sao chép câu đố vào khay nhớ tạm thất bại"
+      },
+      "success": {
+        "title": "Thành công",
+        "edit-quizzes": "Đã cập nhật thành công {length} câu đố",
+        "edit-quiz": "Đã cập nhật thành công {length} câu đố",
+        "create-quizzes": "Đã tạo thành công {length} câu đố",
+        "create-quiz": "Đã tạo thành công {length} câu đố",
+        "quiz-copied": "Đã sao chép câu đố vào khay nhớ tạm",
+        "paste-success-many": "Đã dán thành công {length} câu đố",
+        "paste-success-one": "Đã dán thành công 1 câu đố",
+        "explanation-generated": "Giải thích đã được tạo thành công"
+      }
+    },
+    "quiz-status": {
+      "sidebar_aria": "Thanh bên tiến độ bài kiểm tra",
+      "question_status_title": "Tiến độ câu hỏi",
+      "answered_status_short": "đã trả lời",
+      "quiz_progress_label": "Tiến độ bài kiểm tra",
+      "question_navigation_label": "Chuyển đến câu hỏi",
+      "answered_state": "Đã trả lời",
+      "unanswered_state": "Chưa trả lời",
+      "jump_to_question": "Chuyển đến câu hỏi",
+      "upcoming": "Sắp diễn ra",
+      "active": "Đang hoạt động",
+      "expired": "Đã hết hạn",
+      "draft": "Nháp"
+    },
+    "time": {
+      "remaining": "Thời gian còn lại",
+      "elapsed": "Thời gian đã trôi qua",
+      "hidden_remaining": "Đã ẩn thời gian còn lại",
+      "hidden_elapsed": "Đã ẩn thời gian trôi qua",
+      "minutes": "phút",
+      "seconds": "giây",
+      "hour": "giờ",
+      "hours": "giờ",
+      "minute": "phút",
+      "second": "giấy"
+    },
+    "errors": {
+      "error-type-submit": "Đã có lỗi xảy ra khi nộp bài",
+      "unknown-error": "Lỗi không xác định",
+      "network-error": "Lỗi mạng",
+      "submission-failed": "Nộp bài thất bại",
+      "network-error-submitting": "Lỗi mạng khi nộp bài"
+    },
+    "quiz": {
+      "take-quiz": "Làm bài kiểm tra",
+      "start-quiz": "Bắt đầu làm bài",
+      "starting-quiz": "Đang bắt đầu...",
+      "quiz-instructions": "Hướng dẫn làm bài",
+      "attempt-limit": "Giới hạn lần làm",
+      "due-date": "Hạn nộp",
+      "available-date": "Ngày mở",
+      "attempts-remaining": "Số lần còn lại",
+      "past-due": "Bài kiểm tra đã quá hạn",
+      "not-available": "Bài kiểm tra chưa mở",
+      "unlimited": "Không giới hạn",
+      "review-info": "Xem kỹ thông tin bên dưới trước khi bắt đầu bài thi",
+      "click-to-begin": "Nhấp để bắt đầu lần làm bài của bạn",
+      "results-out": "Kết quả đã công bố—không thể làm thêm",
+      "quiz-past-due": "Bài kiểm tra đã quá hạn",
+      "quiz-not-available": "Bài kiểm tra chưa mở",
+      "no-attempts-remaining": "Không còn lần làm bài nào",
+      "view-result": "Xem kết quả",
+      "view-final-total-score": "Bạn đạt được {score} trên {maxScore}.",
+      "view-final-attempt": "Bạn đạt được {score} trên {maxScore}. Xem kết quả lần làm bài gần đây nhất",
+      "quiz-not-available-message": "Bài kiểm tra này chưa mở. Vui lòng quay lại sau.",
+      "quiz-past-due-message": "Bài kiểm tra này đã quá hạn nộp. Bạn không thể bắt đầu lần làm bài mới vào lúc này.",
+      "no-attempts-message": "Bạn không còn lần làm bài nào cho bài kiểm tra này."
+    },
+    "info": {
+      "quiz-information": "Thông tin bài kiểm tra",
+      "quiz-id": "Mã bài kiểm tra",
+      "time-limit": "Giới hạn thời gian",
+      "no-time-limit": "Không giới hạn thời gian",
+      "minutes": "Phút",
+      "attempts-used": "Số lần đã làm",
+      "explanations": "Giải thích",
+      "schedule": "Lịch trình",
+      "available-from": "Mở từ",
+      "due-date": "Hạn nộp",
+      "attempt-remaining": "lần còn lại",
+      "attempts-remaining": "lần còn lại",
+      "explanation-modes": {
+        "none": "Không có",
+        "correct-after-release": "Chỉ đáp án đúng sau khi công bố",
+        "all-after-release": "Tất cả sau khi công bố"
+      }
+    },
+    "instructions": {
+      "title": "Hướng dẫn",
+      "subtitle": "Đọc trước khi bắt đầu",
+      "default": {
+        "stable-connection": "Đảm bảo bạn có kết nối internet ổn định",
+        "cannot-pause": "Bạn không thể tạm dừng bài kiểm tra sau khi bắt đầu",
+        "answer-all": "Bạn nên trả lời tất cả câu hỏi trước khi nộp bài",
+        "auto-save": "Tiến trình của bạn sẽ được tự động lưu",
+        "time-limit": "Bạn có {minutes} phút"
+      }
+    },
+    "past-attempts": {
+      "title": "Lần làm bài trước",
+      "view-answers": "Nhấp \"Xem chi tiết\" để xem câu trả lời của bạn",
+      "view-results": "Nhấp \"Xem kết qủa\" để xem kết quả của bạn",
+      "results-pending": "Kết quả đang chờ công bố",
+      "view-results-button": "Xem kết quả",
+      "view-details-button": "Xem chi tiết",
+      "attempt-info": " lúc {date} ({duration})"
+    },
+    "summary": {
+      "title": "Tóm tắt lần làm bài",
+      "description": "Xem lại chi tiết và câu trả lời trong lần làm bài kiểm tra của bạn",
+      "back_to_quiz": "Quay lại làm bài",
+      "attempt_number": "Lần làm #{number}",
+      "submitted": "Đã nộp",
+      "duration": "Thời lượng",
+      "completion": "Hoàn thành",
+      "answered_of_total": "{answered} / {total} câu hỏi",
+      "progress": "Tiến độ",
+      "questions_and_responses": "Câu hỏi & Câu trả lời",
+      "questions_count": "{count} câu hỏi",
+      "answered": "Đã trả lời",
+      "skipped": "Bỏ qua",
+      "your_response": "Câu trả lời của bạn:",
+      "no_answer": "Chưa chọn câu trả lời",
+      "available_options": "Tùy chọn có sẵn:",
+      "summary_stats": {
+        "attempt_number": "Số lần làm",
+        "answered": "Câu hỏi đã trả lời",
+        "skipped": "Câu hỏi đã bỏ qua",
+        "time_taken": "Thời gian làm bài"
+      }
+    },
+    "results": {
+      "quiz-completed": "Đã hoàn thành bài kiểm tra!",
+      "your-score": "Điểm số của bạn",
+      "attempt": "Lần làm",
+      "of": "trên",
+      "unlimited": "Không giới hạn",
+      "attempts-remaining": "Số lần còn lại",
+      "left": "lần",
+      "excellent-work": "Làm rất tốt!",
+      "outstanding-performance": "Hiệu suất xuất sắc! Bạn đã nắm vững kiến thức này.",
+      "good-job": "Làm tốt lắm!",
+      "solid-understanding": "Bạn hiểu khá vững kiến thức.",
+      "keep-practicing": "Tiếp tục luyện tập!",
+      "room-for-improvement": "Còn chỗ cần cải thiện. Hãy xem lại nội dung.",
+      "needs-improvement": "Cần cải thiện",
+      "review-recommended": "Chúng tôi khuyên bạn nên ôn tập lại và thử lại.",
+      "back-take-quiz": "Quay lại trang làm bài",
+      "quiz-completed-at": "Hoàn thành bài kiểm tra lúc",
+      "time-limit": "Giới hạn thời gian",
+      "minutes": "phút",
+      "started_at": "Bắt đầu lúc",
+      "completed_at": "Hoàn thành lúc",
+      "duration": "Thời gian làm bài",
+      "points": "Điểm",
+      "correct": "(Đáp án đúng)",
+      "your_answer": "(Câu trả lời của bạn)",
+      "correct_option": "(Đáp án đúng)",
+      "score_awarded": "Điểm đạt được"
+    }
   },
   "ws-reports": {
     "report": "Báo cáo",
@@ -3352,7 +4296,31 @@
     "features": "Các tính năng",
     "features_description": "Quản lý các tính năng của không gian làm việc.",
     "delete": "Xóa không gian làm việc",
-    "deleting": "Đang xóa"
+    "deleting": "Đang xóa",
+    "feature-request": {
+      "title": "Yêu cầu mở khóa tính năng",
+      "toasts": {
+        "error": {
+          "reason-required": "Vui lòng cung cấp một lý do cho yêu cầu của bạn",
+          "feature-required": "Vui lòng chọn một tính năng để yêu cầu",
+          "request-failed": "Không thể gửi yêu cầu. Vui lòng thử lại sau"
+        },
+        "success": {
+          "request-submitted": "Yêu cầu truy cập tính năng được gửi thành công! \nQuản trị viên nền tảng sẽ xem xét yêu cầu của bạn."
+        }
+      },
+      "description": "Yêu cầu truy cập vào các tính năng mới cho không gian của bạn \"{ws}\".",
+      "description-2": "Quản trị viên nền tảng sẽ xem xét yêu cầu của bạn và phê duyệt quyền truy cập nếu thích hợp.",
+      "feature-label": "Tính năng",
+      "feature-placeholder": "Chọn một tính năng",
+      "no-features": "Tất cả các tính năng có sẵn đã được yêu cầu hoặc bật.",
+      "reason-label": "Tại sao bạn cần truy cập vào tính năng này? \n*",
+      "reason-placeholder": "Vui lòng giải thích cách bạn có kế hoạch sử dụng các tính năng {feature} trong không gian làm việc của bạn. \nBao gồm chi tiết về trường hợp sử dụng dự định của bạn, đối tượng mục tiêu và mục tiêu ...",
+      "reason-description": "Tối thiểu 20 ký tự. \nHãy cụ thể về mục tiêu của bạn.",
+      "existing-requests-title": "Các yêu cầu hiện tại của bạn",
+      "submitting": "Đang gửi ...",
+      "submit": "Gửi yêu cầu"
+    }
   },
   "ws-slides": {
     "singular": "Trang trình bày",
@@ -3515,7 +4483,102 @@
     "home": "Trang chủ",
     "courses": "Khóa học",
     "quizzes": "Bài kiểm tra",
+    "quiz-sets": "Bộ trắc nghiệm",
     "chat": "Trò chuyện",
-    "roles": "Vai trò"
-  }
+    "roles": "Vai trò",
+    "ai_chat": "Trò chuyện với AI",
+    "certificates": "Chứng chỉ",
+    "challenges": "Các thử thách",
+    "ai_teach_studio": "Công cụ giảng dạy AI",
+    "users": "Người dùng",
+    "teams": "Nhóm",
+    "platform_users": "Người dùng nền tảng"
+  },
+  "certificates": {
+    "offered_by": "được dạy bởi",
+    "title": "Bằng Chứng Chỉ",
+    "certify_text": "Chứng chỉ này công nhận",
+    "completion_text": "đã hoàn thành khóa học",
+    "completion_date": "Ngày chứng nhận",
+    "certificate_id": "ID Chứng chỉ",
+    "download_button": "Tải xuống",
+    "error": "Không thể tải chứng chỉ",
+    "error_description": "Có lỗi xảy ra khi tải chứng chỉ của bạn. Vui lòng thử lại sau.",
+    "page_title": "Chứng chỉ của tôi",
+    "page_description": "Xem và tải tất cả chứng chỉ của mình",
+    "empty_state_title": "Chưa có chứng chỉ",
+    "empty_state_description": "Hoàn thành các khóa học để giành chứng chỉ và thể hiện thành tích của bạn.",
+    "browse_courses": "Xem các khóa học",
+    "certified": "Được chứng nhận"
+  },
+  "platform-roles": {
+    "plural": "Vai trò nền tảng",
+    "description": "Quản lý vai trò và quyền của người dùng trên toàn nền tảng qua tất cả các dịch vụ."
+  },
+  "approval-data-table": {
+    "workspace": "Không gian",
+    "requested_by": "Yêu cầu bởi",
+    "feature_requested": "Tính năng yêu cầu",
+    "request_details": "Chi tiết yêu cầu",
+    "status": "Trạng thái",
+    "status-pending": "Chưa giải quyết",
+    "status-approved": "Đã chấp thuận",
+    "status-rejected": "Đã từ chối",
+    "requested": "Đã yêu cầu",
+    "admin_notes": "Ghi chú quản trị viên",
+    "no_notes": "Không có ghi chú",
+    "reviewed": "Đã xem xét",
+    "reviewed_at": "Đã xem xét lúc {date}",
+    "reviewed_by": "Đã xem xét bởi {name}",
+    "created_at": "Đã tạo lúc",
+    "id": "ID",
+    "workspace_name": "Không gian",
+    "creator_name": "Yêu cầu bởi",
+    "request_message": "Chi tiết yêu cầu",
+    "loading": "Đang tải",
+    "try-again": "Thử lại",
+    "total-requests": "Tổng số yêu cầu",
+    "pending": "Chưa giải quyết",
+    "approved": "Chấp thuận",
+    "rejected": "Từ chối",
+    "all-requests": "Tất cả các yêu cầu",
+    "all-features": "Tất cả các tính năng",
+    "approveSuccess": "Đã phê duyệt tính năng {feature} cho {workspace}. \nCác tính năng sẽ được bật tự động.",
+    "approveError": "Không phê duyệt yêu cầu",
+    "rejectError": "Vui lòng cung cấp một lý do để từ chối",
+    "rejectSuccess": "Đã từ chối quyền truy cập tính năng {feature} cho {workspace}",
+    "detailsTitle": "Chi tiết yêu cầu tính năng",
+    "requestedBy": "Được yêu cầu bởi",
+    "timeline": "Dòng thời gian",
+    "viewDetails": "Xem thông tin",
+    "approveRequest": "Phê duyệt yêu cầu",
+    "rejectRequest": "Từ chối yêu cầu",
+    "revokeAccess": "Thu hồi quyền truy cập",
+    "adminNotes": "Ghi chú quản trị viên",
+    "notesBy": "Ghi chú bởi {name}",
+    "close": "Đóng",
+    "approveTitle": "Phê duyệt quyền truy cập tính năng {feature} ",
+    "approveOverride": "Điều này sẽ ghi đè lên quyết định từ chối trước đó",
+    "approveDescription": "Điều này sẽ kích hoạt các tính năng {feature} cho \"{workspace}\".",
+    "adminNotesPlaceholder": "Thêm bất kỳ ghi chú nào về sự chấp thuận này",
+    "cancel": "Hủy bỏ",
+    "approving": "Đang chấp thuận",
+    "rejectTitle": "Từ chối quyền truy cập tính năng {feature}",
+    "rejectDescription": "Điều này sẽ từ chối yêu cầu truy cập các tính năng {feature} cho {workspace}. \nVui lòng cung cấp một lý do cho sự từ chối.",
+    "reasonForRejection": "Lý do từ chối",
+    "reasonForRejectionPlaceholder": "Vui lòng giải thích lý do tại sao yêu cầu này đang bị từ chối",
+    "rejecting": "Đang từ chối",
+    "openMenu": "Mở menu",
+    "filter-by-feature": "Bộ lọc theo tính năng",
+    "filter-by-status": "Lọc theo trạng thái",
+    "requested_at": "Được yêu cầu {date}"
+  },
+  "approvals": {
+    "feature-access-requests": "Yêu cầu tính năng",
+    "feature-access-requests-description": "Xem xét và phê duyệt các yêu cầu tính năng từ người tạo không gian làm việc. \nCác yêu cầu được phê duyệt sẽ tự động kích hoạt các tính năng cho các không gian làm việc tương ứng."
+  },
+  "request-feature": "Yêu cầu tính năng",
+  "unlock-education-features": "Mở khóa các tính năng giáo dục",
+  "transform-your-workspace": "Biến đổi không gian làm việc của bạn với các công cụ học tập toàn diện: Tạo Các khóa học, các câu đố tương tác thiết kế, theo dõi tiến trình của sinh viên, ủy quyền giấy chứng nhận, và tận dụng các trợ lý giảng dạy hỗ trợ AI.",
+  "courses-marketplace-description": "Khám phá các khóa học của nền tảng"
 }

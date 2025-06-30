@@ -13,8 +13,8 @@ import { toast } from '@tuturuuu/ui/hooks/use-toast';
 import { Check, Loader2 } from '@tuturuuu/ui/icons';
 import { zodResolver } from '@tuturuuu/ui/resolvers';
 import { Textarea } from '@tuturuuu/ui/textarea';
-import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import * as z from 'zod';
 
@@ -26,10 +26,7 @@ interface Props {
 const minLength = 10;
 const maxLength = 100;
 
-export default function BioInput({
-  defaultValue = 'I love cats!',
-  disabled,
-}: Props) {
+export default function BioInput({ defaultValue = '', disabled }: Props) {
   const t = useTranslations('settings-account');
   const router = useRouter();
 
@@ -98,10 +95,10 @@ export default function BioInput({
             control={form.control}
             name="bio"
             render={({ field }) => (
-              <FormItem className="w-full">
+              <FormItem className="w-full md:max-w-lg md:min-w-max">
                 <FormControl>
                   <Textarea
-                    className="resize-none"
+                    className="field-sizing-fixed resize-none"
                     rows={3}
                     id="bio"
                     placeholder={t('bio')}

@@ -1,4 +1,4 @@
-import { Entity } from './Entity';
+import type { Entity } from './Entity';
 
 export interface UserGroup extends Entity {
   id: string;
@@ -6,4 +6,5 @@ export interface UserGroup extends Entity {
   amount?: number;
   sessions?: string[];
   href?: string;
+  description?: string;
 }

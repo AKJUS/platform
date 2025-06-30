@@ -1,11 +1,11 @@
 'use client';
 
-import { QuizSetRowActions } from './row-actions';
-import { ColumnDef } from '@tanstack/react-table';
-import { WorkspaceQuizSet } from '@tuturuuu/types/db';
+import type { ColumnDef } from '@tanstack/react-table';
+import type { WorkspaceQuizSet } from '@tuturuuu/types/db';
 import { DataTableColumnHeader } from '@tuturuuu/ui/custom/tables/data-table-column-header';
 import moment from 'moment';
 import Link from 'next/link';
+import { QuizSetRowActions } from './row-actions';
 
 export const getQuizSetColumns = (
   t: any,
@@ -57,7 +57,7 @@ export const getQuizSetColumns = (
     cell: ({ row }) => (
       <Link
         href={row.original.href || '#'}
-        className="min-w-[8rem] font-semibold hover:underline"
+        className="min-w-32 font-semibold hover:underline"
       >
         {row.getValue('name') || '-'}
       </Link>

@@ -1,7 +1,6 @@
 'use client';
 
-import ProblemForm, { type ProblemFormValues } from './problem-form';
-import { type NovaProblem, type NovaProblemTestCase } from '@tuturuuu/types/db';
+import type { ExtendedNovaProblem } from '@tuturuuu/types/db';
 import {
   Dialog,
   DialogContent,
@@ -13,10 +12,7 @@ import {
 import { toast } from '@tuturuuu/ui/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
-
-type ExtendedNovaProblem = NovaProblem & {
-  test_cases: NovaProblemTestCase[];
-};
+import ProblemForm, { type ProblemFormValues } from './problem-form';
 
 interface EditProblemDialogProps {
   problem: ExtendedNovaProblem;
@@ -41,12 +37,13 @@ export default function EditProblemDialog({
       exampleInput: problem.example_input,
       exampleOutput: problem.example_output,
       challengeId: problem.challenge_id,
-      testCases: problem.test_cases.map((tc) => ({
-        id: tc.id,
-        input: tc.input,
-        output: tc.output,
-        hidden: tc.hidden,
-      })),
+      testCases:
+        problem.test_cases?.map((tc) => ({
+          id: tc.id,
+          input: tc.input,
+          output: tc.output,
+          hidden: tc.hidden,
+        })) || [],
     };
   }, [problem]);
 
@@ -69,13 +66,14 @@ export default function EditProblemDialog({
       });
 
       // Find testCases to create, update, and delete
-      const newTestCaseIds = new Set(values.testCases.map((tc) => tc.id));
-      // Testcases to create (those without IDs)
+      const newTestCaseIds = new Set(
+        values.testCases.map((tc) => tc.id).filter(Boolean)
+      );
       const testCasesToCreate = values.testCases.filter((tc) => !tc.id);
       // Testcases to update (those with existing IDs)
       const testCasesToUpdate = values.testCases.filter((tc) => tc.id);
       // Testcases to delete (IDs that exist in old but not in new)
-      const testCasesToDelete = problem.test_cases.filter(
+      const testCasesToDelete = problem.test_cases?.filter(
         (tc) => !newTestCaseIds.has(tc.id)
       );
 
@@ -111,7 +109,7 @@ export default function EditProblemDialog({
           })
         ),
         // Delete removed testCases
-        ...testCasesToDelete.map((tc) =>
+        ...(testCasesToDelete || []).map((tc) =>
           fetch(`/api/v1/test-cases/${tc.id}`, {
             method: 'DELETE',
           })
@@ -134,19 +132,21 @@ export default function EditProblemDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="flex h-[80vh] flex-col gap-4 sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Edit Problem</DialogTitle>
           <DialogDescription>
             Make changes to the problem details.
           </DialogDescription>
         </DialogHeader>
-        <ProblemForm
-          problemId={problem.id}
-          defaultValues={formattedDefaultValues}
-          onSubmit={onSubmit}
-          isSubmitting={isSubmitting}
-        />
+        <div className="flex-1 overflow-y-auto px-4">
+          <ProblemForm
+            isEditing={true}
+            defaultValues={formattedDefaultValues}
+            onSubmit={onSubmit}
+            isSubmitting={isSubmitting}
+          />
+        </div>
       </DialogContent>
     </Dialog>
   );
