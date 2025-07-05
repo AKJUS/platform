@@ -1,18 +1,18 @@
 'use client';
 
-import { SecretRowActions } from './row-actions';
 import {
   useIsFetching,
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query';
-import { ColumnDef } from '@tanstack/react-table';
-import { WorkspaceSecret } from '@tuturuuu/types/primitives/WorkspaceSecret';
+import type { ColumnDef } from '@tanstack/react-table';
+import type { WorkspaceSecret } from '@tuturuuu/types/primitives/WorkspaceSecret';
 import { DataTableColumnHeader } from '@tuturuuu/ui/custom/tables/data-table-column-header';
 import { Loader2 } from '@tuturuuu/ui/icons';
 import { Switch } from '@tuturuuu/ui/switch';
 import moment from 'moment';
 import { useParams, useRouter } from 'next/navigation';
+import { SecretRowActions } from './row-actions';
 
 export const secretColumns = (
   t: any,
@@ -108,7 +108,7 @@ export const secretColumns = (
         />
       ),
       cell: ({ row }) => (
-        <div className="line-clamp-1 max-w-[8rem] break-all">
+        <div className="line-clamp-1 max-w-32 break-all">
           {row.getValue('id')}
         </div>
       ),
@@ -123,7 +123,7 @@ export const secretColumns = (
         />
       ),
       cell: ({ row }) => (
-        <div className="line-clamp-1 break-all font-semibold">
+        <div className="line-clamp-1 font-semibold break-all">
           {row.getValue('name') || '-'}
         </div>
       ),
@@ -146,7 +146,7 @@ export const secretColumns = (
         const isBool = value === 'true' || value === 'false';
         if (!isBool) {
           return (
-            <div className="line-clamp-1 max-w-[8rem] break-all">
+            <div className="line-clamp-1 max-w-32 break-all">
               {value || '-'}
             </div>
           );
@@ -180,7 +180,7 @@ export const secretColumns = (
         />
       ),
       cell: ({ row }) => (
-        <div className="line-clamp-2 max-w-[8rem] break-all">
+        <div className="line-clamp-2 max-w-32 break-all">
           {row.getValue('created_at')
             ? moment(row.getValue('created_at')).format('DD/MM/YYYY, HH:mm:ss')
             : '-'}

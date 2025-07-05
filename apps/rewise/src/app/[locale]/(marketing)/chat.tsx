@@ -1,20 +1,21 @@
 'use client';
 
+import { defaultModel, type Model, models } from '@tuturuuu/ai/models';
+import { useChat } from '@tuturuuu/ai/react';
+import type { Message } from '@tuturuuu/ai/types';
+import { createClient } from '@tuturuuu/supabase/next/client';
+import type { AIChat } from '@tuturuuu/types/db';
+import { toast } from '@tuturuuu/ui/hooks/use-toast';
+import { ROOT_WORKSPACE_ID } from '@tuturuuu/utils/constants';
+import { cn } from '@tuturuuu/utils/format';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import type React from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ChatList } from '@/components/chat-list';
 import { ChatPanel } from '@/components/chat-panel';
 import { ChatScrollAnchor } from '@/components/chat-scroll-anchor';
 import { EmptyScreen } from '@/components/empty-screen';
-import { ResponseMode } from '@/components/prompt-form';
-import { Model, defaultModel, models } from '@tuturuuu/ai/models';
-import { useChat } from '@tuturuuu/ai/react';
-import { type Message } from '@tuturuuu/ai/types';
-import { createClient } from '@tuturuuu/supabase/next/client';
-import { AIChat } from '@tuturuuu/types/db';
-import { toast } from '@tuturuuu/ui/hooks/use-toast';
-import { cn } from '@tuturuuu/utils/format';
-import { useTranslations } from 'next-intl';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import React, { useEffect, useRef, useState } from 'react';
 
 export interface ChatProps extends React.ComponentProps<'div'> {
   inputModel?: Model;
@@ -46,7 +47,6 @@ const Chat = ({
 
   const [chat, setChat] = useState<Partial<AIChat> | undefined>(defaultChat);
   const [model, setModel] = useState<Model | undefined>(inputModel);
-  const [mode, setMode] = useState<ResponseMode>('medium');
   const [currentUserId, setCurrentUserId] = useState<string>();
 
   const { messages, append, reload, stop, isLoading, input, setInput } =
@@ -56,17 +56,18 @@ const Chat = ({
       credentials: 'include',
       api:
         chat?.model || model?.value
-          ? `/api/ai/chat/${(chat?.model
-              ? models
-                  .find((m) => m.value === chat.model)
-                  ?.provider.toLowerCase() || model?.provider.toLowerCase()
-              : model?.provider.toLowerCase()
+          ? `/api/ai/chat/${(
+              chat?.model
+                ? models
+                    .find((m) => m.value === chat.model)
+                    ?.provider.toLowerCase() || model?.provider.toLowerCase()
+                : model?.provider.toLowerCase()
             )?.replace(' ', '-')}`
           : undefined,
       body: {
         id: chat?.id,
         model: chat?.model || model?.value,
-        mode,
+        wsId: ROOT_WORKSPACE_ID,
       },
       onResponse(response) {
         if (!response.ok)
@@ -103,7 +104,7 @@ const Chat = ({
   useEffect(() => {
     setSummary(chat?.summary || '');
     setSummarizing(false);
-  }, [chat?.id, messages?.length, chat?.latest_summarized_message_id]);
+  }, [chat?.summary]);
 
   useEffect(() => {
     if (!chat || isLoading) return;
@@ -171,9 +172,16 @@ const Chat = ({
     return () => {
       clearTimeout(reloadTimeout);
     };
-  }, [summary, chat, isLoading, messages, reload]);
+  }, [summary, chat, isLoading, messages, reload, model, t, summarizing]);
 
   const [initialScroll, setInitialScroll] = useState(true);
+
+  const clearChat = useCallback(() => {
+    if (defaultChat?.id) return;
+    setSummary(undefined);
+    setChat(undefined);
+    setCollapsed(true);
+  }, [defaultChat?.id]);
 
   useEffect(() => {
     // if there is "input" in the query string, we will
@@ -209,14 +217,23 @@ const Chat = ({
       router.replace('/');
       router.refresh();
     }
-  }, [chat?.id, searchParams, router, setInput, chats, count, initialScroll]);
+  }, [
+    chat?.id,
+    searchParams,
+    router,
+    setInput,
+    chats,
+    count,
+    initialScroll,
+    clearChat,
+  ]);
 
   const [collapsed, setCollapsed] = useState(true);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (inputRef.current) inputRef.current.focus();
-  }, [input, inputRef]);
+  }, []);
 
   const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
 
@@ -276,13 +293,6 @@ const Chat = ({
       title: t('ai_chat.chat_updated'),
       description: t('ai_chat.visibility_updated_desc'),
     });
-  };
-
-  const clearChat = () => {
-    if (defaultChat?.id) return;
-    setSummary(undefined);
-    setChat(undefined);
-    setCollapsed(true);
   };
 
   useEffect(() => {
@@ -364,10 +374,9 @@ const Chat = ({
         updateChat={updateChat}
         clearChat={clearChat}
         setCollapsed={setCollapsed}
-        mode={mode}
-        setMode={setMode}
         disabled={disabled}
         currentUserId={currentUserId}
+        wsId={ROOT_WORKSPACE_ID}
       />
     </div>
   );

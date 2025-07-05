@@ -1,9 +1,9 @@
-import { SupabaseCookie, checkEnvVariables } from './common';
-import { createServerClient } from '@supabase/ssr';
+import { createBrowserClient, createServerClient } from '@supabase/ssr';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import { Database } from '@tuturuuu/types/supabase';
+import type { Database } from '@tuturuuu/types/supabase';
 import type { ReadonlyRequestCookies } from 'next/dist/server/web/spec-extension/adapters/request-cookies';
 import { cookies } from 'next/headers';
+import { checkEnvVariables, type SupabaseCookie } from './common';
 
 function createCookieHandler(cookieStore: ReadonlyRequestCookies) {
   return {
@@ -40,9 +40,18 @@ async function createGenericClient(isAdmin: boolean) {
   });
 }
 
-export function createAdminClient(): Promise<
-  SupabaseClient<Database, 'public', Database['public']>
-> {
+export function createAdminClient({
+  noCookie = false,
+}: {
+  noCookie?: boolean;
+} = {}):
+  | SupabaseClient<Database, 'public', Database['public']>
+  | Promise<SupabaseClient<Database, 'public', Database['public']>> {
+  if (noCookie) {
+    const { url, key } = checkEnvVariables({ useServiceKey: true });
+    return createBrowserClient<Database>(url, key);
+  }
+
   return createGenericClient(true);
 }
 
@@ -53,6 +62,7 @@ export function createClient(): Promise<
 }
 
 export async function createDynamicClient(): Promise<
+  // biome-ignore lint/suspicious/noExplicitAny: <any is expected for dynamic client>
   SupabaseClient<any, 'public', any>
 > {
   const { url, key } = checkEnvVariables({ useServiceKey: false });

@@ -1,23 +1,25 @@
-import { StaffToolbar } from './staff-toolbar';
 import { ProductionIndicator } from '@/components/production-indicator';
 import { Providers } from '@/components/providers';
 import { TailwindIndicator } from '@/components/tailwind-indicator';
 import { siteConfig } from '@/constants/configs';
 import { type Locale, routing, supportedLocales } from '@/i18n/routing';
+import { StaffToolbar } from './staff-toolbar';
 import '@/style/prosemirror.css';
 import '@tuturuuu/ui/globals.css';
 import { Toaster } from '@tuturuuu/ui/toaster';
 import { cn } from '@tuturuuu/utils/format';
 import { Analytics as VercelAnalytics } from '@vercel/analytics/react';
 import { SpeedInsights as VercelInsights } from '@vercel/speed-insights/next';
-import { Metadata, Viewport } from 'next';
-import { NextIntlClientProvider } from 'next-intl';
-import { getMessages, setRequestLocale } from 'next-intl/server';
-import { Inter } from 'next/font/google';
+import type { Metadata, Viewport } from 'next';
+import { Noto_Sans } from 'next/font/google';
 import { notFound } from 'next/navigation';
-import { ReactNode } from 'react';
+import { setRequestLocale } from 'next-intl/server';
+import type { ReactNode } from 'react';
 
-const font = Inter({ subsets: ['latin', 'vietnamese'], display: 'block' });
+const font = Noto_Sans({
+  subsets: ['latin', 'vietnamese'],
+  display: 'block',
+});
 
 interface Props {
   children: ReactNode;
@@ -103,30 +105,26 @@ export function generateStaticParams() {
 }
 
 export default async function RootLayout({ children, params }: Props) {
+  const { locale } = await params;
+
   // Ensure that the incoming `locale` is valid
-  if (!routing.locales.includes((await params).locale as Locale)) {
+  if (!routing.locales.includes(locale as Locale)) {
     notFound();
   }
 
-  const { locale } = await params;
-  setRequestLocale(locale);
-  const messages = await getMessages();
+  setRequestLocale(locale as Locale);
 
   return (
     <html lang={locale} suppressHydrationWarning>
       <body
         className={cn(
-          'bg-background overflow-y-scroll antialiased',
+          'overflow-y-auto bg-root-background antialiased',
           font.className
         )}
       >
         <VercelAnalytics />
         <VercelInsights />
-        <Providers>
-          <NextIntlClientProvider messages={messages}>
-            {children}
-          </NextIntlClientProvider>
-        </Providers>
+        <Providers>{children}</Providers>
         <TailwindIndicator />
         <ProductionIndicator />
         <StaffToolbar />

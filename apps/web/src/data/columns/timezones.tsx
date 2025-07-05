@@ -1,11 +1,14 @@
 'use client';
 
-import { TimezoneRowActions } from '@/components/row-actions/timezones';
-import { ColumnDef } from '@tanstack/react-table';
-import { Timezone, TimezoneStatus } from '@tuturuuu/types/primitives/Timezone';
+import type { ColumnDef } from '@tanstack/react-table';
+import type {
+  Timezone,
+  TimezoneStatus,
+} from '@tuturuuu/types/primitives/Timezone';
 import { DataTableColumnHeader } from '@tuturuuu/ui/custom/tables/data-table-column-header';
 import { Check, Clock, RefreshCw, RefreshCwOff, X } from '@tuturuuu/ui/icons';
 import moment from 'moment';
+import { TimezoneRowActions } from '@/components/row-actions/timezones';
 
 export const timezoneColumns = (
   t: any,
@@ -42,7 +45,7 @@ export const timezoneColumns = (
       />
     ),
     cell: ({ row }) => (
-      <div className="line-clamp-3 max-w-[12rem] break-words">
+      <div className="line-clamp-3 max-w-48 break-words">
         {row.getValue('value')}
       </div>
     ),
@@ -57,7 +60,7 @@ export const timezoneColumns = (
       />
     ),
     cell: ({ row }) => (
-      <div className="line-clamp-1 max-w-[4rem] break-words">
+      <div className="line-clamp-1 max-w-16 break-words">
         {row.getValue('abbr') || '-'}
       </div>
     ),
@@ -72,7 +75,7 @@ export const timezoneColumns = (
       />
     ),
     cell: ({ row }) => (
-      <div className="line-clamp-1 max-w-[4rem] break-words">
+      <div className="line-clamp-1 max-w-16 break-words">
         {Intl.NumberFormat('en-US', {
           signDisplay: 'exceptZero',
         }).format(row.getValue('offset'))}
@@ -89,8 +92,8 @@ export const timezoneColumns = (
       />
     ),
     cell: ({ row }) => (
-      <div className="line-clamp-1 max-w-[4rem] break-words">
-        {Boolean(row.getValue('isdst')) ? <Check /> : <X />}
+      <div className="line-clamp-1 max-w-16 break-words">
+        {row.getValue('isdst') ? <Check /> : <X />}
       </div>
     ),
   },
@@ -107,7 +110,7 @@ export const timezoneColumns = (
       const status = row.getValue<TimezoneStatus>('status');
 
       return (
-        <div className="line-clamp-1 max-w-[4rem] break-words">
+        <div className="line-clamp-1 max-w-16 break-words">
           {status === 'synced' ? (
             <Check />
           ) : status === 'outdated' ? (
@@ -133,7 +136,7 @@ export const timezoneColumns = (
       />
     ),
     cell: ({ row }) => (
-      <div className="line-clamp-3 max-w-[12rem] break-words">
+      <div className="line-clamp-3 max-w-48 break-words">
         {row.getValue('text') || '-'}
       </div>
     ),
@@ -148,7 +151,7 @@ export const timezoneColumns = (
       />
     ),
     cell: ({ row }) => (
-      <div className="line-clamp-1 flex max-w-[8rem] items-center gap-1 break-words">
+      <div className="line-clamp-1 flex max-w-32 items-center gap-1 break-words">
         <span>
           {((row.getValue('utc') as Array<string>) || [])?.length || '-'}
         </span>
@@ -166,7 +169,7 @@ export const timezoneColumns = (
       />
     ),
     cell: ({ row }) => (
-      <div className="line-clamp-2 max-w-[8rem] break-words">
+      <div className="line-clamp-2 max-w-32 break-words">
         {row.getValue('created_at')
           ? moment(row.getValue('created_at')).format('DD/MM/YYYY, HH:mm:ss')
           : '-'}

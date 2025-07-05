@@ -1,4 +1,3 @@
-import { PostEmailStatus } from './post';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,10 +27,11 @@ import { Separator } from '@tuturuuu/ui/separator';
 import { Textarea } from '@tuturuuu/ui/textarea';
 import { cn } from '@tuturuuu/utils/format';
 import { format } from 'date-fns';
-import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
+import { PostEmailStatus } from './post';
 
 export interface UserGroupPost {
   id?: string;
@@ -142,7 +142,7 @@ export default function UserGroupPosts({
     <>
       <div className="flex items-start justify-between">
         <div className="grid gap-1">
-          <div className="mb-2 text-xl font-semibold">
+          <div className="mb-2 font-semibold text-xl">
             {t('ws-user-groups.posts')}
             {!!count && ` (${count})`}
           </div>
@@ -159,7 +159,7 @@ export default function UserGroupPosts({
             />
             <label
               htmlFor="show-post-content"
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              className="font-medium text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
             >
               {t('ws-user-groups.show_post_content')}
             </label>
@@ -177,7 +177,7 @@ export default function UserGroupPosts({
             />
             <label
               htmlFor="show-post-status"
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              className="font-medium text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
             >
               {t('ws-user-groups.show_post_status')}
             </label>
@@ -257,10 +257,11 @@ export default function UserGroupPosts({
 
         {posts.length > 0 ? (
           posts.map((post) => (
-            <div
+            <button
+              type="button"
               key={post.id}
               className={cn(
-                'hover:border-foreground hover:bg-foreground/5 flex flex-col gap-2 rounded border p-2 transition duration-300',
+                'flex flex-col gap-2 rounded border p-2 transition duration-300 hover:border-foreground hover:bg-foreground/5',
                 selectedPostId === post.id &&
                   'border-foreground bg-foreground/5',
                 groupId || 'cursor-pointer'
@@ -269,10 +270,10 @@ export default function UserGroupPosts({
             >
               <div className="flex items-start justify-between">
                 <div>
-                  <div className="text-sm font-semibold">{post.title}</div>
+                  <div className="font-semibold text-sm">{post.title}</div>
                   <div className="flex flex-wrap items-center gap-2 font-semibold">
                     {post?.group_name && (
-                      <div className="bg-foreground text-background flex w-fit items-center gap-0.5 rounded px-2 py-1 text-xs">
+                      <div className="flex w-fit items-center gap-0.5 rounded bg-foreground px-2 py-1 text-background text-xs">
                         {post?.group_name}
                       </div>
                     )}
@@ -342,7 +343,7 @@ export default function UserGroupPosts({
               {configs.showStatus && groupId && post.id && (
                 <PostEmailStatus groupId={groupId} postId={post.id} />
               )}
-            </div>
+            </button>
           ))
         ) : (
           <div className="text-center text-sm opacity-50">

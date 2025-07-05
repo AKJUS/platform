@@ -1,6 +1,5 @@
 'use client';
 
-import ChallengeForm, { type ChallengeFormValues } from './challengeForm';
 import {
   Dialog,
   DialogContent,
@@ -10,9 +9,10 @@ import {
   DialogTrigger,
 } from '@tuturuuu/ui/dialog';
 import { toast } from '@tuturuuu/ui/hooks/use-toast';
-import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
+import ChallengeForm, { type ChallengeFormValues } from './challengeForm';
 
 interface CreateChallengeDialogProps {
   trigger: React.ReactNode;
@@ -112,12 +112,14 @@ export default function CreateChallengeDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="flex h-[80vh] flex-col gap-4 sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>{t('create')}</DialogTitle>
           <DialogDescription>{t('create-challenge')}</DialogDescription>
         </DialogHeader>
-        <ChallengeForm onSubmit={onSubmit} isSubmitting={isSubmitting} />
+        <div className="flex-1 overflow-y-auto">
+          <ChallengeForm onSubmit={onSubmit} isSubmitting={isSubmitting} />
+        </div>
       </DialogContent>
     </Dialog>
   );

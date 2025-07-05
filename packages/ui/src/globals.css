@@ -1,4 +1,4 @@
-@import 'tailwindcss';
+@import "tailwindcss";
 @source "components";
 
 @plugin '@tailwindcss/typography';
@@ -32,34 +32,73 @@
   button {
     @apply cursor-pointer;
   }
+  .overflow-wrap-anywhere {
+    overflow-wrap: anywhere;
+  }
+
+  /* Line clamp utilities */
+  .line-clamp-1 {
+    overflow: hidden;
+    display: -webkit-box;
+    line-clamp: 1;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+  }
+
+  .line-clamp-2 {
+    overflow: hidden;
+    display: -webkit-box;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .line-clamp-none {
+    overflow: visible;
+    display: block;
+    line-clamp: none;
+    -webkit-box-orient: horizontal;
+    -webkit-line-clamp: none;
+  }
 }
 
 :root {
-  --background: hsl(0 0% 100%);
+  --root-background: hsl(20, 60%, 98%);
+
+  --background: hsl(0, 0%, 100%);
   --foreground: hsl(0 0% 3.9%);
-  --card: hsl(0 0% 100%);
+
+  --card: hsl(20, 60%, 98%);
   --card-foreground: hsl(0 0% 3.9%);
-  --popover: hsl(0 0% 100%);
+
+  --popover: hsl(20, 60%, 98%);
   --popover-foreground: hsl(0 0% 3.9%);
+
   --primary: hsl(0 0% 9%);
   --primary-foreground: hsl(0 0% 98%);
+
   --secondary: hsl(0 0% 96.1%);
   --secondary-foreground: hsl(0 0% 9%);
+
   --muted: hsl(0 0% 96.1%);
   --muted-foreground: hsl(0 0% 45.1%);
+
   --accent: hsl(0 0% 96.1%);
   --accent-foreground: hsl(0 0% 9%);
+
   --destructive: hsl(0 84.2% 60.2%);
   --destructive-foreground: hsl(0 0% 98%);
+
   --border: hsl(0 0% 89.8%);
   --input: hsl(0 0% 89.8%);
   --ring: hsl(0 0% 3.9%);
+
   --chart-1: hsl(12 76% 61%);
   --chart-2: hsl(173 58% 39%);
   --chart-3: hsl(197 37% 24%);
   --chart-4: hsl(43 74% 66%);
   --chart-5: hsl(27 87% 67%);
-  --radius: 0.5rem;
+
   --sidebar-background: hsl(0 0% 98%);
   --sidebar-foreground: hsl(240 5.3% 26.1%);
   --sidebar-primary: hsl(240 5.9% 10%);
@@ -69,49 +108,40 @@
   --sidebar-border: hsl(220 13% 91%);
   --sidebar-ring: hsl(217.2 91.2% 59.8%);
 
-  /* Custom colors */
-  --lime: hsl(90 40% 30%);
-  --purple: hsl(270 40% 30%);
-  --blue: hsl(220 40% 30%);
-  --sky: hsl(200 40% 30%);
-  --green: hsl(140 40% 30%);
-  --yellow: hsl(40 40% 30%);
-  --orange: hsl(25 40% 30%);
-  --red: hsl(0 40% 30%);
-  --pink: hsl(330 40% 30%);
-  --indigo: hsl(250 40% 30%);
-  --cyan: hsl(180 40% 30%);
-  --gray: hsl(0 0% 30%);
+  --radius: 0.5rem;
 
-  --light-lime: hsl(90 45% 60%);
-  --light-purple: hsl(240 45% 60%);
-  --light-pink: hsl(330 45% 60%);
-  --light-blue: hsl(220 45% 60%);
-  --light-sky: hsl(200 45% 60%);
-  --light-green: hsl(140 45% 60%);
-  --light-yellow: hsl(40 45% 60%);
-  --light-orange: hsl(25 45% 60%);
-  --light-red: hsl(0 45% 60%);
-  --light-indigo: hsl(250 45% 60%);
-  --light-cyan: hsl(180 45% 60%);
-  --light-gray: hsl(0 0% 60%);
+  /* Custom colors - Light theme: darker, more saturated for visibility on light bg */
+  --lime: hsl(90 75% 35%);        /* True lime green, dark enough for light bg */
+  --purple: hsl(270 75% 40%);     /* True purple, good contrast */
+  --pink: hsl(330 75% 45%);       /* True pink/magenta */
+  --blue: hsl(220 80% 45%);       /* True blue, strong saturation */
+  --sky: hsl(200 75% 40%);        /* Sky blue */
+  --green: hsl(140 75% 35%);      /* True green, dark enough */
+  --yellow: hsl(50 90% 55%);      /* True yellow, brighter for better visibility */
+  --orange: hsl(25 85% 45%);      /* True orange */
+  --red: hsl(0 80% 45%);          /* True red */
+  --indigo: hsl(250 75% 45%);     /* True indigo */
+  --cyan: hsl(180 75% 35%);       /* True cyan */
+  --gray: hsl(0 0% 45%);          /* Neutral gray */
 
-  /* Dynamic colors for calendar events */
-  --dynamic-blue: hsl(220 70% 50%);
-  --dynamic-red: hsl(0 70% 50%);
-  --dynamic-green: hsl(140 70% 50%);
-  --dynamic-yellow: hsl(40 70% 50%);
-  --dynamic-purple: hsl(270 70% 50%);
-  --dynamic-pink: hsl(330 70% 50%);
-  --dynamic-orange: hsl(25 70% 50%);
-  --dynamic-indigo: hsl(250 70% 50%);
-  --dynamic-cyan: hsl(180 70% 50%);
-  --dynamic-gray: hsl(0 0% 50%);
+  --light-lime: hsl(90 70% 45%);       /* Light lime for text/borders */
+  --light-purple: hsl(270 70% 50%);   /* Light purple */
+  --light-pink: hsl(330 70% 55%);     /* Light pink */
+  --light-blue: hsl(220 75% 55%);     /* Light blue */
+  --light-sky: hsl(200 70% 50%);      /* Light sky blue */
+  --light-green: hsl(140 70% 45%);    /* Light green */
+  --light-yellow: hsl(50 85% 65%);    /* Light yellow, brighter for better contrast */
+  --light-orange: hsl(25 80% 55%);    /* Light orange */
+  --light-red: hsl(0 75% 55%);        /* Light red */
+  --light-indigo: hsl(250 70% 55%);   /* Light indigo */
+  --light-cyan: hsl(180 70% 45%);     /* Light cyan */
+  --light-gray: hsl(0 0% 50%);        /* Light gray */
 
+  /* Colors for calendar events */
   --calendar-bg-blue: hsl(220 64% 95%);
   --calendar-bg-red: hsl(0 64% 95%);
   --calendar-bg-green: hsl(140 64% 95%);
-  --calendar-bg-yellow: hsl(40 64% 95%);
+  --calendar-bg-yellow: hsl(50 75% 95%);
   --calendar-bg-purple: hsl(270 64% 95%);
   --calendar-bg-pink: hsl(330 64% 95%);
   --calendar-bg-orange: hsl(25 64% 95%);
@@ -121,30 +151,42 @@
 }
 
 .dark {
+  --root-background: hsl(0, 4%, 10%);
+
   --background: hsl(0 0% 3.9%);
   --foreground: hsl(0 0% 98%);
+
   --card: hsl(0 0% 3.9%);
   --card-foreground: hsl(0 0% 98%);
+
   --popover: hsl(0 0% 3.9%);
   --popover-foreground: hsl(0 0% 98%);
+
   --primary: hsl(0 0% 98%);
   --primary-foreground: hsl(0 0% 9%);
+
   --secondary: hsl(0 0% 14.9%);
   --secondary-foreground: hsl(0 0% 98%);
+
   --muted: hsl(0 0% 14.9%);
   --muted-foreground: hsl(0 0% 63.9%);
+
   --accent: hsl(0 0% 14.9%);
   --accent-foreground: hsl(0 0% 98%);
+
   --destructive: hsl(0 62.8% 30.6%);
   --destructive-foreground: hsl(0 0% 98%);
+
   --border: hsl(0 0% 14.9%);
   --input: hsl(0 0% 14.9%);
   --ring: hsl(0 0% 83.1%);
+
   --chart-1: hsl(220 70% 50%);
   --chart-2: hsl(160 60% 45%);
   --chart-3: hsl(30 80% 55%);
   --chart-4: hsl(280 65% 60%);
   --chart-5: hsl(340 75% 55%);
+
   --sidebar-background: hsl(0 0% 3.9%);
   --sidebar-foreground: hsl(0 0% 98%);
   --sidebar-primary: hsl(0 0% 98%);
@@ -154,41 +196,36 @@
   --sidebar-border: hsl(0 0% 14.9%);
   --sidebar-ring: hsl(217.2 91.2% 59.8%);
 
-  /* Custom colors */
-  --lime: hsl(90 50% 70%);
-  --purple: hsl(270 50% 70%);
-  --blue: hsl(220 50% 70%);
-  --sky: hsl(200 70% 80%);
-  --green: hsl(160 50% 70%);
-  --yellow: hsl(40 50% 70%);
-  --orange: hsl(25 50% 70%);
-  --red: hsl(0 50% 70%);
+  --radius: 0.5rem;
 
-  --light-lime: hsl(90 60% 75%);
-  --light-purple: hsl(270 60% 75%);
-  --light-pink: hsl(330 60% 75%);
-  --light-blue: hsl(220 60% 75%);
-  --light-sky: hsl(200 70% 80%);
-  --light-green: hsl(160 60% 75%);
-  --light-yellow: hsl(40 60% 75%);
-  --light-orange: hsl(25 60% 75%);
-  --light-red: hsl(0 60% 75%);
-  --light-indigo: hsl(250 60% 75%);
-  --light-cyan: hsl(180 60% 75%);
-  --light-gray: hsl(0 0% 80%);
+  /* Custom colors - Dark theme: lighter, softer saturation for visibility on dark bg */
+  --lime: hsl(90 60% 65%);         /* True lime, bright enough for dark bg */
+  --purple: hsl(270 65% 70%);      /* True purple, softer for dark theme */
+  --pink: hsl(330 70% 75%);        /* True pink/magenta */
+  --blue: hsl(220 70% 70%);        /* True blue, lighter for dark bg */
+  --sky: hsl(200 65% 75%);         /* Sky blue */
+  --green: hsl(140 60% 65%);       /* True green, bright enough */
+  --yellow: hsl(50 85% 75%);       /* True yellow, bright enough for dark backgrounds */
+  --orange: hsl(25 75% 70%);       /* True orange */
+  --red: hsl(0 70% 70%);           /* True red */
+  --indigo: hsl(250 65% 75%);      /* True indigo */
+  --cyan: hsl(180 60% 70%);        /* True cyan */
+  --gray: hsl(0 0% 70%);           /* Neutral gray */
 
-  /* Dynamic colors for calendar events in dark mode */
-  --dynamic-blue: hsl(220 70% 60%);
-  --dynamic-red: hsl(0 70% 60%);
-  --dynamic-green: hsl(140 70% 60%);
-  --dynamic-yellow: hsl(40 70% 60%);
-  --dynamic-purple: hsl(270 70% 60%);
-  --dynamic-pink: hsl(330 70% 60%);
-  --dynamic-orange: hsl(25 70% 60%);
-  --dynamic-indigo: hsl(250 70% 60%);
-  --dynamic-cyan: hsl(180 70% 60%);
-  --dynamic-gray: hsl(0 0% 60%);
+  --light-lime: hsl(90 65% 75%);       /* Light lime, bright for dark theme */
+  --light-purple: hsl(270 70% 80%);   /* Light purple */
+  --light-pink: hsl(330 75% 80%);     /* Light pink */
+  --light-blue: hsl(220 75% 80%);     /* Light blue */
+  --light-sky: hsl(200 70% 80%);      /* Light sky blue */
+  --light-green: hsl(140 65% 75%);    /* Light green */
+  --light-yellow: hsl(50 90% 80%);    /* Light yellow, bright for dark theme */
+  --light-orange: hsl(25 80% 80%);    /* Light orange */
+  --light-red: hsl(0 75% 80%);        /* Light red */
+  --light-indigo: hsl(250 70% 80%);   /* Light indigo */
+  --light-cyan: hsl(180 65% 75%);     /* Light cyan */
+  --light-gray: hsl(0 0% 80%);        /* Light gray */
 
+  /* Colors for calendar events */
   --calendar-bg-blue: hsl(220 14% 11%);
   --calendar-bg-red: hsl(0 14% 11%);
   --calendar-bg-green: hsl(140 14% 11%);
@@ -202,6 +239,8 @@
 }
 
 @theme inline {
+  --color-root-background: var(--root-background);
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
 
@@ -321,3 +360,4 @@
     @apply bg-background text-foreground;
   }
 }
+

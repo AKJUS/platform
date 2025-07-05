@@ -1,11 +1,11 @@
 'use client';
 
-import { RoleRowActions } from './row-actions';
-import { ColumnDef } from '@tanstack/react-table';
-import { WorkspaceRole } from '@tuturuuu/types/db';
+import type { ColumnDef } from '@tanstack/react-table';
+import type { WorkspaceRole } from '@tuturuuu/types/db';
 import { DataTableColumnHeader } from '@tuturuuu/ui/custom/tables/data-table-column-header';
 import { UserCircle } from '@tuturuuu/ui/icons';
 import moment from 'moment';
+import { RoleRowActions } from './row-actions';
 
 export const roleColumns = (
   t: any,
@@ -44,7 +44,7 @@ export const roleColumns = (
       />
     ),
     cell: ({ row }) => (
-      <div className="line-clamp-1 max-w-[8rem] break-all">
+      <div className="line-clamp-1 max-w-32 break-all">
         {row.getValue('id')}
       </div>
     ),
@@ -59,7 +59,7 @@ export const roleColumns = (
       />
     ),
     cell: ({ row }) => (
-      <div className="line-clamp-1 max-w-[8rem] break-all">
+      <div className="line-clamp-1 max-w-32 break-all">
         {row.getValue('name') || '-'}
       </div>
     ),

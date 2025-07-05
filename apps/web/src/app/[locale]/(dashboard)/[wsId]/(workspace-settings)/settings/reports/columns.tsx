@@ -1,10 +1,10 @@
 'use client';
 
-import { ConfigRowActions } from './row-actions';
-import { ColumnDef } from '@tanstack/react-table';
-import { WorkspaceConfig } from '@tuturuuu/types/primitives/WorkspaceConfig';
+import type { ColumnDef } from '@tanstack/react-table';
+import type { WorkspaceConfig } from '@tuturuuu/types/primitives/WorkspaceConfig';
 import { DataTableColumnHeader } from '@tuturuuu/ui/custom/tables/data-table-column-header';
 import moment from 'moment';
+import { ConfigRowActions } from './row-actions';
 
 export const configColumns = (
   t: any,
@@ -84,7 +84,7 @@ export const configColumns = (
       />
     ),
     cell: ({ row }) => (
-      <div className="line-clamp-2 max-w-[8rem] break-all">
+      <div className="line-clamp-2 max-w-32 break-all">
         {row.getValue('updated_at')
           ? moment(row.getValue('updated_at')).format('DD/MM/YYYY, HH:mm:ss')
           : '-'}

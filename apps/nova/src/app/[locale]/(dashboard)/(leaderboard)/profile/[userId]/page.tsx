@@ -1,9 +1,9 @@
-import UserProfileClient, { ProfileData } from './client';
 import { createAdminClient } from '@tuturuuu/supabase/next/server';
 import { generateFunName } from '@tuturuuu/utils/name-helper';
-import { Metadata } from 'next';
-import { getLocale } from 'next-intl/server';
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { getLocale } from 'next-intl/server';
+import UserProfileClient, { type ProfileData } from './client';
 
 // Dynamic metadata for profile pages
 export async function generateMetadata({
@@ -33,7 +33,7 @@ export async function generateMetadata({
   // Construct OG image URL using userId
   const ogImageUrl = new URL(
     `/api/og/${userId}`,
-    process.env.NEXT_PUBLIC_APP_URL || 'https://nova.tuturuuu.com'
+    process.env.NEXT_PUBLIC_APP_URL || 'https://nova.ai.vn'
   ).toString();
 
   return {

@@ -1,17 +1,17 @@
-import { Providers } from './providers';
 import { siteConfig } from '@/constants/configs';
 import { type Locale, routing, supportedLocales } from '@/i18n/routing';
+import { Providers } from './providers';
 import '@tuturuuu/ui/globals.css';
 import { Toaster } from '@tuturuuu/ui/toaster';
 import { cn } from '@tuturuuu/utils/format';
 import { Analytics as VercelAnalytics } from '@vercel/analytics/react';
 import { SpeedInsights as VercelInsights } from '@vercel/speed-insights/next';
-import { Metadata, Viewport } from 'next';
-import { NextIntlClientProvider } from 'next-intl';
-import { getMessages, setRequestLocale } from 'next-intl/server';
+import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import { notFound } from 'next/navigation';
-import { ReactNode } from 'react';
+import { NextIntlClientProvider } from 'next-intl';
+import { setRequestLocale } from 'next-intl/server';
+import type { ReactNode } from 'react';
 
 const font = Inter({ subsets: ['latin', 'vietnamese'], display: 'block' });
 
@@ -108,22 +108,19 @@ export default async function RootLayout({ children, params }: Props) {
 
   const { locale } = await params;
   setRequestLocale(locale);
-  const messages = await getMessages();
 
   return (
     <html lang={locale} suppressHydrationWarning>
       <body
         className={cn(
-          'bg-background overflow-y-scroll antialiased',
+          'overflow-y-scroll bg-root-background antialiased',
           font.className
         )}
       >
         <VercelAnalytics />
         <VercelInsights />
         <Providers>
-          <NextIntlClientProvider messages={messages}>
-            {children}
-          </NextIntlClientProvider>
+          <NextIntlClientProvider>{children}</NextIntlClientProvider>
         </Providers>
         <Toaster />
       </body>

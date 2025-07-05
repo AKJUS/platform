@@ -1,7 +1,7 @@
 'use client';
 
 import { buttonVariants } from '@tuturuuu/ui/button';
-import { LucideIcon } from '@tuturuuu/ui/icons';
+import type { LucideIcon } from '@tuturuuu/ui/icons';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@tuturuuu/ui/tooltip';
 import { cn } from '@tuturuuu/utils/format';
 import Link from 'next/link';
@@ -22,10 +22,10 @@ export function Nav({ links, isCollapsed }: NavProps) {
       data-collapsed={isCollapsed}
       className="group flex flex-col gap-4 py-2 data-[collapsed=true]:py-2"
     >
-      <nav className="grid gap-1 px-2 group-[[data-collapsed=true]]:justify-center group-[[data-collapsed=true]]:px-2">
-        {links.map((link, index) =>
+      <nav className="grid gap-1 px-2 group-data-[collapsed=true]:justify-center group-data-[collapsed=true]:px-2">
+        {links.map((link) =>
           isCollapsed ? (
-            <Tooltip key={index} delayDuration={0}>
+            <Tooltip key={link.title} delayDuration={0}>
               <TooltipTrigger asChild>
                 <Link
                   href="#"
@@ -43,7 +43,7 @@ export function Nav({ links, isCollapsed }: NavProps) {
               <TooltipContent side="right" className="flex items-center gap-4">
                 {link.title}
                 {link.label && (
-                  <span className="text-muted-foreground ml-auto">
+                  <span className="ml-auto text-muted-foreground">
                     {link.label}
                   </span>
                 )}
@@ -51,7 +51,7 @@ export function Nav({ links, isCollapsed }: NavProps) {
             </Tooltip>
           ) : (
             <Link
-              key={index}
+              key={link.title}
               href="#"
               className={cn(
                 buttonVariants({ variant: link.variant, size: 'sm' }),

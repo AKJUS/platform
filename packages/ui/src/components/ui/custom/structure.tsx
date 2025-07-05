@@ -1,121 +1,102 @@
 'use client';
 
 import { Button } from '@tuturuuu/ui/button';
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from '@tuturuuu/ui/resizable';
 import { TooltipProvider } from '@tuturuuu/ui/tooltip';
 import { cn } from '@tuturuuu/utils/format';
-import { Menu, X } from 'lucide-react';
-import { ReactNode } from 'react';
+import { ChevronsLeft, ChevronsRight, Menu, X } from 'lucide-react';
+import type { ReactNode } from 'react';
 
 interface StructureProps {
-  defaultLayout?: number[];
-  navCollapsedSize: number;
   isCollapsed: boolean;
+  // eslint-disable-next-line no-unused-vars
   setIsCollapsed: (isCollapsed: boolean) => void;
-  debouncedSaveSizes?: (sizes: { sidebar: number; main: number }) => void;
-  debouncedSaveCollapsed?: (collapsed: boolean) => void;
+  hideSizeToggle?: boolean;
   header?: ReactNode;
   mobileHeader?: ReactNode;
   sidebarHeader?: ReactNode;
   sidebarContent?: ReactNode;
   actions?: ReactNode;
   userPopover?: ReactNode;
-  className?: string;
   children: ReactNode;
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
 }
 
 export function Structure({
-  defaultLayout = [20, 80],
-  navCollapsedSize,
   isCollapsed,
   setIsCollapsed,
-  debouncedSaveSizes,
-  debouncedSaveCollapsed,
+  hideSizeToggle = false,
   header,
   mobileHeader,
   sidebarHeader,
   sidebarContent,
   actions,
   userPopover,
-  className,
   children,
+  onMouseEnter,
+  onMouseLeave,
 }: StructureProps) {
   return (
     <>
       <nav
         id="navbar"
-        className="bg-background/70 fixed z-20 flex w-full flex-none items-center justify-between gap-2 border-b px-6 py-2 backdrop-blur-lg md:hidden"
+        className="fixed inset-x-0 top-0 z-30 max-sm:border-b md:hidden"
       >
-        <div className="flex h-[52px] w-full items-center gap-2">
-          {mobileHeader}
-        </div>
-        <div className="flex h-[52px] w-full items-center gap-2">
-          {userPopover}
-          <Button
-            size="icon"
-            variant="outline"
-            className="h-auto w-auto flex-none rounded-lg p-2 md:hidden"
-            onClick={() => setIsCollapsed(!isCollapsed)}
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
+        <div
+          id="navbar-content"
+          className="bg-background/50 px-4 py-2 font-semibold backdrop-blur-md md:px-8 lg:px-16 xl:px-32"
+        >
+          <div className="relative flex items-center justify-between gap-2 md:gap-4">
+            <div className="flex w-full items-center gap-2">{mobileHeader}</div>
+            <div className="flex w-fit items-center gap-2">
+              {userPopover}
+              <Button
+                size="icon"
+                variant="outline"
+                className="h-auto w-auto flex-none rounded-lg p-2 md:hidden"
+                onClick={() => setIsCollapsed(!isCollapsed)}
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
+            </div>
+          </div>
         </div>
       </nav>
 
       <TooltipProvider delayDuration={0}>
-        <ResizablePanelGroup
-          direction="horizontal"
-          onLayout={(sizes: number[]) => {
-            const [sidebar, main] = sizes;
-            if (typeof sidebar === 'number' && typeof main === 'number') {
-              debouncedSaveSizes?.({ sidebar, main });
-            }
-          }}
-          className={cn(
-            'fixed h-screen max-h-screen items-stretch',
-            isCollapsed ? 'z-0' : 'z-20'
-          )}
-        >
-          <ResizablePanel
-            defaultSize={defaultLayout[0]}
-            collapsedSize={navCollapsedSize}
-            collapsible={true}
-            minSize={15}
-            maxSize={40}
-            onCollapse={() => {
-              setIsCollapsed(true);
-              debouncedSaveCollapsed?.(true);
-            }}
-            onResize={() => {
-              setIsCollapsed(false);
-              debouncedSaveCollapsed?.(false);
-            }}
+        {!isCollapsed && (
+          <div
+            className="fixed inset-0 z-40 bg-black/20 backdrop-blur-lg md:hidden"
+            onClick={() => setIsCollapsed(true)}
+          />
+        )}
+        <div className="relative h-screen w-full">
+          <aside
             className={cn(
+              'group fixed z-50 flex h-full flex-col overflow-hidden border-r backdrop-blur-lg transition-all duration-300 ease-in-out md:z-20',
               isCollapsed
-                ? 'md:bg-background/70 hidden min-w-[50px] md:flex'
-                : 'bg-background/70 md:bg-background absolute inset-0 z-40 flex md:static',
-              'flex-col overflow-hidden backdrop-blur-lg transition-all duration-300 ease-in-out'
+                ? 'w-16 bg-background/50 max-md:w-0'
+                : 'w-72 bg-background',
+              'max-md:absolute',
+              isCollapsed && 'max-md:-translate-x-full'
             )}
+            onMouseEnter={onMouseEnter}
+            onMouseLeave={onMouseLeave}
           >
             <div
               className={cn(
-                'border-foreground/10 items-center border-b p-2 md:flex md:h-16 md:p-0',
-                isCollapsed ? 'justify-center' : ''
+                'flex h-12 items-center border-b border-foreground/10 p-2 md:px-0',
+                isCollapsed ? 'justify-center' : 'max-sm:py-1'
               )}
             >
               <div
                 className={cn(
-                  'flex h-[52px] w-full items-center justify-center',
-                  isCollapsed ? 'h-[52px]' : 'px-4'
+                  'flex h-[52px] w-full items-center px-2',
+                  isCollapsed ? 'justify-center' : ''
                 )}
               >
                 <div
                   className={cn(
-                    isCollapsed ? 'px-2' : '',
                     'flex w-full items-center justify-between gap-2'
                   )}
                 >
@@ -133,27 +114,48 @@ export function Structure({
                 </div>
               </div>
             </div>
-            <div className="scrollbar-none flex flex-1 flex-col gap-4 overflow-auto">
+            <div className="scrollbar-none flex flex-1 flex-col gap-y-1 overflow-x-hidden overflow-y-auto">
               {sidebarContent}
             </div>
-            <div className="border-foreground/10 border-t p-2">
-              {isCollapsed ? userPopover : actions}
-            </div>
-          </ResizablePanel>
-          <ResizableHandle withHandle className="hidden md:flex" />
-          <ResizablePanel defaultSize={defaultLayout[1]}>
-            <main
-              id="main-content"
+            <div
               className={cn(
-                'relative flex h-full min-h-screen flex-col overflow-y-auto p-4 pt-20 md:pt-4',
-                className
+                'mt-auto flex border-t border-foreground/10 p-2',
+                isCollapsed ? 'justify-center' : ''
               )}
             >
-              {header && <div className="mb-4 hidden md:block">{header}</div>}
+              {isCollapsed ? userPopover : actions}
+            </div>
+
+            {!hideSizeToggle && (
+              <Button
+                size="icon"
+                variant="outline"
+                className="absolute top-1/2 -right-4 z-10 hidden h-auto w-auto -translate-y-1/2 rounded-full border-2 bg-background p-1.5 hover:bg-accent md:block"
+                onClick={() => setIsCollapsed(!isCollapsed)}
+              >
+                {isCollapsed ? (
+                  <ChevronsRight className="h-4 w-4" />
+                ) : (
+                  <ChevronsLeft className="h-4 w-4" />
+                )}
+              </Button>
+            )}
+          </aside>
+          {/* Main content area - overflow-y-auto removed to prevent double scrollbars */}
+          {/* Body element now handles page-level scrolling */}
+          <main
+            id="main-content"
+            className={cn(
+              'relative flex h-full min-h-screen flex-col overflow-x-hidden transition-all duration-300 ease-in-out',
+              isCollapsed ? 'md:pl-16' : 'md:pl-72'
+            )}
+          >
+            {header && <div className="mb-4 hidden md:block">{header}</div>}
+            <div className="relative h-full w-full p-2 pt-17 pl-2 md:p-4 md:pt-4">
               {children}
-            </main>
-          </ResizablePanel>
-        </ResizablePanelGroup>
+            </div>
+          </main>
+        </div>
       </TooltipProvider>
     </>
   );

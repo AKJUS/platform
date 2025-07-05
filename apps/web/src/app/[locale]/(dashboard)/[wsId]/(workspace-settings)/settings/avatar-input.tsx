@@ -1,8 +1,7 @@
 'use client';
 
-import { downloadPublicObject, uploadObject } from '@/lib/storage-helper';
 import { createClient } from '@tuturuuu/supabase/next/client';
-import { Workspace } from '@tuturuuu/types/primitives/Workspace';
+import type { Workspace } from '@tuturuuu/types/db';
 import { Button } from '@tuturuuu/ui/button';
 import { toast } from '@tuturuuu/ui/hooks/use-toast';
 import { Check, Loader2 } from '@tuturuuu/ui/icons';
@@ -11,10 +10,11 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { v4 as UUIDv4 } from 'uuid';
+import { downloadPublicObject, uploadObject } from '@/lib/storage-helper';
 
 interface Props {
   workspace: Workspace;
-  defaultValue?: string;
+  defaultValue?: string | null;
   disabled?: boolean;
 }
 
