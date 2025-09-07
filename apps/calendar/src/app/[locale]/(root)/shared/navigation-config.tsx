@@ -23,8 +23,10 @@ export interface NavCategory {
   items: NavItem[];
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const useNavigation = (t: any): { categories: NavCategory[] } => {
+export const useNavigation = (
+  // biome-ignore lint/suspicious/noExplicitAny: <>
+  t: any
+): { categories: NavCategory[] } => {
   const products: NavItem[] = [
     {
       href: '/meet-together',

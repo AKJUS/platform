@@ -141,6 +141,17 @@ export default function InvoiceCard({
     }
   }, [invoice.id]);
 
+  const subtotal = products.reduce((total, product) => {
+    return total + product.price * product.amount;
+  }, 0);
+
+  const discount_amount = promotions.reduce((total, promo) => {
+    if (promo.use_ratio) {
+      return total + (subtotal * promo.value) / 100;
+    }
+    return total + promo.value;
+  }, 0);
+
   return (
     <div className="overflow-x-auto xl:flex-none">
       <div className="mx-auto h-fit w-full max-w-4xl flex-none rounded-xl shadow-lg dark:bg-foreground/10 print:bg-white print:text-black print:shadow-none">
@@ -161,10 +172,10 @@ export default function InvoiceCard({
               )}
             </div>
             <div className="flex-1 text-right">
-              <h1 className="mb-2 text-3xl font-bold">
+              <h1 className="mb-2 font-bold text-3xl">
                 {t('invoices.invoice')}
               </h1>
-              <p className="text-xs text-foreground/70 print:text-black">
+              <p className="text-foreground/70 text-xs print:text-black">
                 #{invoice.id}
               </p>
             </div>
@@ -173,7 +184,7 @@ export default function InvoiceCard({
           {/* Company Info */}
           <div className="mb-8 text-center">
             {getConfig('BRAND_NAME') && (
-              <h2 className="text-xl font-bold">{getConfig('BRAND_NAME')}</h2>
+              <h2 className="font-bold text-xl">{getConfig('BRAND_NAME')}</h2>
             )}
             {getConfig('BRAND_LOCATION') && (
               <p className="text-foreground/70 print:text-black">
@@ -257,31 +268,15 @@ export default function InvoiceCard({
           <div className="text-right">
             <p className="mb-2">
               <span className="font-semibold">{t('invoices.subtotal')}:</span>{' '}
-              {formatCurrency(
-                invoice.price +
-                  promotions.reduce((total, promo) => {
-                    if (promo.use_ratio) {
-                      return total + (invoice.price * promo.value) / 100;
-                    }
-                    return total + promo.value;
-                  }, 0),
-                'VND'
-              )}
+              {formatCurrency(subtotal, 'VND')}
             </p>
             {promotions.length > 0 && (
               <p className="mb-2">
                 <span className="font-semibold">
                   {t('invoices.discounts')}:
-                </span>{' '}
-                {formatCurrency(
-                  promotions.reduce((total, promo) => {
-                    if (promo.use_ratio) {
-                      return total + (invoice.price * promo.value) / 100;
-                    }
-                    return total + promo.value;
-                  }, 0),
-                  'VND'
-                )}
+                </span>
+                {'-'}
+                {formatCurrency(discount_amount, 'VND')}
               </p>
             )}
             <p className="mb-2">
