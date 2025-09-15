@@ -42,7 +42,6 @@ import {
   CircleSlash,
   Clock,
   Flag,
-  GripVertical,
   horseHead,
   Icon,
   List,
@@ -77,9 +76,13 @@ import {
   isTomorrow,
   isYesterday,
 } from 'date-fns';
-import React, { useEffect, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useState } from 'react';
 import { getDescriptionText } from '../../../../../utils/text-helper';
 import { AssigneeSelect } from '../../shared/assignee-select';
+import {
+  buildEstimationIndices,
+  mapEstimationPoints,
+} from '../../shared/estimation-mapping';
 import { TaskEditDialog } from '../../shared/task-edit-dialog';
 import { TaskEstimationDisplay } from '../../shared/task-estimation-display';
 import { TaskLabelsDisplay } from '../../shared/task-labels-display';
@@ -108,6 +111,12 @@ export function LightweightTaskCard({ task }: { task: Task }) {
   };
 
   const descriptionText = getDescriptionText(task.description);
+  // Ensure deterministic ordering of labels (case-insensitive alphabetical)
+  const sortedLabels = task.labels
+    ? [...task.labels].sort((a, b) =>
+        a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+      )
+    : [];
 
   return (
     <Card className="pointer-events-none w-full max-w-[350px] scale-105 select-none border-2 border-primary/20 bg-background opacity-95 shadow-xl ring-2 ring-primary/20">
@@ -125,8 +134,8 @@ export function LightweightTaskCard({ task }: { task: Task }) {
             </Badge>
           )}
           {/* Labels */}
-          {task.labels && task.labels.length > 0 && (
-            <TaskLabelsDisplay labels={task.labels} size="sm" />
+          {sortedLabels.length > 0 && (
+            <TaskLabelsDisplay labels={sortedLabels} size="sm" />
           )}
           {/* Estimation */}
           <TaskEstimationDisplay
@@ -141,7 +150,7 @@ export function LightweightTaskCard({ task }: { task: Task }) {
 }
 
 // Memoized full TaskCard
-export const TaskCard = React.memo(function TaskCard({
+function TaskCardInner({
   task,
   boardId,
   taskList,
@@ -154,7 +163,7 @@ export const TaskCard = React.memo(function TaskCard({
   onSelect,
 }: Props) {
   const [isLoading, setIsLoading] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
+  // Removed isHovered state to reduce re-renders; rely on CSS :hover
   const [menuOpen, setMenuOpen] = useState(false);
   const [customDateDialogOpen, setCustomDateDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -170,6 +179,7 @@ export const TaskCard = React.memo(function TaskCard({
   const [newLabelName, setNewLabelName] = useState('');
   const [newLabelColor, setNewLabelColor] = useState('#3b82f6');
   const [creatingLabel, setCreatingLabel] = useState(false);
+  // Track initial mount to avoid duplicate fetch storms
   const updateTaskMutation = useUpdateTask(boardId);
   const deleteTaskMutation = useDeleteTask(boardId);
 
@@ -230,12 +240,20 @@ export const TaskCard = React.memo(function TaskCard({
         list_id: String(task.list_id),
       },
     },
+    // Reduce expensive layout animations for smoother dragging
+    animateLayoutChanges: (args) => {
+      const { isSorting, wasDragging } = args;
+      // Only animate if not actively dragging to keep drag performance snappy
+      return isSorting && !wasDragging;
+    },
   });
 
-  const style = {
+  const style: React.CSSProperties = {
     transform: CSS.Transform.toString(transform),
-    transition,
+    // Disable transition while actively dragging for perf
+    transition: isDragging ? undefined : transition,
     height: 'var(--task-height)',
+    willChange: 'transform',
   };
 
   const now = new Date();
@@ -251,9 +269,33 @@ export const TaskCard = React.memo(function TaskCard({
     return formatDistanceToNow(date, { addSuffix: true });
   };
 
-  // Fetch board config & labels (was accidentally inserted incorrectly earlier)
+  // Shared label fetcher
+  const fetchWorkspaceLabels = useCallback(async (wsId: string) => {
+    setLabelsLoading(true);
+    try {
+      const supabase = createClient();
+      const { data: labels, error } = await supabase
+        .from('workspace_task_labels')
+        .select('id, name, color, created_at')
+        .eq('ws_id', wsId)
+        .order('created_at', { ascending: false });
+      if (!error) {
+        setWorkspaceLabels(
+          (labels || []).sort((a, b) =>
+            a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+          )
+        );
+      }
+    } catch (e) {
+      console.error('Failed fetching labels', e);
+    } finally {
+      setLabelsLoading(false);
+    }
+  }, []);
+
+  // Initial load + board config
   useEffect(() => {
-    let active = true;
+    let mounted = true;
     (async () => {
       try {
         const supabase = createClient();
@@ -264,27 +306,40 @@ export const TaskCard = React.memo(function TaskCard({
           )
           .eq('id', boardId)
           .single();
-        if (!active) return;
+        if (!mounted) return;
         setBoardConfig(board);
-        if (board?.ws_id) {
-          setLabelsLoading(true);
-          const { data: labels } = await supabase
-            .from('workspace_task_labels')
-            .select('id, name, color, created_at')
-            .eq('ws_id', board.ws_id)
-            .order('created_at', { ascending: false });
-          if (active) setWorkspaceLabels(labels || []);
-        }
+        if (board?.ws_id) await fetchWorkspaceLabels(board.ws_id);
       } catch (e) {
         console.error('Failed loading board config or labels', e);
       } finally {
-        active && setLabelsLoading(false);
+        // no-op
       }
     })();
     return () => {
-      active = false;
+      mounted = false;
     };
-  }, [boardId]);
+  }, [boardId, fetchWorkspaceLabels]);
+
+  // Listen for global label created events to refresh labels list
+  useEffect(() => {
+    function handleGlobalLabelCreated(e: any) {
+      const wsId = e?.detail?.wsId;
+      if (wsId && boardConfig?.ws_id === wsId) {
+        // Avoid race: small delay to ensure backend commit
+        setTimeout(() => fetchWorkspaceLabels(wsId), 120);
+      }
+    }
+    window.addEventListener(
+      'workspace-label-created',
+      handleGlobalLabelCreated as EventListener
+    );
+    return () => {
+      window.removeEventListener(
+        'workspace-label-created',
+        handleGlobalLabelCreated as EventListener
+      );
+    };
+  }, [boardConfig?.ws_id, fetchWorkspaceLabels]);
 
   async function handleArchiveToggle() {
     if (!onUpdate) return;
@@ -559,25 +614,6 @@ export const TaskCard = React.memo(function TaskCard({
     );
   }
 
-  // Build estimation options dynamically per board config
-  const estimationOptions = useMemo(() => {
-    if (!boardConfig?.estimation_type) return [] as number[];
-    const max = boardConfig.extended_estimation ? 7 : 5;
-    const allowZero = boardConfig.allow_zero_estimates;
-    let options: number[] = [];
-    switch (boardConfig.estimation_type) {
-      default: {
-        // All estimation types use the same 0-7 storage format
-        // The difference is in how they're displayed to the user
-        options = Array.from({ length: max + 1 }, (_, i) => i);
-        break;
-      }
-    }
-    if (!allowZero) options = options.filter((n) => n !== 0);
-    else if (allowZero && !options.includes(0)) options = [0, ...options];
-    return options;
-  }, [boardConfig]);
-
   // Update estimation points (quick action menu) re-added
   async function updateEstimationPoints(points: number | null) {
     if (points === task.estimation_points) return;
@@ -665,8 +701,33 @@ export const TaskCard = React.memo(function TaskCard({
 
       const newLabel = await response.json();
 
-      // Add the new label to the workspace labels list
-      setWorkspaceLabels((prev) => [newLabel, ...prev]);
+      // Add the new label to the workspace labels list (sorted)
+      setWorkspaceLabels((prev) =>
+        [newLabel, ...prev].sort((a, b) =>
+          a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+        )
+      );
+
+      // Auto-apply the newly created label to this task
+      try {
+        const supabase = createClient();
+        const { error: linkErr } = await supabase
+          .from('task_labels')
+          .insert({ task_id: task.id, label_id: newLabel.id });
+        if (linkErr) {
+          toast({
+            title: 'Label created (not applied)',
+            description:
+              'The label was created but could not be attached to the task. Refresh and try manually.',
+            variant: 'destructive',
+          });
+        } else {
+          // Trigger parent refetch so task prop includes new label
+          onUpdate?.();
+        }
+      } catch (applyErr: any) {
+        console.error('Failed to auto-apply new label', applyErr);
+      }
 
       // Reset form and close dialog
       setNewLabelName('');
@@ -674,9 +735,16 @@ export const TaskCard = React.memo(function TaskCard({
       setNewLabelDialogOpen(false);
 
       toast({
-        title: 'Label created',
-        description: `"${newLabel.name}" label has been created successfully`,
+        title: 'Label created & applied',
+        description: `"${newLabel.name}" label created and applied to this task`,
       });
+
+      // Dispatch global event so other task cards can refresh
+      window.dispatchEvent(
+        new CustomEvent('workspace-label-created', {
+          detail: { wsId: boardConfig.ws_id, label: newLabel },
+        })
+      );
     } catch (e: any) {
       toast({
         title: 'Failed to create label',
@@ -763,45 +831,42 @@ export const TaskCard = React.memo(function TaskCard({
   };
 
   // Memoize drag handle for performance
-  const DragHandle = useMemo(
-    () => (
-      <div
-        {...attributes}
-        {...listeners}
-        className={cn(
-          'mt-0.5 h-4 w-4 shrink-0 cursor-grab text-muted-foreground/60 transition-all duration-200',
-          'group-hover:text-foreground',
-          'hover:scale-110 hover:text-primary',
-          isDragging && 'cursor-grabbing text-primary',
-          isOverlay && 'cursor-grabbing'
-        )}
-        title="Drag to move task"
-      >
-        <GripVertical className="h-4 w-4" />
-      </div>
-    ),
-    [attributes, listeners, isDragging, isOverlay]
-  );
+  // Removed explicit drag handle – entire card is now draggable for better UX.
+  // Keep attributes/listeners to spread onto root interactive area.
 
   // Hide the source card during drag (unless in overlay)
-  if (isDragging && !isOverlay) return null;
+  // Show a lightweight placeholder in original position during drag (improves spatial feedback)
+  if (isDragging && !isOverlay) {
+    return (
+      <div
+        className={cn(
+          'h-[var(--task-height)] w-full rounded-lg border-2 border-dynamic-blue/40 border-dashed bg-dynamic-blue/5 opacity-60'
+        )}
+        style={{ height: 'var(--task-height)' }}
+        aria-hidden="true"
+      />
+    );
+  }
 
   return (
     <Card
       data-id={task.id}
       ref={setNodeRef}
       style={style}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
       onClick={(e) => onSelect?.(task.id, e)}
+      // Spread sortable listeners on full card for whole-card dragging
+      {...attributes}
+      {...listeners}
       className={cn(
-        'group relative overflow-hidden rounded-lg border-l-4 transition-all duration-200',
+        'group relative touch-none select-none overflow-hidden rounded-lg border-l-4 transition-all',
+        'cursor-grab active:cursor-grabbing',
         'cursor-default hover:shadow-md',
         // Task list or priority-based styling
         getCardColorClasses(),
         // Dragging state
-        isDragging && 'z-50 scale-105 shadow-xl ring-2 ring-primary/30',
-        isOverlay && 'shadow-xl ring-2 ring-primary/30',
+        isDragging && 'z-50 scale-[1.02] shadow-xl ring-2 ring-primary/40',
+        isOverlay &&
+          'scale-105 shadow-2xl ring-2 ring-primary/50 backdrop-blur-sm',
         // Archive state (completed tasks)
         task.archived && 'opacity-70 saturate-75',
         // Overdue state
@@ -834,7 +899,7 @@ export const TaskCard = React.memo(function TaskCard({
       <div className="p-4">
         {/* Header */}
         <div className="flex items-start gap-1">
-          {DragHandle}
+          {/* Drag handle removed – entire card draggable */}
 
           <div className="min-w-0 flex-1">
             <div className="mb-1 flex items-center gap-2">
@@ -864,7 +929,16 @@ export const TaskCard = React.memo(function TaskCard({
           <div className="flex items-center justify-end gap-1">
             {/* Main Actions Menu - With integrated date picker */}
             {!isOverlay && (
-              <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+              <DropdownMenu
+                open={menuOpen}
+                onOpenChange={async (open) => {
+                  setMenuOpen(open);
+                  // On open, ensure labels are current (fetch only if we have ws and already initialized)
+                  if (open && boardConfig?.ws_id) {
+                    await fetchWorkspaceLabels(boardConfig.ws_id);
+                  }
+                }}
+              >
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
@@ -872,7 +946,7 @@ export const TaskCard = React.memo(function TaskCard({
                     className={cn(
                       'h-7 w-7 shrink-0 p-0 transition-all duration-200',
                       'hover:scale-105 hover:bg-muted',
-                      isHovered || menuOpen
+                      menuOpen
                         ? 'opacity-100'
                         : 'opacity-0 group-hover:opacity-100',
                       menuOpen && 'bg-muted ring-1 ring-border'
@@ -1142,62 +1216,36 @@ export const TaskCard = React.memo(function TaskCard({
                         Estimation
                       </DropdownMenuSubTrigger>
                       <DropdownMenuSubContent className="w-40">
-                        {estimationOptions.map((opt) => {
-                          let label: string | number = opt;
-                          if (boardConfig?.estimation_type === 't-shirt') {
-                            const tshirtMap: Record<number, string> = {
-                              0: '-',
-                              1: 'XS',
-                              2: 'S',
-                              3: 'M',
-                              4: 'L',
-                              5: 'XL',
-                              6: 'XXL',
-                              7: 'XXXL',
-                            };
-                            label = tshirtMap[opt] || opt;
-                          } else if (
-                            boardConfig?.estimation_type === 'fibonacci'
-                          ) {
-                            const fibMap: Record<number, string> = {
-                              0: '0',
-                              1: '1',
-                              2: '2',
-                              3: '3',
-                              4: '5',
-                              5: '8',
-                              6: '13',
-                              7: '21',
-                            };
-                            label = fibMap[opt] || opt;
-                          } else if (
-                            boardConfig?.estimation_type === 'exponential'
-                          ) {
-                            const expMap: Record<number, string> = {
-                              0: '0',
-                              1: '1',
-                              2: '2',
-                              3: '4',
-                              4: '8',
-                              5: '16',
-                              6: '32',
-                              7: '64',
-                            };
-                            label = expMap[opt] || opt;
-                          }
+                        {buildEstimationIndices({
+                          extended: boardConfig?.extended_estimation,
+                          allowZero: boardConfig?.allow_zero_estimates,
+                        }).map((idx) => {
+                          const disabledByExtended =
+                            !boardConfig?.extended_estimation && idx > 5;
+                          const label = mapEstimationPoints(
+                            idx,
+                            boardConfig?.estimation_type
+                          );
                           return (
                             <DropdownMenuItem
-                              key={opt}
-                              onClick={() => updateEstimationPoints(opt)}
+                              key={idx}
+                              onClick={() => updateEstimationPoints(idx)}
                               className={cn(
                                 'flex cursor-pointer items-center justify-between',
-                                task.estimation_points === opt &&
+                                task.estimation_points === idx &&
                                   'bg-dynamic-pink/10 text-dynamic-pink'
                               )}
-                              disabled={estimationSaving}
+                              disabled={estimationSaving || disabledByExtended}
                             >
-                              <span>{label}</span>
-                              {task.estimation_points === opt && (
+                              <span>
+                                {label}
+                                {disabledByExtended && (
+                                  <span className="ml-1 text-[10px] text-muted-foreground/60">
+                                    (upgrade)
+                                  </span>
+                                )}
+                              </span>
+                              {task.estimation_points === idx && (
                                 <Check className="h-4 w-4" />
                               )}
                             </DropdownMenuItem>
@@ -1468,7 +1516,13 @@ export const TaskCard = React.memo(function TaskCard({
           {/* Labels */}
           {!task.archived && task.labels && task.labels.length > 0 && (
             <div className="flex min-w-0 flex-shrink-0 flex-wrap gap-1">
-              <TaskLabelsDisplay labels={task.labels} size="sm" />
+              {/* Sort labels for deterministic display order */}
+              <TaskLabelsDisplay
+                labels={[...task.labels].sort((a, b) =>
+                  a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+                )}
+                size="sm"
+              />
             </div>
           )}
           {/* Checkbox: always at far right */}
@@ -1675,4 +1729,42 @@ export const TaskCard = React.memo(function TaskCard({
       )}
     </Card>
   );
+}
+
+// Custom comparator to avoid re-renders when stable fields unchanged
+export const TaskCard = memo(TaskCardInner, (prev, next) => {
+  // Quick identity checks for frequently changing props
+  if (prev.isOverlay !== next.isOverlay) return false;
+  if (prev.isSelected !== next.isSelected) return false;
+  if (prev.isMultiSelectMode !== next.isMultiSelectMode) return false;
+  if (prev.boardId !== next.boardId) return false;
+  // Shallow compare task critical fields
+  const a = prev.task;
+  const b = next.task;
+  if (a === b) return true;
+  // Compare a subset of fields relevant to rendering
+  const keys: (keyof typeof a)[] = [
+    'id',
+    'name',
+    'priority',
+    'archived',
+    'end_date',
+    'start_date',
+    'estimation_points',
+    'list_id',
+  ];
+  for (const k of keys) {
+    if (a[k] !== b[k]) return false;
+  }
+  // Compare labels length + names (sorted) for deterministic check
+  const aLabels = (a.labels || [])
+    .map((l) => l.name)
+    .sort()
+    .join('|');
+  const bLabels = (b.labels || [])
+    .map((l) => l.name)
+    .sort()
+    .join('|');
+  if (aLabels !== bLabels) return false;
+  return true;
 });
