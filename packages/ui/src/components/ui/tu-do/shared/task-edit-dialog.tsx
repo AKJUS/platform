@@ -48,12 +48,14 @@ import { useYjsCollaboration } from '@tuturuuu/ui/hooks/use-yjs-collaboration';
 import { Input } from '@tuturuuu/ui/input';
 import { Label } from '@tuturuuu/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@tuturuuu/ui/popover';
+import { toast as sonnerToast } from '@tuturuuu/ui/sonner';
 import { Switch } from '@tuturuuu/ui/switch';
 import { RichTextEditor } from '@tuturuuu/ui/text-editor/editor';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@tuturuuu/ui/tooltip';
 import { convertListItemToTask } from '@tuturuuu/utils/editor';
 import { cn } from '@tuturuuu/utils/format';
 import {
+  getTicketIdentifier,
   invalidateTaskCaches,
   useBoardConfig,
   useUpdateTask,
@@ -72,6 +74,7 @@ import React, {
 } from 'react';
 import { createPortal } from 'react-dom';
 import * as Y from 'yjs';
+import { getTicketBadgeColorClasses } from '../utils/taskColorUtils';
 import CursorOverlayWrapper from './cursor-overlay-wrapper';
 import { CustomDatePickerDialog } from './custom-date-picker/custom-date-picker-dialog';
 import {
@@ -734,6 +737,23 @@ function TaskEditDialogComponent({
       setWorkspaceId(boardConfig.ws_id);
     }
   }, [boardConfig, workspaceId]);
+
+  // Update browser tab title with ticket identifier when dialog is open
+  useEffect(() => {
+    if (!isOpen || isCreateMode || !task) return;
+
+    const originalTitle = document.title;
+    const ticketId = getTicketIdentifier(
+      boardConfig?.ticket_prefix,
+      task.display_number
+    );
+    document.title = `${ticketId} - ${task.name}`;
+
+    // Restore original title when dialog closes
+    return () => {
+      document.title = originalTitle;
+    };
+  }, [isOpen, isCreateMode, task, boardConfig?.ticket_prefix]);
 
   // ============================================================================
   // LABELS MANAGEMENT - Workspace labels, selected labels, and creation
@@ -1956,6 +1976,7 @@ function TaskEditDialogComponent({
         name: string;
         listId: string;
       }) => {
+        // Note: display_number and board_id are auto-assigned by database trigger
         const { data: newTask, error } = await supabase
           .from('tasks')
           .insert({
@@ -2030,12 +2051,12 @@ function TaskEditDialogComponent({
         const { createTask } = await import('@tuturuuu/utils/task-helper');
         const taskData: Partial<Task> = {
           name: name.trim(),
-          description: descriptionString,
+          description: descriptionString || '',
           priority: priority,
-          start_date: startDate ? startDate.toISOString() : null,
-          end_date: endDate ? endDate.toISOString() : null,
+          start_date: startDate ? startDate.toISOString() : undefined,
+          end_date: endDate ? endDate.toISOString() : undefined,
           estimation_points: estimationPoints ?? null,
-        } as any;
+        };
         const newTask = await createTask(supabase, selectedListId, taskData);
 
         if (selectedLabels.length > 0) {
@@ -3417,8 +3438,49 @@ function TaskEditDialogComponent({
                   <ListTodo className="h-4 w-4 text-dynamic-orange" />
                 </div>
                 <div className="flex min-w-0 flex-col gap-0.5">
-                  <DialogTitle className="truncate font-semibold text-base text-foreground md:text-lg">
-                    {isCreateMode ? 'Create New Task' : 'Edit Task'}
+                  <DialogTitle className="flex items-center gap-2 truncate font-semibold text-base text-foreground md:text-lg">
+                    <span>
+                      {isCreateMode ? 'Create New Task' : 'Edit Task'}
+                    </span>
+                    {!isCreateMode && task && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              'group/ticket cursor-pointer font-mono text-xs transition-all',
+                              getTicketBadgeColorClasses(
+                                availableLists.find(
+                                  (list) => list.id === task.list_id
+                                ),
+                                task.priority
+                              )
+                            )}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const ticketId = getTicketIdentifier(
+                                boardConfig?.ticket_prefix,
+                                task.display_number
+                              );
+                              navigator.clipboard.writeText(ticketId);
+                              sonnerToast.success('Ticket ID copied', {
+                                description: ticketId,
+                              });
+                            }}
+                          >
+                            <span className="flex items-center gap-1">
+                              {getTicketIdentifier(
+                                boardConfig?.ticket_prefix,
+                                task.display_number
+                              )}
+                            </span>
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <p>Click to copy ticket ID</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
                   </DialogTitle>
                   <DialogDescription className="sr-only">
                     {isCreateMode
