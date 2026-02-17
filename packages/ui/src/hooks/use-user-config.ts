@@ -14,7 +14,9 @@ export function useUserConfig(configId: string, defaultValue: string = '') {
   return useQuery({
     queryKey: ['user-config', configId],
     queryFn: async () => {
-      const response = await fetch(`/api/v1/users/me/configs/${configId}`);
+      const response = await fetch(`/api/v1/users/me/configs/${configId}`, {
+        cache: 'no-store',
+      });
 
       if (!response.ok) {
         throw new Error('Failed to fetch user config');

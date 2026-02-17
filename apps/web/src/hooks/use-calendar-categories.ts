@@ -27,7 +27,8 @@ export function useCalendarCategories({
     queryKey,
     queryFn: async () => {
       const res = await fetch(
-        `/api/v1/workspaces/${workspaceId}/calendar/categories`
+        `/api/v1/workspaces/${workspaceId}/calendar/categories`,
+        { cache: 'no-store' }
       );
       if (!res.ok) {
         const error = await res.json();

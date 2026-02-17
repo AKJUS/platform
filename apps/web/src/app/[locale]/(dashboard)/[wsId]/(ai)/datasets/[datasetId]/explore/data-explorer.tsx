@@ -59,7 +59,8 @@ export function DataExplorer({ wsId, dataset }: Props) {
     queryKey: [wsId, dataset.id, 'columns'],
     queryFn: async () => {
       const response = await fetch(
-        `/api/v1/workspaces/${wsId}/datasets/${dataset.id}/columns`
+        `/api/v1/workspaces/${wsId}/datasets/${dataset.id}/columns`,
+        { cache: 'no-store' }
       );
       if (!response.ok) throw new Error('Failed to fetch columns');
       return response.json();
@@ -77,7 +78,8 @@ export function DataExplorer({ wsId, dataset }: Props) {
             page: currentPage.toString(),
             pageSize,
             useView: 'true', // Add this flag to use the view
-          })
+          }),
+        { cache: 'no-store' }
       );
       if (!response.ok) throw new Error('Failed to fetch rows');
       return response.json();

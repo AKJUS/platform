@@ -41,7 +41,8 @@ export function useTaskSnapshot({
     queryKey: ['task-snapshot', wsId, taskId, historyId],
     queryFn: async (): Promise<TaskSnapshotResponse> => {
       const response = await fetch(
-        `/api/v1/workspaces/${wsId}/tasks/${taskId}/snapshot/${historyId}`
+        `/api/v1/workspaces/${wsId}/tasks/${taskId}/snapshot/${historyId}`,
+        { cache: 'no-store' }
       );
 
       if (!response.ok) {

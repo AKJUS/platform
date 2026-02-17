@@ -23,7 +23,8 @@ export function useRequestComments(
     queryKey: ['time-tracking-request-comments', wsId, requestId],
     queryFn: async () => {
       const response = await fetch(
-        `/api/v1/workspaces/${wsId}/time-tracking/requests/${requestId}/comments`
+        `/api/v1/workspaces/${wsId}/time-tracking/requests/${requestId}/comments`,
+        { cache: 'no-store' }
       );
       if (!response.ok) {
         throw new Error('Failed to fetch comments');

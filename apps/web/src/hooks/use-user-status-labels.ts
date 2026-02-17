@@ -20,7 +20,8 @@ export function useUserStatusLabels(wsId: string) {
     queryKey: ['workspace-config', wsId, 'user_status_labels'],
     queryFn: async () => {
       const res = await fetch(
-        `/api/v1/workspaces/${wsId}/settings/user_status_labels`
+        `/api/v1/workspaces/${wsId}/settings/user_status_labels`,
+        { cache: 'no-store' }
       );
       if (!res.ok) return null;
       const data = await res.json();

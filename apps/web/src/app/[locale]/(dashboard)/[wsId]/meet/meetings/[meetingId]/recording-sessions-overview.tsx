@@ -27,7 +27,8 @@ const fetchRecordingSessions = async (
   meetingId: string
 ): Promise<RecordingSession[]> => {
   const response = await fetch(
-    `/api/v1/workspaces/${wsId}/meetings/${meetingId}/recordings`
+    `/api/v1/workspaces/${wsId}/meetings/${meetingId}/recordings`,
+    { cache: 'no-store' }
   );
   if (!response.ok) {
     throw new Error('Failed to fetch recording sessions');

@@ -85,7 +85,8 @@ export function useInvoiceAnalytics(
       searchParams.set('weekStartsOn', String(weekStartsOn));
 
       const response = await fetch(
-        `/api/v1/workspaces/${wsId}/finance/invoices/analytics?${searchParams.toString()}`
+        `/api/v1/workspaces/${wsId}/finance/invoices/analytics?${searchParams.toString()}`,
+        { cache: 'no-store' }
       );
 
       if (!response.ok) {

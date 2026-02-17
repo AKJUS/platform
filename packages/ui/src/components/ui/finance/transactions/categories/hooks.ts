@@ -47,7 +47,8 @@ export function useTransactionCategories(
     queryFn: async (): Promise<TransactionCategoriesResponse> => {
       // Fetch all categories from the existing API endpoint
       const response = await fetch(
-        `/api/workspaces/${wsId}/transactions/categories`
+        `/api/workspaces/${wsId}/transactions/categories`,
+        { cache: 'no-store' }
       );
 
       if (!response.ok) {

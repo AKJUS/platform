@@ -64,7 +64,8 @@ export function BoardSelector({
     queryKey: ['boards-with-lists', wsId],
     queryFn: async () => {
       const response = await fetch(
-        `/api/v1/workspaces/${wsId}/boards-with-lists`
+        `/api/v1/workspaces/${wsId}/boards-with-lists`,
+        { cache: 'no-store' }
       );
       if (!response.ok) {
         throw new Error('Failed to fetch boards');

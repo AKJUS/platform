@@ -125,7 +125,8 @@ export default function CalendarConnectionsUnified({ wsId }: { wsId: string }) {
     queryKey: ['calendar-accounts', wsId],
     queryFn: async () => {
       const response = await fetch(
-        `/api/v1/calendar/auth/accounts?wsId=${wsId}`
+        `/api/v1/calendar/auth/accounts?wsId=${wsId}`,
+        { cache: 'no-store' }
       );
       if (!response.ok)
         return {
@@ -161,7 +162,9 @@ export default function CalendarConnectionsUnified({ wsId }: { wsId: string }) {
   } = useQuery({
     queryKey: ['workspace-calendars', wsId],
     queryFn: async () => {
-      const response = await fetch(`/api/v1/workspaces/${wsId}/calendars`);
+      const response = await fetch(`/api/v1/workspaces/${wsId}/calendars`, {
+        cache: 'no-store',
+      });
       if (!response.ok)
         return { calendars: [], grouped: { system: [], custom: [] }, total: 0 };
       return response.json() as Promise<WorkspaceCalendarsResponse>;
@@ -508,7 +511,8 @@ export default function CalendarConnectionsUnified({ wsId }: { wsId: string }) {
     enabled: hasConnectedAccounts,
     queryFn: async () => {
       const response = await fetch(
-        `/api/v1/calendar/auth/list-calendars?wsId=${wsId}`
+        `/api/v1/calendar/auth/list-calendars?wsId=${wsId}`,
+        { cache: 'no-store' }
       );
       if (!response.ok) return { calendars: [], byAccount: {} };
       return response.json() as Promise<{

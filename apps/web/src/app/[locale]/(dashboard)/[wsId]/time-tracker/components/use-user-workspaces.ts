@@ -13,7 +13,9 @@ export function useUserWorkspaces({
   return useQuery<Workspace[]>({
     queryKey: ['user-workspaces'],
     queryFn: async () => {
-      const response = await fetch('/api/v1/workspaces');
+      const response = await fetch('/api/v1/workspaces', {
+        cache: 'no-store',
+      });
       if (!response.ok) {
         throw new Error('Failed to fetch workspaces');
       }

@@ -21,7 +21,9 @@ export default function BillingSettings({ wsId }: BillingSettingsProps) {
   const { data, isLoading, error } = useQuery({
     queryKey: ['workspace-billing', wsId],
     queryFn: async () => {
-      const response = await fetch(`/api/v1/workspaces/${wsId}/billing`);
+      const response = await fetch(`/api/v1/workspaces/${wsId}/billing`, {
+        cache: 'no-store',
+      });
 
       if (!response.ok) {
         const errorData = await response.json();

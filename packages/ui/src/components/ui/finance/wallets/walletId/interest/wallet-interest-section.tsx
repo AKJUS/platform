@@ -63,7 +63,8 @@ export function WalletInterestSection({
     queryKey: ['wallet-interest', wallet.id],
     queryFn: async () => {
       const res = await fetch(
-        `/api/workspaces/${wsId}/wallets/${wallet.id}/interest`
+        `/api/workspaces/${wsId}/wallets/${wallet.id}/interest`,
+        { cache: 'no-store' }
       );
       if (!res.ok) {
         if (res.status === 404) return { enabled: false };

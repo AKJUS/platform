@@ -32,7 +32,9 @@ export function FadeSettingInitializer() {
   const { data: settings } = useQuery({
     queryKey: ['user-task-settings'],
     queryFn: async (): Promise<TaskSettingsData> => {
-      const res = await fetch('/api/v1/users/task-settings');
+      const res = await fetch('/api/v1/users/task-settings', {
+        cache: 'no-store',
+      });
       if (!res.ok) {
         // Return defaults if API fails
         return { task_auto_assign_to_self: false, fade_completed_tasks: false };

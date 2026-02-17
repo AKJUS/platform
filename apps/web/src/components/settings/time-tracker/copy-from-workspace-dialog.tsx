@@ -64,7 +64,9 @@ export function CopyFromWorkspaceDialog({
   const { data: workspaces = [], isLoading: isLoadingWorkspaces } = useQuery({
     queryKey: ['workspaces'],
     queryFn: async () => {
-      const response = await fetch('/api/v1/workspaces');
+      const response = await fetch('/api/v1/workspaces', {
+        cache: 'no-store',
+      });
       if (!response.ok) throw new Error(t('copy_dialog.load_workspaces_error'));
       return response.json();
     },

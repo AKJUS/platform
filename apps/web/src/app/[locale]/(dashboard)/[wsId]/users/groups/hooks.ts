@@ -49,7 +49,8 @@ export function useUserGroups(
       searchParams.set('pageSize', String(pageSize));
 
       const response = await fetch(
-        `/api/v1/workspaces/${wsId}/users/groups?${searchParams.toString()}`
+        `/api/v1/workspaces/${wsId}/users/groups?${searchParams.toString()}`,
+        { cache: 'no-store' }
       );
 
       if (!response.ok) {

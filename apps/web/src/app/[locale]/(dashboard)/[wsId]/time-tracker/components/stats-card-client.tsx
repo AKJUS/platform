@@ -74,7 +74,8 @@ export function StatsCardClient({
     ],
     queryFn: async () => {
       const response = await fetch(
-        `/api/v1/workspaces/${workspaceId}/time-tracker/stats?userId=${userId}&isPersonal=${isPersonal}&timezone=${userTimezone}&summaryOnly=true`
+        `/api/v1/workspaces/${workspaceId}/time-tracker/stats?userId=${userId}&isPersonal=${isPersonal}&timezone=${userTimezone}&summaryOnly=true`,
+        { cache: 'no-store' }
       );
       if (!response.ok) {
         throw new Error('Failed to fetch time tracking stats');
@@ -89,7 +90,8 @@ export function StatsCardClient({
     queryKey: ['time-tracking-goals', workspaceId, userId],
     queryFn: async () => {
       const response = await fetch(
-        `/api/v1/workspaces/${workspaceId}/time-tracking/goals?userId=${userId}`
+        `/api/v1/workspaces/${workspaceId}/time-tracking/goals?userId=${userId}`,
+        { cache: 'no-store' }
       );
       if (!response.ok) {
         throw new Error('Failed to fetch goals');

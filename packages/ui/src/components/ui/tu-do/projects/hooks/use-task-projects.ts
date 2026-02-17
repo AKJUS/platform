@@ -75,7 +75,9 @@ export function useTaskProjects({
   } = useQuery<TaskProject[]>({
     queryKey: ['workspace', wsId, 'task-projects'],
     queryFn: async () => {
-      const response = await fetch(`/api/v1/workspaces/${wsId}/task-projects`);
+      const response = await fetch(`/api/v1/workspaces/${wsId}/task-projects`, {
+        cache: 'no-store',
+      });
       if (!response.ok) {
         throw new Error(t('errors.fetch_projects'));
       }
@@ -100,7 +102,8 @@ export function useTaskProjects({
     queryKey: ['workspace', wsId, 'tasks-for-projects'],
     queryFn: async () => {
       const response = await fetch(
-        `/api/v1/workspaces/${wsId}/tasks?limit=200`
+        `/api/v1/workspaces/${wsId}/tasks?limit=200`,
+        { cache: 'no-store' }
       );
       if (!response.ok) {
         throw new Error(t('errors.fetch_tasks'));

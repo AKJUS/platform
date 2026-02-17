@@ -106,7 +106,8 @@ export function AddTaskForm({
     queryKey: ['boards-with-lists', wsId],
     queryFn: async () => {
       const response = await fetch(
-        `/api/v1/workspaces/${wsId}/boards-with-lists`
+        `/api/v1/workspaces/${wsId}/boards-with-lists`,
+        { cache: 'no-store' }
       );
       if (!response.ok) {
         throw new Error('Failed to fetch boards');
@@ -132,7 +133,9 @@ export function AddTaskForm({
     queryKey: ['workspace_labels', workspaceId],
     queryFn: async () => {
       if (!workspaceId) return [];
-      const response = await fetch(`/api/v1/workspaces/${workspaceId}/labels`);
+      const response = await fetch(`/api/v1/workspaces/${workspaceId}/labels`, {
+        cache: 'no-store',
+      });
       if (!response.ok) throw new Error('Failed to fetch labels');
       return response.json(); // API returns array directly
     },
@@ -146,7 +149,8 @@ export function AddTaskForm({
       queryFn: async () => {
         if (!workspaceId) return [];
         const response = await fetch(
-          `/api/v1/workspaces/${workspaceId}/task-projects`
+          `/api/v1/workspaces/${workspaceId}/task-projects`,
+          { cache: 'no-store' }
         );
         if (!response.ok) throw new Error('Failed to fetch projects');
         return response.json(); // API returns array directly

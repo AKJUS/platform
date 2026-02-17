@@ -262,7 +262,8 @@ export default function PriorityView({
           const response = await fetch(
             isPersonalWorkspace
               ? `/api/v1/users/me/tasks/${task.id}/schedule`
-              : `/api/v1/workspaces/${task.ws_id ?? wsId}/tasks/${task.id}/schedule`
+              : `/api/v1/workspaces/${task.ws_id ?? wsId}/tasks/${task.id}/schedule`,
+            { cache: 'no-store' }
           );
           if (!response.ok) {
             return {

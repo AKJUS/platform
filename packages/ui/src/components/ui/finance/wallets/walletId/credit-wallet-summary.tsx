@@ -68,7 +68,8 @@ export function CreditWalletSummary({
     queryKey: ['credit-summary', wallet.id],
     queryFn: async () => {
       const res = await fetch(
-        `/api/workspaces/${wsId}/wallets/${wallet.id}/credit-summary`
+        `/api/workspaces/${wsId}/wallets/${wallet.id}/credit-summary`,
+        { cache: 'no-store' }
       );
       if (!res.ok) throw new Error('Failed to fetch credit summary');
       return res.json();

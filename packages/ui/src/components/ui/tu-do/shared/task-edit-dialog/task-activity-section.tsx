@@ -107,7 +107,8 @@ export function TaskActivitySection({
     queryFn: async () => {
       if (!taskId) return null;
       const res = await fetch(
-        `/api/v1/workspaces/${wsId}/tasks/${taskId}/history?limit=50`
+        `/api/v1/workspaces/${wsId}/tasks/${taskId}/history?limit=50`,
+        { cache: 'no-store' }
       );
       if (!res.ok) throw new Error('Failed to fetch task history');
       return res.json() as Promise<{

@@ -99,7 +99,8 @@ export function DailyTotalChartClient({
         includeConfidential: String(includeConfidential),
       });
       const res = await fetch(
-        `/api/workspaces/${wsId}/finance/charts/daily?${params}`
+        `/api/workspaces/${wsId}/finance/charts/daily?${params}`,
+        { cache: 'no-store' }
       );
       if (!res.ok) throw new Error('Failed to fetch daily chart data');
       return res.json();
@@ -120,7 +121,8 @@ export function DailyTotalChartClient({
         includeConfidential: String(includeConfidential),
       });
       const res = await fetch(
-        `/api/workspaces/${wsId}/finance/charts/balance?${params}`
+        `/api/workspaces/${wsId}/finance/charts/balance?${params}`,
+        { cache: 'no-store' }
       );
       if (!res.ok) throw new Error('Failed to fetch opening balance');
       return res.json();
@@ -136,7 +138,8 @@ export function DailyTotalChartClient({
         includeConfidential: String(includeConfidential),
       });
       const res = await fetch(
-        `/api/workspaces/${wsId}/finance/charts/balance?${params}`
+        `/api/workspaces/${wsId}/finance/charts/balance?${params}`,
+        { cache: 'no-store' }
       );
       if (!res.ok) throw new Error('Failed to fetch closing balance');
       return res.json();

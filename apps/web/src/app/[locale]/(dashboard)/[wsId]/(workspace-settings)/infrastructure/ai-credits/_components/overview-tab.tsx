@@ -51,7 +51,9 @@ export default function OverviewTab() {
     {
       queryKey: ['admin', 'ai-credits', 'overview'],
       queryFn: async () => {
-        const res = await fetch('/api/v1/admin/ai-credits/overview');
+        const res = await fetch('/api/v1/admin/ai-credits/overview', {
+          cache: 'no-store',
+        });
         if (!res.ok) throw new Error('Failed to fetch overview');
         return res.json();
       },
@@ -64,7 +66,8 @@ export default function OverviewTab() {
     queryKey: ['admin', 'ai-credits', 'transactions', { page: 1, limit: 10 }],
     queryFn: async () => {
       const res = await fetch(
-        '/api/v1/admin/ai-credits/transactions?page=1&limit=10'
+        '/api/v1/admin/ai-credits/transactions?page=1&limit=10',
+        { cache: 'no-store' }
       );
       if (!res.ok) throw new Error('Failed to fetch transactions');
       return res.json();

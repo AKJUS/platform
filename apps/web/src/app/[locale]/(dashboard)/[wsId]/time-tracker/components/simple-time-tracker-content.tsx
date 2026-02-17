@@ -37,7 +37,8 @@ export default function SimpleTimeTrackerContent({
     queryKey: ['running-time-session', wsId, currentUser?.id],
     queryFn: async () => {
       const response = await fetch(
-        `/api/v1/workspaces/${wsId}/time-tracking/sessions?type=running`
+        `/api/v1/workspaces/${wsId}/time-tracking/sessions?type=running`,
+        { cache: 'no-store' }
       );
       if (!response.ok) throw new Error('Failed to fetch running session');
       const data = await response.json();
@@ -55,7 +56,8 @@ export default function SimpleTimeTrackerContent({
       if (!currentUser)
         return { todayTime: 0, weekTime: 0, monthTime: 0, streak: 0 };
       const response = await fetch(
-        `/api/v1/workspaces/${wsId}/time-tracking/sessions?type=stats&userId=${currentUser.id}`
+        `/api/v1/workspaces/${wsId}/time-tracking/sessions?type=stats&userId=${currentUser.id}`,
+        { cache: 'no-store' }
       );
       if (!response.ok) throw new Error('Failed to fetch time tracking stats');
       const data = await response.json();

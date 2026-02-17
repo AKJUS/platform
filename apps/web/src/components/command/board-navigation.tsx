@@ -94,7 +94,8 @@ export function BoardNavigation({ wsId, setOpen }: BoardNavigationProps) {
     enabled: Boolean(wsId) && wsId !== 'undefined',
     queryFn: async () => {
       const response = await fetch(
-        `/api/v1/workspaces/${wsId}/boards-with-lists`
+        `/api/v1/workspaces/${wsId}/boards-with-lists`,
+        { cache: 'no-store' }
       );
       if (!response.ok) {
         if (response.status === 401) {

@@ -48,7 +48,8 @@ export function DebtsPage({ wsId, searchParams }: Props) {
       queryKey: ['debt-loan-summary', wsId],
       queryFn: async () => {
         const res = await fetch(
-          `/api/v1/workspaces/${wsId}/finance/debts/summary`
+          `/api/v1/workspaces/${wsId}/finance/debts/summary`,
+          { cache: 'no-store' }
         );
         if (!res.ok) throw new Error('Failed to fetch summary');
         return res.json();
@@ -63,7 +64,8 @@ export function DebtsPage({ wsId, searchParams }: Props) {
     queryFn: async () => {
       const typeParam = activeTab !== 'all' ? `?type=${activeTab}` : '';
       const res = await fetch(
-        `/api/v1/workspaces/${wsId}/finance/debts${typeParam}`
+        `/api/v1/workspaces/${wsId}/finance/debts${typeParam}`,
+        { cache: 'no-store' }
       );
       if (!res.ok) throw new Error('Failed to fetch debt/loans');
       return res.json();
@@ -74,7 +76,9 @@ export function DebtsPage({ wsId, searchParams }: Props) {
   const { data: wallets = [] } = useQuery<Wallet[]>({
     queryKey: ['wallets', wsId],
     queryFn: async () => {
-      const res = await fetch(`/api/v1/workspaces/${wsId}/wallets`);
+      const res = await fetch(`/api/v1/workspaces/${wsId}/wallets`, {
+        cache: 'no-store',
+      });
       if (!res.ok) throw new Error('Failed to fetch wallets');
       return res.json();
     },

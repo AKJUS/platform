@@ -77,7 +77,8 @@ export function RealtimeAnalyticsClient({
       }
 
       const response = await fetch(
-        `/api/v1/workspaces/${wsId}/infrastructure/realtime/analytics?${queryParams}`
+        `/api/v1/workspaces/${wsId}/infrastructure/realtime/analytics?${queryParams}`,
+        { cache: 'no-store' }
       );
 
       if (!response.ok) {
@@ -184,7 +185,9 @@ export function RealtimeAnalyticsClient({
   const { data: workspaces } = useQuery({
     queryKey: ['workspaces-list', wsId],
     queryFn: async () => {
-      const response = await fetch(`/api/workspaces`);
+      const response = await fetch(`/api/workspaces`, {
+        cache: 'no-store',
+      });
       if (!response.ok) return [];
       const workspaces = await response.json();
 
@@ -233,7 +236,8 @@ export function RealtimeAnalyticsClient({
       }
 
       const response = await fetch(
-        `/api/v1/workspaces/${wsId}/infrastructure/realtime/analytics/summary?${queryParams}`
+        `/api/v1/workspaces/${wsId}/infrastructure/realtime/analytics/summary?${queryParams}`,
+        { cache: 'no-store' }
       );
 
       if (!response.ok) {

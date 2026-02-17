@@ -55,7 +55,7 @@ interface FocusHistoryResponse {
 
 // Fetch focus data
 async function fetchFocusData(): Promise<FocusResponse> {
-  const res = await fetch('/api/v1/tuna/focus');
+  const res = await fetch('/api/v1/tuna/focus', { cache: 'no-store' });
   if (!res.ok) {
     throw new Error('Failed to fetch focus data');
   }
@@ -101,7 +101,8 @@ async function fetchFocusHistory(
   offset = 0
 ): Promise<FocusHistoryResponse> {
   const res = await fetch(
-    `/api/v1/tuna/focus/history?limit=${limit}&offset=${offset}`
+    `/api/v1/tuna/focus/history?limit=${limit}&offset=${offset}`,
+    { cache: 'no-store' }
   );
   if (!res.ok) {
     throw new Error('Failed to fetch focus history');

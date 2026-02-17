@@ -27,7 +27,12 @@ export function useAccountNotificationPreferences() {
   return useQuery({
     queryKey: ['account-notification-preferences'],
     queryFn: async () => {
-      const response = await fetch('/api/v1/notifications/account-preferences');
+      const response = await fetch(
+        '/api/v1/notifications/account-preferences',
+        {
+          cache: 'no-store',
+        }
+      );
       if (!response.ok) {
         throw new Error('Failed to fetch account notification preferences');
       }

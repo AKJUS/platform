@@ -36,7 +36,9 @@ export function useCalendarSettings(
     queryKey: ['users', 'calendar-settings'],
     queryFn: async () => {
       try {
-        const res = await fetch('/api/v1/users/calendar-settings');
+        const res = await fetch('/api/v1/users/calendar-settings', {
+          cache: 'no-store',
+        });
         if (!res.ok) {
           const errorBody = await res.text().catch(() => 'Unknown error');
           const error = new Error(

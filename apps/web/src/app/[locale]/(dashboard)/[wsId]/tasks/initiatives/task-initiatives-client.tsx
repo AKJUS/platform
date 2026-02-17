@@ -138,7 +138,8 @@ export function TaskInitiativesClient({
     queryKey: ['workspace', wsId, 'task-initiatives'],
     queryFn: async () => {
       const response = await fetch(
-        `/api/v1/workspaces/${wsId}/task-initiatives`
+        `/api/v1/workspaces/${wsId}/task-initiatives`,
+        { cache: 'no-store' }
       );
       if (!response.ok) {
         throw new Error(t('errors.fetch_initiatives'));
@@ -156,7 +157,9 @@ export function TaskInitiativesClient({
   } = useQuery<TaskProjectOption[]>({
     queryKey: ['workspace', wsId, 'task-projects-for-initiatives'],
     queryFn: async () => {
-      const response = await fetch(`/api/v1/workspaces/${wsId}/task-projects`);
+      const response = await fetch(`/api/v1/workspaces/${wsId}/task-projects`, {
+        cache: 'no-store',
+      });
       if (!response.ok) {
         throw new Error(t('errors.fetch_projects'));
       }

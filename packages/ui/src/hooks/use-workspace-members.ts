@@ -49,7 +49,9 @@ export function useWorkspaceMembers(
         return [];
       }
 
-      const response = await fetch(`/api/workspaces/${workspaceId}/members`);
+      const response = await fetch(`/api/workspaces/${workspaceId}/members`, {
+        cache: 'no-store',
+      });
       if (!response.ok) {
         throw new Error('Failed to fetch members');
       }

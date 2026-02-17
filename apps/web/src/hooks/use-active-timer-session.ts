@@ -10,7 +10,8 @@ export function useActiveTimerSession(wsId: string | null) {
       if (!wsId) return null;
 
       const response = await fetch(
-        `/api/v1/workspaces/${wsId}/time-tracking/sessions?type=running`
+        `/api/v1/workspaces/${wsId}/time-tracking/sessions?type=running`,
+        { cache: 'no-store' }
       );
       if (!response.ok) {
         if (response.status === 404) return null;

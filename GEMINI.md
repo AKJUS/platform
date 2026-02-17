@@ -158,10 +158,11 @@ useEffect(() => {
   /* fetch logic */
 }, []);
 
-// ✅ ONLY ACCEPTABLE PATTERN
+// ✅ ONLY ACCEPTABLE PATTERN (always use cache: 'no-store' in queryFn fetches)
 const { data, isLoading } = useQuery({
   queryKey: ["data", dependency],
-  queryFn: () => fetch("/api/data").then((r) => r.json()),
+  queryFn: () =>
+    fetch("/api/data", { cache: "no-store" }).then((r) => r.json()),
 });
 ```
 
@@ -199,6 +200,7 @@ Tasks in kanban boards (`task.tsx`, `task-edit-dialog.tsx`, components in `packa
 2. If writing client-side data fetching without TanStack Query → Code REJECTED
 3. If you see the pattern `useEffect(() => { fetch... }, [])` → MUST refactor to `useQuery`
 4. The ONLY acceptable client-side data fetching is through TanStack Query hooks
+5. **Any `fetch()` inside a `queryFn` MUST include `cache: 'no-store'`** — Browser HTTP cache and TanStack Query cache are independent layers. Without `cache: 'no-store'`, the browser may serve stale HTTP-cached responses even after TanStack Query invalidates a query. TanStack Query's `staleTime` is the single source of truth for cache freshness.
 
 ### Key Workflows
 

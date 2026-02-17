@@ -105,7 +105,7 @@ export function useNotifications({
       });
 
       const url = `/api/v1/notifications?${params}`;
-      const response = await fetch(url);
+      const response = await fetch(url, { cache: 'no-store' });
 
       if (!response.ok) {
         throw new Error(
@@ -152,7 +152,9 @@ export function useInfiniteNotifications({
         ...(wsId && { wsId }),
       });
 
-      const response = await fetch(`/api/v1/notifications?${params}`);
+      const response = await fetch(`/api/v1/notifications?${params}`, {
+        cache: 'no-store',
+      });
       if (!response.ok) throw new Error('Failed to fetch notifications');
       return (await response.json()) as NotificationsPage;
     },
@@ -176,7 +178,8 @@ export function useUnreadCount(wsId?: string) {
     queryFn: async () => {
       const params = wsId ? `?wsId=${wsId}` : '';
       const response = await fetch(
-        `/api/v1/notifications/unread-count${params}`
+        `/api/v1/notifications/unread-count${params}`,
+        { cache: 'no-store' }
       );
       if (!response.ok) {
         throw new Error('Failed to fetch unread count');

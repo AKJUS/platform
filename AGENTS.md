@@ -455,6 +455,7 @@ Use React Query for:
 2. If you see `useEffect` + `fetch`/API calls in existing code, refactor it to React Query
 3. If you write client-side data fetching without React Query, the code WILL BE REJECTED
 4. The only acceptable client-side data fetching pattern is TanStack Query hooks
+5. **Any `fetch()` inside a `queryFn` MUST include `cache: 'no-store'`** — Browser HTTP cache and TanStack Query cache are independent layers. Without `cache: 'no-store'`, the browser may serve stale HTTP-cached responses even after TanStack Query invalidates a query. TanStack Query's `staleTime` is the single source of truth for cache freshness; the browser's HTTP cache must be bypassed.
 
 Query Keys:
 

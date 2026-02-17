@@ -45,7 +45,9 @@ export function CalendarPreferencesProvider({
     queryKey: ['users', 'calendar-settings', userId],
     queryFn: async () => {
       if (!userId) return null;
-      const res = await fetch('/api/v1/users/calendar-settings');
+      const res = await fetch('/api/v1/users/calendar-settings', {
+        cache: 'no-store',
+      });
       if (!res.ok) return null;
       const data = await res.json();
       return data as {
@@ -63,7 +65,9 @@ export function CalendarPreferencesProvider({
     queryKey: ['workspace-calendar-settings', wsId],
     queryFn: async () => {
       if (!wsId) return null;
-      const res = await fetch(`/api/v1/workspaces/${wsId}/calendar-settings`);
+      const res = await fetch(`/api/v1/workspaces/${wsId}/calendar-settings`, {
+        cache: 'no-store',
+      });
       if (!res.ok) return null;
       const data = await res.json();
       return data as {

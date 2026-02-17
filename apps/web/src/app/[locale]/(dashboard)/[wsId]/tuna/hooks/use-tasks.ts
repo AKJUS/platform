@@ -35,7 +35,9 @@ async function fetchTunaTasks({
   params.set('wsId', wsId);
   params.set('isPersonal', String(isPersonal));
 
-  const res = await fetch(`/api/v1/tuna/tasks?${params.toString()}`);
+  const res = await fetch(`/api/v1/tuna/tasks?${params.toString()}`, {
+    cache: 'no-store',
+  });
   if (!res.ok) {
     throw new Error('Failed to fetch tasks');
   }

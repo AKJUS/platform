@@ -88,7 +88,8 @@ export function useWorkspaceUsers(
       });
 
       const response = await fetch(
-        `/api/v1/workspaces/${wsId}/users/database?${searchParams.toString()}`
+        `/api/v1/workspaces/${wsId}/users/database?${searchParams.toString()}`,
+        { cache: 'no-store' }
       );
 
       if (!response.ok) {

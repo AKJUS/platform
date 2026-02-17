@@ -276,7 +276,8 @@ export default function CalendarConnections({
     queryKey: ['calendar-accounts', wsId],
     queryFn: async () => {
       const response = await fetch(
-        `/api/v1/calendar/auth/accounts?wsId=${wsId}`
+        `/api/v1/calendar/auth/accounts?wsId=${wsId}`,
+        { cache: 'no-store' }
       );
       if (!response.ok) return { total: 0 };
       return response.json() as Promise<{ total: number }>;
@@ -353,7 +354,8 @@ export default function CalendarConnections({
       enabled: isManageOpen && hasConnectedAccounts,
       queryFn: async () => {
         const response = await fetch(
-          `/api/v1/calendar/auth/list-calendars?wsId=${wsId}`
+          `/api/v1/calendar/auth/list-calendars?wsId=${wsId}`,
+          { cache: 'no-store' }
         );
         const data = await response.json();
 

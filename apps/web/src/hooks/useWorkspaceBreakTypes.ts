@@ -10,7 +10,8 @@ export function useWorkspaceBreakTypes(wsId: string | null) {
       if (!wsId) return null;
 
       const response = await fetch(
-        `/api/v1/workspaces/${wsId}/time-tracking/break-types`
+        `/api/v1/workspaces/${wsId}/time-tracking/break-types`,
+        { cache: 'no-store' }
       );
 
       if (!response.ok) {

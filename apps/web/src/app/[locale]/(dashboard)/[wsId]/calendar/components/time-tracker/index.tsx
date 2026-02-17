@@ -91,7 +91,8 @@ export default function TimeTracker({ wsId, tasks = [] }: TimeTrackerProps) {
     queryKey: ['workspace', wsId, 'boards-with-lists'],
     queryFn: async () => {
       const response = await fetch(
-        `/api/v1/workspaces/${wsId}/boards-with-lists`
+        `/api/v1/workspaces/${wsId}/boards-with-lists`,
+        { cache: 'no-store' }
       );
       if (!response.ok) throw new Error('Failed to fetch boards');
       return response.json();

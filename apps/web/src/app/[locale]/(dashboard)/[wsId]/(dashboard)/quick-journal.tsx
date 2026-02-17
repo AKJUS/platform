@@ -733,7 +733,9 @@ function QuickJournalContent({ wsId }: QuickJournalContentProps) {
   const { data: workspaceLabels = [], isLoading: labelsLoading } = useQuery({
     queryKey: ['workspace', wsId, 'labels'],
     queryFn: async () => {
-      const response = await fetch(`/api/v1/workspaces/${wsId}/labels`);
+      const response = await fetch(`/api/v1/workspaces/${wsId}/labels`, {
+        cache: 'no-store',
+      });
       if (!response.ok) {
         throw new Error(t('errors.fetch_labels'));
       }

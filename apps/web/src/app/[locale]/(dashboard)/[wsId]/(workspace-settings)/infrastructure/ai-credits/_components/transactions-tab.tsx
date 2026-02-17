@@ -122,7 +122,8 @@ export default function TransactionsTab() {
       if (featureFilter) params.set('feature', featureFilter);
       if (modelFilter) params.set('model_id', modelFilter);
       const res = await fetch(
-        `/api/v1/admin/ai-credits/transactions?${params.toString()}`
+        `/api/v1/admin/ai-credits/transactions?${params.toString()}`,
+        { cache: 'no-store' }
       );
       if (!res.ok) throw new Error('Failed to fetch transactions');
       return res.json();
@@ -138,7 +139,8 @@ export default function TransactionsTab() {
         if (selectedEntity?.userId)
           params.set('user_id', selectedEntity.userId);
         const res = await fetch(
-          `/api/v1/admin/ai-credits/entity-detail?${params.toString()}`
+          `/api/v1/admin/ai-credits/entity-detail?${params.toString()}`,
+          { cache: 'no-store' }
         );
         if (!res.ok) throw new Error('Failed to fetch entity detail');
         return res.json();

@@ -43,7 +43,8 @@ export function useWorkspaceProducts(
       if (sortOrder) searchParams.set('sortOrder', sortOrder);
 
       const response = await fetch(
-        `/api/v1/workspaces/${wsId}/inventory/products?${searchParams.toString()}`
+        `/api/v1/workspaces/${wsId}/inventory/products?${searchParams.toString()}`,
+        { cache: 'no-store' }
       );
 
       if (!response.ok) {
@@ -74,7 +75,8 @@ export function useWorkspaceProduct(
       if (!productId) throw new Error('Product ID is required');
 
       const response = await fetch(
-        `/api/v1/workspaces/${wsId}/products/${productId}`
+        `/api/v1/workspaces/${wsId}/products/${productId}`,
+        { cache: 'no-store' }
       );
 
       if (!response.ok) {
@@ -100,7 +102,8 @@ export function useProductCategories(
     queryKey: ['product-categories', wsId],
     queryFn: async (): Promise<ProductCategory[]> => {
       const response = await fetch(
-        `/api/v1/workspaces/${wsId}/product-categories`
+        `/api/v1/workspaces/${wsId}/product-categories`,
+        { cache: 'no-store' }
       );
 
       if (!response.ok) {
@@ -126,7 +129,8 @@ export function useProductWarehouses(
     queryKey: ['product-warehouses', wsId],
     queryFn: async (): Promise<ProductWarehouse[]> => {
       const response = await fetch(
-        `/api/v1/workspaces/${wsId}/product-warehouses`
+        `/api/v1/workspaces/${wsId}/product-warehouses`,
+        { cache: 'no-store' }
       );
 
       if (!response.ok) {
@@ -151,7 +155,9 @@ export function useProductUnits(
   return useQuery({
     queryKey: ['product-units', wsId],
     queryFn: async (): Promise<ProductUnit[]> => {
-      const response = await fetch(`/api/v1/workspaces/${wsId}/product-units`);
+      const response = await fetch(`/api/v1/workspaces/${wsId}/product-units`, {
+        cache: 'no-store',
+      });
 
       if (!response.ok) {
         throw new Error('Failed to fetch product units');

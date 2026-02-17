@@ -9,7 +9,8 @@ export const useWorkspaceConfig = <T>(
     queryKey: ['workspace-config', wsId, configId],
     queryFn: async () => {
       const res = await fetch(
-        `/api/v1/workspaces/${wsId}/settings/${configId}`
+        `/api/v1/workspaces/${wsId}/settings/${configId}`,
+        { cache: 'no-store' }
       );
       if (!res.ok) {
         if (res.status === 404) {
@@ -32,7 +33,8 @@ export const useWorkspaceConfigs = (wsId: string, configIds: string[]) => {
     queryKey: ['workspace-configs', wsId, configIds],
     queryFn: async () => {
       const res = await fetch(
-        `/api/v1/workspaces/${wsId}/settings/configs?ids=${configIds.join(',')}`
+        `/api/v1/workspaces/${wsId}/settings/configs?ids=${configIds.join(',')}`,
+        { cache: 'no-store' }
       );
       if (!res.ok) {
         throw new Error('Failed to fetch workspace configs');

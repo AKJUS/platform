@@ -118,7 +118,8 @@ export function ConnectedAccountsDialog({
     enabled: open,
     queryFn: async () => {
       const response = await fetch(
-        `/api/v1/calendar/auth/accounts?wsId=${wsId}`
+        `/api/v1/calendar/auth/accounts?wsId=${wsId}`,
+        { cache: 'no-store' }
       );
       if (!response.ok) throw new Error('Failed to fetch accounts');
       return response.json() as Promise<{

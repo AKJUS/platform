@@ -29,7 +29,9 @@ interface UnlockAchievementResponse {
 
 // Fetch achievements
 async function fetchAchievements(): Promise<AchievementsResponse> {
-  const res = await fetch('/api/v1/tuna/achievements');
+  const res = await fetch('/api/v1/tuna/achievements', {
+    cache: 'no-store',
+  });
   if (!res.ok) {
     throw new Error('Failed to fetch achievements');
   }

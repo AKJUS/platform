@@ -38,7 +38,9 @@ export function EmailStatsDashboard({
       const params = new URLSearchParams({ period });
       if (wsId) params.set('wsId', wsId);
 
-      const response = await fetch(`/api/v1/admin/email/stats?${params}`);
+      const response = await fetch(`/api/v1/admin/email/stats?${params}`, {
+        cache: 'no-store',
+      });
       if (!response.ok) {
         throw new Error('Failed to fetch email stats');
       }

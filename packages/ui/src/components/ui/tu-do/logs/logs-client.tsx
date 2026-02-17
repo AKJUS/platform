@@ -162,7 +162,8 @@ export default function LogsClient({
     queryKey: ['workspace-task-history', wsId, queryParams],
     queryFn: async () => {
       const response = await fetch(
-        `/api/v1/workspaces/${wsId}/tasks/history?${queryParams}`
+        `/api/v1/workspaces/${wsId}/tasks/history?${queryParams}`,
+        { cache: 'no-store' }
       );
       if (!response.ok) {
         throw new Error('Failed to fetch task history');

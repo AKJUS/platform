@@ -15,7 +15,9 @@ export default function UncrawledUrlsCount({ wsId }: { wsId: string }) {
   } = useQuery({
     queryKey: ['crawlers', wsId, 'uncrawled-count'],
     queryFn: async () => {
-      const res = await fetch(`/api/${wsId}/crawlers/uncrawled?pageSize=1`);
+      const res = await fetch(`/api/${wsId}/crawlers/uncrawled?pageSize=1`, {
+        cache: 'no-store',
+      });
       if (!res.ok) throw new Error('Failed to fetch data');
       return (await res.json()).pagination.totalItems as number;
     },
@@ -28,7 +30,9 @@ export default function UncrawledUrlsCount({ wsId }: { wsId: string }) {
   } = useQuery({
     queryKey: ['crawlers', wsId, 'domains'],
     queryFn: async () => {
-      const res = await fetch(`/api/${wsId}/crawlers/domains`);
+      const res = await fetch(`/api/${wsId}/crawlers/domains`, {
+        cache: 'no-store',
+      });
       if (!res.ok) throw new Error('Failed to fetch data');
       return ((await res.json()).domains || []).length as number;
     },

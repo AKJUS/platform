@@ -84,7 +84,8 @@ export function useTaskHistory({
       });
 
       const response = await fetch(
-        `/api/v1/workspaces/${wsId}/tasks/${taskId}/history?${params}`
+        `/api/v1/workspaces/${wsId}/tasks/${taskId}/history?${params}`,
+        { cache: 'no-store' }
       );
 
       if (!response.ok) {
@@ -127,7 +128,8 @@ export function useTaskHistoryInfinite({
       });
 
       const response = await fetch(
-        `/api/v1/workspaces/${wsId}/tasks/${taskId}/history?${params}`
+        `/api/v1/workspaces/${wsId}/tasks/${taskId}/history?${params}`,
+        { cache: 'no-store' }
       );
 
       if (!response.ok) {

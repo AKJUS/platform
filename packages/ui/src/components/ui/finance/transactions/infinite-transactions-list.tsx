@@ -373,7 +373,8 @@ export function InfiniteTransactionsList({
     queryFn: async ({ pageParam }) => {
       const queryString = buildQueryString(pageParam as string | undefined);
       const response = await fetch(
-        `/api/workspaces/${wsId}/transactions/infinite?${queryString}`
+        `/api/workspaces/${wsId}/transactions/infinite?${queryString}`,
+        { cache: 'no-store' }
       );
       if (!response.ok) throw new Error('Failed to fetch transactions');
 
@@ -423,7 +424,8 @@ export function InfiniteTransactionsList({
         true
       );
       const response = await fetch(
-        `/api/workspaces/${wsId}/transactions/periods?${queryString}`
+        `/api/workspaces/${wsId}/transactions/periods?${queryString}`,
+        { cache: 'no-store' }
       );
       if (!response.ok) throw new Error('Failed to fetch transaction periods');
 
@@ -479,7 +481,8 @@ export function InfiniteTransactionsList({
     queryFn: async () => {
       const queryString = buildQueryString();
       const response = await fetch(
-        `/api/workspaces/${wsId}/transactions/stats?${queryString}`
+        `/api/workspaces/${wsId}/transactions/stats?${queryString}`,
+        { cache: 'no-store' }
       );
       if (!response.ok) throw new Error('Failed to fetch transaction stats');
       return response.json();

@@ -314,6 +314,7 @@ Raw `fetch()`, `useEffect` with manual state, or custom hooks without React Quer
 - Hydrate initial cache from RSC to prevent double fetches
 - If you see `useEffect` + API calls in existing code, REFACTOR to React Query immediately
 - **CRITICAL:** The only acceptable pattern is `useQuery`/`useMutation`/`useInfiniteQuery` from TanStack Query
+- **CRITICAL:** Any `fetch()` inside a `queryFn` MUST include `cache: 'no-store'` to prevent dual-layer caching conflicts. Browser HTTP cache and TanStack Query cache are independent — without `cache: 'no-store'`, browser may serve stale HTTP-cached responses even after TanStack Query invalidates. TanStack Query's `staleTime` is the single source of truth for freshness.
 
 **Kanban Task Realtime Sync (CRITICAL):**
 
@@ -346,10 +347,11 @@ useEffect(() => {
   fetchData();
 }, []);
 
-// ✅ ONLY DO THIS
+// ✅ ONLY DO THIS (always use cache: 'no-store' in queryFn fetches)
 const { data } = useQuery({
   queryKey: ["data"],
-  queryFn: () => fetch("/api/data").then((r) => r.json()),
+  queryFn: () =>
+    fetch("/api/data", { cache: "no-store" }).then((r) => r.json()),
 });
 ```
 

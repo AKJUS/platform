@@ -362,7 +362,9 @@ export function useMyTasksState({
     queryFn: async () => {
       if (allWorkspaceIds.length === 0) return [];
       const promises = allWorkspaceIds.map((id) =>
-        fetch(`/api/v1/workspaces/${id}/labels`).then((res) => res.json())
+        fetch(`/api/v1/workspaces/${id}/labels`, { cache: 'no-store' }).then(
+          (res) => res.json()
+        )
       );
       const results = await Promise.all(promises);
       return results.flat().filter(Boolean);
@@ -392,7 +394,9 @@ export function useMyTasksState({
   const { data: workspaceMembers = [] } = useQuery({
     queryKey: ['workspace', wsId, 'members'],
     queryFn: async () => {
-      const response = await fetch(`/api/v1/workspaces/${wsId}/members`);
+      const response = await fetch(`/api/v1/workspaces/${wsId}/members`, {
+        cache: 'no-store',
+      });
       if (!response.ok) throw new Error('Failed to fetch members');
       const data = await response.json();
       return (data || []).map((member: any) => ({

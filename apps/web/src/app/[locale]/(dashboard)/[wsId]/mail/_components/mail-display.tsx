@@ -552,7 +552,9 @@ export function MailDisplay({
     queryKey: ['workspace-members', wsId],
     queryFn: async () => {
       if (!wsId) return { members: [] };
-      const res = await fetch(`/api/workspaces/${wsId}/members`);
+      const res = await fetch(`/api/workspaces/${wsId}/members`, {
+        cache: 'no-store',
+      });
       if (!res.ok) throw new Error('Failed to fetch workspace members');
       return res.json();
     },

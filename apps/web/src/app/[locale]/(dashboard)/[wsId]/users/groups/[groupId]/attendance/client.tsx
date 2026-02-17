@@ -173,7 +173,8 @@ export default function GroupAttendanceClient({
     queryKey: ['workspace-config', wsId, 'ATTENDANCE_SHOW_MANAGERS'],
     queryFn: async () => {
       const res = await fetch(
-        `/api/v1/workspaces/${wsId}/settings/ATTENDANCE_SHOW_MANAGERS`
+        `/api/v1/workspaces/${wsId}/settings/ATTENDANCE_SHOW_MANAGERS`,
+        { cache: 'no-store' }
       );
       if (!res.ok) {
         if (res.status === 404) return 'true'; // Default to showing managers

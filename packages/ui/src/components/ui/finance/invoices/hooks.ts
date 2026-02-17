@@ -219,7 +219,8 @@ export function useWorkspaceInvoices(
       });
 
       const response = await fetch(
-        `/api/v1/workspaces/${wsId}/finance/invoices?${searchParams.toString()}`
+        `/api/v1/workspaces/${wsId}/finance/invoices?${searchParams.toString()}`,
+        { cache: 'no-store' }
       );
 
       if (!response.ok) {
@@ -655,7 +656,8 @@ export const useInvoiceAttendanceConfig = (wsId: string) => {
 
       try {
         const res = await fetch(
-          `/api/v1/workspaces/${wsId}/settings/INVOICE_USE_ATTENDANCE_BASED_CALCULATION`
+          `/api/v1/workspaces/${wsId}/settings/INVOICE_USE_ATTENDANCE_BASED_CALCULATION`,
+          { cache: 'no-store' }
         );
 
         if (!res.ok) {
@@ -694,7 +696,8 @@ export const useInvoicePromotionConfig = (wsId: string) => {
 
       try {
         const res = await fetch(
-          `/api/v1/workspaces/${wsId}/settings/INVOICE_ALLOW_PROMOTIONS_FOR_STANDARD`
+          `/api/v1/workspaces/${wsId}/settings/INVOICE_ALLOW_PROMOTIONS_FOR_STANDARD`,
+          { cache: 'no-store' }
         );
 
         if (!res.ok) {
@@ -733,7 +736,8 @@ export const useInvoiceBlockedGroups = (wsId: string) => {
 
       try {
         const res = await fetch(
-          `/api/v1/workspaces/${wsId}/settings/INVOICE_BLOCKED_GROUP_IDS_FOR_CREATION`
+          `/api/v1/workspaces/${wsId}/settings/INVOICE_BLOCKED_GROUP_IDS_FOR_CREATION`,
+          { cache: 'no-store' }
         );
 
         if (!res.ok) {

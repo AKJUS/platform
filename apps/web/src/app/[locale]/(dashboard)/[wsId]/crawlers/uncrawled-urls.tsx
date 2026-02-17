@@ -86,7 +86,9 @@ export default function UncrawledUrls({ wsId }: { wsId: string }) {
   const { data: domainsData, isLoading: loadingDomains } = useQuery({
     queryKey: ['crawlers', wsId, 'domains'],
     queryFn: async () => {
-      const res = await fetch(`/api/${wsId}/crawlers/domains`);
+      const res = await fetch(`/api/${wsId}/crawlers/domains`, {
+        cache: 'no-store',
+      });
       if (!res.ok) throw new Error('Failed to fetch domains');
       return (await res.json()) as DomainsResponse;
     },
@@ -116,7 +118,12 @@ export default function UncrawledUrls({ wsId }: { wsId: string }) {
       if (!queryParams.has('page')) queryParams.set('page', '1');
       if (!queryParams.has('pageSize')) queryParams.set('pageSize', '20');
 
-      const res = await fetch(`/api/${wsId}/crawlers/uncrawled?${queryParams}`);
+      const res = await fetch(
+        `/api/${wsId}/crawlers/uncrawled?${queryParams}`,
+        {
+          cache: 'no-store',
+        }
+      );
       if (!res.ok) throw new Error('Failed to fetch uncrawled URLs');
       return (await res.json()) as UncrawledResponse;
     },

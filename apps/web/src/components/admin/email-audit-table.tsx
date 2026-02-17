@@ -77,7 +77,9 @@ export function EmailAuditTable() {
         params.set('search', search);
       }
 
-      const response = await fetch(`/api/v1/admin/email/audit?${params}`);
+      const response = await fetch(`/api/v1/admin/email/audit?${params}`, {
+        cache: 'no-store',
+      });
       if (!response.ok) {
         throw new Error('Failed to fetch audit records');
       }

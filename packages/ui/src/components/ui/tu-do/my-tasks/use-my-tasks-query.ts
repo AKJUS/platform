@@ -62,7 +62,9 @@ export function useMyTasksQuery(
         }
       }
 
-      const res = await fetch(`/api/v1/users/me/tasks?${params}`);
+      const res = await fetch(`/api/v1/users/me/tasks?${params}`, {
+        cache: 'no-store',
+      });
       if (!res.ok) {
         throw new Error('Failed to fetch tasks');
       }
@@ -115,7 +117,9 @@ export function useCompletedTasksQuery(
         }
       }
 
-      const res = await fetch(`/api/v1/users/me/tasks?${params}`);
+      const res = await fetch(`/api/v1/users/me/tasks?${params}`, {
+        cache: 'no-store',
+      });
       if (!res.ok) {
         throw new Error('Failed to fetch completed tasks');
       }

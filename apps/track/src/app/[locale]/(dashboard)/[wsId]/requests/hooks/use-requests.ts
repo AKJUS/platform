@@ -36,7 +36,8 @@ export function useRequests({
       }
 
       const response = await fetch(
-        `/api/v1/workspaces/${wsId}/time-tracking/requests?${params.toString()}`
+        `/api/v1/workspaces/${wsId}/time-tracking/requests?${params.toString()}`,
+        { cache: 'no-store' }
       );
 
       if (!response.ok) {
@@ -70,7 +71,8 @@ export function useAvailableUsers({
     queryKey: ['time-tracking-requests-users', wsId],
     queryFn: async () => {
       const response = await fetch(
-        `/api/v1/workspaces/${wsId}/time-tracking/requests/users`
+        `/api/v1/workspaces/${wsId}/time-tracking/requests/users`,
+        { cache: 'no-store' }
       );
 
       if (!response.ok) {
@@ -100,7 +102,8 @@ export function useRequestDetail({
     queryKey: ['time-tracking-request', wsId, requestId],
     queryFn: async () => {
       const response = await fetch(
-        `/api/v1/workspaces/${wsId}/time-tracking/requests/${requestId}`
+        `/api/v1/workspaces/${wsId}/time-tracking/requests/${requestId}`,
+        { cache: 'no-store' }
       );
 
       if (!response.ok) {

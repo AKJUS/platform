@@ -226,7 +226,9 @@ export function SchedulingDialog({
     queryKey: ['task-personal-schedule', task?.id, open],
     enabled: open && !!task?.id,
     queryFn: async () => {
-      const res = await fetch(`/api/v1/users/me/tasks/${task!.id}/schedule`);
+      const res = await fetch(`/api/v1/users/me/tasks/${task!.id}/schedule`, {
+        cache: 'no-store',
+      });
       if (!res.ok) return null;
       return (await res.json()) as null | {
         task: {

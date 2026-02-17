@@ -64,7 +64,9 @@ export function RequireWorkspaceTimezoneDialog({
   const settingsQuery = useQuery({
     queryKey: ['workspace-calendar-settings', wsId],
     queryFn: async () => {
-      const res = await fetch(`/api/v1/workspaces/${wsId}/calendar-settings`);
+      const res = await fetch(`/api/v1/workspaces/${wsId}/calendar-settings`, {
+        cache: 'no-store',
+      });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
         const message =
@@ -87,7 +89,9 @@ export function RequireWorkspaceTimezoneDialog({
   const e2eeQuery = useQuery<E2EEStatus>({
     queryKey: ['workspace-e2ee-status', wsId],
     queryFn: async (): Promise<E2EEStatus> => {
-      const res = await fetch(`/api/v1/workspaces/${wsId}/encryption`);
+      const res = await fetch(`/api/v1/workspaces/${wsId}/encryption`, {
+        cache: 'no-store',
+      });
       if (!res.ok) {
         const errorText = await res.text().catch(() => 'Unknown error');
         console.error(

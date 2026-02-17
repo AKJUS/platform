@@ -16,7 +16,9 @@ export function useAiCredits(wsId: string | undefined) {
     queryKey: [AI_CREDITS_QUERY_KEY, wsId],
     queryFn: async () => {
       if (!wsId) return null;
-      const response = await fetch(`/api/v1/workspaces/${wsId}/ai/credits`);
+      const response = await fetch(`/api/v1/workspaces/${wsId}/ai/credits`, {
+        cache: 'no-store',
+      });
       if (!response.ok) return null;
       return response.json();
     },

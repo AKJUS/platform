@@ -54,7 +54,8 @@ export function useNotificationPreferences({
     queryKey: ['notification-preferences', wsId],
     queryFn: async () => {
       const response = await fetch(
-        `/api/v1/notifications/preferences?wsId=${wsId}`
+        `/api/v1/notifications/preferences?wsId=${wsId}`,
+        { cache: 'no-store' }
       );
       if (!response.ok) {
         throw new Error('Failed to fetch notification preferences');

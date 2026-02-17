@@ -102,7 +102,8 @@ export function MonthlyTotalChartClient({
         includeConfidential: String(includeConfidential),
       });
       const res = await fetch(
-        `/api/workspaces/${wsId}/finance/charts/monthly?${params}`
+        `/api/workspaces/${wsId}/finance/charts/monthly?${params}`,
+        { cache: 'no-store' }
       );
       if (!res.ok) throw new Error('Failed to fetch monthly chart data');
       return res.json();
@@ -123,7 +124,8 @@ export function MonthlyTotalChartClient({
         includeConfidential: String(includeConfidential),
       });
       const res = await fetch(
-        `/api/workspaces/${wsId}/finance/charts/balance?${params}`
+        `/api/workspaces/${wsId}/finance/charts/balance?${params}`,
+        { cache: 'no-store' }
       );
       if (!res.ok) throw new Error('Failed to fetch opening balance');
       return res.json();
@@ -144,7 +146,8 @@ export function MonthlyTotalChartClient({
         includeConfidential: String(includeConfidential),
       });
       const res = await fetch(
-        `/api/workspaces/${wsId}/finance/charts/balance?${params}`
+        `/api/workspaces/${wsId}/finance/charts/balance?${params}`,
+        { cache: 'no-store' }
       );
       if (!res.ok) throw new Error('Failed to fetch closing balance');
       return res.json();

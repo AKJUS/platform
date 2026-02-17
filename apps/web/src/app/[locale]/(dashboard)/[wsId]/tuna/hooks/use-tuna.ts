@@ -35,7 +35,7 @@ export const tunaKeys = {
 
 // Fetch pet data
 async function fetchTunaPet(): Promise<TunaPetResponse> {
-  const res = await fetch('/api/v1/tuna/pet');
+  const res = await fetch('/api/v1/tuna/pet', { cache: 'no-store' });
   if (!res.ok) {
     throw new Error('Failed to fetch pet');
   }

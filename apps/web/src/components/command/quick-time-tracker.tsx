@@ -74,7 +74,8 @@ export function QuickTimeTracker({
     queryKey: ['running-time-session', wsId],
     queryFn: async () => {
       const response = await fetch(
-        `/api/v1/workspaces/${wsId}/time-tracking/sessions?type=running`
+        `/api/v1/workspaces/${wsId}/time-tracking/sessions?type=running`,
+        { cache: 'no-store' }
       );
       if (!response.ok) throw new Error('Failed to fetch running session');
       const data = await response.json();
@@ -108,7 +109,8 @@ export function QuickTimeTracker({
     queryKey: ['recent-time-sessions', wsId],
     queryFn: async () => {
       const response = await fetch(
-        `/api/v1/workspaces/${wsId}/time-tracking/sessions?type=recent&limit=1`
+        `/api/v1/workspaces/${wsId}/time-tracking/sessions?type=recent&limit=1`,
+        { cache: 'no-store' }
       );
       if (!response.ok) throw new Error('Failed to fetch recent sessions');
       const data = await response.json();
@@ -123,7 +125,8 @@ export function QuickTimeTracker({
     queryKey: ['next-task-preview', wsId],
     queryFn: async () => {
       const response = await fetch(
-        `/api/v1/workspaces/${wsId}/tasks?limit=100`
+        `/api/v1/workspaces/${wsId}/tasks?limit=100`,
+        { cache: 'no-store' }
       );
       if (!response.ok) throw new Error('Failed to fetch tasks');
       const data = await response.json();
@@ -141,7 +144,8 @@ export function QuickTimeTracker({
     queryKey: ['boards-list', wsId],
     queryFn: async () => {
       const response = await fetch(
-        `/api/v1/workspaces/${wsId}/boards-with-lists`
+        `/api/v1/workspaces/${wsId}/boards-with-lists`,
+        { cache: 'no-store' }
       );
       if (!response.ok) throw new Error('Failed to fetch boards');
       const data = await response.json();
@@ -156,7 +160,8 @@ export function QuickTimeTracker({
     queryKey: ['all-tasks', wsId],
     queryFn: async () => {
       const response = await fetch(
-        `/api/v1/workspaces/${wsId}/tasks?limit=200`
+        `/api/v1/workspaces/${wsId}/tasks?limit=200`,
+        { cache: 'no-store' }
       );
       if (!response.ok) throw new Error('Failed to fetch tasks');
       const data = await response.json();

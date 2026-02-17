@@ -141,7 +141,8 @@ export function TaskDialogManager({ wsId }: { wsId: string }) {
     queryKey: ['user-config', 'TASK_DRAFT_MODE_ENABLED'],
     queryFn: async () => {
       const res = await fetch(
-        '/api/v1/users/me/configs/TASK_DRAFT_MODE_ENABLED'
+        '/api/v1/users/me/configs/TASK_DRAFT_MODE_ENABLED',
+        { cache: 'no-store' }
       );
       if (!res.ok) return 'false';
       const data = await res.json();

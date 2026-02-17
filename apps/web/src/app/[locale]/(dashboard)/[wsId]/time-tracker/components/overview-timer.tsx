@@ -32,7 +32,8 @@ export default function OverviewTimer({
     queryKey: ['running-time-session', wsId, userId],
     queryFn: async () => {
       const response = await fetch(
-        `/api/v1/workspaces/${wsId}/time-tracking/sessions?type=running`
+        `/api/v1/workspaces/${wsId}/time-tracking/sessions?type=running`,
+        { cache: 'no-store' }
       );
       if (!response.ok) throw new Error('Failed to fetch running session');
       const data = await response.json();

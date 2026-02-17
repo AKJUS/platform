@@ -93,7 +93,9 @@ export function useE2EE(workspaceId: string): UseE2EEReturn {
   } = useQuery<E2EEStatus>({
     queryKey,
     queryFn: async (): Promise<E2EEStatus> => {
-      const res = await fetch(`/api/v1/workspaces/${workspaceId}/encryption`);
+      const res = await fetch(`/api/v1/workspaces/${workspaceId}/encryption`, {
+        cache: 'no-store',
+      });
       if (!res.ok) return { status: 'unknown' };
 
       const data = await res.json();

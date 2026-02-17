@@ -91,7 +91,9 @@ export function QuickTaskDialog({
   const { data: boardsData, isLoading: isLoadingBoards } = useQuery({
     queryKey: ['boards-with-lists', wsId],
     queryFn: async () => {
-      const response = await fetch(`/api/v1/workspaces/${wsId}/boards`);
+      const response = await fetch(`/api/v1/workspaces/${wsId}/boards`, {
+        cache: 'no-store',
+      });
       if (!response.ok) {
         throw new Error('Failed to fetch boards');
       }

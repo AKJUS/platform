@@ -94,7 +94,8 @@ export function RequestDetailModal({
         limit: String(activityItemsPerPage),
       });
       const res = await fetch(
-        `/api/v1/workspaces/${wsId}/time-tracking/requests/${request.id}/activity?${params}`
+        `/api/v1/workspaces/${wsId}/time-tracking/requests/${request.id}/activity?${params}`,
+        { cache: 'no-store' }
       );
       if (!res.ok) throw new Error('Failed to fetch activity');
       const json = await res.json();

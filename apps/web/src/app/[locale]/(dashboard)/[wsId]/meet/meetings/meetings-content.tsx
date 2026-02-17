@@ -87,7 +87,8 @@ export function MeetingsContent({
     queryKey: ['meetings', wsId, currentPage, pageSize, searchTerm],
     queryFn: async () => {
       const response = await fetch(
-        `/api/v1/workspaces/${wsId}/meetings?page=${currentPage}&pageSize=${pageSize}&search=${searchTerm}`
+        `/api/v1/workspaces/${wsId}/meetings?page=${currentPage}&pageSize=${pageSize}&search=${searchTerm}`,
+        { cache: 'no-store' }
       );
       if (!response.ok) {
         throw new Error('Failed to fetch meetings');

@@ -111,7 +111,8 @@ async function fetchMembers(
   }
 
   const res = await fetch(
-    `/api/workspaces/${workspaceId}/members/enhanced?${params.toString()}`
+    `/api/workspaces/${workspaceId}/members/enhanced?${params.toString()}`,
+    { cache: 'no-store' }
   );
 
   if (!res.ok) {

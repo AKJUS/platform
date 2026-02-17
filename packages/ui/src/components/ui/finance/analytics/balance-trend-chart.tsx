@@ -84,7 +84,8 @@ export function BalanceTrendChart({
       });
 
       const res = await fetch(
-        `/api/workspaces/${wsId}/finance/charts/balance?${params}`
+        `/api/workspaces/${wsId}/finance/charts/balance?${params}`,
+        { cache: 'no-store' }
       );
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
@@ -99,7 +100,8 @@ export function BalanceTrendChart({
       dailyParams.set('includeConfidential', String(includeConfidential));
 
       const dailyRes = await fetch(
-        `/api/workspaces/${wsId}/finance/charts/daily?${dailyParams}`
+        `/api/workspaces/${wsId}/finance/charts/daily?${dailyParams}`,
+        { cache: 'no-store' }
       );
       if (!dailyRes.ok) {
         const errorData = await dailyRes.json().catch(() => ({}));

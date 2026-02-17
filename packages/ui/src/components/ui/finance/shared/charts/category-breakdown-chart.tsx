@@ -304,7 +304,8 @@ export function CategoryBreakdownChart({
         params.set('endDate', dateRange.endDate);
       }
       const res = await fetch(
-        `/api/workspaces/${wsId}/finance/charts/categories?${params}`
+        `/api/workspaces/${wsId}/finance/charts/categories?${params}`,
+        { cache: 'no-store' }
       );
       if (!res.ok) throw new Error('Failed to fetch category breakdown');
       return res.json();

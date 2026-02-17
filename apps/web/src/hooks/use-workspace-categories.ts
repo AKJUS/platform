@@ -20,7 +20,8 @@ export function useWorkspaceCategories({
       if (!wsId) return [];
 
       const response = await fetch(
-        `/api/v1/workspaces/${wsId}/time-tracking/categories`
+        `/api/v1/workspaces/${wsId}/time-tracking/categories`,
+        { cache: 'no-store' }
       );
       if (!response.ok) {
         throw new Error('Failed to fetch categories');

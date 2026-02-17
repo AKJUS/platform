@@ -12,7 +12,9 @@ export function useExchangeRates() {
   return useQuery<ExchangeRatesResponse>({
     queryKey: ['exchange-rates', 'latest'],
     queryFn: async () => {
-      const res = await fetch('/api/v1/exchange-rates');
+      const res = await fetch('/api/v1/exchange-rates', {
+        cache: 'no-store',
+      });
       if (!res.ok) throw new Error('Failed to fetch exchange rates');
       return res.json();
     },

@@ -322,7 +322,8 @@ export const CalendarSyncProvider = ({
 
       try {
         const response = await fetch(
-          `/api/v1/workspaces/${wsId}/calendar/events?start_at=${startDate.toISOString()}&end_at=${endDate.add(1, 'day').toISOString()}`
+          `/api/v1/workspaces/${wsId}/calendar/events?start_at=${startDate.toISOString()}&end_at=${endDate.add(1, 'day').toISOString()}`,
+          { cache: 'no-store' }
         );
 
         if (!response.ok) {
@@ -395,7 +396,8 @@ export const CalendarSyncProvider = ({
       const endDate = dayjs(dates[dates.length - 1]).endOf('day');
 
       const response = await fetch(
-        `/api/v1/calendar/auth/fetch?wsId=${wsId}&startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`
+        `/api/v1/calendar/auth/fetch?wsId=${wsId}&startDate=${startDate.toISOString()}&endDate=${endDate.toISOString()}`,
+        { cache: 'no-store' }
       );
       const googleResponse = await response.json();
 

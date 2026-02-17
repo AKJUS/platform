@@ -33,7 +33,7 @@ DROP CONSTRAINT IF EXISTS tasks_description_bytes_check;
 
 ALTER TABLE public.tasks
 ADD CONSTRAINT tasks_name_bytes_check CHECK (octet_length(name) <= 1020),
-ADD CONSTRAINT tasks_description_bytes_check CHECK (octet_length(description) <= 40000);
+ADD CONSTRAINT tasks_description_bytes_check CHECK (octet_length(description) <= 400000);
 
 -- 5. AI Chat Messages table
 ALTER TABLE public.ai_chat_messages

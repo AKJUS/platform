@@ -59,7 +59,8 @@ export default function AnalyticsPage({
       params.set('includeConfidential', String(filters.includeConfidential));
 
       const res = await fetch(
-        `/api/workspaces/${wsId}/finance/charts/daily?${params}`
+        `/api/workspaces/${wsId}/finance/charts/daily?${params}`,
+        { cache: 'no-store' }
       );
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
@@ -94,7 +95,8 @@ export default function AnalyticsPage({
       params.set('includeConfidential', String(filters.includeConfidential));
 
       const res = await fetch(
-        `/api/workspaces/${wsId}/finance/charts/monthly?${params}`
+        `/api/workspaces/${wsId}/finance/charts/monthly?${params}`,
+        { cache: 'no-store' }
       );
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));

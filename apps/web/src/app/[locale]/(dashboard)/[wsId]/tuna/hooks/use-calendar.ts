@@ -14,7 +14,9 @@ async function fetchTunaCalendar(wsId: string): Promise<TunaCalendarResponse> {
   const params = new URLSearchParams();
   params.set('wsId', wsId);
 
-  const res = await fetch(`/api/v1/tuna/calendar?${params.toString()}`);
+  const res = await fetch(`/api/v1/tuna/calendar?${params.toString()}`, {
+    cache: 'no-store',
+  });
   if (!res.ok) {
     throw new Error('Failed to fetch calendar events');
   }

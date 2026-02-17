@@ -248,7 +248,9 @@ export function TaskEditDialog({
   const { data: userTaskSettings } = useQuery({
     queryKey: ['user-task-settings'],
     queryFn: async () => {
-      const res = await fetch('/api/v1/users/task-settings');
+      const res = await fetch('/api/v1/users/task-settings', {
+        cache: 'no-store',
+      });
       if (!res.ok) return { task_auto_assign_to_self: false };
       return res.json() as Promise<{ task_auto_assign_to_self: boolean }>;
     },
@@ -409,7 +411,8 @@ export function TaskEditDialog({
     enabled: !!isOpen && !isCreateMode && !!task?.id,
     queryFn: async () => {
       const response = await fetch(
-        `/api/v1/users/me/tasks/${task!.id}/schedule`
+        `/api/v1/users/me/tasks/${task!.id}/schedule`,
+        { cache: 'no-store' }
       );
       if (!response.ok) return null;
       return (await response.json()) as null | {

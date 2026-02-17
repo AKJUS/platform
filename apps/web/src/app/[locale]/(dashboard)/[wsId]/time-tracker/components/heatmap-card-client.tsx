@@ -28,7 +28,8 @@ export function HeatmapCardClient({
     queryKey: ['time-tracker-stats', wsId, userId, userTimezone, 'heatmap'],
     queryFn: async () => {
       const response = await fetch(
-        `/api/v1/workspaces/${wsId}/time-tracker/stats?userId=${userId}&isPersonal=${isPersonal}&timezone=${userTimezone}&daysBack=365`
+        `/api/v1/workspaces/${wsId}/time-tracker/stats?userId=${userId}&isPersonal=${isPersonal}&timezone=${userTimezone}&daysBack=365`,
+        { cache: 'no-store' }
       );
       if (!response.ok) throw new Error('Failed to fetch stats');
       return response.json() as Promise<{
