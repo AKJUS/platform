@@ -24,6 +24,7 @@ function formatCredits(value: number): string {
 }
 
 function getProgressColor(percentUsed: number): string {
+  if (percentUsed >= 100) return 'bg-dynamic-red';
   if (percentUsed >= 90) return 'bg-dynamic-red';
   if (percentUsed >= 75) return 'bg-dynamic-orange';
   if (percentUsed >= 50) return 'bg-dynamic-yellow';
@@ -31,6 +32,7 @@ function getProgressColor(percentUsed: number): string {
 }
 
 function getTextColor(percentUsed: number): string {
+  if (percentUsed >= 100) return 'text-dynamic-red';
   if (percentUsed >= 90) return 'text-dynamic-red';
   if (percentUsed >= 75) return 'text-dynamic-orange';
   return 'text-dynamic-purple';
@@ -50,10 +52,13 @@ export function AiCreditIndicator({ wsId }: AiCreditIndicatorProps) {
     );
   }
 
-  const percentUsed = Math.min(credits.percentUsed, 100);
-  const remaining = Math.max(credits.remaining, 0);
-  const isExhausted = remaining <= 0;
-  const progressWidth = 100 - percentUsed;
+  const isOverdrawn = credits.remaining < 0;
+  const percentUsed = credits.percentUsed;
+  // Clamp display values — progress bar and remaining should not go below 0
+  const displayRemaining = Math.max(credits.remaining, 0);
+  const isExhausted = displayRemaining <= 0;
+  // Progress bar: clamp the "remaining" width to [0, 100]
+  const progressWidth = Math.max(0, 100 - Math.min(percentUsed, 100));
 
   return (
     <TooltipProvider>
@@ -79,14 +84,28 @@ export function AiCreditIndicator({ wsId }: AiCreditIndicatorProps) {
             </div>
             <span className={cn('font-medium', getTextColor(percentUsed))}>
               {isExhausted
-                ? t('ai-credits.exhausted')
-                : formatCredits(remaining)}
+                ? isOverdrawn
+                  ? `${Math.round(percentUsed)}%`
+                  : t('ai-credits.exhausted')
+                : formatCredits(displayRemaining)}
             </span>
           </div>
         </TooltipTrigger>
         <TooltipContent className="max-w-64">
           {isExhausted ? (
-            <p>{t('ai-credits.exhausted_tooltip')}</p>
+            <div className="space-y-1">
+              <p>{t('ai-credits.exhausted_tooltip')}</p>
+              {isOverdrawn && (
+                <p className="text-dynamic-red">
+                  {t('ai-credits.usage_tooltip', {
+                    used: formatCredits(credits.totalUsed),
+                    total: formatCredits(
+                      credits.totalAllocated + credits.bonusCredits
+                    ),
+                  })}
+                </p>
+              )}
+            </div>
           ) : (
             <div className="space-y-1">
               <p>

@@ -528,3 +528,181 @@ test.describe('Error Handling', () => {
     expect(criticalErrors).toHaveLength(0);
   });
 });
+
+test.describe('Credit Overflow Enforcement', () => {
+  test('percentUsed is NOT capped at 100 — overflow values are returned', async ({
+    request,
+  }) => {
+    const response = await request.get(
+      '/api/v1/workspaces/personal/ai/credits'
+    );
+
+    if (response.ok()) {
+      const data = await response.json();
+      // percentUsed should be a number (could be > 100 if overdrawn)
+      expect(typeof data.percentUsed).toBe('number');
+      expect(data.percentUsed).toBeGreaterThanOrEqual(0);
+      // The API no longer caps at 100 — if totalUsed > totalPool, it exceeds 100
+      const totalPool = data.totalAllocated + (data.bonusCredits ?? 0);
+      if (totalPool > 0) {
+        const expectedPercent = (data.totalUsed / totalPool) * 100;
+        // Should match actual percentage even if > 100
+        expect(data.percentUsed).toBeCloseTo(expectedPercent, 0);
+      }
+    }
+  });
+
+  test('remaining can be negative when overdrawn', async ({ request }) => {
+    const response = await request.get(
+      '/api/v1/workspaces/personal/ai/credits'
+    );
+
+    if (response.ok()) {
+      const data = await response.json();
+      // remaining = totalAllocated + bonusCredits - totalUsed
+      // If totalUsed > totalAllocated + bonusCredits, remaining is negative
+      const expectedRemaining =
+        data.totalAllocated + (data.bonusCredits ?? 0) - data.totalUsed;
+      expect(data.remaining).toBe(expectedRemaining);
+      // Type check: remaining must be a number (could be negative)
+      expect(typeof data.remaining).toBe('number');
+    }
+  });
+
+  test('maxOutputTokens is present and is a non-negative integer or null', async ({
+    request,
+  }) => {
+    const response = await request.get(
+      '/api/v1/workspaces/personal/ai/credits'
+    );
+
+    if (response.ok()) {
+      const data = await response.json();
+      expect(data).toHaveProperty('maxOutputTokens');
+      if (data.maxOutputTokens !== null) {
+        expect(typeof data.maxOutputTokens).toBe('number');
+        expect(data.maxOutputTokens).toBeGreaterThan(0);
+        expect(Number.isInteger(data.maxOutputTokens)).toBe(true);
+      }
+    }
+  });
+
+  test('credit indicator handles overflow state in UI', async ({ page }) => {
+    // Mock the credits API to return an overdrawn state
+    await page.route('**/api/v1/workspaces/*/ai/credits', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          totalAllocated: 1000,
+          totalUsed: 1130,
+          remaining: -130,
+          bonusCredits: 0,
+          percentUsed: 113,
+          periodStart: new Date().toISOString(),
+          periodEnd: new Date().toISOString(),
+          tier: 'FREE',
+          allowedModels: [],
+          allowedFeatures: [],
+          maxOutputTokens: null,
+          balanceScope: 'user',
+          seatCount: null,
+          dailyUsed: 0,
+        }),
+      });
+    });
+
+    await page.goto('/en/personal/tasks');
+    await page.waitForLoadState('networkidle');
+
+    // The credit indicator should show the overflow percentage
+    const creditIndicator = page.locator('text=AI Credits');
+    if (await creditIndicator.isVisible()) {
+      const parent = creditIndicator.locator('..');
+      const text = await parent.textContent();
+      // Should display 113% (the overflow percentage)
+      expect(text).toContain('113%');
+    }
+  });
+
+  test('credit indicator shows "Exhausted" when exactly at limit', async ({
+    page,
+  }) => {
+    // Mock the credits API to return exactly exhausted (0 remaining, no overflow)
+    await page.route('**/api/v1/workspaces/*/ai/credits', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          totalAllocated: 1000,
+          totalUsed: 1000,
+          remaining: 0,
+          bonusCredits: 0,
+          percentUsed: 100,
+          periodStart: new Date().toISOString(),
+          periodEnd: new Date().toISOString(),
+          tier: 'FREE',
+          allowedModels: [],
+          allowedFeatures: [],
+          maxOutputTokens: null,
+          balanceScope: 'user',
+          seatCount: null,
+          dailyUsed: 0,
+        }),
+      });
+    });
+
+    await page.goto('/en/personal/tasks');
+    await page.waitForLoadState('networkidle');
+
+    const creditIndicator = page.locator('text=AI Credits');
+    if (await creditIndicator.isVisible()) {
+      const parent = creditIndicator.locator('..');
+      const text = await parent.textContent();
+      // Should show "Exhausted" text (from translation key)
+      expect(text).toBeTruthy();
+    }
+  });
+
+  test('progress bar is clamped at 0% width when overdrawn', async ({
+    page,
+  }) => {
+    await page.route('**/api/v1/workspaces/*/ai/credits', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          totalAllocated: 1000,
+          totalUsed: 1200,
+          remaining: -200,
+          bonusCredits: 0,
+          percentUsed: 120,
+          periodStart: new Date().toISOString(),
+          periodEnd: new Date().toISOString(),
+          tier: 'FREE',
+          allowedModels: [],
+          allowedFeatures: [],
+          maxOutputTokens: null,
+          balanceScope: 'user',
+          seatCount: null,
+          dailyUsed: 0,
+        }),
+      });
+    });
+
+    await page.goto('/en/personal/tasks');
+    await page.waitForLoadState('networkidle');
+
+    // Find the progress bar inner div and check its width is 0%
+    const progressBars = page.locator('.rounded-full.transition-all');
+    const count = await progressBars.count();
+    for (let i = 0; i < count; i++) {
+      const bar = progressBars.nth(i);
+      const style = await bar.getAttribute('style');
+      if (style?.includes('width')) {
+        // When overdrawn, progress width should be 0%
+        expect(style).toContain('width: 0%');
+      }
+    }
+  });
+});

@@ -1,3 +1,7 @@
+export {
+  capMaxOutputTokensByCredits,
+  computeAffordableTokens,
+} from './cap-output-tokens';
 export { checkAiCredits, deductAiCredits } from './check-credits';
 export {
   AI_FEATURES,

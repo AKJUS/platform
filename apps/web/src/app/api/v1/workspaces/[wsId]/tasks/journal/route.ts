@@ -1,3 +1,4 @@
+import { capMaxOutputTokensByCredits } from '@tuturuuu/ai/credits/cap-output-tokens';
 import {
   checkAiCredits,
   deductAiCredits,
@@ -5,7 +6,10 @@ import {
 import type { CreditCheckResult } from '@tuturuuu/ai/credits/types';
 import { quickJournalTaskSchema } from '@tuturuuu/ai/object/types';
 import type { TypedSupabaseClient } from '@tuturuuu/supabase/next/client';
-import { createClient } from '@tuturuuu/supabase/next/server';
+import {
+  createAdminClient,
+  createClient,
+} from '@tuturuuu/supabase/next/server';
 import {
   isTaskPriority,
   TaskPriorities,
@@ -625,10 +629,31 @@ export async function POST(
 
     if (shouldInvokeAI) {
       try {
+        // Apply credit-budget cap on maxOutputTokens (defense-in-depth)
+        let cappedMaxOutput = creditCheck?.maxOutputTokens ?? null;
+        if (creditCheck) {
+          const sbAdmin = await createAdminClient();
+          cappedMaxOutput = await capMaxOutputTokensByCredits(
+            sbAdmin,
+            'gemini-2.5-flash-lite',
+            creditCheck.maxOutputTokens,
+            creditCheck.remainingCredits
+          );
+          if (cappedMaxOutput === null && creditCheck.remainingCredits <= 0) {
+            return NextResponse.json(
+              {
+                error: 'AI credits insufficient',
+                code: 'CREDITS_EXHAUSTED',
+              },
+              { status: 403 }
+            );
+          }
+        }
+
         const result = await generateAiTasks(
           systemPrompt,
           trimmedEntry,
-          creditCheck?.maxOutputTokens
+          cappedMaxOutput
         );
         aiTasks = result.tasks;
 

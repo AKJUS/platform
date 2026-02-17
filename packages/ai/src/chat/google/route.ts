@@ -1,3 +1,4 @@
+import { capMaxOutputTokensByCredits } from '@tuturuuu/ai/credits/cap-output-tokens';
 import {
   checkAiCredits,
   deductAiCredits,
@@ -418,14 +419,32 @@ export function createPOST(
         );
       }
 
+      // Apply credit-budget cap on maxOutputTokens (defense-in-depth)
+      const cappedMaxOutput = creditCheck
+        ? await capMaxOutputTokensByCredits(
+            sbAdmin,
+            model,
+            creditCheck.maxOutputTokens,
+            creditCheck.remainingCredits
+          )
+        : null;
+      if (
+        cappedMaxOutput === null &&
+        creditCheck &&
+        creditCheck.remainingCredits <= 0
+      ) {
+        return NextResponse.json(
+          { error: 'AI credits insufficient', code: 'CREDITS_EXHAUSTED' },
+          { status: 403 }
+        );
+      }
+
       const result = streamText({
         experimental_transform: smoothStream(),
         model: gateway(`google/${model}`),
         messages: processedMessages,
         system: systemInstruction,
-        ...(creditCheck?.maxOutputTokens
-          ? { maxOutputTokens: creditCheck.maxOutputTokens }
-          : {}),
+        ...(cappedMaxOutput ? { maxOutputTokens: cappedMaxOutput } : {}),
         providerOptions: {
           google: {
             safetySettings: [

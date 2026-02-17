@@ -27,7 +27,7 @@ export function useAiCredits(wsId: string | undefined) {
 
 /**
  * Returns whether a specific AI feature can be used by the workspace.
- * Checks remaining credits and feature access from the credit status.
+ * Checks remaining credits, overflow status, and feature access.
  */
 export function useCanUseAiFeature(
   wsId: string | undefined,
@@ -36,8 +36,13 @@ export function useCanUseAiFeature(
 ) {
   const { data: credits, isLoading } = useAiCredits(wsId);
 
+  const isOverdrawn = useMemo(
+    () => (credits ? credits.remaining < 0 : false),
+    [credits]
+  );
+
   const canUse = useMemo(() => {
-    if (!credits) return true; // Fail-open while loading
+    if (!credits) return null; // null = loading/unknown, let consumer decide
     if (credits.remaining <= 0) return false;
     if (
       credits.allowedFeatures.length > 0 &&
@@ -55,7 +60,7 @@ export function useCanUseAiFeature(
     return true;
   }, [credits, feature, modelId]);
 
-  return { canUse, isLoading, credits };
+  return { canUse, isLoading, credits, isOverdrawn };
 }
 
 export { AI_CREDITS_QUERY_KEY };

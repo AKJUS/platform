@@ -138,7 +138,7 @@ export async function GET(
       totalUsed,
       remaining,
       bonusCredits,
-      percentUsed: Math.min(percentUsed, 100),
+      percentUsed,
       periodStart: balance.period_start,
       periodEnd: balance.period_end,
       tier,
