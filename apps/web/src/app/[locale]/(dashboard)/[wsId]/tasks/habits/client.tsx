@@ -39,7 +39,9 @@ export default function HabitsClientPage({ wsId }: HabitsClientPageProps) {
   } = useQuery({
     queryKey: ['habits', wsId],
     queryFn: async () => {
-      const response = await fetch(`/api/v1/workspaces/${wsId}/habits`);
+      const response = await fetch(`/api/v1/workspaces/${wsId}/habits`, {
+        cache: 'no-store',
+      });
       if (!response.ok) {
         throw new Error('Failed to fetch habits');
       }

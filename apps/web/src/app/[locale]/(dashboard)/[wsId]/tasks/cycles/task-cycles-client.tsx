@@ -128,7 +128,9 @@ export function TaskCyclesClient({
   } = useQuery<TaskCycle[]>({
     queryKey: ['workspace', wsId, 'task-cycles'],
     queryFn: async () => {
-      const response = await fetch(`/api/v1/workspaces/${wsId}/task-cycles`);
+      const response = await fetch(`/api/v1/workspaces/${wsId}/task-cycles`, {
+        cache: 'no-store',
+      });
       if (!response.ok) throw new Error('Failed to fetch cycles');
       return response.json();
     },
@@ -507,7 +509,7 @@ export function TaskCyclesClient({
                 value={newDescription}
                 onChange={(e) => setNewDescription(e.target.value)}
                 disabled={createMutation.isPending}
-                className="min-h-[80px]"
+                className="min-h-20"
               />
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -667,7 +669,7 @@ export function TaskCyclesClient({
                 value={editDescription}
                 onChange={(e) => setEditDescription(e.target.value)}
                 disabled={updateMutation.isPending}
-                className="min-h-[80px]"
+                className="min-h-20"
               />
             </div>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-3">

@@ -28,7 +28,8 @@ export function useProjectUpdates({
     queryKey: ['project-updates', wsId, projectId],
     queryFn: async () => {
       const response = await fetch(
-        `/api/v1/workspaces/${wsId}/task-projects/${projectId}/updates`
+        `/api/v1/workspaces/${wsId}/task-projects/${projectId}/updates`,
+        { cache: 'no-store' }
       );
       if (!response.ok) {
         throw new Error('Failed to fetch updates');

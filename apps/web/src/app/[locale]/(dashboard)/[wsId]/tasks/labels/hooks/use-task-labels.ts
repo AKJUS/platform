@@ -16,7 +16,9 @@ export function useTaskLabels({ wsId, initialLabels }: UseTaskLabelsProps) {
   const { data: labels = initialLabels } = useQuery({
     queryKey,
     queryFn: async () => {
-      const response = await fetch(`/api/v1/workspaces/${wsId}/labels`);
+      const response = await fetch(`/api/v1/workspaces/${wsId}/labels`, {
+        cache: 'no-store',
+      });
       if (!response.ok) throw new Error('Failed to fetch labels');
       return response.json() as Promise<TaskLabel[]>;
     },
