@@ -247,14 +247,15 @@ describe('Masonry - Lifecycle & Props', () => {
       });
 
       await act(async () => {
-        vi.advanceTimersByTime(500);
+        vi.advanceTimersByTime(150);
       });
 
       vi.useRealTimers();
 
-      // Indices should still be present (values may change with redistribution)
+      // Indices should be stable — same values across redistributions
       const afterIndices = getIndices();
       expect(afterIndices.length).toBe(initialIndices.length);
+      expect(afterIndices.sort()).toEqual(initialIndices.sort());
     });
   });
 

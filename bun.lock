@@ -92,7 +92,7 @@
         "next": "^16.1.6",
         "react": "^19.2.4",
         "react-dom": "^19.2.4",
-        "tuturuuu": "^0.1.1",
+        "tuturuuu": "^0.1.4",
         "zustand": "^5.0.11",
       },
       "devDependencies": {
@@ -823,7 +823,7 @@
     },
     "packages/masonry": {
       "name": "@tuturuuu/masonry",
-      "version": "0.3.10",
+      "version": "0.4.0",
       "dependencies": {
         "react": "^19.2.4",
         "react-dom": "^19.2.4",

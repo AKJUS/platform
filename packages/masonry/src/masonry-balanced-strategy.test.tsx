@@ -184,9 +184,9 @@ describe('Masonry - Balanced Strategy', () => {
         mockResizeObserver.callback?.([mockEntry], {} as ResizeObserver);
       });
 
-      // Advance timers to trigger debounced redistribution (500ms)
+      // Advance timers to trigger debounced redistribution (150ms)
       await act(async () => {
-        vi.advanceTimersByTime(500);
+        vi.advanceTimersByTime(150);
       });
 
       vi.useRealTimers();
@@ -218,7 +218,7 @@ describe('Masonry - Balanced Strategy', () => {
       });
 
       await act(async () => {
-        vi.advanceTimersByTime(500);
+        vi.advanceTimersByTime(150);
       });
 
       // Small change (only 5px)
@@ -277,7 +277,7 @@ describe('Masonry - Balanced Strategy', () => {
       });
 
       await act(async () => {
-        vi.advanceTimersByTime(500);
+        vi.advanceTimersByTime(150);
       });
 
       vi.useRealTimers();
@@ -313,7 +313,7 @@ describe('Masonry - Balanced Strategy', () => {
       });
 
       await act(async () => {
-        vi.advanceTimersByTime(500);
+        vi.advanceTimersByTime(150);
       });
 
       vi.useRealTimers();
@@ -391,7 +391,7 @@ describe('Masonry - Balanced Strategy', () => {
         });
 
         await act(async () => {
-          vi.advanceTimersByTime(500);
+          vi.advanceTimersByTime(150);
         });
       }
 
@@ -413,9 +413,9 @@ describe('Masonry - Balanced Strategy', () => {
         </Masonry>
       );
 
-      // Wait for stability timeout (2000ms)
+      // Wait for stability timeout (1500ms)
       await act(async () => {
-        vi.advanceTimersByTime(2500);
+        vi.advanceTimersByTime(2000);
       });
 
       vi.useRealTimers();
@@ -451,7 +451,7 @@ describe('Masonry - Balanced Strategy', () => {
       });
 
       await act(async () => {
-        vi.advanceTimersByTime(500);
+        vi.advanceTimersByTime(150);
       });
 
       vi.useRealTimers();
@@ -484,7 +484,7 @@ describe('Masonry - Balanced Strategy', () => {
       });
 
       await act(async () => {
-        vi.advanceTimersByTime(500);
+        vi.advanceTimersByTime(150);
       });
 
       vi.useRealTimers();

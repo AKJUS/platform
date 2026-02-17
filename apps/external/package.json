@@ -34,7 +34,7 @@
     "next": "^16.1.6",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "tuturuuu": "^0.1.1",
+    "tuturuuu": "^0.1.4",
     "zustand": "^5.0.11"
   },
   "devDependencies": {

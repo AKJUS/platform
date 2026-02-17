@@ -288,7 +288,7 @@ describe('Masonry - Image Loading Detection', () => {
         });
       }
 
-      // Wait for cleanup timeout (1000ms + stability check 2000ms)
+      // Wait for cleanup timeout (1000ms + stability check 1500ms)
       await act(async () => {
         vi.advanceTimersByTime(3500);
       });
@@ -324,7 +324,7 @@ describe('Masonry - Image Loading Detection', () => {
         });
       }
 
-      // Advance past cleanup timeout (1000ms + stability 2000ms)
+      // Advance past cleanup timeout (1000ms + stability 1500ms)
       await act(async () => {
         vi.advanceTimersByTime(3500);
       });
@@ -360,7 +360,7 @@ describe('Masonry - Image Loading Detection', () => {
 
       // Before cleanup timeout
       await act(async () => {
-        vi.advanceTimersByTime(500);
+        vi.advanceTimersByTime(150);
       });
 
       // Observer might still be active for potential reflows
@@ -434,7 +434,7 @@ describe('Masonry - Image Loading Detection', () => {
       });
 
       await act(async () => {
-        vi.advanceTimersByTime(500);
+        vi.advanceTimersByTime(150);
       });
 
       // Observer should still be active (not all images loaded)

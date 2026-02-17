@@ -188,7 +188,7 @@ describe('Masonry - ResizeObserver Lifecycle', () => {
   });
 
   describe('Debounce Mechanism', () => {
-    it('debounces rapid resize events (500ms)', async () => {
+    it('debounces rapid resize events (150ms)', async () => {
       vi.useFakeTimers();
 
       const { container } = render(
@@ -222,7 +222,7 @@ describe('Masonry - ResizeObserver Lifecycle', () => {
 
       // Advance past debounce time
       await act(async () => {
-        vi.advanceTimersByTime(500);
+        vi.advanceTimersByTime(150);
       });
 
       vi.useRealTimers();
@@ -293,12 +293,12 @@ describe('Masonry - ResizeObserver Lifecycle', () => {
 
       // Advance past redistribution debounce
       await act(async () => {
-        vi.advanceTimersByTime(500);
+        vi.advanceTimersByTime(150);
       });
 
-      // Advance to stability check time (2000ms)
+      // Advance to stability check time (1500ms)
       await act(async () => {
-        vi.advanceTimersByTime(2000);
+        vi.advanceTimersByTime(1500);
       });
 
       vi.useRealTimers();
@@ -332,9 +332,9 @@ describe('Masonry - ResizeObserver Lifecycle', () => {
         );
       });
 
-      // Advance 1.5 seconds (before stability)
+      // Advance 1 second (before stability timeout of 1500ms)
       await act(async () => {
-        vi.advanceTimersByTime(1500);
+        vi.advanceTimersByTime(1000);
       });
 
       // Second resize event - should reset stability timer
@@ -392,7 +392,7 @@ describe('Masonry - ResizeObserver Lifecycle', () => {
       });
 
       await act(async () => {
-        vi.advanceTimersByTime(500);
+        vi.advanceTimersByTime(150);
       });
 
       // Change by more than 10px
@@ -412,7 +412,7 @@ describe('Masonry - ResizeObserver Lifecycle', () => {
       });
 
       await act(async () => {
-        vi.advanceTimersByTime(500);
+        vi.advanceTimersByTime(150);
       });
 
       vi.useRealTimers();
@@ -447,7 +447,7 @@ describe('Masonry - ResizeObserver Lifecycle', () => {
       });
 
       await act(async () => {
-        vi.advanceTimersByTime(500);
+        vi.advanceTimersByTime(150);
       });
 
       // Change by only 8px
@@ -595,9 +595,9 @@ describe('Masonry - ResizeObserver Lifecycle', () => {
         );
       });
 
-      // Second change during debounce (within 500ms)
+      // Second change during debounce (within 150ms)
       await act(async () => {
-        vi.advanceTimersByTime(200);
+        vi.advanceTimersByTime(50);
       });
 
       act(() => {
@@ -617,7 +617,7 @@ describe('Masonry - ResizeObserver Lifecycle', () => {
 
       // Complete debounce
       await act(async () => {
-        vi.advanceTimersByTime(500);
+        vi.advanceTimersByTime(150);
       });
 
       vi.useRealTimers();
@@ -652,7 +652,7 @@ describe('Masonry - ResizeObserver Lifecycle', () => {
 
       // Should not throw or cause issues
       await act(async () => {
-        vi.advanceTimersByTime(500);
+        vi.advanceTimersByTime(150);
       });
 
       vi.useRealTimers();
