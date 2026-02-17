@@ -3,7 +3,16 @@
 import { Masonry } from '@tuturuuu/masonry';
 import { useState } from 'react';
 
-// Generate 100 items with random heights for better testing
+// Seeded PRNG to avoid hydration mismatch (Math.random differs server vs client)
+function seededRandom(seed: number) {
+  let s = seed;
+  return () => {
+    s = (s * 16807 + 0) % 2147483647;
+    return (s - 1) / 2147483646;
+  };
+}
+
+// Generate 100 items with deterministic varied heights
 const generateItems = (count: number) => {
   const colors = [
     'from-dynamic-blue to-dynamic-blue/80',
@@ -18,11 +27,13 @@ const generateItems = (count: number) => {
     'from-dynamic-pink to-dynamic-pink/80',
   ];
 
+  const random = seededRandom(42);
+
   return Array.from({ length: count }, (_, i) => ({
     id: i + 1,
     title: `Item ${i + 1}`,
     // Vary heights significantly: 150-450px range
-    height: Math.floor(Math.random() * 300) + 150,
+    height: Math.floor(random() * 300) + 150,
     color: colors[i % colors.length],
   }));
 };
