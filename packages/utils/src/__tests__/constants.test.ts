@@ -4,6 +4,22 @@ import {
   GITHUB_REPO,
   INTERNAL_WORKSPACE_SLUG,
   isInternalWorkspaceSlug,
+  MAX_CODE_LENGTH,
+  MAX_COLOR_LENGTH,
+  MAX_DATE_STRING_LENGTH,
+  MAX_ID_LENGTH,
+  MAX_IP_LENGTH,
+  MAX_LONG_TEXT_LENGTH,
+  MAX_MEDIUM_TEXT_LENGTH,
+  MAX_NAME_LENGTH,
+  MAX_OTP_LENGTH,
+  MAX_PAYLOAD_SIZE,
+  MAX_REQUEST_BODY_BYTES,
+  MAX_RICH_TEXT_LENGTH,
+  MAX_SEARCH_LENGTH,
+  MAX_SHORT_TEXT_LENGTH,
+  MAX_TEXT_FIELD_BYTES,
+  MAX_URL_LENGTH,
   MAX_WORKSPACES_FOR_FREE_USERS,
   PERSONAL_WORKSPACE_SLUG,
   ROOT_WORKSPACE_ID,
@@ -237,5 +253,71 @@ describe('Constant relationships', () => {
 
   it('toWorkspaceSlug should return INTERNAL_WORKSPACE_SLUG for ROOT_WORKSPACE_ID', () => {
     expect(toWorkspaceSlug(ROOT_WORKSPACE_ID)).toBe(INTERNAL_WORKSPACE_SLUG);
+  });
+});
+
+describe('Payload protection constants', () => {
+  describe('Generic tier constants order', () => {
+    it('tiers increase in size', () => {
+      const tiers = [
+        MAX_CODE_LENGTH,
+        MAX_OTP_LENGTH,
+        MAX_IP_LENGTH,
+        MAX_COLOR_LENGTH,
+        MAX_DATE_STRING_LENGTH,
+        MAX_SHORT_TEXT_LENGTH,
+        MAX_ID_LENGTH,
+        MAX_NAME_LENGTH,
+        MAX_SEARCH_LENGTH,
+        MAX_MEDIUM_TEXT_LENGTH,
+        MAX_URL_LENGTH,
+        MAX_LONG_TEXT_LENGTH,
+        MAX_RICH_TEXT_LENGTH,
+      ];
+
+      for (let i = 1; i < tiers.length; i++) {
+        expect(tiers[i]).toBeGreaterThanOrEqual(tiers[i - 1]!);
+      }
+    });
+  });
+
+  describe('Payload size relationships', () => {
+    it('MAX_REQUEST_BODY_BYTES >= MAX_PAYLOAD_SIZE', () => {
+      expect(MAX_REQUEST_BODY_BYTES).toBeGreaterThanOrEqual(MAX_PAYLOAD_SIZE);
+    });
+
+    it('MAX_TEXT_FIELD_BYTES covers worst-case emoji (4 bytes × MAX_LONG_TEXT_LENGTH)', () => {
+      expect(MAX_TEXT_FIELD_BYTES).toBeGreaterThanOrEqual(
+        MAX_LONG_TEXT_LENGTH * 4
+      );
+    });
+  });
+
+  describe('All protection constants are positive integers', () => {
+    const constants: Record<string, number> = {
+      MAX_CODE_LENGTH,
+      MAX_OTP_LENGTH,
+      MAX_IP_LENGTH,
+      MAX_COLOR_LENGTH,
+      MAX_DATE_STRING_LENGTH,
+      MAX_SHORT_TEXT_LENGTH,
+      MAX_ID_LENGTH,
+      MAX_NAME_LENGTH,
+      MAX_SEARCH_LENGTH,
+      MAX_MEDIUM_TEXT_LENGTH,
+      MAX_URL_LENGTH,
+      MAX_LONG_TEXT_LENGTH,
+      MAX_RICH_TEXT_LENGTH,
+      MAX_PAYLOAD_SIZE,
+      MAX_REQUEST_BODY_BYTES,
+      MAX_TEXT_FIELD_BYTES,
+    };
+
+    for (const [name, value] of Object.entries(constants)) {
+      it(`${name} is a positive integer`, () => {
+        expect(value).toBeGreaterThan(0);
+        expect(Number.isInteger(value)).toBe(true);
+      });
+    }
   });
 });
