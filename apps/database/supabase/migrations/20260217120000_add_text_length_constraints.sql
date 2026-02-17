@@ -35,6 +35,10 @@ ALTER TABLE public.workspaces
 ADD CONSTRAINT workspaces_name_length_check CHECK (char_length(name) <= 100);
 
 -- 4. Tasks table
+-- Disable triggers to avoid "operator does not exist: extensions.vector = extensions.vector"
+-- error from notify_task_updated trigger comparing the embedding column on UPDATE.
+ALTER TABLE public.tasks DISABLE TRIGGER USER;
+
 ALTER TABLE public.tasks
 DROP CONSTRAINT IF EXISTS tasks_name_length_check,
 DROP CONSTRAINT IF EXISTS tasks_description_length_check;
@@ -45,6 +49,8 @@ UPDATE public.tasks SET description = left(description, 100000) WHERE char_lengt
 ALTER TABLE public.tasks
 ADD CONSTRAINT tasks_name_length_check CHECK (char_length(name) <= 255),
 ADD CONSTRAINT tasks_description_length_check CHECK (char_length(description) <= 100000);
+
+ALTER TABLE public.tasks ENABLE TRIGGER USER;
 
 -- 5. AI Chat Messages table
 ALTER TABLE public.ai_chat_messages
@@ -128,10 +134,14 @@ BEGIN
 END $$;
 
 -- 10. Catch-all for JSONB fields across all tables
--- Limits JSONB fields to 1,000,000 characters (approx 1MB)
+-- Limits JSONB fields to 2,097,152 bytes (2 MB).
+-- Unlike TEXT columns, we cannot safely truncate JSONB without breaking structure,
+-- so we log violating rows and skip the constraint for columns with oversized data.
 DO $$
 DECLARE
     r RECORD;
+    v RECORD;
+    v_has_violations BOOLEAN;
 BEGIN
     FOR r IN
         SELECT c.table_name, c.column_name
@@ -142,7 +152,20 @@ BEGIN
         AND c.data_type = 'jsonb'
     LOOP
         EXECUTE format('ALTER TABLE public.%I DROP CONSTRAINT IF EXISTS %I_payload_size_check', r.table_name, r.column_name);
-        -- Using pg_column_size or length of text representation
-        EXECUTE format('ALTER TABLE public.%I ADD CONSTRAINT %I_payload_size_check CHECK (octet_length(%I::text) <= 1048576)', r.table_name, r.column_name, r.column_name);
+
+        -- Log rows that violate the limit for troubleshooting
+        v_has_violations := false;
+        FOR v IN
+            EXECUTE format('SELECT ctid, octet_length(%I::text) AS size_bytes FROM public.%I WHERE octet_length(%I::text) > 2097152', r.column_name, r.table_name, r.column_name)
+        LOOP
+            v_has_violations := true;
+            RAISE NOTICE 'JSONB size violation: %.% — row ctid=% size=% bytes', r.table_name, r.column_name, v.ctid, v.size_bytes;
+        END LOOP;
+
+        IF v_has_violations THEN
+            RAISE NOTICE 'Skipping payload size constraint on %.% — see violations above', r.table_name, r.column_name;
+        ELSE
+            EXECUTE format('ALTER TABLE public.%I ADD CONSTRAINT %I_payload_size_check CHECK (octet_length(%I::text) <= 2097152)', r.table_name, r.column_name, r.column_name);
+        END IF;
     END LOOP;
 END $$;
