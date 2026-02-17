@@ -20,7 +20,9 @@ function getQueryClient() {
   }
 
   if (!clientQueryClientSingleton) {
-    // Browser: use singleton pattern to keep the same query client
+    // Browser: use singleton pattern to keep the same query client.
+    // Rate-limit retry + toast is handled by the global fetch interceptor
+    // (installed in client-providers.tsx), so no custom caches needed here.
     clientQueryClientSingleton = makeQueryClient();
   }
 

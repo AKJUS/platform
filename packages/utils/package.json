@@ -55,6 +55,8 @@
     "./permissions": "./src/permissions.tsx",
     "./editor": "./src/editor/index.ts",
     "./abuse-protection": "./src/abuse-protection/index.ts",
+    "./abuse-protection/edge": "./src/abuse-protection/edge.ts",
+    "./abuse-protection/user-suspension": "./src/abuse-protection/user-suspension.ts",
     "./currencies": "./src/currencies.ts",
     "./exchange-rates": "./src/exchange-rates.ts",
     "./encryption": "./src/encryption/index.ts",

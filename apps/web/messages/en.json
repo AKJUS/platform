@@ -2217,6 +2217,7 @@
     "question": "Question",
     "quick_filters": "Quick Filters",
     "quick_settings": "Quick Settings",
+    "rate_limited_retry": "You're being rate limited. Retrying in {seconds}s…",
     "realestate": "Real Estate",
     "realestate-description": "Optimize your real estate business operations.",
     "recycle_bin": "Recycle Bin",

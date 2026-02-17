@@ -31,6 +31,10 @@ export const ABUSE_THRESHOLDS = {
   // Password login limits
   PASSWORD_LOGIN_FAILED_WINDOW_MS: 5 * 60 * 1000, // 5 minutes
   PASSWORD_LOGIN_FAILED_MAX: 10,
+
+  // API auth failure limits (session-auth routes)
+  API_AUTH_FAILED_WINDOW_MS: 5 * 60 * 1000, // 5 minutes
+  API_AUTH_FAILED_MAX: 20, // 20 failed auths in 5 min → auto-block IP
 } as const;
 
 /**
@@ -72,6 +76,9 @@ export const REDIS_KEYS = {
 
   // Password login attempts
   PASSWORD_LOGIN_FAILED: (ip: string) => `password:login:failed:${ip}`,
+
+  // API auth failure attempts (session-auth routes)
+  API_AUTH_FAILED: (ip: string) => `api:auth:failed:${ip}`,
 
   // IP block cache
   IP_BLOCKED: (ip: string) => `ip:blocked:${ip}`,

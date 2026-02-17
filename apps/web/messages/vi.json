@@ -2217,6 +2217,7 @@
     "question": "Câu hỏi",
     "quick_filters": "Bộ lọc nhanh",
     "quick_settings": "Cài đặt nhanh",
+    "rate_limited_retry": "Bạn đang bị giới hạn tần suất. Thử lại sau {seconds} giây…",
     "realestate": "Bất động sản",
     "realestate-description": "Tối ưu hóa hoạt động kinh doanh bất động sản của bạn.",
     "recycle_bin": "Thùng rác",

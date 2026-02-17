@@ -16,6 +16,9 @@ export type AbuseEventType =
   | 'reauth_send'
   | 'reauth_verify_failed'
   | 'password_login_failed'
+  | 'api_auth_failed'
+  | 'api_rate_limited'
+  | 'api_abuse'
   | 'manual';
 
 export type IPBlockStatus = 'active' | 'expired' | 'manually_unblocked';
@@ -70,10 +73,10 @@ const getStatusBadge = (status: string) => {
 
 const getBlockLevelBadge = (level: number) => {
   const colors: Record<number, string> = {
-    1: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-    2: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
-    3: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-    4: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+    1: 'bg-dynamic-yellow/10 text-dynamic-yellow',
+    2: 'bg-dynamic-orange/10 text-dynamic-orange',
+    3: 'bg-dynamic-red/10 text-dynamic-red',
+    4: 'bg-dynamic-purple/10 text-dynamic-purple',
   };
 
   const durations: Record<number, string> = {
@@ -99,6 +102,9 @@ const getReasonLabel = (reason: string) => {
     reauth_send: 'Reauth Send Abuse',
     reauth_verify_failed: 'Reauth Verify Failures',
     password_login_failed: 'Password Login Failures',
+    api_auth_failed: 'API Auth Failures',
+    api_rate_limited: 'API Rate Limit Exceeded',
+    api_abuse: 'API Abuse',
   };
   return labels[reason] || reason;
 };

@@ -11938,6 +11938,45 @@ export type Database = {
           },
         ];
       };
+      user_suspensions: {
+        Row: {
+          created_at: string;
+          expires_at: string | null;
+          id: string;
+          lifted_at: string | null;
+          lifted_by: string | null;
+          metadata: Json | null;
+          reason: string;
+          suspended_at: string;
+          suspended_by: string | null;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          expires_at?: string | null;
+          id?: string;
+          lifted_at?: string | null;
+          lifted_by?: string | null;
+          metadata?: Json | null;
+          reason: string;
+          suspended_at?: string;
+          suspended_by?: string | null;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          expires_at?: string | null;
+          id?: string;
+          lifted_at?: string | null;
+          lifted_by?: string | null;
+          metadata?: Json | null;
+          reason?: string;
+          suspended_at?: string;
+          suspended_by?: string | null;
+          user_id?: string;
+        };
+        Relationships: [];
+      };
       users: {
         Row: {
           avatar_url: string | null;
@@ -21223,6 +21262,7 @@ export type Database = {
       };
       is_tuturuuu_email: { Args: { user_email: string }; Returns: boolean };
       is_user_guest: { Args: { user_uuid: string }; Returns: boolean };
+      is_user_suspended: { Args: { p_user_id: string }; Returns: boolean };
       is_user_task_in_board: {
         Args: { _task_id: string; _user_id: string };
         Returns: boolean;
@@ -21744,7 +21784,10 @@ export type Database = {
         | 'reauth_send'
         | 'reauth_verify_failed'
         | 'password_login_failed'
-        | 'manual';
+        | 'manual'
+        | 'api_auth_failed'
+        | 'api_rate_limited'
+        | 'api_abuse';
       ai_message_type:
         | 'message'
         | 'file'
@@ -23823,6 +23866,9 @@ export const Constants = {
         'reauth_verify_failed',
         'password_login_failed',
         'manual',
+        'api_auth_failed',
+        'api_rate_limited',
+        'api_abuse',
       ],
       ai_message_type: [
         'message',

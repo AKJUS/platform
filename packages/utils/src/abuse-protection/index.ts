@@ -917,3 +917,73 @@ export async function clearPasswordLoginFailures(
 ): Promise<void> {
   await deleteKeys(REDIS_KEYS.PASSWORD_LOGIN_FAILED(ipAddress));
 }
+
+/**
+ * Check if an IP should be blocked for API auth abuse
+ */
+export async function checkApiAuthLimit(
+  ipAddress: string
+): Promise<AbuseCheckResult> {
+  const blockInfo = await isIPBlocked(ipAddress);
+  if (blockInfo) {
+    return {
+      allowed: false,
+      blocked: true,
+      reason: `IP blocked due to ${blockInfo.reason}`,
+      retryAfter: Math.ceil(
+        (blockInfo.expiresAt.getTime() - Date.now()) / 1000
+      ),
+    };
+  }
+
+  const key = REDIS_KEYS.API_AUTH_FAILED(ipAddress);
+  const count = await getCounter(key);
+
+  if (count >= ABUSE_THRESHOLDS.API_AUTH_FAILED_MAX) {
+    return {
+      allowed: false,
+      reason: 'Too many failed API authentication attempts',
+      retryAfter: Math.ceil(ABUSE_THRESHOLDS.API_AUTH_FAILED_WINDOW_MS / 1000),
+      remainingAttempts: 0,
+    };
+  }
+
+  return {
+    allowed: true,
+    remainingAttempts: ABUSE_THRESHOLDS.API_AUTH_FAILED_MAX - count,
+  };
+}
+
+/**
+ * Record a failed API auth attempt. Auto-blocks IP if threshold exceeded.
+ */
+export async function recordApiAuthFailure(
+  ipAddress: string,
+  endpoint?: string
+): Promise<void> {
+  const key = REDIS_KEYS.API_AUTH_FAILED(ipAddress);
+  const { count } = await incrementCounter(
+    key,
+    ABUSE_THRESHOLDS.API_AUTH_FAILED_WINDOW_MS
+  );
+
+  void logAbuseEvent(ipAddress, 'api_auth_failed', {
+    endpoint,
+    success: false,
+  });
+
+  if (count >= ABUSE_THRESHOLDS.API_AUTH_FAILED_MAX) {
+    void blockIP(ipAddress, 'api_auth_failed', {
+      trigger: 'max_failures_exceeded',
+      failedCount: count,
+      endpoint,
+    });
+  }
+}
+
+/**
+ * Clear API auth failures (e.g. on successful auth from that IP)
+ */
+export async function clearApiAuthFailures(ipAddress: string): Promise<void> {
+  await deleteKeys(REDIS_KEYS.API_AUTH_FAILED(ipAddress));
+}

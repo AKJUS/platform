@@ -15,6 +15,9 @@ export type AbuseEventType =
   | 'reauth_send'
   | 'reauth_verify_failed'
   | 'password_login_failed'
+  | 'api_auth_failed'
+  | 'api_rate_limited'
+  | 'api_abuse'
   | 'manual';
 
 export interface AbuseEventEntry {
@@ -31,19 +34,16 @@ export interface AbuseEventEntry {
 
 const getEventTypeBadge = (eventType: string) => {
   const colors: Record<string, string> = {
-    otp_send: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-    otp_verify_failed:
-      'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-    mfa_challenge:
-      'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
-    mfa_verify_failed:
-      'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-    reauth_send:
-      'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
-    reauth_verify_failed:
-      'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-    password_login_failed:
-      'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
+    otp_send: 'bg-dynamic-blue/10 text-dynamic-blue',
+    otp_verify_failed: 'bg-dynamic-red/10 text-dynamic-red',
+    mfa_challenge: 'bg-dynamic-purple/10 text-dynamic-purple',
+    mfa_verify_failed: 'bg-dynamic-red/10 text-dynamic-red',
+    reauth_send: 'bg-dynamic-blue/10 text-dynamic-blue',
+    reauth_verify_failed: 'bg-dynamic-red/10 text-dynamic-red',
+    password_login_failed: 'bg-dynamic-orange/10 text-dynamic-orange',
+    api_auth_failed: 'bg-dynamic-red/10 text-dynamic-red',
+    api_rate_limited: 'bg-dynamic-yellow/10 text-dynamic-yellow',
+    api_abuse: 'bg-dynamic-red/10 text-dynamic-red',
   };
 
   const labels: Record<string, string> = {
@@ -54,6 +54,9 @@ const getEventTypeBadge = (eventType: string) => {
     reauth_send: 'Reauth Send',
     reauth_verify_failed: 'Reauth Verify Failed',
     password_login_failed: 'Password Login Failed',
+    api_auth_failed: 'API Auth Failed',
+    api_rate_limited: 'API Rate Limited',
+    api_abuse: 'API Abuse',
   };
 
   return (
@@ -147,17 +150,13 @@ export const getAbuseEventsColumns = ({
         <div className="flex items-center gap-1">
           {success ? (
             <>
-              <CheckCircle className="h-4 w-4 text-green-500" />
-              <span className="text-green-600 text-sm dark:text-green-400">
-                Success
-              </span>
+              <CheckCircle className="h-4 w-4 text-dynamic-green" />
+              <span className="text-dynamic-green text-sm">Success</span>
             </>
           ) : (
             <>
-              <XCircle className="h-4 w-4 text-red-500" />
-              <span className="text-red-600 text-sm dark:text-red-400">
-                Failed
-              </span>
+              <XCircle className="h-4 w-4 text-dynamic-red" />
+              <span className="text-dynamic-red text-sm">Failed</span>
             </>
           )}
         </div>

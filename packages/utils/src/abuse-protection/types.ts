@@ -10,6 +10,9 @@ export type AbuseEventType =
   | 'reauth_send'
   | 'reauth_verify_failed'
   | 'password_login_failed'
+  | 'api_auth_failed'
+  | 'api_rate_limited'
+  | 'api_abuse'
   | 'manual';
 
 export type IPBlockStatus = 'active' | 'expired' | 'manually_unblocked';

@@ -1,9 +1,15 @@
 import { match } from '@formatjs/intl-localematcher';
 import { createCentralizedAuthProxy } from '@tuturuuu/auth/proxy';
 import { createClient } from '@tuturuuu/supabase/next/server';
+import {
+  extractIPFromRequest,
+  isIPBlockedEdge,
+} from '@tuturuuu/utils/abuse-protection/edge';
 import { ROOT_WORKSPACE_ID } from '@tuturuuu/utils/constants';
 import { getUserDefaultWorkspace } from '@tuturuuu/utils/user-helper';
 import { isPersonalWorkspace } from '@tuturuuu/utils/workspace-helper';
+import { Ratelimit } from '@upstash/ratelimit';
+import { Redis } from '@upstash/redis';
 import Negotiator from 'negotiator';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
@@ -53,10 +59,9 @@ const ONBOARDING_BYPASS_PATHS = [
   '/visualizations',
 ];
 
-const WEB_APP_URL =
-  process.env.NODE_ENV === 'production'
-    ? 'https://tuturuuu.com'
-    : `http://localhost:${PORT}`;
+const isDev = process.env.NODE_ENV !== 'production';
+
+const WEB_APP_URL = isDev ? `http://localhost:${PORT}` : 'https://tuturuuu.com';
 
 /**
  * Check if a user's personal workspace is missing an active subscription.
@@ -206,17 +211,145 @@ const authProxy = createCentralizedAuthProxy({
   skipApiRoutes: true,
 });
 
+// Edge-compatible rate limiters (lazy-initialized)
+// Split by HTTP method: GET (reads) are more generous, non-GET (mutations) are stricter.
+let apiGetLimiter: Ratelimit | null = null;
+let apiMutateLimiter: Ratelimit | null = null;
+let usersMeGetLimiter: Ratelimit | null = null;
+let usersMeMutateLimiter: Ratelimit | null = null;
+let rateLimiterInitialized = false;
+
+function initRateLimiters() {
+  if (rateLimiterInitialized) return;
+  rateLimiterInitialized = true;
+
+  const redisUrl = process.env.UPSTASH_REDIS_REST_URL;
+  const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN;
+  if (!redisUrl || !redisToken) return;
+
+  const redis = new Redis({ url: redisUrl, token: redisToken });
+
+  // General API GET: 120 req/min — reads are cheap and idempotent
+  apiGetLimiter = new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(120, '1 m'),
+    prefix: 'proxy:api:get',
+    analytics: false,
+  });
+
+  // General API mutations: 30 req/min — state-changing, more expensive
+  apiMutateLimiter = new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(30, '1 m'),
+    prefix: 'proxy:api:mutate',
+    analytics: false,
+  });
+
+  // /users/me GET: 60 req/min — high-value targets, moderate reads
+  usersMeGetLimiter = new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(60, '1 m'),
+    prefix: 'proxy:users-me:get',
+    analytics: false,
+  });
+
+  // /users/me mutations: 20 req/min — sensitive account actions
+  usersMeMutateLimiter = new Ratelimit({
+    redis,
+    limiter: Ratelimit.slidingWindow(20, '1 m'),
+    prefix: 'proxy:users-me:mutate',
+    analytics: false,
+  });
+}
+
 export async function proxy(req: NextRequest): Promise<NextResponse> {
+  // Rate-limit API routes at the edge BEFORE any serverless execution
+  if (req.nextUrl.pathname.startsWith('/api')) {
+    initRateLimiters();
+    const ip = extractIPFromRequest(req.headers);
+
+    if (ip !== 'unknown') {
+      // Check persistent IP block (Redis cache only — fast)
+      const blockInfo = await isIPBlockedEdge(ip);
+      if (blockInfo) {
+        const retryAfter = Math.max(
+          1,
+          Math.ceil((blockInfo.expiresAt.getTime() - Date.now()) / 1000)
+        );
+        if (isDev) {
+          console.warn(
+            `[RateLimit] IP BLOCKED — IP: ${ip} | reason: ${blockInfo.reason} | level: ${blockInfo.blockLevel} | expires in: ${retryAfter}s`
+          );
+        }
+        return NextResponse.json(
+          { error: 'Too Many Requests', message: 'Rate limit exceeded' },
+          {
+            status: 429,
+            headers: { 'Retry-After': `${retryAfter}` },
+          }
+        );
+      }
+
+      // Sliding window rate limit by IP — split by method category
+      const isUsersMeRoute =
+        req.nextUrl.pathname.startsWith('/api/v1/users/me');
+      const isRead = req.method === 'GET' || req.method === 'HEAD';
+      const limiter = isUsersMeRoute
+        ? isRead
+          ? usersMeGetLimiter
+          : usersMeMutateLimiter
+        : isRead
+          ? apiGetLimiter
+          : apiMutateLimiter;
+
+      if (limiter) {
+        const { success, limit, remaining, reset } = await limiter.limit(ip);
+
+        // Development logging: show consumed/total per request
+        if (isDev) {
+          const consumed = limit - remaining;
+          const tier = isUsersMeRoute ? 'users-me' : 'api';
+          const kind = isRead ? 'read' : 'mutate';
+          console.log(
+            `[RateLimit] ${consumed}/${limit} consumed | remaining: ${remaining} | IP: ${ip} | tier: ${tier}:${kind} | path: ${req.nextUrl.pathname}`
+          );
+        }
+
+        if (!success) {
+          const retryAfter = Math.max(
+            1,
+            Math.ceil((reset - Date.now()) / 1000)
+          );
+          if (isDev) {
+            console.warn(
+              `[RateLimit] BLOCKED — IP: ${ip} | path: ${req.nextUrl.pathname} | retry in: ${retryAfter}s`
+            );
+          }
+          return NextResponse.json(
+            { error: 'Too Many Requests', message: 'Rate limit exceeded' },
+            {
+              status: 429,
+              headers: {
+                'Retry-After': `${retryAfter}`,
+                'X-RateLimit-Limit': `${limit}`,
+                'X-RateLimit-Remaining': `${remaining}`,
+                'X-RateLimit-Reset': `${Math.ceil(reset / 1000)}`,
+              },
+            }
+          );
+        }
+      }
+    }
+
+    // API routes skip auth proxy and locale handling
+    return NextResponse.next();
+  }
+
   // Handle authentication and MFA with the centralized middleware
   const authRes = await authProxy(req);
 
   // If the auth middleware returned a redirect response, return it
   if (authRes.headers.has('Location')) {
-    return authRes;
-  }
-
-  // Skip locale handling for API routes
-  if (req.nextUrl.pathname.startsWith('/api')) {
     return authRes;
   }
 
