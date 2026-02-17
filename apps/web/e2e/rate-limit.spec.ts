@@ -37,11 +37,7 @@ const FULL_NAME_URL = '/api/v1/users/me/full-name';
  *
  * Format: `10.{testSlot}.{subSlot}.{retry + 1}`
  */
-function ip(
-  testSlot: number,
-  retry: number,
-  subSlot = 0
-): string {
+function ip(testSlot: number, retry: number, subSlot = 0): string {
   return `10.${testSlot}.${subSlot}.${retry + 1}`;
 }
 
@@ -110,7 +106,9 @@ test.describe('Rate limiting (session auth)', () => {
   // Default limits
   // -----------------------------------------------------------------------
 
-  test('GET rate limit: 429 after 60 requests', async ({ context }, testInfo) => {
+  test('GET rate limit: 429 after 60 requests', async ({
+    context,
+  }, testInfo) => {
     const addr = ip(1, testInfo.retry);
     const total = 65;
 
@@ -126,7 +124,9 @@ test.describe('Rate limiting (session auth)', () => {
     expect(ok + limited).toBe(total);
   });
 
-  test('Mutation rate limit: 429 after 20 requests', async ({ context }, testInfo) => {
+  test('Mutation rate limit: 429 after 20 requests', async ({
+    context,
+  }, testInfo) => {
     const addr = ip(2, testInfo.retry);
     const total = 25;
 
@@ -194,7 +194,9 @@ test.describe('Rate limiting (session auth)', () => {
   // Budget isolation
   // -----------------------------------------------------------------------
 
-  test('GET and mutation budgets are independent', async ({ context }, testInfo) => {
+  test('GET and mutation budgets are independent', async ({
+    context,
+  }, testInfo) => {
     const addr = ip(4, testInfo.retry);
 
     // Exhaust mutation budget (25 PUTs — limit is 20)
@@ -209,7 +211,9 @@ test.describe('Rate limiting (session auth)', () => {
     expect(getRes.status()).toBe(200);
   });
 
-  test('Different IPs have independent rate limits', async ({ context }, testInfo) => {
+  test('Different IPs have independent rate limits', async ({
+    context,
+  }, testInfo) => {
     const addrA = ip(5, testInfo.retry, 1);
     const addrB = ip(5, testInfo.retry, 2);
 
