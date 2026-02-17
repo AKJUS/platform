@@ -275,7 +275,7 @@ export default function TestCaseEvaluation({
                             leftTitle="Expected Output"
                             rightTitle="Your Output"
                             showLineNumbers={false}
-                            className="max-h-[300px]"
+                            className="max-h-75"
                           />
                         </TabsContent>
 
@@ -285,7 +285,7 @@ export default function TestCaseEvaluation({
                               <h5 className="font-medium text-muted-foreground text-xs">
                                 Expected Output:
                               </h5>
-                              <pre className="max-h-[300px] overflow-auto whitespace-pre-wrap rounded-md border bg-background p-2 text-xs">
+                              <pre className="max-h-75 overflow-auto whitespace-pre-wrap rounded-md border bg-background p-2 text-xs">
                                 {testcase.expected_output ||
                                   'No expected output'}
                               </pre>
@@ -296,7 +296,7 @@ export default function TestCaseEvaluation({
                                 Your Output:
                               </h5>
                               <pre
-                                className={`max-h-[300px] overflow-auto whitespace-pre-wrap rounded-md border p-2 text-xs ${
+                                className={`max-h-75 overflow-auto whitespace-pre-wrap rounded-md border p-2 text-xs ${
                                   testcase.matched
                                     ? 'bg-emerald-50 dark:bg-emerald-900/20'
                                     : 'bg-red-50 dark:bg-red-900/20'

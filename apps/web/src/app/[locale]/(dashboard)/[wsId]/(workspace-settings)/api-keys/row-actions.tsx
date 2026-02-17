@@ -54,7 +54,7 @@ export function ApiKeyRowActions({ row }: ApiKeyRowActionsProps) {
             <span className="sr-only">Open menu</span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-[180px]">
+        <DropdownMenuContent align="end" className="w-45">
           <DropdownMenuItem asChild>
             <Link href={`/${wsId}/api-keys/${apiKey.id}/usage-logs`}>
               <BarChart className="h-4 w-4" />

@@ -428,7 +428,7 @@ export function DateTimePicker({
                     }
                   />
                 </SelectTrigger>
-                <SelectContent className="max-h-[200px]">
+                <SelectContent className="max-h-50">
                   {filteredTimeOptions.map((time) => (
                     <SelectItem key={time.value} value={time.value}>
                       {time.display}

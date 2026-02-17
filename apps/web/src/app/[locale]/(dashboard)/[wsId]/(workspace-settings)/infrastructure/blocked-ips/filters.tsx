@@ -32,7 +32,7 @@ export default function Filters() {
   return (
     <div className="flex items-center gap-2">
       <Select value={currentStatus} onValueChange={handleStatusChange}>
-        <SelectTrigger className="w-[180px]">
+        <SelectTrigger className="w-45">
           <SelectValue placeholder={t('filter_by_status')} />
         </SelectTrigger>
         <SelectContent>

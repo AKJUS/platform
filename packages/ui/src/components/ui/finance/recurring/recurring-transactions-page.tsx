@@ -31,6 +31,7 @@ import {
   DropdownMenuTrigger,
 } from '@tuturuuu/ui/dropdown-menu';
 import { toast } from '@tuturuuu/ui/sonner';
+import { getCurrencyLocale } from '@tuturuuu/utils/format';
 import { format } from 'date-fns';
 import { useState } from 'react';
 import { RecurringTransactionForm } from './form';
@@ -58,7 +59,7 @@ export default function RecurringTransactionsPage({
   wsId,
   currency = 'USD',
 }: RecurringTransactionsPageProps) {
-  const locale = currency === 'VND' ? 'vi-VN' : 'en-US';
+  const locale = getCurrencyLocale(currency);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] =
     useState<RecurringTransaction | null>(null);

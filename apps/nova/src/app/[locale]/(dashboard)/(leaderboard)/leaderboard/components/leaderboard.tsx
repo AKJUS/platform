@@ -180,7 +180,7 @@ export function Leaderboard({
         <Table>
           <TableHeader className="sticky top-0 z-10 bg-gray-50 dark:bg-slate-800/30">
             <TableRow className="border-b hover:bg-transparent dark:border-slate-700/50 dark:hover:bg-transparent">
-              <TableHead className="w-[100px] bg-gray-50 font-semibold text-gray-700 dark:bg-slate-800/30 dark:text-slate-300">
+              <TableHead className="w-25 bg-gray-50 font-semibold text-gray-700 dark:bg-slate-800/30 dark:text-slate-300">
                 {t('rank')}
               </TableHead>
               <TableHead className="bg-gray-50 font-semibold text-gray-700 dark:bg-slate-800/30 dark:text-slate-300">

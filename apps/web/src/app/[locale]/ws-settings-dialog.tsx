@@ -67,7 +67,7 @@ export function WSSettingsDialog() {
       <DialogTrigger asChild>
         <Button size="sm">Open Dialog</Button>
       </DialogTrigger>
-      <DialogContent className="overflow-hidden p-0 md:max-h-[500px] md:max-w-[700px] lg:max-w-[800px]">
+      <DialogContent className="overflow-hidden p-0 md:max-h-125 md:max-w-175 lg:max-w-[800px]">
         <DialogTitle className="sr-only">Settings</DialogTitle>
         <DialogDescription className="sr-only">
           Customize your settings here.

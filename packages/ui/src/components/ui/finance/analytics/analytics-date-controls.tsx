@@ -126,7 +126,7 @@ export function AnalyticsDateControls({
           value={interval}
           onValueChange={(value) => onIntervalChange(value as ChartInterval)}
         >
-          <SelectTrigger className="w-[120px] sm:hidden">
+          <SelectTrigger className="w-30 sm:hidden">
             <SelectValue placeholder={t('interval')} />
           </SelectTrigger>
           <SelectContent>

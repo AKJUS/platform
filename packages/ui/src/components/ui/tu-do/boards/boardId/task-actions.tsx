@@ -266,7 +266,7 @@ export function TaskActions({ taskId, boardId, onUpdate }: Props) {
             <span className="sr-only">Open task options</span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-[200px] p-1">
+        <DropdownMenuContent align="end" className="w-50 p-1">
           <DropdownMenuItem
             onClick={() => setIsEditDialogOpen(true)}
             className="cursor-pointer gap-3 rounded-md px-3 py-2 font-medium text-sm transition-colors hover:bg-muted"

@@ -433,7 +433,7 @@ export function DebtLoanDetailPage({ wsId, debtId }: Props) {
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[600px]">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-150">
           <DialogHeader>
             <DialogTitle>{t('edit_entry')}</DialogTitle>
             <DialogDescription>{t('edit_entry_description')}</DialogDescription>

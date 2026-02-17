@@ -30,7 +30,7 @@ export default function DateSelector({
           root: 'w-full max-w-full',
           months: 'flex flex-col items-center',
           month:
-            'space-y-4 min-w-[280px] max-w-full text-center p-2 font-semibold w-full sm:min-w-[300px]',
+            'space-y-4 min-w-70 max-w-full text-center p-2 font-semibold w-full sm:min-w-75',
           row: 'flex justify-center gap-1 sm:gap-2',
           head_row: 'flex justify-center gap-1 sm:gap-2',
           tbody: 'grid gap-2',

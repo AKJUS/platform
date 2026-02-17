@@ -152,7 +152,7 @@ export function RecentSessionsTab({
             )}
           </div>
         ) : (
-          <div className="@lg:max-h-[500px] max-h-96 space-y-3 overflow-y-auto">
+          <div className="@lg:max-h-125 max-h-96 space-y-3 overflow-y-auto">
             {filteredSessions.map((session) => (
               <SessionCard
                 key={session.id}

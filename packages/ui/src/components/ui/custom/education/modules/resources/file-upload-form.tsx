@@ -312,7 +312,7 @@ export function StorageObjectForm({
                               />
                             ) : (
                               <div
-                                className="line-clamp-1 max-w-[400px] break-all text-sm opacity-70"
+                                className="line-clamp-1 max-w-100 break-all text-sm opacity-70"
                                 onClick={() => {
                                   setNewFileName(file.name);
                                   setEditingFile(file);

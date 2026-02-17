@@ -196,7 +196,7 @@ export function StatusSection({
             <p className="font-semibold text-foreground text-sm">
               No lists in {statusLabels[status].toLowerCase()}
             </p>
-            <p className="mt-1.5 max-w-[200px] text-xs leading-relaxed">
+            <p className="mt-1.5 max-w-50 text-xs leading-relaxed">
               {status === 'not_started' &&
                 'Add lists to organize new ideas and planned work'}
               {status === 'active' && 'Add lists to track work in progress'}

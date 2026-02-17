@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, Eye, EyeOff } from '@tuturuuu/icons';
+import { getCurrencyLocale } from '@tuturuuu/utils/currencies';
 import { cn } from '@tuturuuu/utils/format';
 import dayjs from 'dayjs';
 import { useLocale, useTranslations } from 'next-intl';
@@ -194,7 +195,7 @@ export function MonthlyTotalChartClient({
 
   const formatValue = (value: number) => {
     if (isConfidential) return '•••••';
-    return new Intl.NumberFormat(currency === 'VND' ? 'vi-VN' : 'en-US', {
+    return new Intl.NumberFormat(getCurrencyLocale(currency), {
       style: 'currency',
       currency,
       minimumFractionDigits: 0,
@@ -217,7 +218,7 @@ export function MonthlyTotalChartClient({
         <CardHeader>
           <CardTitle>{t('monthly_total_from_12_recent_months')}</CardTitle>
         </CardHeader>
-        <CardContent className="flex h-[320px] items-center justify-center">
+        <CardContent className="flex h-80 items-center justify-center">
           <Skeleton className="h-full w-full" />
         </CardContent>
       </Card>
@@ -230,7 +231,7 @@ export function MonthlyTotalChartClient({
         <CardHeader>
           <CardTitle>{t('monthly_total_from_12_recent_months')}</CardTitle>
         </CardHeader>
-        <CardContent className="flex h-[300px] items-center justify-center">
+        <CardContent className="flex h-75 items-center justify-center">
           <p className="text-muted-foreground text-sm">No data available</p>
         </CardContent>
       </Card>
@@ -275,7 +276,7 @@ export function MonthlyTotalChartClient({
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <span className="min-w-[140px] px-2 text-center text-xs">
+              <span className="min-w-35 px-2 text-center text-xs">
                 {dateRange.displayStart} - {dateRange.displayEnd}
               </span>
               <Button
@@ -348,7 +349,7 @@ export function MonthlyTotalChartClient({
         </div>
       </CardHeader>
       <CardContent className="px-2 pb-4">
-        <ChartContainer config={chartConfig} className="h-[320px] w-full">
+        <ChartContainer config={chartConfig} className="h-80 w-full">
           <BarChart data={chartData}>
             <CartesianGrid
               vertical={false}

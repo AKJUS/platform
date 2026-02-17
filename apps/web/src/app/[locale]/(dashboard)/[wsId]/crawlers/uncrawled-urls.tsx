@@ -276,7 +276,7 @@ export default function UncrawledUrls({ wsId }: { wsId: string }) {
               {urlObj.pathname === '/' ? urlObj.hostname : urlObj.pathname}
             </span>
             {urlObj.searchParams.toString() && (
-              <span className="max-w-[300px] truncate rounded-full bg-muted-foreground/10 px-2 py-0.5 text-muted-foreground text-xs">
+              <span className="max-w-75 truncate rounded-full bg-muted-foreground/10 px-2 py-0.5 text-muted-foreground text-xs">
                 ?{urlObj.searchParams.toString()}
               </span>
             )}
@@ -451,14 +451,14 @@ export default function UncrawledUrls({ wsId }: { wsId: string }) {
                 setUrlSearch(e.target.value);
                 debouncedSearch(e.target.value);
               }}
-              className="w-[200px]"
+              className="w-50"
             />
             <Combobox
               t={t}
               options={comboboxOptions}
               selected={currentDomain}
               mode="single"
-              className="w-[300px]"
+              className="w-75"
               placeholder={loading ? 'Loading domains...' : 'Filter by domain'}
               onChange={(value) => {
                 const selectedValue = Array.isArray(value) ? value[0] : value;
@@ -479,7 +479,7 @@ export default function UncrawledUrls({ wsId }: { wsId: string }) {
               options={pageSizeOptions}
               selected={currentPageSize.toString()}
               mode="single"
-              className="w-[140px]"
+              className="w-35"
               onChange={(value) => {
                 const selectedValue = Array.isArray(value) ? value[0] : value;
                 router.push(

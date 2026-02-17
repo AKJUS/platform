@@ -210,7 +210,7 @@ export function TimelineChart({ data }: TimelineChartProps) {
                 value={groupBy}
                 onValueChange={(value) => setGroupBy(value as GroupByType)}
               >
-                <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectTrigger className="w-full sm:w-45">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -225,7 +225,7 @@ export function TimelineChart({ data }: TimelineChartProps) {
                 value={chartType}
                 onValueChange={(value) => setChartType(value as ChartType)}
               >
-                <SelectTrigger className="w-full sm:w-[140px]">
+                <SelectTrigger className="w-full sm:w-35">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

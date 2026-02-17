@@ -711,7 +711,7 @@ export function ReportProblemDialog({
                 value={formData.suggestion}
                 onChange={handleSuggestionChange}
                 className={cn(
-                  'max-h-[250px] min-h-[120px] resize-y',
+                  'max-h-62.5 min-h-30 resize-y',
                   validationErrors.suggestion &&
                     'border-red-500 focus:border-red-500'
                 )}

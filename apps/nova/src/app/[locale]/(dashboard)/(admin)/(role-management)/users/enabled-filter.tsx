@@ -50,7 +50,7 @@ export default function EnabledFilter({ currentEnabled }: EnabledFilterProps) {
         defaultValue={currentEnabled || 'all'}
         onValueChange={handleEnabledChange}
       >
-        <SelectTrigger className="h-8 w-[180px]">
+        <SelectTrigger className="h-8 w-45">
           <SelectValue placeholder="All users" />
         </SelectTrigger>
         <SelectContent>

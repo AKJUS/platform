@@ -62,7 +62,7 @@ export default function SessionsListFallback() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[100px]">ID</TableHead>
+              <TableHead className="w-25">ID</TableHead>
               <TableHead>User</TableHead>
               <TableHead>Email</TableHead>
               <TableHead>Challenge</TableHead>

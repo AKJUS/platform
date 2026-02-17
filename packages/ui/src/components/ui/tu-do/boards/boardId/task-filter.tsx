@@ -47,6 +47,133 @@ import type {
 } from '../../shared/task-filter.types';
 
 // Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
+// Re-export types for backward compatibility
 export type { SortOption, TaskAssignee, TaskFilters, TaskLabel, TaskProject };
 
 interface Props {
@@ -342,8 +469,8 @@ export function TaskFilter({
             )}
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-[280px] sm:w-[320px]" align="start">
-          <ScrollArea className="max-h-[70vh] sm:max-h-[400px]">
+        <DropdownMenuContent className="w-70 sm:w-[320px]" align="start">
+          <ScrollArea className="max-h-[70vh] sm:max-h-100">
             {/* My Tasks */}
             {currentUserId && (
               <>
@@ -407,19 +534,19 @@ export function TaskFilter({
                 {filters.assignees.length > 0 && (
                   <Badge
                     variant="secondary"
-                    className="h-4 min-w-[1.25rem] justify-center px-1 text-[10px]"
+                    className="h-4 min-w-5 justify-center px-1 text-[10px]"
                   >
                     {filters.assignees.length}
                   </Badge>
                 )}
               </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="w-[260px] p-0">
+              <DropdownMenuSubContent className="w-65 p-0">
                 {availableAssignees.length === 0 ? (
                   <div className="p-4 text-center text-muted-foreground text-sm">
                     {t('common.no_members_found')}
                   </div>
                 ) : (
-                  <div className="max-h-[240px] overflow-y-auto">
+                  <div className="max-h-60 overflow-y-auto">
                     <div className="p-1">
                       {availableAssignees.map((assignee) => (
                         <DropdownMenuItem
@@ -469,19 +596,19 @@ export function TaskFilter({
                 {filters.labels.length > 0 && (
                   <Badge
                     variant="secondary"
-                    className="h-4 min-w-[1.25rem] justify-center px-1 text-[10px]"
+                    className="h-4 min-w-5 justify-center px-1 text-[10px]"
                   >
                     {filters.labels.length}
                   </Badge>
                 )}
               </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="w-[240px] p-0">
+              <DropdownMenuSubContent className="w-60 p-0">
                 {availableLabels.length === 0 ? (
                   <div className="p-4 text-center text-muted-foreground text-sm">
                     {t('common.no_labels_found')}
                   </div>
                 ) : (
-                  <div className="max-h-[240px] overflow-y-auto">
+                  <div className="max-h-60 overflow-y-auto">
                     <div className="p-1">
                       {availableLabels.map((label) => (
                         <DropdownMenuItem
@@ -518,14 +645,14 @@ export function TaskFilter({
                   {filters.projects.length > 0 && (
                     <Badge
                       variant="secondary"
-                      className="h-4 min-w-[1.25rem] justify-center px-1 text-[10px]"
+                      className="h-4 min-w-5 justify-center px-1 text-[10px]"
                     >
                       {filters.projects.length}
                     </Badge>
                   )}
                 </DropdownMenuSubTrigger>
-                <DropdownMenuSubContent className="w-[240px] p-0">
-                  <div className="max-h-[240px] overflow-y-auto">
+                <DropdownMenuSubContent className="w-60 p-0">
+                  <div className="max-h-60 overflow-y-auto">
                     <div className="p-1">
                       {availableProjects.map((project) => (
                         <DropdownMenuItem
@@ -558,13 +685,13 @@ export function TaskFilter({
                 {filters.priorities.length > 0 && (
                   <Badge
                     variant="secondary"
-                    className="h-4 min-w-[1.25rem] justify-center px-1 text-[10px]"
+                    className="h-4 min-w-5 justify-center px-1 text-[10px]"
                   >
                     {filters.priorities.length}
                   </Badge>
                 )}
               </DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="w-[200px] p-0">
+              <DropdownMenuSubContent className="w-50 p-0">
                 <div className="p-1">
                   {PRIORITIES.map((priority) => (
                     <DropdownMenuItem

@@ -11,12 +11,12 @@ import {
   TooltipTrigger,
 } from '@tuturuuu/ui/tooltip';
 import dayjs from 'dayjs';
-import { UserRowActions } from './row-actions';
 import 'dayjs/locale/vi';
 import moment from 'moment';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Fragment } from 'react';
+import { UserRowActions } from './row-actions';
 
 interface UserColumnsExtraData {
   hasPrivateInfo?: boolean;
@@ -286,9 +286,7 @@ export const getUserColumns = ({
         />
       ),
       cell: ({ row }) => (
-        <div className="line-clamp-1 w-[100px]">
-          {row.getValue('phone') || '-'}
-        </div>
+        <div className="line-clamp-1 w-25">{row.getValue('phone') || '-'}</div>
       ),
     },
     {
@@ -301,7 +299,7 @@ export const getUserColumns = ({
         />
       ),
       cell: ({ row }) => (
-        <div className="line-clamp-1 w-[100px]">
+        <div className="line-clamp-1 w-25">
           {row.getValue('attendance_count') ?? '-'}
         </div>
       ),
@@ -512,7 +510,7 @@ export const getUserColumns = ({
     //     }
 
     //     return (
-    //       <div className="flex w-[100px] items-center">
+    //       <div className="flex w-25 items-center">
     //         {status.icon && (
     //           <status.icon className="text-muted-foreground mr-2 h-4 w-4" />
     //         )}

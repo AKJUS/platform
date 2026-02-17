@@ -161,7 +161,7 @@ export function EmailAuditTable() {
               setPage(0);
             }}
           >
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-45">
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
             <SelectContent>
@@ -205,7 +205,7 @@ export function EmailAuditTable() {
                         {formatDate(record.created_at)}
                       </TableCell>
                       <TableCell>
-                        <div className="max-w-[200px] truncate text-sm">
+                        <div className="max-w-50 truncate text-sm">
                           {record.to_addresses.join(', ')}
                         </div>
                         {(record.cc_addresses.length > 0 ||
@@ -219,11 +219,11 @@ export function EmailAuditTable() {
                         )}
                       </TableCell>
                       <TableCell>
-                        <div className="max-w-[250px] truncate font-medium">
+                        <div className="max-w-62.5 truncate font-medium">
                           {record.subject}
                         </div>
                         {record.error_message && (
-                          <div className="max-w-[250px] truncate text-destructive text-xs">
+                          <div className="max-w-62.5 truncate text-destructive text-xs">
                             {record.error_message}
                           </div>
                         )}

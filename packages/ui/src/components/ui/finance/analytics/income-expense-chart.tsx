@@ -1,6 +1,6 @@
 'use client';
 
-import { cn } from '@tuturuuu/utils/format';
+import { cn, getCurrencyLocale } from '@tuturuuu/utils/format';
 import { format } from 'date-fns';
 import { useLocale, useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
@@ -55,7 +55,7 @@ export function IncomeExpenseChart({
 
   const formatValue = (value: number) => {
     if (!includeConfidential) return '•••••';
-    return new Intl.NumberFormat(currency === 'VND' ? 'vi-VN' : 'en-US', {
+    return new Intl.NumberFormat(getCurrencyLocale(currency), {
       style: 'currency',
       currency,
       minimumFractionDigits: 0,
@@ -108,7 +108,7 @@ export function IncomeExpenseChart({
         <CardHeader>
           <CardTitle>{title}</CardTitle>
         </CardHeader>
-        <CardContent className="flex h-[320px] items-center justify-center">
+        <CardContent className="flex h-80 items-center justify-center">
           <Skeleton className="h-full w-full" />
         </CardContent>
       </Card>
@@ -121,7 +121,7 @@ export function IncomeExpenseChart({
         <CardHeader>
           <CardTitle>{title}</CardTitle>
         </CardHeader>
-        <CardContent className="flex h-[300px] items-center justify-center">
+        <CardContent className="flex h-75 items-center justify-center">
           <p className="text-muted-foreground text-sm">
             {error.message || 'Failed to load data'}
           </p>
@@ -136,7 +136,7 @@ export function IncomeExpenseChart({
         <CardHeader>
           <CardTitle>{title}</CardTitle>
         </CardHeader>
-        <CardContent className="flex h-[300px] items-center justify-center">
+        <CardContent className="flex h-75 items-center justify-center">
           <p className="text-muted-foreground text-sm">No data available</p>
         </CardContent>
       </Card>
@@ -206,7 +206,7 @@ export function IncomeExpenseChart({
         </div>
       </CardHeader>
       <CardContent className="px-2 pb-4">
-        <ChartContainer config={chartConfig} className="h-[320px] w-full">
+        <ChartContainer config={chartConfig} className="h-80 w-full">
           <BarChart accessibilityLayer data={chartData}>
             <CartesianGrid
               vertical={false}

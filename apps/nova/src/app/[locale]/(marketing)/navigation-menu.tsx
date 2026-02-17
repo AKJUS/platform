@@ -49,7 +49,7 @@ export function MainNavigationMenu() {
             {t('common.resources')}
           </NavigationMenuTrigger>
           <NavigationMenuContent>
-            <ul className="grid w-[400px] gap-3 bg-linear-to-br from-background via-background/95 to-background/90 p-6 backdrop-blur-sm md:w-[500px] md:grid-cols-2 lg:w-[800px]">
+            <ul className="grid w-100 gap-3 bg-linear-to-br from-background via-background/95 to-background/90 p-6 backdrop-blur-sm md:w-125 md:grid-cols-2 lg:w-[800px]">
               <Card className="col-span-full mb-2 bg-primary/5 p-4">
                 <div className="flex items-center gap-2 font-medium text-sm">
                   <BookText className="h-4 w-4" />

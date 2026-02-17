@@ -122,7 +122,7 @@ export function ApologyModal() {
               <div className="px-6 py-4">
                 <TabsContent
                   value="issues"
-                  className="mt-0 min-h-[300px] space-y-6 pt-1"
+                  className="mt-0 min-h-75 space-y-6 pt-1"
                 >
                   <motion.div
                     initial={{ opacity: 0 }}
@@ -238,7 +238,7 @@ export function ApologyModal() {
 
                 <TabsContent
                   value="updates"
-                  className="mt-0 min-h-[300px] space-y-5 pt-1"
+                  className="mt-0 min-h-75 space-y-5 pt-1"
                 >
                   <motion.div
                     initial={{ opacity: 0 }}

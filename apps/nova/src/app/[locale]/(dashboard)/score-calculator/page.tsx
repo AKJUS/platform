@@ -307,7 +307,7 @@ export default function ScoreCalculatorPage() {
           </CardHeader>
           <CardContent className="p-6">
             {!result ? (
-              <div className="flex h-[300px] flex-col items-center justify-center gap-4 text-center">
+              <div className="flex h-75 flex-col items-center justify-center gap-4 text-center">
                 <HelpCircle className="h-16 w-16 text-dynamic-gray/50" />
                 <div>
                   <p className="font-medium text-lg">

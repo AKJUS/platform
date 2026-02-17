@@ -120,7 +120,7 @@ export function ThresholdSettingsDialog({
         </Button>
       </DialogTrigger>
       <DialogContent
-        className="sm:max-w-[500px]"
+        className="sm:max-w-125"
         onPointerDownOutside={(e) => {
           if (hasChanged) {
             e.preventDefault();

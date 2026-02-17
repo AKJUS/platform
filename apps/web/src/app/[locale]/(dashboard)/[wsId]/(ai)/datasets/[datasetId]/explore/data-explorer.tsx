@@ -325,7 +325,7 @@ export function DataExplorer({ wsId, dataset }: Props) {
             {t('common.rows-per-page')}:
           </span>
           <Select value={pageSize} onValueChange={handlePageSizeChange}>
-            <SelectTrigger className="w-[100px]">
+            <SelectTrigger className="w-25">
               <SelectValue placeholder="10" />
             </SelectTrigger>
             <SelectContent>

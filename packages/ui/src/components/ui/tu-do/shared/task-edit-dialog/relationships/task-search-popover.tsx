@@ -82,7 +82,7 @@ export function TaskSearchPopoverContent({
         className="h-9"
         disabled={disabled}
       />
-      <CommandList className="max-h-[250px]">
+      <CommandList className="max-h-62.5">
         {tasksLoading ? (
           <div className="flex items-center justify-center py-4">
             <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />

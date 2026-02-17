@@ -43,8 +43,8 @@ export function TaskEstimationMenu({
         <Timer className="h-4 w-4 text-dynamic-pink" />
         Estimation
       </DropdownMenuSubTrigger>
-      <DropdownMenuSubContent className="max-h-[400px] w-40 overflow-hidden p-0">
-        <div className="max-h-[200px] overflow-auto">
+      <DropdownMenuSubContent className="max-h-100 w-40 overflow-hidden p-0">
+        <div className="max-h-50 overflow-auto">
           <div className="p-1">
             {indices.map((idx) => {
               const disabledByExtended = !extendedEstimation && idx > 5;

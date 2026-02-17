@@ -326,7 +326,7 @@ export const Mention = Node.create({
         taskChildren.push(['span', { class: 'opacity-50' }, '•']);
         taskChildren.push([
           'span',
-          { class: 'max-w-[200px] truncate font-medium' },
+          { class: 'max-w-50 truncate font-medium' },
           subtitle,
         ]);
       }

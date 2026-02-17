@@ -253,7 +253,7 @@ export function VideoHero() {
           }}
         />
         {/* Center glow - Large ellipse */}
-        <div className="absolute top-1/2 left-1/2 h-[400px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-r from-dynamic-purple/35 via-dynamic-blue/25 to-dynamic-cyan/35 blur-[60px]" />
+        <div className="absolute top-1/2 left-1/2 h-100 w-150 -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-r from-dynamic-purple/35 via-dynamic-blue/25 to-dynamic-cyan/35 blur-[60px]" />
         {/* Accent blob - Top Right */}
         <div
           className="absolute -top-16 -right-16 h-80 w-80 rounded-full bg-gradient-to-bl from-dynamic-cyan/45 via-dynamic-teal/25 to-transparent blur-[50px]"

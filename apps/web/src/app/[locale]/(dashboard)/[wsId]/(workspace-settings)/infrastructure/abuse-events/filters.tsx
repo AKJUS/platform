@@ -44,7 +44,7 @@ export default function Filters() {
   return (
     <div className="flex items-center gap-2">
       <Select value={currentType || 'all'} onValueChange={handleTypeChange}>
-        <SelectTrigger className="w-[180px]">
+        <SelectTrigger className="w-45">
           <SelectValue placeholder={t('filter_by_type')} />
         </SelectTrigger>
         <SelectContent>
@@ -74,7 +74,7 @@ export default function Filters() {
         value={currentSuccess || 'all'}
         onValueChange={handleSuccessChange}
       >
-        <SelectTrigger className="w-[140px]">
+        <SelectTrigger className="w-35">
           <SelectValue placeholder={t('filter_by_result')} />
         </SelectTrigger>
         <SelectContent>

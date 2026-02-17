@@ -215,7 +215,7 @@ export function SyncLogsTable({
               value={filterWorkspace}
               onValueChange={handleFilterWorkspaceChange}
             >
-              <SelectTrigger className="w-[180px] border-foreground/10 bg-foreground/10">
+              <SelectTrigger className="w-45 border-foreground/10 bg-foreground/10">
                 <Building2 className="mr-2 h-4 w-4 text-foreground/50" />
                 <SelectValue placeholder="All Workspaces" />
               </SelectTrigger>
@@ -235,7 +235,7 @@ export function SyncLogsTable({
               </SelectContent>
             </Select>
             <Select value={filterType} onValueChange={handleFilterTypeChange}>
-              <SelectTrigger className="w-[140px] border-foreground/10 bg-foreground/10">
+              <SelectTrigger className="w-35 border-foreground/10 bg-foreground/10">
                 <Filter className="mr-2 h-4 w-4 text-foreground/50" />
                 <SelectValue placeholder="All Types" />
               </SelectTrigger>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { cn } from '@tuturuuu/utils/format';
+import { cn, getCurrencyLocale } from '@tuturuuu/utils/format';
 import dayjs from 'dayjs';
 import { useLocale, useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
@@ -153,7 +153,7 @@ export function BalanceTrendChart({
 
   const formatValue = (value: number) => {
     if (!includeConfidential) return '•••••';
-    return new Intl.NumberFormat(currency === 'VND' ? 'vi-VN' : 'en-US', {
+    return new Intl.NumberFormat(getCurrencyLocale(currency), {
       style: 'currency',
       currency,
       minimumFractionDigits: 0,
@@ -190,7 +190,7 @@ export function BalanceTrendChart({
         <CardHeader>
           <CardTitle>{title}</CardTitle>
         </CardHeader>
-        <CardContent className="flex h-[320px] items-center justify-center">
+        <CardContent className="flex h-80 items-center justify-center">
           <Skeleton className="h-full w-full" />
         </CardContent>
       </Card>
@@ -203,7 +203,7 @@ export function BalanceTrendChart({
         <CardHeader>
           <CardTitle>{title}</CardTitle>
         </CardHeader>
-        <CardContent className="flex h-[300px] items-center justify-center">
+        <CardContent className="flex h-75 items-center justify-center">
           <p className="text-muted-foreground text-sm">
             {error instanceof Error ? error.message : 'Failed to load data'}
           </p>
@@ -218,7 +218,7 @@ export function BalanceTrendChart({
         <CardHeader>
           <CardTitle>{title}</CardTitle>
         </CardHeader>
-        <CardContent className="flex h-[300px] items-center justify-center">
+        <CardContent className="flex h-75 items-center justify-center">
           <p className="text-muted-foreground text-sm">No data available</p>
         </CardContent>
       </Card>
@@ -243,7 +243,7 @@ export function BalanceTrendChart({
         </div>
       </CardHeader>
       <CardContent className="px-2 pb-4">
-        <ChartContainer config={chartConfig} className="h-[320px] w-full">
+        <ChartContainer config={chartConfig} className="h-80 w-full">
           <AreaChart accessibilityLayer data={balanceData}>
             <defs>
               <linearGradient id="balanceGradient" x1="0" y1="0" x2="0" y2="1">

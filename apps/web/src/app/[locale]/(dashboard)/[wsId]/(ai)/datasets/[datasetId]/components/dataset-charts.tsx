@@ -42,7 +42,7 @@ export function DatasetCharts({
           <CardDescription>Number of rows over time</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-[300px]">
+          <div className="h-75">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={rowsOverTime}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -76,7 +76,7 @@ export function DatasetCharts({
           <CardDescription>Distribution of column data types</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-[300px]">
+          <div className="h-75">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={columnTypes}>
                 <CartesianGrid strokeDasharray="3 3" />

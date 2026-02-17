@@ -143,7 +143,7 @@ export function FarmingUI({
       </div>
 
       {/* Tab Content */}
-      <div className="min-h-[300px]">
+      <div className="min-h-75">
         {activeTab === 'tools' && (
           <div className="space-y-3">
             <div className="font-semibold text-sm">Farming Tools</div>

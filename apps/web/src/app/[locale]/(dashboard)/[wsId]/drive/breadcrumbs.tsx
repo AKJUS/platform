@@ -111,7 +111,7 @@ export default function DriveBreadcrumbs({ wsId, path }: Props) {
                   <TooltipProvider>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <span className="inline-block max-w-[120px] truncate align-middle">
+                        <span className="inline-block max-w-30 truncate align-middle">
                           {item.label}
                         </span>
                       </TooltipTrigger>
@@ -130,7 +130,7 @@ export default function DriveBreadcrumbs({ wsId, path }: Props) {
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          <span className="inline-block max-w-[120px] truncate align-middle">
+                          <span className="inline-block max-w-30 truncate align-middle">
                             {item.label}
                           </span>
                         </TooltipTrigger>

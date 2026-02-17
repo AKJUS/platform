@@ -7,7 +7,7 @@ import { Separator } from '@tuturuuu/ui/separator';
 import { Skeleton } from '@tuturuuu/ui/skeleton';
 import type { ExchangeRate } from '@tuturuuu/utils/exchange-rates';
 import { convertCurrency } from '@tuturuuu/utils/exchange-rates';
-import { formatCurrency } from '@tuturuuu/utils/format';
+import { formatCurrency, getCurrencyLocale } from '@tuturuuu/utils/format';
 import {
   getPermissions,
   getWorkspace,
@@ -156,7 +156,7 @@ export default async function WalletDetailsPage({ wsId, walletId }: Props) {
               label={t('wallet-data-table.balance')}
               value={
                 <span>
-                  {Intl.NumberFormat(currency === 'VND' ? 'vi-VN' : 'en-US', {
+                  {Intl.NumberFormat(getCurrencyLocale(currency), {
                     style: 'currency',
                     currency,
                   }).format(wallet.balance || 0)}
@@ -191,10 +191,10 @@ export default async function WalletDetailsPage({ wsId, walletId }: Props) {
                   label={t('wallet-data-table.credit_limit')}
                   value={
                     wallet.limit != null
-                      ? Intl.NumberFormat(
-                          currency === 'VND' ? 'vi-VN' : 'en-US',
-                          { style: 'currency', currency }
-                        ).format(wallet.limit)
+                      ? Intl.NumberFormat(getCurrencyLocale(currency), {
+                          style: 'currency',
+                          currency,
+                        }).format(wallet.limit)
                       : '-'
                   }
                 />

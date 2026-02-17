@@ -498,7 +498,7 @@ export function PerformanceMetrics({
                     description="No cost data available for the selected time period."
                   />
                 ) : (
-                  <div className="h-[300px]">
+                  <div className="h-75">
                     <ResponsiveContainer width="100%" height="100%">
                       <ComposedChart data={dailyData}>
                         <CartesianGrid
@@ -586,7 +586,7 @@ export function PerformanceMetrics({
                     description="No model usage data available."
                   />
                 ) : (
-                  <div className="h-[300px]">
+                  <div className="h-75">
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie
@@ -642,7 +642,7 @@ export function PerformanceMetrics({
                   description="No efficiency data available for the selected time period."
                 />
               ) : (
-                <div className="h-[400px]">
+                <div className="h-100">
                   <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={dailyData}>
                       <CartesianGrid
@@ -733,7 +733,7 @@ export function PerformanceMetrics({
                   description="No model usage data available for the selected time period."
                 />
               ) : (
-                <div className="h-[400px]">
+                <div className="h-100">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={modelData}>
                       <CartesianGrid

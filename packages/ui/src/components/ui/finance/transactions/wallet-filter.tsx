@@ -14,6 +14,7 @@ import {
   CommandSeparator,
 } from '@tuturuuu/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@tuturuuu/ui/popover';
+import { getCurrencyLocale } from '@tuturuuu/utils/currencies';
 import { cn } from '@tuturuuu/utils/format';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
@@ -109,7 +110,7 @@ export function WalletFilter({
             )}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[280px] p-0" align="start">
+        <PopoverContent className="w-70 p-0" align="start">
           <Command>
             <CommandInput placeholder={t('finance.search_wallets')} />
             <CommandList>
@@ -170,7 +171,7 @@ export function WalletFilter({
                               </span>
                               <span className="text-muted-foreground text-xs">
                                 {Intl.NumberFormat(
-                                  wallet.currency === 'VND' ? 'vi-VN' : 'en-US',
+                                  getCurrencyLocale(wallet.currency || 'USD'),
                                   {
                                     style: 'currency',
                                     currency: wallet.currency || 'USD',

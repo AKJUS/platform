@@ -32,6 +32,7 @@ import {
 } from '@tuturuuu/ui/dropdown-menu';
 import { Progress } from '@tuturuuu/ui/progress';
 import { toast } from '@tuturuuu/ui/sonner';
+import { getCurrencyLocale } from '@tuturuuu/utils/currencies';
 import { cn } from '@tuturuuu/utils/format';
 import { useState } from 'react';
 import { BudgetForm } from './form';
@@ -65,7 +66,7 @@ export default function BudgetsPage({
   wsId,
   currency = 'USD',
 }: BudgetsPageProps) {
-  const locale = currency === 'VND' ? 'vi-VN' : 'en-US';
+  const locale = getCurrencyLocale(currency);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingBudget, setEditingBudget] = useState<Budget | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);

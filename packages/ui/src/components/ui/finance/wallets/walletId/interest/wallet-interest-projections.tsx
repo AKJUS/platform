@@ -3,6 +3,7 @@
 import { TrendingUp } from '@tuturuuu/icons';
 import type { InterestProjection } from '@tuturuuu/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@tuturuuu/ui/tabs';
+import { getCurrencyLocale } from '@tuturuuu/utils/currencies';
 import { useTranslations } from 'next-intl';
 
 interface WalletInterestProjectionsProps {
@@ -30,7 +31,7 @@ export function WalletInterestProjections({
   const t = useTranslations('wallet-interest');
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat(currency === 'VND' ? 'vi-VN' : 'en-US', {
+    return new Intl.NumberFormat(getCurrencyLocale(currency), {
       style: 'currency',
       currency: currency || 'USD',
       maximumFractionDigits: 0,
@@ -39,7 +40,7 @@ export function WalletInterestProjections({
 
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr);
-    return new Intl.DateTimeFormat(currency === 'VND' ? 'vi-VN' : 'en-US', {
+    return new Intl.DateTimeFormat(getCurrencyLocale(currency), {
       month: 'short',
       day: 'numeric',
     }).format(date);

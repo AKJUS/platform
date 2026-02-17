@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, Eye, EyeOff } from '@tuturuuu/icons';
+import { getCurrencyLocale } from '@tuturuuu/utils/currencies';
 import { cn } from '@tuturuuu/utils/format';
 import { format } from 'date-fns';
 import dayjs from 'dayjs';
@@ -184,7 +185,7 @@ export function DailyTotalChartClient({
     window.dispatchEvent(new Event('finance-confidential-mode-change'));
   };
 
-  const locale = currency === 'VND' ? 'vi-VN' : 'en-US';
+  const locale = getCurrencyLocale(currency);
 
   const formatValue = (value: number) => {
     if (isConfidential) return '•••••';
@@ -211,7 +212,7 @@ export function DailyTotalChartClient({
         <CardHeader>
           <CardTitle>{t('daily_total_from_14_recent_days')}</CardTitle>
         </CardHeader>
-        <CardContent className="flex h-[320px] items-center justify-center">
+        <CardContent className="flex h-80 items-center justify-center">
           <Skeleton className="h-full w-full" />
         </CardContent>
       </Card>
@@ -224,7 +225,7 @@ export function DailyTotalChartClient({
         <CardHeader>
           <CardTitle>{t('daily_total_from_14_recent_days')}</CardTitle>
         </CardHeader>
-        <CardContent className="flex h-[300px] items-center justify-center">
+        <CardContent className="flex h-75 items-center justify-center">
           <p className="text-muted-foreground text-sm">No data available</p>
         </CardContent>
       </Card>
@@ -269,7 +270,7 @@ export function DailyTotalChartClient({
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <span className="min-w-[140px] px-2 text-center text-xs">
+              <span className="min-w-35 px-2 text-center text-xs">
                 {dateRange.displayStart} - {dateRange.displayEnd}
               </span>
               <Button
@@ -342,7 +343,7 @@ export function DailyTotalChartClient({
         </div>
       </CardHeader>
       <CardContent className="px-2 pb-4">
-        <ChartContainer config={chartConfig} className="h-[320px] w-full">
+        <ChartContainer config={chartConfig} className="h-80 w-full">
           <BarChart accessibilityLayer data={chartData}>
             <CartesianGrid
               vertical={false}

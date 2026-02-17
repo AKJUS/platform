@@ -430,7 +430,7 @@ const MetricsChart = ({
 
   return (
     <div className="space-y-6">
-      <div className="h-[400px] pt-4">
+      <div className="h-100 pt-4">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data}>
             <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />

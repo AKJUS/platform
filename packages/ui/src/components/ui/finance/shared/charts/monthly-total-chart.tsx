@@ -1,6 +1,7 @@
 'use client';
 
 import { Eye, EyeOff } from '@tuturuuu/icons';
+import { getCurrencyLocale } from '@tuturuuu/utils/currencies';
 import { cn } from '@tuturuuu/utils/format';
 import { useLocale, useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
@@ -109,7 +110,7 @@ export function MonthlyTotalChart({
 
   const formatValue = (value: number) => {
     if (isConfidential) return '•••••';
-    return new Intl.NumberFormat(currency === 'VND' ? 'vi-VN' : 'en-US', {
+    return new Intl.NumberFormat(getCurrencyLocale(currency), {
       style: 'currency',
       currency,
       minimumFractionDigits: 0,
@@ -132,7 +133,7 @@ export function MonthlyTotalChart({
         <CardHeader>
           <CardTitle>{t('monthly_total_from_12_recent_months')}</CardTitle>
         </CardHeader>
-        <CardContent className="flex h-[300px] items-center justify-center">
+        <CardContent className="flex h-75 items-center justify-center">
           <p className="text-muted-foreground text-sm">No data available</p>
         </CardContent>
       </Card>
@@ -219,7 +220,7 @@ export function MonthlyTotalChart({
         </div>
       </CardHeader>
       <CardContent className="px-2 pb-4">
-        <ChartContainer config={chartConfig} className="h-[320px] w-full">
+        <ChartContainer config={chartConfig} className="h-80 w-full">
           <BarChart data={chartData}>
             <CartesianGrid
               vertical={false}

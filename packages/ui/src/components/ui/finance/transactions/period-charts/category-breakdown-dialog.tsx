@@ -557,7 +557,7 @@ export function CategoryBreakdownDialog({
               onValueChange={(v) => setType(v as 'all' | 'expense' | 'income')}
               className="shrink-0"
             >
-              <TabsList className="grid w-full grid-cols-3 sm:w-[280px]">
+              <TabsList className="grid w-full grid-cols-3 sm:w-70">
                 <TabsTrigger value="all" className="text-sm">
                   {t('all')}
                 </TabsTrigger>

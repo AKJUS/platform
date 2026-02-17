@@ -64,7 +64,7 @@ export default function Filters() {
         value={status || 'all'}
         onValueChange={(value) => updateFilter('status', value)}
       >
-        <SelectTrigger className="w-[140px]">
+        <SelectTrigger className="w-35">
           <SelectValue placeholder={t('filter_status')} />
         </SelectTrigger>
         <SelectContent>
@@ -82,7 +82,7 @@ export default function Filters() {
         value={workspaceType || 'all'}
         onValueChange={(value) => updateFilter('workspaceType', value)}
       >
-        <SelectTrigger className="w-[140px]">
+        <SelectTrigger className="w-35">
           <SelectValue placeholder={t('filter_type')} />
         </SelectTrigger>
         <SelectContent>

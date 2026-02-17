@@ -79,7 +79,7 @@ export default function RoleFilter({ currentRole }: RoleFilterProps) {
       <DropdownMenuTrigger asChild>
         <Button
           variant={getFilterVariant()}
-          className="flex min-w-[140px] items-center gap-2"
+          className="flex min-w-35 items-center gap-2"
         >
           {currentConfig.icon}
           {currentConfig.label}

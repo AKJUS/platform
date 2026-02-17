@@ -244,7 +244,7 @@ export default function TemplatePreview() {
           value={selectedTemplateId}
           onValueChange={setSelectedTemplateId}
         >
-          <SelectTrigger id="template-select" className="w-full sm:w-[300px]">
+          <SelectTrigger id="template-select" className="w-full sm:w-75">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -269,7 +269,7 @@ export default function TemplatePreview() {
           </CardHeader>
           <Separator />
           <CardContent className="flex-1 pt-4">
-            <ScrollArea className="h-[500px] pr-4">
+            <ScrollArea className="h-125 pr-4">
               <div className="grid gap-4">
                 {selectedTemplate.propsSchema.map((field) => (
                   <div key={field.name} className="grid gap-2">
@@ -315,7 +315,7 @@ export default function TemplatePreview() {
           <Separator />
           <CardContent className="flex flex-1 flex-col p-0">
             {!mounted ? (
-              <div className="flex min-h-[500px] w-full flex-1 items-center justify-center rounded-b-lg">
+              <div className="flex min-h-125 w-full flex-1 items-center justify-center rounded-b-lg">
                 <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
               </div>
             ) : (
@@ -323,7 +323,7 @@ export default function TemplatePreview() {
                 <EmailHtmlViewer
                   content={renderedHtml}
                   previewTheme={isDarkMode ? 'dark' : 'light'}
-                  className={`min-h-[500px] w-full flex-1 border-0 ${isDarkMode ? '' : 'rounded-b-lg'}`}
+                  className={`min-h-125 w-full flex-1 border-0 ${isDarkMode ? '' : 'rounded-b-lg'}`}
                 />
                 {isDarkMode && (
                   <div className="rounded-b-lg border-t bg-muted/50 p-2 text-center text-muted-foreground text-xs">

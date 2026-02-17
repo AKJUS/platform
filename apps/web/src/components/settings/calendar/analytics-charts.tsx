@@ -92,7 +92,7 @@ export function AnalyticsCharts({
                         color: 'hsl(var(--chart-2))',
                       },
                     }}
-                    className="h-[300px] w-full"
+                    className="h-75 w-full"
                   >
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={timeSeriesData}>
@@ -148,7 +148,7 @@ export function AnalyticsCharts({
                         color: 'hsl(var(--chart-3))',
                       },
                     }}
-                    className="h-[300px] w-full"
+                    className="h-75 w-full"
                   >
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={eventTypeData}>
@@ -199,7 +199,7 @@ export function AnalyticsCharts({
                         color: 'hsl(var(--chart-4))',
                       },
                     }}
-                    className="h-[300px] w-full"
+                    className="h-75 w-full"
                   >
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={timeSeriesData}>
@@ -243,7 +243,7 @@ export function AnalyticsCharts({
                         color: 'hsl(var(--chart-5))',
                       },
                     }}
-                    className="h-[300px] w-full"
+                    className="h-75 w-full"
                   >
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={timeSeriesData}>
@@ -297,7 +297,7 @@ export function AnalyticsCharts({
                       color: 'hsl(var(--chart-2))',
                     },
                   }}
-                  className="h-[400px] w-full"
+                  className="h-100 w-full"
                 >
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={workspaceActivityData} layout="horizontal">
@@ -355,7 +355,7 @@ export function AnalyticsCharts({
                         color: '#007aff',
                       },
                     }}
-                    className="h-[300px] w-full"
+                    className="h-75 w-full"
                   >
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>

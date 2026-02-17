@@ -54,16 +54,14 @@ export function HorseDetails({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <ScrollArea className="h-[400px] pr-4">
+        <ScrollArea className="h-100 pr-4">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead className="w-[60px]">ID</TableHead>
+                <TableHead className="w-15">ID</TableHead>
                 <TableHead>Horse</TableHead>
-                <TableHead className="w-[100px]">Speed</TableHead>
-                <TableHead className="w-[120px] text-right">
-                  Current Rank
-                </TableHead>
+                <TableHead className="w-25">Speed</TableHead>
+                <TableHead className="w-30 text-right">Current Rank</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

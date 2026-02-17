@@ -53,6 +53,7 @@ import { Separator } from '@tuturuuu/ui/separator';
 import { toast } from '@tuturuuu/ui/sonner';
 import { Switch } from '@tuturuuu/ui/switch';
 import { Textarea } from '@tuturuuu/ui/textarea';
+import { getCurrencyLocale } from '@tuturuuu/utils/currencies';
 import { fetcher } from '@tuturuuu/utils/fetcher';
 import { cn } from '@tuturuuu/utils/format';
 import { computeAccessibleLabelStyles } from '@tuturuuu/utils/label-colors';
@@ -661,16 +662,13 @@ export function TransactionEditDialog({
                         : t('transaction-data-table.income')}
                     </span>
                     <span className="font-medium">
-                      {Intl.NumberFormat(
-                        currency === 'VND' ? 'vi-VN' : 'en-US',
-                        {
-                          style: 'currency',
-                          currency,
-                          minimumFractionDigits: 0,
-                          maximumFractionDigits: 0,
-                          signDisplay: 'always',
-                        }
-                      ).format(isExpense ? -amount : amount)}
+                      {Intl.NumberFormat(getCurrencyLocale(currency), {
+                        style: 'currency',
+                        currency,
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 0,
+                        signDisplay: 'always',
+                      }).format(isExpense ? -amount : amount)}
                     </span>
                   </div>
                 </div>

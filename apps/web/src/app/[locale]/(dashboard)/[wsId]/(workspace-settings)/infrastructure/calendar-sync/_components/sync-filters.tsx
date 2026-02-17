@@ -89,7 +89,7 @@ export default function SyncFilters({ wsId, totalCount }: Props) {
     <div className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3">
         {/* Search */}
-        <div className="relative min-w-[200px] flex-1">
+        <div className="relative min-w-50 flex-1">
           <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             placeholder="Search sync logs..."
@@ -111,7 +111,7 @@ export default function SyncFilters({ wsId, totalCount }: Props) {
 
         {/* Status Filter */}
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[140px]">
+          <SelectTrigger className="w-35">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -124,7 +124,7 @@ export default function SyncFilters({ wsId, totalCount }: Props) {
 
         {/* Type Filter */}
         <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-[140px]">
+          <SelectTrigger className="w-35">
             <SelectValue placeholder="Type" />
           </SelectTrigger>
           <SelectContent>

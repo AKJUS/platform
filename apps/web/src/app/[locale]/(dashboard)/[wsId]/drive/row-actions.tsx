@@ -366,7 +366,7 @@ export function StorageObjectRowActions({
           <span className="sr-only">Open menu</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-[180px]">
+      <DropdownMenuContent align="end" className="w-45">
         {menuContent}
       </DropdownMenuContent>
     </DropdownMenu>

@@ -580,7 +580,7 @@ export function BenchmarkRunner({ onBenchmarksUpdated }: BenchmarkRunnerProps) {
         open={customBenchmarkDialogOpen}
         onOpenChange={setCustomBenchmarkDialogOpen}
       >
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-125">
           <DialogHeader>
             <DialogTitle>Run Custom Benchmark</DialogTitle>
             <DialogDescription>

@@ -174,14 +174,14 @@ export default function UncrawledUrls({ wsId }: { wsId: string }) {
               setUrlSearch(e.target.value);
               debouncedSearch(e.target.value);
             }}
-            className="w-[200px]"
+            className="w-50"
           />
           <Combobox
             t={t}
             options={comboboxOptions}
             selected={currentDomain}
             mode="single"
-            className="w-[300px]"
+            className="w-75"
             placeholder={loading ? 'Loading domains...' : 'Filter by domain'}
             onChange={(value) => {
               const selectedValue = Array.isArray(value) ? value[0] : value;
@@ -202,7 +202,7 @@ export default function UncrawledUrls({ wsId }: { wsId: string }) {
             options={pageSizeOptions}
             selected={currentPageSize.toString()}
             mode="single"
-            className="w-[140px]"
+            className="w-35"
             onChange={(value) => {
               const selectedValue = Array.isArray(value) ? value[0] : value;
               router.push(

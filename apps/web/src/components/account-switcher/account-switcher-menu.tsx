@@ -53,7 +53,7 @@ export function AccountSwitcherMenu({ children }: AccountSwitcherMenuProps) {
         )}
 
         {!isLoading && accounts.length > 0 && (
-          <DropdownMenuGroup className="max-h-[400px] overflow-y-auto">
+          <DropdownMenuGroup className="max-h-100 overflow-y-auto">
             <div className="space-y-1 p-2">
               {accounts.map((account) => (
                 <DropdownMenuItem

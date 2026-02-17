@@ -78,7 +78,7 @@ export default function ChallengeFilter({
       </div>
 
       <Select value={selectedChallengeId} onValueChange={handleValueChange}>
-        <SelectTrigger className="w-[240px]">
+        <SelectTrigger className="w-60">
           <SelectValue placeholder="All Challenges" />
         </SelectTrigger>
         <SelectContent>

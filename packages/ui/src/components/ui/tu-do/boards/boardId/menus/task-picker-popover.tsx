@@ -201,7 +201,7 @@ export function TaskPickerPopover({
         </Button>
       </PopoverTrigger>
       <PopoverContent
-        className="z-9999 w-(--radix-popover-trigger-width) min-w-[300px] p-0"
+        className="z-9999 w-(--radix-popover-trigger-width) min-w-75 p-0"
         align="start"
         sideOffset={4}
       >
@@ -212,7 +212,7 @@ export function TaskPickerPopover({
             onValueChange={setSearchQuery}
             className="h-9"
           />
-          <CommandList className="max-h-[300px]">
+          <CommandList className="max-h-75">
             {tasksLoading ? (
               <div className="flex items-center justify-center py-6">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />

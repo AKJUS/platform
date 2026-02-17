@@ -359,7 +359,7 @@ export function KanbanDemo() {
       {/* Mobile: Horizontal scroll */}
       <div className="flex gap-2 overflow-x-auto p-2 sm:hidden">
         {lists.map((list) => (
-          <div key={list.id} className="w-[280px] shrink-0">
+          <div key={list.id} className="w-70 shrink-0">
             <DemoColumn
               list={list}
               tasks={tasks.filter((task) => task.listId === list.id)}

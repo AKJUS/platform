@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, Eye, EyeOff } from '@tuturuuu/icons';
-import { cn } from '@tuturuuu/utils/format';
+import { cn, getCurrencyLocale } from '@tuturuuu/utils/format';
 import dayjs from 'dayjs';
 import { useLocale, useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -458,7 +458,7 @@ export function CategoryBreakdownChart({
   const formatValue = useCallback(
     (value: number) => {
       if (isConfidential) return '•••••';
-      return new Intl.NumberFormat(currency === 'VND' ? 'vi-VN' : 'en-US', {
+      return new Intl.NumberFormat(getCurrencyLocale(currency), {
         style: 'currency',
         currency,
         minimumFractionDigits: 0,
@@ -624,7 +624,7 @@ export function CategoryBreakdownChart({
               value={interval}
               onValueChange={(value) => setInterval(value as ChartInterval)}
             >
-              <SelectTrigger className="h-8 w-[120px]">
+              <SelectTrigger className="h-8 w-30">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -638,7 +638,7 @@ export function CategoryBreakdownChart({
             </Select>
           </div>
         </CardHeader>
-        <CardContent className="flex h-[320px] items-center justify-center">
+        <CardContent className="flex h-80 items-center justify-center">
           <Skeleton className="h-full w-full" />
         </CardContent>
       </Card>
@@ -682,7 +682,7 @@ export function CategoryBreakdownChart({
               value={interval}
               onValueChange={(value) => setInterval(value as ChartInterval)}
             >
-              <SelectTrigger className="h-8 w-[120px]">
+              <SelectTrigger className="h-8 w-30">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -696,7 +696,7 @@ export function CategoryBreakdownChart({
             </Select>
           </div>
         </CardHeader>
-        <CardContent className="flex h-[300px] items-center justify-center">
+        <CardContent className="flex h-75 items-center justify-center">
           <p className="text-muted-foreground text-sm">No data available</p>
         </CardContent>
       </Card>
@@ -740,7 +740,7 @@ export function CategoryBreakdownChart({
               value={interval}
               onValueChange={(value) => setInterval(value as ChartInterval)}
             >
-              <SelectTrigger className="h-8 w-[120px]">
+              <SelectTrigger className="h-8 w-30">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -764,7 +764,7 @@ export function CategoryBreakdownChart({
               >
                 <ChevronLeft className="h-4 w-4" />
               </Button>
-              <span className="min-w-[140px] px-2 text-center text-xs">
+              <span className="min-w-35 px-2 text-center text-xs">
                 {actualDisplayRange.displayStart} -{' '}
                 {actualDisplayRange.displayEnd}
               </span>
@@ -801,7 +801,7 @@ export function CategoryBreakdownChart({
         </div>
       </CardHeader>
       <CardContent className="px-2 pb-4">
-        <ChartContainer config={chartConfig} className="h-[320px] w-full">
+        <ChartContainer config={chartConfig} className="h-80 w-full">
           <BarChart data={chartData}>
             <CartesianGrid
               vertical={false}

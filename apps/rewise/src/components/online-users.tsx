@@ -84,7 +84,7 @@ export function OnlineUsers({
                     )}
                   </div>
                 </TooltipTrigger>
-                <TooltipContent side="bottom" className="max-w-[200px]">
+                <TooltipContent side="bottom" className="max-w-50">
                   <p className="text-sm">
                     {userId === currentUserId ? (
                       <span className="font-medium">

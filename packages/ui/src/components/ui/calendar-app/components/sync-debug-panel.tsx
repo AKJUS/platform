@@ -235,7 +235,7 @@ export default function SyncDebugPanel() {
   const eventsWithoutGoogleId = events.filter((e: any) => !e.google_event_id);
 
   return (
-    <div className="fixed right-4 bottom-4 z-50 w-[500px] rounded-lg border border-border bg-background shadow-2xl">
+    <div className="fixed right-4 bottom-4 z-50 w-125 rounded-lg border border-border bg-background shadow-2xl">
       {/* Header */}
       <div className="flex items-center justify-between border-border border-b bg-yellow-500/10 px-4 py-2">
         <div className="flex items-center gap-2">
@@ -610,7 +610,7 @@ export default function SyncDebugPanel() {
 
       {/* Events Preview */}
       {isExpanded && (
-        <div className="max-h-[200px] overflow-y-auto border-border border-b p-3">
+        <div className="max-h-50 overflow-y-auto border-border border-b p-3">
           <div className="font-semibold text-[10px] text-muted-foreground">
             EVENTS WITHOUT GOOGLE ID ({eventsWithoutGoogleId.length})
           </div>
@@ -651,7 +651,7 @@ export default function SyncDebugPanel() {
 
       {/* Logs */}
       {isExpanded && (
-        <div className="max-h-[300px] overflow-y-auto p-3">
+        <div className="max-h-75 overflow-y-auto p-3">
           <div className="mb-2 flex items-center justify-between">
             <div className="font-semibold text-[10px] text-muted-foreground">
               DEBUG LOGS ({logs.length})

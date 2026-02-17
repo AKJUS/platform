@@ -62,7 +62,7 @@ export const DeadlineReminderEmail = ({
         <Head />
         <Preview>{previewText}</Preview>
         <Body className="mx-auto my-auto bg-gray-50 font-sans">
-          <Container className="mx-auto my-10 max-w-[600px] rounded-lg border border-gray-200 border-solid bg-white p-5 shadow-sm">
+          <Container className="mx-auto my-10 max-w-150 rounded-lg border border-gray-200 border-solid bg-white p-5 shadow-sm">
             {/* Header */}
             <Section className="mt-4">
               <Heading

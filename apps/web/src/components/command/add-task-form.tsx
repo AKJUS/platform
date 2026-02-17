@@ -565,7 +565,7 @@ export function AddTaskForm({
                   <SelectValue placeholder="Select a board..." />
                 </SelectTrigger>
                 <SelectContent
-                  className={cn(boards && boards.length > 5 && 'max-h-[200px]')}
+                  className={cn(boards && boards.length > 5 && 'max-h-50')}
                 >
                   {boards?.map((board: any) => (
                     <SelectItem key={board.id} value={board.id}>

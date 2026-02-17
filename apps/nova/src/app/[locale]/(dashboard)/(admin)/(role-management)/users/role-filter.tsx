@@ -50,7 +50,7 @@ export default function RoleFilter({ currentRole }: RoleFilterProps) {
         defaultValue={currentRole || 'all'}
         onValueChange={handleRoleChange}
       >
-        <SelectTrigger className="h-8 w-[180px]">
+        <SelectTrigger className="h-8 w-45">
           <SelectValue placeholder="All roles" />
         </SelectTrigger>
         <SelectContent>

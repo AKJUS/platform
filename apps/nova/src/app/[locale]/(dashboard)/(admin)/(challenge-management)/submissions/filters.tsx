@@ -204,7 +204,7 @@ export function SubmissionFilters({
           />
           {userDropdownOpen && (
             <div
-              className="absolute z-20 mt-1 max-h-[200px] w-full overflow-y-auto rounded-md border bg-background shadow-lg"
+              className="absolute z-20 mt-1 max-h-50 w-full overflow-y-auto rounded-md border bg-background shadow-lg"
               tabIndex={-1}
               onBlur={() => setTimeout(() => setUserDropdownOpen(false), 150)}
             >

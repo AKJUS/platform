@@ -76,7 +76,7 @@ export function TeamRowActions({ row }: TeamRowActionsProps) {
             <span className="sr-only">Open menu</span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-[180px]">
+        <DropdownMenuContent align="end" className="w-45">
           <DropdownMenuItem onClick={deleteTeam}>
             {t('common.delete')}
           </DropdownMenuItem>

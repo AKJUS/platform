@@ -373,7 +373,7 @@ export function ChangelogForm({
                   onChange={setContent}
                   onImageUpload={handleImageUpload}
                   writePlaceholder="Write your changelog content here..."
-                  className="min-h-[400px] p-4"
+                  className="min-h-100 p-4"
                 />
               </div>
             </div>

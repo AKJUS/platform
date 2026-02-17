@@ -125,7 +125,7 @@ export function DateTimePicker({
           type="time"
           value={formatTimeForInput(value)}
           onChange={handleTimeChange}
-          className={cn('w-[120px]', !value && 'bg-muted')}
+          className={cn('w-30', !value && 'bg-muted')}
           disabled={disabled || !value}
           placeholder="--:--"
         />

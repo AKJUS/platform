@@ -57,7 +57,7 @@ export default function Filters() {
         value={status || 'all'}
         onValueChange={(value) => updateFilter('status', value)}
       >
-        <SelectTrigger className="w-[140px]">
+        <SelectTrigger className="w-35">
           <SelectValue placeholder={t('filter_by_status')} />
         </SelectTrigger>
         <SelectContent>
@@ -116,7 +116,7 @@ export default function Filters() {
         value={dateRange || 'all'}
         onValueChange={(value) => updateFilter('dateRange', value)}
       >
-        <SelectTrigger className="w-[140px]">
+        <SelectTrigger className="w-35">
           <SelectValue placeholder={t('filter_by_date')} />
         </SelectTrigger>
         <SelectContent>
@@ -154,7 +154,7 @@ export default function Filters() {
         value={errorFilter || 'all'}
         onValueChange={(value) => updateFilter('errorFilter', value)}
       >
-        <SelectTrigger className="w-[140px]">
+        <SelectTrigger className="w-35">
           <SelectValue placeholder={t('filter_by_error')} />
         </SelectTrigger>
         <SelectContent>

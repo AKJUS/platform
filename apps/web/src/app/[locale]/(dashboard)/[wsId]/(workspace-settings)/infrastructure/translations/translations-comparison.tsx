@@ -822,7 +822,7 @@ export default function TranslationsComparison({
                           key={ns.namespace}
                           className="flex items-center justify-between text-xs"
                         >
-                          <span className="max-w-[120px] truncate font-mono text-muted-foreground">
+                          <span className="max-w-30 truncate font-mono text-muted-foreground">
                             {ns.namespace}
                           </span>
                           <div className="flex items-center gap-2">
@@ -969,7 +969,7 @@ export default function TranslationsComparison({
           />
         </div>
         <Select value={namespaceFilter} onValueChange={setNamespaceFilter}>
-          <SelectTrigger className="w-full sm:w-[200px]">
+          <SelectTrigger className="w-full sm:w-50">
             <SelectValue placeholder="Filter by namespace" />
           </SelectTrigger>
           <SelectContent>
@@ -989,7 +989,7 @@ export default function TranslationsComparison({
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-full sm:w-[180px]">
+          <SelectTrigger className="w-full sm:w-45">
             <SelectValue placeholder="Filter by status" />
           </SelectTrigger>
           <SelectContent>
@@ -1106,7 +1106,7 @@ export default function TranslationsComparison({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[50px]">
+              <TableHead className="w-12.5">
                 <Button
                   variant="ghost"
                   size="sm"
@@ -1121,10 +1121,10 @@ export default function TranslationsComparison({
                   )}
                 </Button>
               </TableHead>
-              <TableHead className="w-[280px]">Key</TableHead>
+              <TableHead className="w-70">Key</TableHead>
               <TableHead>English</TableHead>
               <TableHead>Vietnamese</TableHead>
-              <TableHead className="w-[140px]">Status</TableHead>
+              <TableHead className="w-35">Status</TableHead>
               <TableHead className="w-20">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -1505,7 +1505,7 @@ export default function TranslationsComparison({
                     {Object.keys(parsedTranslations).length} keys
                   </Badge>
                 </div>
-                <div className="max-h-[300px] space-y-2 overflow-y-auto">
+                <div className="max-h-75 space-y-2 overflow-y-auto">
                   {Object.entries(parsedTranslations)
                     .slice(-10) // Show last 10 translations
                     .reverse()
@@ -1552,7 +1552,7 @@ export default function TranslationsComparison({
                   <FileJson className="h-4 w-4" />
                   Raw AI Output ({streamingContent.length} chars)
                 </summary>
-                <div className="max-h-[200px] overflow-y-auto border-t p-3">
+                <div className="max-h-50 overflow-y-auto border-t p-3">
                   <pre className="wrap-break-word whitespace-pre-wrap font-mono text-xs">
                     {streamingContent}
                   </pre>
@@ -1659,7 +1659,7 @@ export default function TranslationsComparison({
                     </Button>
                   )}
                 </div>
-                <div className="max-h-[300px] min-h-[120px] overflow-y-auto rounded-lg border bg-muted/30 p-4">
+                <div className="max-h-75 min-h-30 overflow-y-auto rounded-lg border bg-muted/30 p-4">
                   {selectedTranslation?.enValue ? (
                     <p className="wrap-break-word whitespace-pre-wrap">
                       {selectedTranslation.enValue}
@@ -1703,7 +1703,7 @@ export default function TranslationsComparison({
                     </Button>
                   )}
                 </div>
-                <div className="max-h-[300px] min-h-[120px] overflow-y-auto rounded-lg border bg-muted/30 p-4">
+                <div className="max-h-75 min-h-30 overflow-y-auto rounded-lg border bg-muted/30 p-4">
                   {selectedTranslation?.viValue ? (
                     <p className="wrap-break-word whitespace-pre-wrap">
                       {selectedTranslation.viValue}
@@ -1761,7 +1761,7 @@ export default function TranslationsComparison({
                 </div>
                 <div className="flex items-center justify-between border-b py-1">
                   <span className="text-muted-foreground">Full Key:</span>
-                  <span className="max-w-[300px] truncate font-mono text-xs">
+                  <span className="max-w-75 truncate font-mono text-xs">
                     {selectedTranslation?.key}
                   </span>
                 </div>

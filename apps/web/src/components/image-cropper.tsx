@@ -220,7 +220,7 @@ export function ImageCropper({
 
         <div className="min-h-0 space-y-4 overflow-y-auto">
           {/* Cropper Container */}
-          <div className="relative h-[500px] w-full overflow-hidden rounded-lg border bg-dynamic-muted/20">
+          <div className="relative h-125 w-full overflow-hidden rounded-lg border bg-dynamic-muted/20">
             <Cropper
               image={image}
               crop={crop}

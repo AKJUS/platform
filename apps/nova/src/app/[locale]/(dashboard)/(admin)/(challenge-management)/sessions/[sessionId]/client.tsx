@@ -305,7 +305,7 @@ export default function SessionClient({ session }: SessionClientProps) {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-[100px]">ID</TableHead>
+                      <TableHead className="w-25">ID</TableHead>
                       <TableHead>Problem</TableHead>
                       <TableHead>Score</TableHead>
                       <TableHead>Date</TableHead>

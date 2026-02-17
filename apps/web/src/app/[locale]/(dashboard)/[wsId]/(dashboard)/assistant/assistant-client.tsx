@@ -971,7 +971,7 @@ function GameApp({ wsId }: { wsId: string }) {
 
         {/* Animated gradient orbs in background */}
         <motion.div
-          className="absolute top-[15%] left-[10%] h-[700px] w-[700px] rounded-full"
+          className="absolute top-[15%] left-[10%] h-175 w-175 rounded-full"
           style={{
             background: `radial-gradient(circle, ${AURORA_COLORS.purple}40 0%, ${AURORA_COLORS.violet}20 40%, transparent 70%)`,
             filter: 'blur(100px)',
@@ -988,7 +988,7 @@ function GameApp({ wsId }: { wsId: string }) {
           }}
         />
         <motion.div
-          className="absolute top-[20%] right-[5%] h-[600px] w-[600px] rounded-full"
+          className="absolute top-[20%] right-[5%] h-150 w-150 rounded-full"
           style={{
             background: `radial-gradient(circle, ${AURORA_COLORS.blue}35 0%, ${AURORA_COLORS.cyan}15 40%, transparent 70%)`,
             filter: 'blur(100px)',
@@ -1006,7 +1006,7 @@ function GameApp({ wsId }: { wsId: string }) {
           }}
         />
         <motion.div
-          className="absolute bottom-[10%] left-[20%] h-[500px] w-[500px] rounded-full"
+          className="absolute bottom-[10%] left-[20%] h-125 w-125 rounded-full"
           style={{
             background: `radial-gradient(circle, ${AURORA_COLORS.pink}30 0%, ${AURORA_COLORS.rose}15 40%, transparent 70%)`,
             filter: 'blur(100px)',
@@ -1024,7 +1024,7 @@ function GameApp({ wsId }: { wsId: string }) {
           }}
         />
         <motion.div
-          className="absolute right-[15%] bottom-[30%] h-[400px] w-[400px] rounded-full"
+          className="absolute right-[15%] bottom-[30%] h-100 w-100 rounded-full"
           style={{
             background: `radial-gradient(circle, ${AURORA_COLORS.amber}25 0%, ${AURORA_COLORS.rose}10 40%, transparent 70%)`,
             filter: 'blur(80px)',
@@ -1182,7 +1182,7 @@ function LoadingOrb() {
           }}
         />
         <motion.div
-          className="absolute top-1/2 left-1/2 h-[500px] w-[500px] -translate-x-1/2 -translate-y-1/2 rounded-full"
+          className="absolute top-1/2 left-1/2 h-125 w-125 -translate-x-1/2 -translate-y-1/2 rounded-full"
           style={{
             background: `radial-gradient(circle, ${AURORA_COLORS.purple}50 0%, ${AURORA_COLORS.blue}30 40%, transparent 70%)`,
             filter: 'blur(80px)',
@@ -1270,7 +1270,7 @@ export default function AssistantClient({ wsId }: AssistantClientProps) {
             }}
           />
           <motion.div
-            className="absolute top-1/2 left-1/2 h-[400px] w-[400px] -translate-x-1/2 -translate-y-1/2 rounded-full"
+            className="absolute top-1/2 left-1/2 h-100 w-100 -translate-x-1/2 -translate-y-1/2 rounded-full"
             style={{
               background: `radial-gradient(circle, ${AURORA_COLORS.rose}40 0%, ${AURORA_COLORS.pink}20 40%, transparent 70%)`,
               filter: 'blur(80px)',

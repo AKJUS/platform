@@ -3,6 +3,7 @@
 import { AlertCircle, Calendar, Clock, TrendingUp } from '@tuturuuu/icons';
 import type { InterestSummary, PendingDepositInfo } from '@tuturuuu/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@tuturuuu/ui/card';
+import { getCurrencyLocale } from '@tuturuuu/utils/currencies';
 import { useTranslations } from 'next-intl';
 
 interface WalletInterestSummaryProps {
@@ -20,7 +21,7 @@ export function WalletInterestSummary({
   const t = useTranslations('wallet-interest');
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat(currency === 'VND' ? 'vi-VN' : 'en-US', {
+    return new Intl.NumberFormat(getCurrencyLocale(currency), {
       style: 'currency',
       currency: currency || 'USD',
       maximumFractionDigits: 0,
@@ -139,7 +140,7 @@ function PendingDepositsAlert({
   const t = useTranslations('wallet-interest');
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat(currency === 'VND' ? 'vi-VN' : 'en-US', {
+    return new Intl.NumberFormat(getCurrencyLocale(currency), {
       style: 'currency',
       currency: currency || 'USD',
       maximumFractionDigits: 0,

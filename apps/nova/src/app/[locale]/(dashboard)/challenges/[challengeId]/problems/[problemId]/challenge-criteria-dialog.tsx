@@ -26,7 +26,7 @@ export function ChallengeCriteriaDialog({
   return (
     <Dialog>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent className="max-h-screen min-h-[500px] sm:max-w-2xl">
+      <DialogContent className="max-h-screen min-h-125 sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Challenge Criteria</DialogTitle>
 

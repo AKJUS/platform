@@ -44,7 +44,7 @@ export function SubtasksSection({
 
       {/* Task list */}
       {childTasks.length > 0 && (
-        <ScrollArea className="max-h-[200px]">
+        <ScrollArea className="max-h-50">
           <div className="space-y-1">
             {childTasks.map((task) => (
               <ClickableTaskItem

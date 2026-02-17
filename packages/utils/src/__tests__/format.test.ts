@@ -4,6 +4,7 @@ import {
   formatBytes,
   formatCurrency,
   formatDuration,
+  getCurrencyLocale,
   isValidBlobUrl,
   isValidHttpUrl,
 } from '../format';
@@ -237,6 +238,28 @@ describe('Format Utilities', () => {
     });
   });
 
+  describe('getCurrencyLocale', () => {
+    it('returns vi-VN for VND', () => {
+      expect(getCurrencyLocale('VND')).toBe('vi-VN');
+    });
+
+    it('returns en-US for USD', () => {
+      expect(getCurrencyLocale('USD')).toBe('en-US');
+    });
+
+    it('returns en-PH for PHP', () => {
+      expect(getCurrencyLocale('PHP')).toBe('en-PH');
+    });
+
+    it('defaults to en-US for unknown currency', () => {
+      expect(getCurrencyLocale('UNKNOWN')).toBe('en-US');
+    });
+
+    it('is case insensitive', () => {
+      expect(getCurrencyLocale('php')).toBe('en-PH');
+    });
+  });
+
   describe('formatCurrency', () => {
     it('formats VND currency by default', () => {
       const result = formatCurrency(1000000);
@@ -271,6 +294,11 @@ describe('Format Utilities', () => {
     it('formats EUR currency', () => {
       const result = formatCurrency(1000, 'EUR');
       expect(result).toContain('€');
+    });
+
+    it('formats PHP currency', () => {
+      const result = formatCurrency(1000, 'PHP');
+      expect(result).toContain('₱');
     });
 
     it('respects custom options', () => {

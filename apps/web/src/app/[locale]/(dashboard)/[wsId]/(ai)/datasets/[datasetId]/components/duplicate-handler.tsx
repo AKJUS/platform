@@ -183,7 +183,7 @@ export function DuplicateHandler({ wsId, datasetId }: Props) {
         </DialogTrigger>
       </div>
 
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-125">
         <DialogHeader>
           <DialogTitle>Manage Duplicate Rows</DialogTitle>
           <DialogDescription>

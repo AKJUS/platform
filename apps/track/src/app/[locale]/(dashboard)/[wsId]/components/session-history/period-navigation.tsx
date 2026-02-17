@@ -80,7 +80,7 @@ export function PeriodNavigation({
           >
             <ChevronLeft className="h-4 w-4" />
           </Button>
-          <div className="w-full min-w-[140px] text-center font-semibold text-sm md:min-w-[180px] md:text-base">
+          <div className="w-full min-w-35 text-center font-semibold text-sm md:min-w-45 md:text-base">
             {formatPeriod}
           </div>
           <Button

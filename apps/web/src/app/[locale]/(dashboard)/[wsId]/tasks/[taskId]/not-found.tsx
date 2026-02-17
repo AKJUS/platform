@@ -4,7 +4,7 @@ import Link from 'next/link';
 
 export default function TaskNotFound() {
   return (
-    <div className="flex min-h-[400px] flex-col items-center justify-center gap-4 p-8">
+    <div className="flex min-h-100 flex-col items-center justify-center gap-4 p-8">
       <AlertCircle className="h-16 w-16 text-muted-foreground" />
       <div className="text-center">
         <h1 className="font-semibold text-2xl">Task Not Found</h1>

@@ -120,7 +120,7 @@ export const getEmailAuditColumns = ({
       />
     ),
     cell: ({ row }) => (
-      <div className="max-w-[300px] truncate font-medium">
+      <div className="max-w-75 truncate font-medium">
         {row.getValue<string>('subject')}
       </div>
     ),
@@ -139,7 +139,7 @@ export const getEmailAuditColumns = ({
       const display = addresses.slice(0, 2).join(', ');
       const remaining = addresses.length - 2;
       return (
-        <div className="max-w-[200px] truncate text-sm">
+        <div className="max-w-50 truncate text-sm">
           {display}
           {remaining > 0 && (
             <span className="text-muted-foreground"> +{remaining}</span>
@@ -303,7 +303,7 @@ export const getEmailAuditColumns = ({
       }
 
       return (
-        <div className="max-w-[500px] truncate text-sm" title={error}>
+        <div className="max-w-125 truncate text-sm" title={error}>
           {error || '—'}
         </div>
       );
@@ -418,7 +418,7 @@ export const getEmailAuditColumns = ({
     cell: ({ row }) => {
       const hash = row.getValue<string | null>('content_hash');
       return hash ? (
-        <div className="max-w-[100px] truncate font-mono text-xs" title={hash}>
+        <div className="max-w-25 truncate font-mono text-xs" title={hash}>
           {hash}
         </div>
       ) : (

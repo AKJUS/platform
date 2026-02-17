@@ -105,7 +105,7 @@ function EmailChips({
         ))}
         <input
           ref={inputRef}
-          className="min-w-[120px] flex-1 bg-transparent px-1 py-0.5 text-sm outline-none"
+          className="min-w-30 flex-1 bg-transparent px-1 py-0.5 text-sm outline-none"
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           onKeyDown={handleInputKeyDown}

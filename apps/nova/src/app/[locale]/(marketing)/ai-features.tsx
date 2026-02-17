@@ -109,7 +109,7 @@ export default function AiFeatures() {
             initial={{ opacity: 0, x: 20 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
-            className="relative min-h-[600px]"
+            className="relative min-h-150"
           >
             <InteractiveDemo />
 

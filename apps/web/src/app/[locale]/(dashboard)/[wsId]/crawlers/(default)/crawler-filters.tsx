@@ -93,7 +93,7 @@ export default function CrawlerFilters({ wsId }: { wsId: string }) {
             setUrlSearch(e.target.value);
             debouncedSearch(e.target.value);
           }}
-          className="w-[200px] pl-9"
+          className="w-50 pl-9"
         />
       </div>
       <div className="flex items-center gap-2">
@@ -103,7 +103,7 @@ export default function CrawlerFilters({ wsId }: { wsId: string }) {
           options={comboboxOptions}
           selected={currentDomain}
           mode="single"
-          className="w-[300px]"
+          className="w-75"
           placeholder={loading ? 'Loading domains...' : 'Filter by domain'}
           onChange={(value) => {
             const selectedValue = Array.isArray(value) ? value[0] : value;

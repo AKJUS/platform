@@ -69,7 +69,7 @@ export function AmountRangeFilter({
             )}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[280px]" align="start">
+        <PopoverContent className="w-70" align="start">
           <div className="space-y-4">
             <div className="space-y-2">
               <h4 className="font-medium text-sm">Amount Range</h4>

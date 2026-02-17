@@ -85,7 +85,7 @@ export default async function UserGroupDetailsPage({ params }: Props) {
         rawContent={data.content}
         content={
           data.content ? (
-            <div className="h-full max-h-[500px] overflow-y-auto">
+            <div className="h-full max-h-125 overflow-y-auto">
               <RichTextEditor content={data.content as JSONContent} readOnly />
             </div>
           ) : undefined

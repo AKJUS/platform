@@ -80,7 +80,7 @@ export function MonthPicker({
           value={year.toString()}
           onValueChange={(value) => setYear(parseInt(value, 10))}
         >
-          <SelectTrigger className="w-[120px]">
+          <SelectTrigger className="w-30">
             <SelectValue placeholder="Select year" />
           </SelectTrigger>
           <SelectContent>
