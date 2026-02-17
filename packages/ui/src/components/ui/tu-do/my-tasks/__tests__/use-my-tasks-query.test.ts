@@ -38,7 +38,7 @@ function captureUseInfiniteQueryOptions() {
 }
 
 /** Call the hook so the mock records the options, then return captured opts. */
-function callMyTasksQuery(
+function useCallMyTasksQuery(
   wsId: string,
   isPersonal: boolean,
   filters?: TaskFilterParams
@@ -47,7 +47,7 @@ function callMyTasksQuery(
   return captureUseQueryOptions();
 }
 
-function callCompletedTasksQuery(
+function useCallCompletedTasksQuery(
   wsId: string,
   isPersonal: boolean,
   filters?: TaskFilterParams
@@ -80,21 +80,21 @@ describe('useMyTasksQuery', () => {
       selfManagedOnly: false,
     };
 
-    const opts = callMyTasksQuery('ws-1', true, filters);
+    const opts = useCallMyTasksQuery('ws-1', true, filters);
 
     expect(opts.queryKey).toEqual([MY_TASKS_QUERY_KEY, 'ws-1', true, filters]);
   });
 
   // ── Query config ─────────────────────────────────────────────────────────
   it('sets staleTime to 30_000 and refetchOnWindowFocus to true', async () => {
-    const opts = callMyTasksQuery('ws-1', false);
+    const opts = useCallMyTasksQuery('ws-1', false);
 
     expect(opts.staleTime).toBe(30_000);
     expect(opts.refetchOnWindowFocus).toBe(true);
   });
 
   it('uses keepPreviousData as placeholderData', async () => {
-    const opts = callMyTasksQuery('ws-1', false);
+    const opts = useCallMyTasksQuery('ws-1', false);
 
     // Our mock replaces keepPreviousData with a Symbol
     expect(opts.placeholderData).toBeDefined();
@@ -108,7 +108,7 @@ describe('useMyTasksQuery', () => {
         json: async () => ({}),
       });
 
-      const opts = callMyTasksQuery('ws-1', true);
+      const opts = useCallMyTasksQuery('ws-1', true);
       await opts.queryFn();
 
       const calledUrl = mockFetch.mock.calls[0]![0] as string;
@@ -133,7 +133,7 @@ describe('useMyTasksQuery', () => {
         selfManagedOnly: false,
       };
 
-      const opts = callMyTasksQuery('ws-1', true, filters);
+      const opts = useCallMyTasksQuery('ws-1', true, filters);
       await opts.queryFn();
 
       const calledUrl = mockFetch.mock.calls[0]![0] as string;
@@ -157,7 +157,7 @@ describe('useMyTasksQuery', () => {
         selfManagedOnly: false,
       };
 
-      const opts = callMyTasksQuery('ws-1', false, filters);
+      const opts = useCallMyTasksQuery('ws-1', false, filters);
       await opts.queryFn();
 
       const calledUrl = mockFetch.mock.calls[0]![0] as string;
@@ -181,7 +181,7 @@ describe('useMyTasksQuery', () => {
         selfManagedOnly: false,
       };
 
-      const opts = callMyTasksQuery('ws-1', false, filters);
+      const opts = useCallMyTasksQuery('ws-1', false, filters);
       await opts.queryFn();
 
       const calledUrl = mockFetch.mock.calls[0]![0] as string;
@@ -205,7 +205,7 @@ describe('useMyTasksQuery', () => {
         selfManagedOnly: true,
       };
 
-      const opts = callMyTasksQuery('ws-1', false, filters);
+      const opts = useCallMyTasksQuery('ws-1', false, filters);
       await opts.queryFn();
 
       const calledUrl = mockFetch.mock.calls[0]![0] as string;
@@ -228,7 +228,7 @@ describe('useMyTasksQuery', () => {
         selfManagedOnly: false,
       };
 
-      const opts = callMyTasksQuery('ws-1', false, filters);
+      const opts = useCallMyTasksQuery('ws-1', false, filters);
       await opts.queryFn();
 
       const calledUrl = mockFetch.mock.calls[0]![0] as string;
@@ -251,7 +251,7 @@ describe('useMyTasksQuery', () => {
         selfManagedOnly: true,
       };
 
-      const opts = callMyTasksQuery('ws-1', true, filters);
+      const opts = useCallMyTasksQuery('ws-1', true, filters);
       await opts.queryFn();
 
       const calledUrl = mockFetch.mock.calls[0]![0] as string;
@@ -270,7 +270,7 @@ describe('useMyTasksQuery', () => {
   it('throws on non-ok response', async () => {
     mockFetch.mockResolvedValueOnce({ ok: false, status: 500 });
 
-    const opts = callMyTasksQuery('ws-1', false);
+    const opts = useCallMyTasksQuery('ws-1', false);
 
     await expect(opts.queryFn()).rejects.toThrow('Failed to fetch tasks');
   });
@@ -282,7 +282,7 @@ describe('useMyTasksQuery', () => {
       json: async () => ({}),
     });
 
-    const opts = callMyTasksQuery('ws-1', false);
+    const opts = useCallMyTasksQuery('ws-1', false);
     await opts.queryFn();
 
     const calledUrl = mockFetch.mock.calls[0]![0] as string;
@@ -319,7 +319,7 @@ describe('useCompletedTasksQuery', () => {
       selfManagedOnly: false,
     };
 
-    const opts = callCompletedTasksQuery('ws-2', false, filters);
+    const opts = useCallCompletedTasksQuery('ws-2', false, filters);
 
     expect(opts.queryKey).toEqual([
       MY_COMPLETED_TASKS_QUERY_KEY,
@@ -331,7 +331,7 @@ describe('useCompletedTasksQuery', () => {
 
   // ── Config ───────────────────────────────────────────────────────────────
   it('sets initialPageParam to 0 and staleTime to 30_000', async () => {
-    const opts = callCompletedTasksQuery('ws-1', false);
+    const opts = useCallCompletedTasksQuery('ws-1', false);
 
     expect(opts.initialPageParam).toBe(0);
     expect(opts.staleTime).toBe(30_000);
@@ -350,7 +350,7 @@ describe('useCompletedTasksQuery', () => {
       }),
     });
 
-    const opts = callCompletedTasksQuery('ws-1', true);
+    const opts = useCallCompletedTasksQuery('ws-1', true);
     await opts.queryFn({ pageParam: 2 });
 
     const calledUrl = mockFetch.mock.calls[0]![0] as string;
@@ -379,7 +379,7 @@ describe('useCompletedTasksQuery', () => {
       selfManagedOnly: true,
     };
 
-    const opts = callCompletedTasksQuery('ws-1', false, filters);
+    const opts = useCallCompletedTasksQuery('ws-1', false, filters);
     await opts.queryFn({ pageParam: 0 });
 
     const calledUrl = mockFetch.mock.calls[0]![0] as string;
@@ -399,7 +399,7 @@ describe('useCompletedTasksQuery', () => {
       json: async () => ({}), // empty response
     });
 
-    const opts = callCompletedTasksQuery('ws-1', false);
+    const opts = useCallCompletedTasksQuery('ws-1', false);
     const result = await opts.queryFn({ pageParam: 0 });
 
     expect(result).toEqual({
@@ -423,7 +423,7 @@ describe('useCompletedTasksQuery', () => {
       json: async () => serverData,
     });
 
-    const opts = callCompletedTasksQuery('ws-1', false);
+    const opts = useCallCompletedTasksQuery('ws-1', false);
     const result = await opts.queryFn({ pageParam: 3 });
 
     expect(result).toEqual(serverData);
@@ -433,7 +433,7 @@ describe('useCompletedTasksQuery', () => {
   it('throws on non-ok response', async () => {
     mockFetch.mockResolvedValueOnce({ ok: false, status: 500 });
 
-    const opts = callCompletedTasksQuery('ws-1', false);
+    const opts = useCallCompletedTasksQuery('ws-1', false);
 
     await expect(opts.queryFn({ pageParam: 0 })).rejects.toThrow(
       'Failed to fetch completed tasks'
@@ -442,7 +442,7 @@ describe('useCompletedTasksQuery', () => {
 
   // ── getNextPageParam ─────────────────────────────────────────────────────
   it('returns next page when hasMoreCompleted is true', async () => {
-    const opts = callCompletedTasksQuery('ws-1', false);
+    const opts = useCallCompletedTasksQuery('ws-1', false);
 
     const nextPage = opts.getNextPageParam({
       completed: [],
@@ -455,7 +455,7 @@ describe('useCompletedTasksQuery', () => {
   });
 
   it('returns undefined when hasMoreCompleted is false', async () => {
-    const opts = callCompletedTasksQuery('ws-1', false);
+    const opts = useCallCompletedTasksQuery('ws-1', false);
 
     const nextPage = opts.getNextPageParam({
       completed: [],

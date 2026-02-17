@@ -35,5 +35,5 @@ jobs:
     if: needs.check-ci.outputs.should_run == 'true'
     with:
       working_directory: apps/mobile
-      flutter_version: "3.38.x"
+      flutter_version: "latest"
       min_coverage: 0

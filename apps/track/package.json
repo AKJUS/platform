@@ -26,8 +26,8 @@
   "dependencies": {
     "@formatjs/intl-localematcher": "^0.8.1",
     "@hookform/resolvers": "^5.2.2",
-    "@mantine/charts": "^8.3.14",
-    "@mantine/core": "^8.3.14",
+    "@mantine/charts": "^8.3.15",
+    "@mantine/core": "^8.3.15",
     "@tanstack/react-query": "^5.90.21",
     "@tanstack/react-table": "^8.21.3",
     "@tuturuuu/apis": "workspace:*",
@@ -45,7 +45,7 @@
     "dayjs": "^1.11.19",
     "negotiator": "^1.0.0",
     "next": "^16.1.6",
-    "next-intl": "^4.8.2",
+    "next-intl": "^4.8.3",
     "next-themes": "^0.4.6",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
@@ -64,7 +64,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.4",
     "babel-plugin-react-compiler": "^1.0.0",
-    "jsdom": "^28.0.0",
+    "jsdom": "^28.1.0",
     "postcss": "^8.5.6",
     "typescript": "^5.9.3"
   },

@@ -24,6 +24,10 @@ class ShellPage extends StatefulWidget {
 }
 
 class _ShellPageState extends State<ShellPage> {
+  static const ValueKey<String> _homeKey = ValueKey('home');
+  static const ValueKey<String> _appsKey = ValueKey('apps');
+  static const ValueKey<String> _profileKey = ValueKey('profile');
+
   final Stopwatch _tapStopwatch = Stopwatch();
   int? _lastTabIndex;
   Timer? _longPressTimer;
@@ -68,11 +72,12 @@ class _ShellPageState extends State<ShellPage> {
               onPointerUp: _stopLongPressTimer,
               onPointerCancel: _stopLongPressTimer,
               child: shad.NavigationBar(
-                index: selectedIndex,
-                onSelected: (index) => _onItemTapped(index, context, state),
-                labelType: shad.NavigationLabelType.all,
+                selectedKey: _keyForIndex(selectedIndex),
+                onSelected: (key) =>
+                    _onItemTapped(_indexForKey(key), context, state),
                 children: [
                   shad.NavigationItem(
+                    key: _homeKey,
                     label: Text(
                       l10n.navHome,
                       maxLines: 1,
@@ -92,6 +97,7 @@ class _ShellPageState extends State<ShellPage> {
                     child: Icon(appsIcon),
                   ),
                   shad.NavigationItem(
+                    key: _profileKey,
                     label: Text(
                       l10n.settingsProfile,
                       maxLines: 1,
@@ -170,6 +176,18 @@ class _ShellPageState extends State<ShellPage> {
   void _stopLongPressTimer([PointerEvent? _]) {
     _longPressTimer?.cancel();
     _longPressTimer = null;
+  }
+
+  Key _keyForIndex(int index) => switch (index) {
+    1 => _appsTabKey,
+    2 => _profileKey,
+    _ => _homeKey,
+  };
+
+  static int _indexForKey(Key? key) {
+    if (key == _appsKey || key is GlobalKey) return 1;
+    if (key == _profileKey) return 2;
+    return 0;
   }
 
   static int _calculateSelectedIndex(BuildContext context) {
