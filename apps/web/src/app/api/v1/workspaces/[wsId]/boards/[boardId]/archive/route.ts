@@ -1,131 +1,151 @@
-import { createClient } from '@tuturuuu/supabase/next/server';
-import { type NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { z } from 'zod';
-import { authorize } from '@/lib/api-auth';
+import { withSessionAuth } from '@/lib/api-auth';
 
 const paramsSchema = z.object({
   wsId: z.string().uuid(),
   boardId: z.string().uuid(),
 });
 
-// POST handler for archiving
-export async function POST(
-  _req: NextRequest,
-  context: { params: Promise<{ wsId: string; boardId: string }> }
+interface BoardParams {
+  wsId: string;
+  boardId: string;
+}
+
+async function verifyWorkspaceAccess(
+  supabase: Parameters<Parameters<typeof withSessionAuth>[0]>[1]['supabase'],
+  wsId: string,
+  userId: string
 ) {
-  try {
-    const resolvedParams = await context.params;
-    const { wsId, boardId } = paramsSchema.parse(resolvedParams);
-    const { error } = await authorize(wsId);
-    if (error) return error;
+  const { data } = await supabase
+    .from('workspace_members')
+    .select('user_id')
+    .eq('ws_id', wsId)
+    .eq('user_id', userId)
+    .single();
+  return !!data;
+}
 
-    const supabase = await createClient();
+// POST handler for archiving
+export const POST = withSessionAuth<BoardParams>(
+  async (_req, { user, supabase }, rawParams) => {
+    try {
+      const { wsId, boardId } = paramsSchema.parse(rawParams);
 
-    const { data: board, error: boardCheckError } = await supabase
-      .from('workspace_boards')
-      .select('id, archived_at, deleted_at')
-      .eq('id', boardId)
-      .eq('ws_id', wsId)
-      .single();
+      if (!(await verifyWorkspaceAccess(supabase, wsId, user.id))) {
+        return NextResponse.json(
+          { error: "You don't have access to this workspace" },
+          { status: 403 }
+        );
+      }
 
-    if (boardCheckError || !board) {
-      return NextResponse.json({ error: 'Board not found' }, { status: 404 });
-    }
+      const { data: board, error: boardCheckError } = await supabase
+        .from('workspace_boards')
+        .select('id, archived_at, deleted_at')
+        .eq('id', boardId)
+        .eq('ws_id', wsId)
+        .single();
 
-    if (board.archived_at) {
+      if (boardCheckError || !board) {
+        return NextResponse.json({ error: 'Board not found' }, { status: 404 });
+      }
+
+      if (board.archived_at) {
+        return NextResponse.json(
+          { error: 'Board is already archived' },
+          { status: 400 }
+        );
+      }
+
+      if (board.deleted_at) {
+        return NextResponse.json(
+          { error: 'Cannot archive a deleted board' },
+          { status: 400 }
+        );
+      }
+
+      const { error: archiveError } = await supabase
+        .from('workspace_boards')
+        .update({ archived_at: new Date().toISOString() })
+        .eq('id', boardId);
+
+      if (archiveError) {
+        console.error('Error archiving board:', archiveError);
+        return NextResponse.json(
+          { error: 'Failed to archive board' },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json({ success: true });
+    } catch (error) {
+      console.error('Error in POST archive handler:', error);
       return NextResponse.json(
-        { error: 'Board is already archived' },
-        { status: 400 }
-      );
-    }
-
-    if (board.deleted_at) {
-      return NextResponse.json(
-        { error: 'Cannot archive a deleted board' },
-        { status: 400 }
-      );
-    }
-
-    const { error: archiveError } = await supabase
-      .from('workspace_boards')
-      .update({ archived_at: new Date().toISOString() })
-      .eq('id', boardId);
-
-    if (archiveError) {
-      console.error('Error archiving board:', archiveError);
-      return NextResponse.json(
-        { error: 'Failed to archive board' },
+        { error: 'Internal server error' },
         { status: 500 }
       );
     }
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('Error in POST archive handler:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
   }
-}
+);
 
 // DELETE handler for unarchiving
-export async function DELETE(
-  _req: NextRequest,
-  context: { params: Promise<{ wsId: string; boardId: string }> }
-) {
-  try {
-    const resolvedParams = await context.params;
-    const { wsId, boardId } = paramsSchema.parse(resolvedParams);
-    const { error } = await authorize(wsId);
-    if (error) return error;
+export const DELETE = withSessionAuth<BoardParams>(
+  async (_req, { user, supabase }, rawParams) => {
+    try {
+      const { wsId, boardId } = paramsSchema.parse(rawParams);
 
-    const supabase = await createClient();
+      if (!(await verifyWorkspaceAccess(supabase, wsId, user.id))) {
+        return NextResponse.json(
+          { error: "You don't have access to this workspace" },
+          { status: 403 }
+        );
+      }
 
-    const { data: board, error: boardCheckError } = await supabase
-      .from('workspace_boards')
-      .select('id, archived_at, deleted_at')
-      .eq('id', boardId)
-      .eq('ws_id', wsId)
-      .single();
+      const { data: board, error: boardCheckError } = await supabase
+        .from('workspace_boards')
+        .select('id, archived_at, deleted_at')
+        .eq('id', boardId)
+        .eq('ws_id', wsId)
+        .single();
 
-    if (boardCheckError || !board) {
-      return NextResponse.json({ error: 'Board not found' }, { status: 404 });
-    }
+      if (boardCheckError || !board) {
+        return NextResponse.json({ error: 'Board not found' }, { status: 404 });
+      }
 
-    if (!board.archived_at) {
+      if (!board.archived_at) {
+        return NextResponse.json(
+          { error: 'Board is not archived' },
+          { status: 400 }
+        );
+      }
+
+      if (board.deleted_at) {
+        return NextResponse.json(
+          { error: 'Cannot unarchive a deleted board' },
+          { status: 400 }
+        );
+      }
+
+      const { error: unarchiveError } = await supabase
+        .from('workspace_boards')
+        .update({ archived_at: null })
+        .eq('id', boardId);
+
+      if (unarchiveError) {
+        console.error('Error unarchiving board:', unarchiveError);
+        return NextResponse.json(
+          { error: 'Failed to unarchive board' },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json({ success: true });
+    } catch (error) {
+      console.error('Error in DELETE archive handler:', error);
       return NextResponse.json(
-        { error: 'Board is not archived' },
-        { status: 400 }
-      );
-    }
-
-    if (board.deleted_at) {
-      return NextResponse.json(
-        { error: 'Cannot unarchive a deleted board' },
-        { status: 400 }
-      );
-    }
-
-    const { error: unarchiveError } = await supabase
-      .from('workspace_boards')
-      .update({ archived_at: null })
-      .eq('id', boardId);
-
-    if (unarchiveError) {
-      console.error('Error unarchiving board:', unarchiveError);
-      return NextResponse.json(
-        { error: 'Failed to unarchive board' },
+        { error: 'Internal server error' },
         { status: 500 }
       );
     }
-
-    return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error('Error in DELETE archive handler:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
   }
-}
+);

@@ -1,10 +1,10 @@
 import { createPolarClient } from '@tuturuuu/payment/polar/server';
 import type { TypedSupabaseClient } from '@tuturuuu/supabase/next/client';
 import { createAdminClient } from '@tuturuuu/supabase/next/server';
-import { type NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { authorizeRequest } from '@/lib/api-auth';
+import { withSessionAuth } from '@/lib/api-auth';
 import { revokeSeatFromMember } from '@/utils/polar-seat-helper';
 
 const DeleteAccountSchema = z.object({
@@ -82,16 +82,7 @@ async function getUserWorkspaceSubscriptionInfo(
 
 // --- GET: Pre-check endpoint ---
 
-export async function GET(req: NextRequest) {
-  const { data: authData, error: authError } = await authorizeRequest(req);
-  if (authError || !authData)
-    return (
-      authError ||
-      NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
-    );
-
-  const { user } = authData;
-
+export const GET = withSessionAuth(async (_req, { user }) => {
   try {
     const sbAdmin = await createAdminClient();
     const categorized = await getUserWorkspaceSubscriptionInfo(
@@ -122,152 +113,152 @@ export async function GET(req: NextRequest) {
       { status: 500 }
     );
   }
-}
+});
 
 // --- POST: Delete account with subscription cleanup ---
 
-export async function POST(req: NextRequest) {
-  const { data: authData, error: authError } = await authorizeRequest(req);
-  if (authError || !authData)
-    return (
-      authError ||
-      NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
-    );
+export const POST = withSessionAuth(
+  async (req, { user, supabase }) => {
+    try {
+      const body = await req.json();
+      const { email } = DeleteAccountSchema.parse(body);
 
-  const { user, supabase } = authData;
+      // Fetch user's actual email from user_private_details
+      const { data: privateDetails, error: detailsError } = await supabase
+        .from('user_private_details')
+        .select('email')
+        .eq('user_id', user.id)
+        .single();
 
-  try {
-    const body = await req.json();
-    const { email } = DeleteAccountSchema.parse(body);
-
-    // Fetch user's actual email from user_private_details
-    const { data: privateDetails, error: detailsError } = await supabase
-      .from('user_private_details')
-      .select('email')
-      .eq('user_id', user.id)
-      .single();
-
-    if (detailsError || !privateDetails?.email) {
-      return NextResponse.json(
-        { message: 'Could not verify account email' },
-        { status: 400 }
-      );
-    }
-
-    // Case-insensitive email comparison
-    if (privateDetails.email.toLowerCase() !== email.toLowerCase()) {
-      return NextResponse.json(
-        { message: 'Email address does not match your account' },
-        { status: 400 }
-      );
-    }
-
-    const sbAdmin = await createAdminClient();
-
-    // Re-validate subscription status (guards against race conditions)
-    const categorized = await getUserWorkspaceSubscriptionInfo(
-      sbAdmin,
-      user.id
-    );
-
-    if (categorized.blocking.length > 0) {
-      return NextResponse.json(
-        {
-          message: 'Cannot delete account with active paid subscriptions',
-          blockingWorkspaces: categorized.blocking.map((ws) => ({
-            wsName: ws.wsName,
-            tier: ws.tier,
-          })),
-        },
-        { status: 409 }
-      );
-    }
-
-    // --- Subscription cleanup (best-effort) ---
-    const polar = createPolarClient();
-
-    // Revoke seats in multi-member workspaces
-    const seatRevocations = categorized.multiMember.map(async (ws) => {
-      try {
-        await revokeSeatFromMember(polar, sbAdmin, ws.wsId, user.id);
-      } catch (error) {
-        console.error(`Failed to revoke seat in workspace ${ws.wsId}:`, error);
+      if (detailsError || !privateDetails?.email) {
+        return NextResponse.json(
+          { message: 'Could not verify account email' },
+          { status: 400 }
+        );
       }
-    });
 
-    // Cancel subscriptions in single-member workspaces (will be orphaned)
-    const subscriptionCancellations = categorized.singleMemberFree
-      .filter((ws) => ws.polarSubscriptionId)
-      .map(async (ws) => {
+      // Case-insensitive email comparison
+      if (privateDetails.email.toLowerCase() !== email.toLowerCase()) {
+        return NextResponse.json(
+          { message: 'Email address does not match your account' },
+          { status: 400 }
+        );
+      }
+
+      const sbAdmin = await createAdminClient();
+
+      // Re-validate subscription status (guards against race conditions)
+      const categorized = await getUserWorkspaceSubscriptionInfo(
+        sbAdmin,
+        user.id
+      );
+
+      if (categorized.blocking.length > 0) {
+        return NextResponse.json(
+          {
+            message: 'Cannot delete account with active paid subscriptions',
+            blockingWorkspaces: categorized.blocking.map((ws) => ({
+              wsName: ws.wsName,
+              tier: ws.tier,
+            })),
+          },
+          { status: 409 }
+        );
+      }
+
+      // --- Subscription cleanup (best-effort) ---
+      const polar = createPolarClient();
+
+      // Revoke seats in multi-member workspaces
+      const seatRevocations = categorized.multiMember.map(async (ws) => {
         try {
-          await polar.subscriptions.revoke({
-            id: ws.polarSubscriptionId!,
-          });
-          console.log(
-            `Revoked subscription ${ws.polarSubscriptionId} for workspace ${ws.wsId}`
-          );
+          await revokeSeatFromMember(polar, sbAdmin, ws.wsId, user.id);
         } catch (error) {
           console.error(
-            `Failed to revoke subscription for workspace ${ws.wsId}:`,
+            `Failed to revoke seat in workspace ${ws.wsId}:`,
             error
           );
         }
       });
 
-    await Promise.allSettled([
-      ...seatRevocations,
-      ...subscriptionCancellations,
-    ]);
+      // Cancel subscriptions in single-member workspaces (will be orphaned)
+      const subscriptionCancellations = categorized.singleMemberFree
+        .filter((ws) => ws.polarSubscriptionId)
+        .map(async (ws) => {
+          try {
+            await polar.subscriptions.revoke({
+              id: ws.polarSubscriptionId!,
+            });
+            console.log(
+              `Revoked subscription ${ws.polarSubscriptionId} for workspace ${ws.wsId}`
+            );
+          } catch (error) {
+            console.error(
+              `Failed to revoke subscription for workspace ${ws.wsId}:`,
+              error
+            );
+          }
+        });
 
-    // Delete the user from auth.users
-    // This fires the existing on_delete_user trigger which:
-    // 1. Sets public.users.deleted = true (soft-delete)
-    // 2. Deletes from workspace_members (hard-delete memberships)
-    const { error: deleteError } = await sbAdmin.auth.admin.deleteUser(user.id);
+      await Promise.allSettled([
+        ...seatRevocations,
+        ...subscriptionCancellations,
+      ]);
 
-    if (deleteError) {
-      console.error('Error deleting user:', deleteError);
+      // Delete the user from auth.users
+      // This fires the existing on_delete_user trigger which:
+      // 1. Sets public.users.deleted = true (soft-delete)
+      // 2. Deletes from workspace_members (hard-delete memberships)
+      const { error: deleteError } = await sbAdmin.auth.admin.deleteUser(
+        user.id
+      );
+
+      if (deleteError) {
+        console.error('Error deleting user:', deleteError);
+        return NextResponse.json(
+          { message: 'Failed to delete account' },
+          { status: 500 }
+        );
+      }
+
+      // Post-deletion: hard-delete single-member non-personal workspaces
+      const workspaceDeletions = categorized.singleMemberFree
+        .filter((ws) => !ws.wsPersonal)
+        .map(async (ws) => {
+          try {
+            const { error } = await sbAdmin
+              .from('workspaces')
+              .delete()
+              .eq('id', ws.wsId);
+
+            if (error) {
+              console.error(`Failed to delete workspace ${ws.wsId}:`, error);
+            } else {
+              console.log(`Deleted orphaned workspace ${ws.wsId}`);
+            }
+          } catch (error) {
+            console.error(`Error deleting workspace ${ws.wsId}:`, error);
+          }
+        });
+
+      await Promise.allSettled(workspaceDeletions);
+
+      return NextResponse.json({ message: 'Account deleted successfully' });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return NextResponse.json(
+          { message: 'Invalid email format', errors: error.issues },
+          { status: 400 }
+        );
+      }
+
+      console.error('Delete account error:', error);
       return NextResponse.json(
-        { message: 'Failed to delete account' },
+        { message: 'Error processing request' },
         { status: 500 }
       );
     }
-
-    // Post-deletion: hard-delete single-member non-personal workspaces
-    const workspaceDeletions = categorized.singleMemberFree
-      .filter((ws) => !ws.wsPersonal)
-      .map(async (ws) => {
-        try {
-          const { error } = await sbAdmin
-            .from('workspaces')
-            .delete()
-            .eq('id', ws.wsId);
-
-          if (error) {
-            console.error(`Failed to delete workspace ${ws.wsId}:`, error);
-          } else {
-            console.log(`Deleted orphaned workspace ${ws.wsId}`);
-          }
-        } catch (error) {
-          console.error(`Error deleting workspace ${ws.wsId}:`, error);
-        }
-      });
-
-    await Promise.allSettled(workspaceDeletions);
-
-    return NextResponse.json({ message: 'Account deleted successfully' });
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { message: 'Invalid email format', errors: error.issues },
-        { status: 400 }
-      );
-    }
-
-    console.error('Delete account error:', error);
-    return NextResponse.json(
-      { message: 'Error processing request' },
-      { status: 500 }
-    );
-  }
-}
+  },
+  // Account deletion is irreversible — very strict rate limit
+  { rateLimit: { windowMs: 60000, maxRequests: 5 } }
+);

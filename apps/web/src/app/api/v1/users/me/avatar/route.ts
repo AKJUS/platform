@@ -1,16 +1,7 @@
-import { type NextRequest, NextResponse } from 'next/server';
-import { authorizeRequest } from '@/lib/api-auth';
+import { NextResponse } from 'next/server';
+import { withSessionAuth } from '@/lib/api-auth';
 
-export async function DELETE(req: NextRequest): Promise<Response> {
-  const { data: authData, error: authError } = await authorizeRequest(req);
-  if (authError || !authData)
-    return (
-      authError ||
-      NextResponse.json({ message: 'Unauthorized' }, { status: 401 })
-    );
-
-  const { user, supabase } = authData;
-
+export const DELETE = withSessionAuth(async (_req, { user, supabase }) => {
   try {
     // Get current avatar URL to delete from storage
     const { data: userData } = await supabase
@@ -59,4 +50,4 @@ export async function DELETE(req: NextRequest): Promise<Response> {
       { status: 500 }
     );
   }
-}
+});

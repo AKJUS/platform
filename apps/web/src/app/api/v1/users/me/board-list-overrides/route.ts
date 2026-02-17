@@ -1,7 +1,7 @@
-import { type NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { validate } from 'uuid';
 import { z } from 'zod';
-import { authorizeRequest } from '@/lib/api-auth';
+import { withSessionAuth } from '@/lib/api-auth';
 
 const upsertSchema = z.object({
   scope_type: z.enum(['board', 'list']),
@@ -11,51 +11,36 @@ const upsertSchema = z.object({
   notes: z.string().nullable().optional(),
 });
 
-export async function GET(req: NextRequest) {
-  try {
-    const { data: authData, error: authError } = await authorizeRequest(req);
-    if (authError || !authData)
-      return (
-        authError ||
-        NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      );
+export const GET = withSessionAuth(
+  async (_req, { user, supabase }) => {
+    try {
+      const { data, error } = await (supabase as any)
+        .from('user_board_list_overrides')
+        .select('*')
+        .eq('user_id', user.id);
 
-    const { user, supabase } = authData;
+      if (error) {
+        console.error('Error fetching board/list overrides:', error);
+        return NextResponse.json(
+          { error: 'Failed to fetch overrides' },
+          { status: 500 }
+        );
+      }
 
-    const { data, error } = await (supabase as any)
-      .from('user_board_list_overrides')
-      .select('*')
-      .eq('user_id', user.id);
-
-    if (error) {
-      console.error('Error fetching board/list overrides:', error);
+      return NextResponse.json({ data: data ?? [] });
+    } catch (error) {
+      console.error('Error in board-list-overrides GET:', error);
       return NextResponse.json(
-        { error: 'Failed to fetch overrides' },
+        { error: 'Internal server error' },
         { status: 500 }
       );
     }
+  },
+  { cache: { maxAge: 10, swr: 20 } }
+);
 
-    return NextResponse.json({ data: data ?? [] });
-  } catch (error) {
-    console.error('Error in board-list-overrides GET:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
-  }
-}
-
-export async function PUT(req: NextRequest) {
+export const PUT = withSessionAuth(async (req, { user, supabase }) => {
   try {
-    const { data: authData, error: authError } = await authorizeRequest(req);
-    if (authError || !authData)
-      return (
-        authError ||
-        NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      );
-
-    const { user, supabase } = authData;
-
     const body = await req.json();
     const parsed = upsertSchema.safeParse(body);
     if (!parsed.success) {
@@ -144,19 +129,10 @@ export async function PUT(req: NextRequest) {
       { status: 500 }
     );
   }
-}
+});
 
-export async function DELETE(req: NextRequest) {
+export const DELETE = withSessionAuth(async (req, { user, supabase }) => {
   try {
-    const { data: authData, error: authError } = await authorizeRequest(req);
-    if (authError || !authData)
-      return (
-        authError ||
-        NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-      );
-
-    const { user, supabase } = authData;
-
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
 
@@ -189,4 +165,4 @@ export async function DELETE(req: NextRequest) {
       { status: 500 }
     );
   }
-}
+});
