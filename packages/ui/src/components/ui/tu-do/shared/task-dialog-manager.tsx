@@ -143,7 +143,6 @@ export function TaskDialogManager({ wsId }: { wsId: string }) {
       const res = await fetch(
         '/api/v1/users/me/configs/TASK_DRAFT_MODE_ENABLED'
       );
-      if (res.status === 404) return 'false';
       if (!res.ok) return 'false';
       const data = await res.json();
       return (data.value as string) ?? 'false';

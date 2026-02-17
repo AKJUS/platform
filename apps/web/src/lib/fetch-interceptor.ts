@@ -3,13 +3,15 @@
 /**
  * Global fetch interceptor for transparent 429 (rate limit) retry.
  *
- * When ANY fetch call receives a 429 response, this interceptor:
+ * When a **same-origin** fetch call receives a 429 response, this interceptor:
  * 1. Shows a debounced toast notification to the user
  * 2. Waits for the duration specified in the `Retry-After` header
  * 3. Retries the request (up to 3 times)
  * 4. Returns the eventual response to the caller transparently
  *
- * This works with ALL existing fetch calls — no code changes needed.
+ * External / cross-origin requests are passed through untouched so that
+ * CDN images, third-party APIs, etc. are never interfered with.
+ *
  * Rate-limited requests (429) were never processed by the server,
  * so retrying is safe for any HTTP method (GET, POST, PUT, DELETE).
  *
@@ -50,6 +52,27 @@ function notifyRateLimit(retryAfter: number) {
   });
 }
 
+/** Returns true for same-origin or relative URLs (our own API). */
+function isSameOrigin(input: RequestInfo | URL): boolean {
+  try {
+    if (typeof input === 'string') {
+      // Relative URLs (e.g. "/api/v1/...") are always same-origin
+      if (input.startsWith('/')) return true;
+      return new URL(input).origin === window.location.origin;
+    }
+    if (input instanceof URL) {
+      return input.origin === window.location.origin;
+    }
+    // Request object
+    if (input instanceof Request) {
+      return new URL(input.url).origin === window.location.origin;
+    }
+  } catch {
+    // Malformed URL — treat as same-origin to be safe
+  }
+  return true;
+}
+
 let installed = false;
 
 /**
@@ -66,13 +89,20 @@ export function installFetchInterceptor() {
     input: RequestInfo | URL,
     init?: RequestInit
   ): Promise<Response> => {
-    let response = await originalFetch(input, init);
+    const response = await originalFetch(input, init);
+
+    // Only retry same-origin requests — never interfere with external resources
+    if (!isSameOrigin(input) || response.status !== 429) {
+      return response;
+    }
+
+    let lastResponse = response;
     let retries = 0;
 
-    while (response.status === 429 && retries < MAX_RETRIES) {
+    while (lastResponse.status === 429 && retries < MAX_RETRIES) {
       retries++;
       const retryAfter = Math.min(
-        parseInt(response.headers.get('Retry-After') || '5', 10),
+        parseInt(lastResponse.headers.get('Retry-After') || '5', 10),
         60 // Cap at 60s to avoid extremely long waits
       );
 
@@ -80,9 +110,9 @@ export function installFetchInterceptor() {
 
       await new Promise((resolve) => setTimeout(resolve, retryAfter * 1000));
 
-      response = await originalFetch(input, init);
+      lastResponse = await originalFetch(input, init);
     }
 
-    return response;
+    return lastResponse;
   };
 }

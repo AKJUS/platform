@@ -16,10 +16,6 @@ export function useUserConfig(configId: string, defaultValue: string = '') {
     queryFn: async () => {
       const response = await fetch(`/api/v1/users/me/configs/${configId}`);
 
-      if (response.status === 404) {
-        return defaultValue;
-      }
-
       if (!response.ok) {
         throw new Error('Failed to fetch user config');
       }

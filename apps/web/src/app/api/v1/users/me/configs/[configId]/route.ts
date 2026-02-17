@@ -19,11 +19,7 @@ export const GET = withSessionAuth<{ configId: string }>(
       );
     }
 
-    if (!data) {
-      return NextResponse.json({}, { status: 404 });
-    }
-
-    return NextResponse.json({ value: data.value });
+    return NextResponse.json({ value: data?.value ?? null });
   },
   { cache: { maxAge: 60, swr: 30 } }
 );
