@@ -3,6 +3,11 @@ import type {
   WorkspaceCalendar,
   WorkspaceCalendarType,
 } from '@tuturuuu/types/db';
+import {
+  MAX_COLOR_LENGTH,
+  MAX_SEARCH_LENGTH,
+  MAX_SHORT_TEXT_LENGTH,
+} from '@tuturuuu/utils/constants';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { normalizeWorkspaceId } from '@/lib/workspace-helper';
@@ -19,18 +24,18 @@ const UUID_REGEX =
 
 // Validation schemas
 const createCalendarSchema = z.object({
-  name: z.string().min(1).max(100),
-  description: z.string().max(500).optional(),
-  color: z.string().optional(),
+  name: z.string().min(1).max(MAX_SHORT_TEXT_LENGTH),
+  description: z.string().max(MAX_SEARCH_LENGTH).optional(),
+  color: z.string().max(MAX_COLOR_LENGTH).optional(),
   is_enabled: z.boolean().optional().default(true),
   position: z.number().int().optional(),
 });
 
 const updateCalendarSchema = z.object({
   id: z.string().uuid(),
-  name: z.string().min(1).max(100).optional(),
-  description: z.string().max(500).nullable().optional(),
-  color: z.string().nullable().optional(),
+  name: z.string().min(1).max(MAX_SHORT_TEXT_LENGTH).optional(),
+  description: z.string().max(MAX_SEARCH_LENGTH).nullable().optional(),
+  color: z.string().max(MAX_COLOR_LENGTH).nullable().optional(),
   is_enabled: z.boolean().optional(),
   position: z.number().int().optional(),
 });

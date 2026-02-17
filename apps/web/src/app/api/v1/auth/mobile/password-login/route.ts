@@ -8,7 +8,12 @@ import {
   extractIPFromHeaders,
   recordPasswordLoginFailure,
 } from '@tuturuuu/utils/abuse-protection';
-import { DEV_MODE } from '@tuturuuu/utils/constants';
+import {
+  DEV_MODE,
+  MAX_CODE_LENGTH,
+  MAX_EMAIL_LENGTH,
+  MAX_LONG_TEXT_LENGTH,
+} from '@tuturuuu/utils/constants';
 import { validateEmail } from '@tuturuuu/utils/email/server';
 import { headers } from 'next/headers';
 import type { NextRequest } from 'next/server';
@@ -17,11 +22,11 @@ import { z } from 'zod';
 import { jsonWithCors, optionsWithCors } from '../shared';
 
 const PasswordLoginSchema = z.object({
-  email: z.email(),
-  password: z.string().min(6),
-  locale: z.string().optional(),
-  deviceId: z.string().optional(),
-  captchaToken: z.string().optional(),
+  email: z.string().email().max(MAX_EMAIL_LENGTH),
+  password: z.string().max(MAX_LONG_TEXT_LENGTH).min(6),
+  locale: z.string().max(MAX_CODE_LENGTH).optional(),
+  deviceId: z.string().max(MAX_LONG_TEXT_LENGTH).optional(),
+  captchaToken: z.string().max(MAX_LONG_TEXT_LENGTH).optional(),
 });
 
 export async function OPTIONS() {

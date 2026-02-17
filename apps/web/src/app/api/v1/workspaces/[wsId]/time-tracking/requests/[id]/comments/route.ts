@@ -1,11 +1,18 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
-import { resolveWorkspaceId } from '@tuturuuu/utils/constants';
+import {
+  MAX_LONG_TEXT_LENGTH,
+  resolveWorkspaceId,
+} from '@tuturuuu/utils/constants';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 const createCommentSchema = z.object({
-  content: z.string().trim().min(1, { message: 'Content cannot be empty' }),
+  content: z
+    .string()
+    .max(MAX_LONG_TEXT_LENGTH)
+    .trim()
+    .min(1, { message: 'Content cannot be empty' }),
 });
 
 export async function POST(

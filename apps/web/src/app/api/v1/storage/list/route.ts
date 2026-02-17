@@ -7,6 +7,11 @@
 
 import { posix } from 'node:path';
 import { createDynamicAdminClient } from '@tuturuuu/supabase/next/server';
+import {
+  MAX_MEDIUM_TEXT_LENGTH,
+  MAX_SEARCH_LENGTH,
+  MAX_SHORT_TEXT_LENGTH,
+} from '@tuturuuu/utils/constants';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import {
@@ -17,9 +22,15 @@ import {
 
 // Query parameters schema
 const listQuerySchema = z.object({
-  path: z.string().optional().default(''),
-  search: z.string().optional(),
-  limit: z.coerce.number().int().min(1).max(100).optional().default(50),
+  path: z.string().max(MAX_MEDIUM_TEXT_LENGTH).optional().default(''),
+  search: z.string().max(MAX_SEARCH_LENGTH).optional(),
+  limit: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(MAX_SHORT_TEXT_LENGTH)
+    .optional()
+    .default(50),
   offset: z.coerce.number().int().min(0).optional().default(0),
   sortBy: z
     .enum(['name', 'created_at', 'updated_at', 'size'])

@@ -1,3 +1,4 @@
+import { MAX_MEDIUM_TEXT_LENGTH } from '@tuturuuu/utils/constants';
 import { NextResponse } from 'next/server';
 import { validate } from 'uuid';
 import { z } from 'zod';
@@ -8,7 +9,7 @@ const upsertSchema = z.object({
   board_id: z.string().uuid().nullable().optional(),
   list_id: z.string().uuid().nullable().optional(),
   personal_status: z.enum(['not_started', 'in_progress', 'done', 'closed']),
-  notes: z.string().nullable().optional(),
+  notes: z.string().max(MAX_MEDIUM_TEXT_LENGTH).nullable().optional(),
 });
 
 export const GET = withSessionAuth(

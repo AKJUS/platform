@@ -41,6 +41,11 @@ import {
 } from '@tuturuuu/ui/select';
 import { toast } from '@tuturuuu/ui/sonner';
 import { Textarea } from '@tuturuuu/ui/textarea';
+import {
+  MAX_DISPLAY_NAME_LENGTH,
+  MAX_EMAIL_LENGTH,
+  MAX_SUPPORT_INQUIRY_LENGTH,
+} from '@tuturuuu/utils/constants';
 import { cn } from '@tuturuuu/utils/format';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
@@ -50,8 +55,11 @@ import * as z from 'zod';
 import { GITHUB_OWNER } from '@/constants/common';
 
 const formSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters'),
-  email: z.email('Please enter a valid email'),
+  name: z
+    .string()
+    .min(2, 'Name must be at least 2 characters')
+    .max(MAX_DISPLAY_NAME_LENGTH),
+  email: z.string().email('Please enter a valid email').max(MAX_EMAIL_LENGTH),
   type: z.enum(['bug', 'feature-request', 'support', 'job-application'], {
     error: 'Please select an inquiry type',
   }),
@@ -69,8 +77,11 @@ const formSchema = z.object({
     'mail',
     'other',
   ]),
-  subject: z.string().min(5, 'Subject must be at least 5 characters'),
-  message: z.string().min(10, 'Message must be at least 10 characters'),
+  subject: z.string().min(5, 'Subject must be at least 5 characters').max(255),
+  message: z
+    .string()
+    .min(10, 'Message must be at least 10 characters')
+    .max(MAX_SUPPORT_INQUIRY_LENGTH),
 });
 
 export default function ContactPage() {

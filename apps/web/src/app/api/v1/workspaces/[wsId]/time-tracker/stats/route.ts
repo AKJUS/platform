@@ -1,4 +1,8 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
+import {
+  MAX_COLOR_LENGTH,
+  MAX_SHORT_TEXT_LENGTH,
+} from '@tuturuuu/utils/constants';
 import { normalizeWorkspaceId } from '@tuturuuu/utils/workspace-helper';
 import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
@@ -6,7 +10,7 @@ import { z } from 'zod';
 const querySchema = z.object({
   userId: process.env.NODE_ENV === 'development' ? z.string() : z.uuid(),
   isPersonal: z.enum(['true', 'false']).transform((val) => val === 'true'),
-  timezone: z.string().default('UTC'),
+  timezone: z.string().max(MAX_SHORT_TEXT_LENGTH).default('UTC'),
   summaryOnly: z
     .enum(['true', 'false'])
     .optional()
@@ -21,7 +25,7 @@ const querySchema = z.object({
 });
 
 const dailyActivitySchema = z.object({
-  date: z.string(),
+  date: z.string().max(MAX_COLOR_LENGTH),
   duration: z.number(),
   sessions: z.number(),
 });

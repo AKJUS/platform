@@ -1,5 +1,10 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
 import {
+  MAX_COLOR_LENGTH,
+  MAX_LONG_TEXT_LENGTH,
+  MAX_SEARCH_LENGTH,
+} from '@tuturuuu/utils/constants';
+import {
   getPermissions,
   normalizeWorkspaceId,
 } from '@tuturuuu/utils/workspace-helper';
@@ -7,14 +12,14 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 const querySchema = z.object({
-  q: z.string().optional().nullable(),
+  q: z.string().max(MAX_SEARCH_LENGTH).optional().nullable(),
   userIds: z.array(z.string()).optional().default([]),
   categoryIds: z.array(z.string()).optional().default([]),
   walletIds: z.array(z.string()).optional().default([]),
   tagIds: z.array(z.string()).optional().default([]),
-  walletId: z.string().optional().nullable(),
-  start: z.string().optional().nullable(),
-  end: z.string().optional().nullable(),
+  walletId: z.string().max(MAX_LONG_TEXT_LENGTH).optional().nullable(),
+  start: z.string().max(MAX_COLOR_LENGTH).optional().nullable(),
+  end: z.string().max(MAX_COLOR_LENGTH).optional().nullable(),
 });
 
 interface Params {

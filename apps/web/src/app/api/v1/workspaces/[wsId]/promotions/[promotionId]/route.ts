@@ -1,13 +1,17 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
+import {
+  MAX_LONG_TEXT_LENGTH,
+  MAX_NAME_LENGTH,
+} from '@tuturuuu/utils/constants';
 import { getPermissions } from '@tuturuuu/utils/workspace-helper';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 const PromotionUpdateSchema = z
   .object({
-    name: z.string().min(1).max(255),
-    description: z.string().optional(),
-    code: z.string().min(1).max(255),
+    name: z.string().min(1).max(MAX_NAME_LENGTH),
+    description: z.string().max(MAX_LONG_TEXT_LENGTH).optional(),
+    code: z.string().min(1).max(MAX_NAME_LENGTH),
     value: z.coerce.number().min(0),
     unit: z.enum(['percentage', 'currency']).optional(),
     // NULL/undefined = unlimited

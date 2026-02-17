@@ -2,6 +2,7 @@ import {
   createAdminClient,
   createClient,
 } from '@tuturuuu/supabase/next/server';
+import { MAX_LONG_TEXT_LENGTH } from '@tuturuuu/utils/constants';
 import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { normalizeWorkspaceId } from '@/lib/workspace-helper';
@@ -11,7 +12,7 @@ const createBreakTypeSchema = z.object({
     .string()
     .min(1, 'Break type name is required')
     .max(50, 'Break type name must be 50 characters or less'),
-  description: z.string().optional(),
+  description: z.string().max(MAX_LONG_TEXT_LENGTH).optional(),
   color: z.enum([
     'RED',
     'ORANGE',

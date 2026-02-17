@@ -2,12 +2,17 @@ import {
   createAdminClient,
   createClient,
 } from '@tuturuuu/supabase/next/server';
+import { MAX_LONG_TEXT_LENGTH } from '@tuturuuu/utils/constants';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 const updateUpdateSchema = z.object({
-  content: z.string().trim().min(1, 'Content cannot be empty'), // Plain text (TipTap handles JSONContent conversion)
+  content: z
+    .string()
+    .max(MAX_LONG_TEXT_LENGTH)
+    .trim()
+    .min(1, 'Content cannot be empty'), // Plain text (TipTap handles JSONContent conversion)
 });
 
 export async function PATCH(

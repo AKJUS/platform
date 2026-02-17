@@ -3,6 +3,7 @@ import {
   createAdminClient,
   createClient,
 } from '@tuturuuu/supabase/next/server';
+import { MAX_WORKSPACE_NAME_LENGTH } from '@tuturuuu/utils/constants';
 import { checkWorkspaceCreationLimit } from '@tuturuuu/utils/workspace-limits';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
@@ -10,8 +11,8 @@ import { getOrCreatePolarCustomer } from '@/utils/customer-helper';
 import { createFreeSubscription } from '@/utils/subscription-helper';
 
 const CreateTeamWorkspaceSchema = z.object({
-  name: z.string().min(1).max(100),
-  avatar_url: z.url().optional(),
+  name: z.string().min(1).max(MAX_WORKSPACE_NAME_LENGTH),
+  avatar_url: z.string().url().optional(),
 });
 
 export async function POST(req: Request) {

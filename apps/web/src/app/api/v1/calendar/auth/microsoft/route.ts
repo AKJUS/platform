@@ -11,6 +11,7 @@ import {
   createMsalConfig,
   MICROSOFT_CALENDAR_SCOPES,
 } from '@tuturuuu/microsoft';
+import { MAX_NAME_LENGTH } from '@tuturuuu/utils/constants';
 import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import {
@@ -20,7 +21,7 @@ import {
 import { normalizeWorkspaceId } from '@/lib/workspace-helper';
 
 const microsoftAuthQuerySchema = z.object({
-  wsId: z.string(),
+  wsId: z.string().max(MAX_NAME_LENGTH),
 });
 
 /**

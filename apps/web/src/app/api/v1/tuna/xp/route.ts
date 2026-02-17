@@ -4,12 +4,16 @@
  */
 
 import { createClient } from '@tuturuuu/supabase/next/server';
+import {
+  MAX_LONG_TEXT_LENGTH,
+  MAX_MEDIUM_TEXT_LENGTH,
+} from '@tuturuuu/utils/constants';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 const awardXpSchema = z.object({
-  amount: z.number().int().min(1).max(1000),
-  source: z.string().optional(),
+  amount: z.number().int().min(1).max(MAX_MEDIUM_TEXT_LENGTH),
+  source: z.string().max(MAX_LONG_TEXT_LENGTH).optional(),
 });
 
 export async function POST(request: Request) {

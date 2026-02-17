@@ -1,4 +1,8 @@
 import type { WorkspaceTaskBoard } from '@tuturuuu/types';
+import {
+  MAX_LONG_TEXT_LENGTH,
+  MAX_SEARCH_LENGTH,
+} from '@tuturuuu/utils/constants';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { withSessionAuth } from '@/lib/api-auth';
@@ -8,9 +12,9 @@ const paramsSchema = z.object({
 });
 
 const searchParamsSchema = z.object({
-  q: z.string().optional(),
-  page: z.string().optional().default('1'),
-  pageSize: z.string().optional().default('10'),
+  q: z.string().max(MAX_SEARCH_LENGTH).optional(),
+  page: z.string().max(MAX_LONG_TEXT_LENGTH).optional().default('1'),
+  pageSize: z.string().max(MAX_LONG_TEXT_LENGTH).optional().default('10'),
 });
 
 export const GET = withSessionAuth<{ wsId: string }>(

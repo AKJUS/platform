@@ -4,6 +4,7 @@ import type {
   AuthenticatorAssuranceLevels,
   SupabaseUser,
 } from '@tuturuuu/supabase/next/user';
+import { MAX_PAYLOAD_SIZE } from '@tuturuuu/utils/constants';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
@@ -169,6 +170,18 @@ export function createCentralizedAuthProxy(options: CentralizedAuthOptions) {
   } = mfa;
 
   return async function authProxy(req: NextRequest): Promise<NextResponse> {
+    // Global payload size check at the edge
+    const contentLength = req.headers.get('content-length');
+    if (contentLength) {
+      const size = parseInt(contentLength, 10);
+      if (size > MAX_PAYLOAD_SIZE) {
+        return NextResponse.json(
+          { error: 'Payload Too Large', message: 'Request body exceeds limit' },
+          { status: 413 }
+        );
+      }
+    }
+
     try {
       if (skipApiRoutes && req.nextUrl.pathname.startsWith('/api')) {
         return NextResponse.next();

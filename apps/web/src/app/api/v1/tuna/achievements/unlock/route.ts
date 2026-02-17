@@ -4,11 +4,12 @@
  */
 
 import { createClient } from '@tuturuuu/supabase/next/server';
+import { MAX_LONG_TEXT_LENGTH } from '@tuturuuu/utils/constants';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 const unlockAchievementSchema = z.object({
-  achievement_code: z.string().min(1),
+  achievement_code: z.string().max(MAX_LONG_TEXT_LENGTH).min(1),
 });
 
 export async function POST(request: Request) {

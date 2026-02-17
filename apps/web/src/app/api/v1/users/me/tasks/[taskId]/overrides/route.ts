@@ -1,3 +1,7 @@
+import {
+  MAX_COLOR_LENGTH,
+  MAX_MEDIUM_TEXT_LENGTH,
+} from '@tuturuuu/utils/constants';
 import { NextResponse } from 'next/server';
 import { validate } from 'uuid';
 import { z } from 'zod';
@@ -5,15 +9,15 @@ import { withSessionAuth } from '@/lib/api-auth';
 
 const upsertSchema = z.object({
   self_managed: z.boolean().optional(),
-  completed_at: z.string().nullable().optional(),
+  completed_at: z.string().max(MAX_COLOR_LENGTH).nullable().optional(),
   priority_override: z
     .enum(['low', 'normal', 'high', 'critical'])
     .nullable()
     .optional(),
-  due_date_override: z.string().nullable().optional(),
+  due_date_override: z.string().max(MAX_COLOR_LENGTH).nullable().optional(),
   estimation_override: z.number().int().min(0).max(8).nullable().optional(),
   personally_unassigned: z.boolean().optional(),
-  notes: z.string().nullable().optional(),
+  notes: z.string().max(MAX_MEDIUM_TEXT_LENGTH).nullable().optional(),
 });
 
 export const GET = withSessionAuth<{ taskId: string }>(

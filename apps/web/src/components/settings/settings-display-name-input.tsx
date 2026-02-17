@@ -13,6 +13,7 @@ import { useForm } from '@tuturuuu/ui/hooks/use-form';
 import { toast } from '@tuturuuu/ui/hooks/use-toast';
 import { Input } from '@tuturuuu/ui/input';
 import { zodResolver } from '@tuturuuu/ui/resolvers';
+import { MAX_DISPLAY_NAME_LENGTH } from '@tuturuuu/utils/constants';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
@@ -24,7 +25,7 @@ interface Props {
 }
 
 const FormSchema = z.object({
-  name: z.string().min(0).max(50).optional(),
+  name: z.string().min(0).max(MAX_DISPLAY_NAME_LENGTH).optional(),
 });
 
 export default function DisplayNameInput({

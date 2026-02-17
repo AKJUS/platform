@@ -6,6 +6,10 @@ import {
 } from '@tuturuuu/microsoft';
 import { fetchMicrosoftCalendars } from '@tuturuuu/microsoft/calendar';
 import { createClient } from '@tuturuuu/supabase/next/server';
+import {
+  MAX_LONG_TEXT_LENGTH,
+  MAX_NAME_LENGTH,
+} from '@tuturuuu/utils/constants';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
@@ -15,10 +19,10 @@ import {
 } from '@/lib/calendar/microsoft-config';
 
 const microsoftCallbackQuerySchema = z.object({
-  code: z.string().optional().nullable(),
-  state: z.string().optional().nullable(),
-  error: z.string().optional().nullable(),
-  error_description: z.string().optional().nullable(),
+  code: z.string().max(MAX_NAME_LENGTH).optional().nullable(),
+  state: z.string().max(MAX_LONG_TEXT_LENGTH).optional().nullable(),
+  error: z.string().max(MAX_LONG_TEXT_LENGTH).optional().nullable(),
+  error_description: z.string().max(MAX_LONG_TEXT_LENGTH).optional().nullable(),
 });
 
 export async function GET(request: Request): Promise<NextResponse> {

@@ -1,6 +1,7 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
 import {
   INTERNAL_WORKSPACE_SLUG,
+  MAX_SHORT_TEXT_LENGTH,
   PERSONAL_WORKSPACE_SLUG,
   ROOT_WORKSPACE_ID,
   resolveWorkspaceId,
@@ -15,11 +16,11 @@ interface Params {
 }
 
 const calendarSettingsSchema = z.object({
-  timezone: z.string().optional(),
+  timezone: z.string().max(MAX_SHORT_TEXT_LENGTH).optional(),
   first_day_of_week: z
     .enum(['auto', 'sunday', 'monday', 'saturday'])
     .optional(),
-  energy_profile: z.string().optional(),
+  energy_profile: z.string().max(MAX_SHORT_TEXT_LENGTH).optional(),
   scheduling_settings: z.record(z.string(), z.any()).optional(),
 });
 

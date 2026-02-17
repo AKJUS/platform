@@ -1,9 +1,10 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
+import { MAX_SEARCH_LENGTH } from '@tuturuuu/utils/constants';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 const UpdateEmailBlacklistSchema = z.object({
-  reason: z.string().max(500).optional(),
+  reason: z.string().max(MAX_SEARCH_LENGTH).optional(),
 });
 
 interface Params {

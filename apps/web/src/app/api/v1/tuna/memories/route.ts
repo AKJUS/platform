@@ -6,6 +6,7 @@
  */
 
 import { createClient } from '@tuturuuu/supabase/next/server';
+import { MAX_SUPPORT_INQUIRY_LENGTH } from '@tuturuuu/utils/constants';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
@@ -20,7 +21,7 @@ const memoryCategories = [
 const createMemorySchema = z.object({
   category: z.enum(memoryCategories),
   key: z.string().min(1).max(200),
-  value: z.string().min(1).max(5000),
+  value: z.string().min(1).max(MAX_SUPPORT_INQUIRY_LENGTH),
   source: z.string().max(200).optional(),
   confidence: z.number().min(0).max(1).optional().default(1.0),
 });

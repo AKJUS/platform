@@ -1,6 +1,11 @@
 import type { TypedSupabaseClient } from '@tuturuuu/supabase/next/client';
 import { createClient } from '@tuturuuu/supabase/next/server';
 import {
+  MAX_LONG_TEXT_LENGTH,
+  MAX_MEDIUM_TEXT_LENGTH,
+  MAX_NAME_LENGTH,
+} from '@tuturuuu/utils/constants';
+import {
   getPermissions,
   normalizeWorkspaceId,
 } from '@tuturuuu/utils/workspace-helper';
@@ -17,10 +22,10 @@ const InventoryItemSchema = z.object({
 });
 
 export const ProductCreateSchema = z.object({
-  name: z.string().min(1).max(255),
-  manufacturer: z.string().optional(),
-  description: z.string().optional(),
-  usage: z.string().optional(),
+  name: z.string().min(1).max(MAX_NAME_LENGTH),
+  manufacturer: z.string().max(MAX_NAME_LENGTH).optional(),
+  description: z.string().max(MAX_LONG_TEXT_LENGTH).optional(),
+  usage: z.string().max(MAX_MEDIUM_TEXT_LENGTH).optional(),
   category_id: z.uuid(),
   inventory: z.array(InventoryItemSchema).default([]),
 });

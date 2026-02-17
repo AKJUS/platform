@@ -4,6 +4,10 @@ import type {
   RawInventoryProduct,
 } from '@tuturuuu/types/primitives/InventoryProductRelations';
 import {
+  MAX_MEDIUM_TEXT_LENGTH,
+  MAX_SEARCH_LENGTH,
+} from '@tuturuuu/utils/constants';
+import {
   getPermissions,
   normalizeWorkspaceId,
 } from '@tuturuuu/utils/workspace-helper';
@@ -11,9 +15,14 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 const SearchParamsSchema = z.object({
-  q: z.string().default(''),
+  q: z.string().max(MAX_SEARCH_LENGTH).default(''),
   page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(1000).default(10),
+  pageSize: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(MAX_MEDIUM_TEXT_LENGTH)
+    .default(10),
   sortBy: z
     .enum([
       'id',

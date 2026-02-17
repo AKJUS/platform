@@ -8,18 +8,22 @@ import {
   extractIPFromHeaders,
   recordOTPVerifyFailure,
 } from '@tuturuuu/utils/abuse-protection';
+import {
+  MAX_CODE_LENGTH,
+  MAX_LONG_TEXT_LENGTH,
+  MAX_OTP_LENGTH,
+} from '@tuturuuu/utils/constants';
 import { validateEmail, validateOtp } from '@tuturuuu/utils/email/server';
 import { headers } from 'next/headers';
 import type { NextRequest } from 'next/server';
 import { z } from 'zod';
-
 import { jsonWithCors, optionsWithCors } from '../shared';
 
 const VerifyOtpSchema = z.object({
   email: z.string().email(),
-  otp: z.string(),
-  locale: z.string().optional(),
-  deviceId: z.string().optional(),
+  otp: z.string().max(MAX_OTP_LENGTH),
+  locale: z.string().max(MAX_CODE_LENGTH).optional(),
+  deviceId: z.string().max(MAX_LONG_TEXT_LENGTH).optional(),
 });
 
 export async function OPTIONS() {

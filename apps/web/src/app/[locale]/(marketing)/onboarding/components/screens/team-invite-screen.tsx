@@ -4,6 +4,7 @@ import { Mail, Plus, UserPlus, X } from '@tuturuuu/icons';
 import { Badge } from '@tuturuuu/ui/badge';
 import { Button } from '@tuturuuu/ui/button';
 import { Input } from '@tuturuuu/ui/input';
+import { MAX_EMAIL_LENGTH } from '@tuturuuu/utils/constants';
 import { cn } from '@tuturuuu/utils/format';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useTranslations } from 'next-intl';
@@ -16,7 +17,7 @@ import {
   OnboardingLayout,
 } from '../shared/onboarding-card';
 
-const emailSchema = z.email();
+const emailSchema = z.string().email().max(MAX_EMAIL_LENGTH);
 
 interface TeamInviteScreenProps {
   onContinue: (emails: string[]) => void;

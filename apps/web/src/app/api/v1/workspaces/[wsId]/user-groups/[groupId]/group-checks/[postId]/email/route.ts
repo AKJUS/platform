@@ -9,6 +9,12 @@ import {
   extractIPFromHeaders,
   isIPBlocked,
 } from '@tuturuuu/utils/abuse-protection';
+import {
+  MAX_COLOR_LENGTH,
+  MAX_LONG_TEXT_LENGTH,
+  MAX_MEDIUM_TEXT_LENGTH,
+  MAX_NAME_LENGTH,
+} from '@tuturuuu/utils/constants';
 import { getPermissions } from '@tuturuuu/utils/workspace-helper';
 import dayjs from 'dayjs';
 import { type NextRequest, NextResponse } from 'next/server';
@@ -25,32 +31,35 @@ interface UserToEmail {
 }
 
 const EmailUserSchema = z.object({
-  id: z.string().min(1),
+  id: z.string().max(MAX_NAME_LENGTH).min(1),
   email: z.string().email(),
-  username: z.string().min(1),
-  notes: z.string(),
+  username: z.string().max(MAX_NAME_LENGTH).min(1),
+  notes: z.string().max(MAX_MEDIUM_TEXT_LENGTH),
   is_completed: z.boolean(),
 });
 
 const EmailPostSchema = z.object({
-  title: z.string().nullable(),
-  content: z.string().nullable(),
-  notes: z.string().nullable(),
-  id: z.string().optional(),
-  ws_id: z.string().optional(),
-  name: z.string().optional(),
-  created_at: z.string().optional(),
-  group_id: z.string().optional(),
-  group_name: z.string().optional(),
+  title: z.string().max(MAX_NAME_LENGTH).nullable(),
+  content: z.string().max(MAX_LONG_TEXT_LENGTH).nullable(),
+  notes: z.string().max(MAX_MEDIUM_TEXT_LENGTH).nullable(),
+  id: z.string().max(MAX_NAME_LENGTH).optional(),
+  ws_id: z.string().max(MAX_NAME_LENGTH).optional(),
+  name: z.string().max(MAX_NAME_LENGTH).optional(),
+  created_at: z.string().max(MAX_COLOR_LENGTH).optional(),
+  group_id: z.string().max(MAX_NAME_LENGTH).optional(),
+  group_name: z.string().max(MAX_LONG_TEXT_LENGTH).optional(),
   post_approval_status: z.enum(['APPROVED', 'PENDING', 'REJECTED']).optional(),
 });
 
 const EmailRequestSchema = z.object({
   users: z.array(EmailUserSchema).min(1),
   post: EmailPostSchema,
-  date: z.string().refine((value) => !Number.isNaN(Date.parse(value)), {
-    message: 'Invalid date format',
-  }),
+  date: z
+    .string()
+    .max(MAX_COLOR_LENGTH)
+    .refine((value) => !Number.isNaN(Date.parse(value)), {
+      message: 'Invalid date format',
+    }),
 });
 
 export async function POST(

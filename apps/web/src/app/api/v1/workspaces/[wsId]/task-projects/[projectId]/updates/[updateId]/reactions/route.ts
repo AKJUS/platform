@@ -1,10 +1,11 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
+import { MAX_COLOR_LENGTH } from '@tuturuuu/utils/constants';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 const addReactionSchema = z.object({
-  emoji: z.string().emoji('Must be a valid emoji'),
+  emoji: z.string().max(MAX_COLOR_LENGTH).emoji('Must be a valid emoji'),
 });
 
 export async function POST(

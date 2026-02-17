@@ -1,4 +1,8 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
+import {
+  MAX_LONG_TEXT_LENGTH,
+  MAX_NAME_LENGTH,
+} from '@tuturuuu/utils/constants';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
@@ -14,12 +18,12 @@ const updateProjectSchema = z
         message: 'Project name cannot be empty or whitespace only',
       })
       .optional(),
-    description: z.string().nullable().optional(), // Plain text (TipTap handles conversion)
+    description: z.string().max(MAX_LONG_TEXT_LENGTH).nullable().optional(), // Plain text (TipTap handles conversion)
     priority: z
       .enum(['critical', 'high', 'normal', 'low'])
       .nullable()
       .optional(),
-    lead_id: z.string().nullable().optional(),
+    lead_id: z.string().max(MAX_NAME_LENGTH).nullable().optional(),
     start_date: z.iso.datetime().nullable().optional(),
     end_date: z.iso.datetime().nullable().optional(),
     health_status: z

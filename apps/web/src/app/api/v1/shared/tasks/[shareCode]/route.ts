@@ -2,6 +2,11 @@ import {
   createAdminClient,
   createClient,
 } from '@tuturuuu/supabase/next/server';
+import {
+  MAX_COLOR_LENGTH,
+  MAX_LONG_TEXT_LENGTH,
+  MAX_NAME_LENGTH,
+} from '@tuturuuu/utils/constants';
 import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
@@ -470,14 +475,14 @@ export async function PATCH(
     }
 
     const taskUpdateSchema = z.object({
-      name: z.string().optional(),
-      description: z.string().nullable().optional(),
+      name: z.string().max(MAX_NAME_LENGTH).optional(),
+      description: z.string().max(MAX_LONG_TEXT_LENGTH).nullable().optional(),
       priority: z
         .enum(['critical', 'high', 'normal', 'low'])
         .nullable()
         .optional(),
-      start_date: z.string().nullable().optional(),
-      end_date: z.string().nullable().optional(),
+      start_date: z.string().max(MAX_COLOR_LENGTH).nullable().optional(),
+      end_date: z.string().max(MAX_COLOR_LENGTH).nullable().optional(),
       list_id: z.string().uuid().optional(),
       estimation_points: z.number().nullable().optional(),
     });

@@ -1,3 +1,8 @@
+import {
+  MAX_COLOR_LENGTH,
+  MAX_NAME_LENGTH,
+  MAX_SEARCH_LENGTH,
+} from '@tuturuuu/utils/constants';
 import { sanitizeSearchQuery } from '@tuturuuu/utils/search-helper';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
@@ -24,10 +29,10 @@ const querySchema = z
     timezone: z
       .enum(timezoneEnumValues as [string, ...string[]])
       .default('UTC'),
-    targetUserId: z.string().min(1).optional(),
-    searchQuery: z.string().optional(),
-    categoryId: z.string().optional(),
-    taskId: z.string().optional(),
+    targetUserId: z.string().max(MAX_NAME_LENGTH).min(1).optional(),
+    searchQuery: z.string().max(MAX_SEARCH_LENGTH).optional(),
+    categoryId: z.string().max(MAX_NAME_LENGTH).optional(),
+    taskId: z.string().max(MAX_NAME_LENGTH).optional(),
     duration: z.enum(['all', 'short', 'medium', 'long']).optional(),
     timeOfDay: z
       .enum(['all', 'morning', 'afternoon', 'evening', 'night'])
@@ -53,9 +58,9 @@ const periodStatsSchema = z.object({
   breakdown: z
     .array(
       z.object({
-        name: z.string(),
+        name: z.string().max(MAX_NAME_LENGTH),
         duration: z.number(),
-        color: z.string(),
+        color: z.string().max(MAX_COLOR_LENGTH),
       })
     )
     .nullable()
@@ -69,10 +74,10 @@ const periodStatsSchema = z.object({
     })
     .nullable()
     .optional(),
-  bestTimeOfDay: z.string().nullable().optional(),
+  bestTimeOfDay: z.string().max(MAX_COLOR_LENGTH).nullable().optional(),
   longestSession: z
     .object({
-      title: z.string(),
+      title: z.string().max(MAX_NAME_LENGTH),
       duration_seconds: z.number(),
     })
     .nullable()
@@ -84,14 +89,14 @@ const periodStatsSchema = z.object({
   dailyBreakdown: z
     .array(
       z.object({
-        date: z.string(),
+        date: z.string().max(MAX_COLOR_LENGTH),
         totalDuration: z.number(),
         breakdown: z.array(
           z.object({
-            categoryId: z.string(),
-            name: z.string(),
+            categoryId: z.string().max(MAX_NAME_LENGTH),
+            name: z.string().max(MAX_NAME_LENGTH),
             duration: z.number(),
-            color: z.string(),
+            color: z.string().max(MAX_COLOR_LENGTH),
           })
         ),
       })

@@ -1,9 +1,10 @@
+import { MAX_FULL_NAME_LENGTH } from '@tuturuuu/utils/constants';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { withSessionAuth } from '@/lib/api-auth';
 
 const PatchFullNameSchema = z.object({
-  full_name: z.string().min(1).max(50),
+  full_name: z.string().min(1).max(MAX_FULL_NAME_LENGTH),
 });
 
 export const PATCH = withSessionAuth(

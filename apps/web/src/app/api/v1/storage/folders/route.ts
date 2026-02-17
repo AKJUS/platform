@@ -7,6 +7,10 @@
 
 import { posix } from 'node:path';
 import { createDynamicAdminClient } from '@tuturuuu/supabase/next/server';
+import {
+  MAX_MEDIUM_TEXT_LENGTH,
+  MAX_NAME_LENGTH,
+} from '@tuturuuu/utils/constants';
 import { sanitizeFolderName, sanitizePath } from '@tuturuuu/utils/storage-path';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
@@ -18,11 +22,11 @@ import {
 
 // Request body schema
 const createFolderSchema = z.object({
-  path: z.string(), // Parent path where folder should be created
+  path: z.string().max(MAX_MEDIUM_TEXT_LENGTH), // Parent path where folder should be created
   name: z
     .string()
     .min(1)
-    .max(255)
+    .max(MAX_NAME_LENGTH)
     .regex(
       /^[a-zA-Z0-9-_\s]+$/,
       'Folder name can only contain letters, numbers, spaces, hyphens, and underscores'

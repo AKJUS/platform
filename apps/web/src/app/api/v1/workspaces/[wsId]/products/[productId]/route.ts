@@ -2,6 +2,7 @@ import { createClient } from '@tuturuuu/supabase/next/server';
 import type { RawInventoryProductWithChanges } from '@tuturuuu/types/primitives/InventoryProductRelations';
 import type { Product2 } from '@tuturuuu/types/primitives/Product';
 import type { ProductInventory } from '@tuturuuu/types/primitives/ProductInventory';
+import { MAX_NAME_LENGTH } from '@tuturuuu/utils/constants';
 import {
   getPermissions,
   normalizeWorkspaceId,
@@ -10,8 +11,8 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 const RouteParamsSchema = z.object({
-  wsId: z.string().min(1),
-  productId: z.string().min(1),
+  wsId: z.string().max(MAX_NAME_LENGTH).min(1),
+  productId: z.string().max(MAX_NAME_LENGTH).min(1),
 });
 
 interface Params {

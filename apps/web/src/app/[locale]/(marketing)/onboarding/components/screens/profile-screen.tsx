@@ -14,6 +14,10 @@ import { useForm } from '@tuturuuu/ui/hooks/use-form';
 import { Input } from '@tuturuuu/ui/input';
 import { zodResolver } from '@tuturuuu/ui/resolvers';
 import { Textarea } from '@tuturuuu/ui/textarea';
+import {
+  MAX_BIO_LENGTH,
+  MAX_DISPLAY_NAME_LENGTH,
+} from '@tuturuuu/utils/constants';
 import { motion } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import { z } from 'zod';
@@ -26,8 +30,11 @@ import {
 } from '../shared/onboarding-card';
 
 const FormSchema = z.object({
-  displayName: z.string().min(1, 'Display name is required').max(100),
-  bio: z.string().max(500).optional(),
+  displayName: z
+    .string()
+    .min(1, 'Display name is required')
+    .max(MAX_DISPLAY_NAME_LENGTH),
+  bio: z.string().max(MAX_BIO_LENGTH).optional(),
   avatarUrl: z.string().url().optional().or(z.literal('')),
 });
 

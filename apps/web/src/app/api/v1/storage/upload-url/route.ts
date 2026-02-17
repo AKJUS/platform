@@ -7,6 +7,10 @@
 
 import { posix } from 'node:path';
 import { createDynamicAdminClient } from '@tuturuuu/supabase/next/server';
+import {
+  MAX_MEDIUM_TEXT_LENGTH,
+  MAX_SEARCH_LENGTH,
+} from '@tuturuuu/utils/constants';
 import { sanitizeFilename, sanitizePath } from '@tuturuuu/utils/storage-path';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
@@ -18,8 +22,8 @@ import {
 
 // Request body schema
 const uploadUrlRequestSchema = z.object({
-  filename: z.string().min(1, 'Filename is required'),
-  path: z.string().optional().default(''),
+  filename: z.string().max(MAX_SEARCH_LENGTH).min(1, 'Filename is required'),
+  path: z.string().max(MAX_MEDIUM_TEXT_LENGTH).optional().default(''),
   upsert: z.boolean().optional().default(false),
 });
 

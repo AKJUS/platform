@@ -2,6 +2,11 @@ import {
   createAdminClient,
   createClient,
 } from '@tuturuuu/supabase/next/server';
+import {
+  MAX_LONG_TEXT_LENGTH,
+  MAX_MEDIUM_TEXT_LENGTH,
+  MAX_NAME_LENGTH,
+} from '@tuturuuu/utils/constants';
 import { getPermissions } from '@tuturuuu/utils/workspace-helper';
 import { headers } from 'next/headers';
 import { type NextRequest, NextResponse } from 'next/server';
@@ -14,17 +19,17 @@ interface Params {
 }
 
 const CreateUserSchema = z.object({
-  full_name: z.string().optional(),
-  display_name: z.string().optional(),
+  full_name: z.string().max(MAX_LONG_TEXT_LENGTH).optional(),
+  display_name: z.string().max(MAX_NAME_LENGTH).optional(),
   email: z.email().optional(),
-  phone: z.string().optional(),
-  gender: z.string().optional(),
-  birthday: z.string().nullable().optional(), // ISO string format expected
-  ethnicity: z.string().optional(),
-  guardian: z.string().optional(),
-  national_id: z.string().optional(),
-  address: z.string().optional(),
-  note: z.string().optional(),
+  phone: z.string().max(MAX_LONG_TEXT_LENGTH).optional(),
+  gender: z.string().max(MAX_LONG_TEXT_LENGTH).optional(),
+  birthday: z.string().max(MAX_LONG_TEXT_LENGTH).nullable().optional(), // ISO string format expected
+  ethnicity: z.string().max(MAX_LONG_TEXT_LENGTH).optional(),
+  guardian: z.string().max(MAX_LONG_TEXT_LENGTH).optional(),
+  national_id: z.string().max(MAX_LONG_TEXT_LENGTH).optional(),
+  address: z.string().max(MAX_LONG_TEXT_LENGTH).optional(),
+  note: z.string().max(MAX_MEDIUM_TEXT_LENGTH).optional(),
   is_guest: z.boolean().optional(),
 });
 

@@ -1,4 +1,5 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
+import { MAX_NAME_LENGTH } from '@tuturuuu/utils/constants';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
@@ -6,7 +7,7 @@ const ColumnsSchema = z.object({
   columns: z.array(
     z
       .object({
-        name: z.string().min(1),
+        name: z.string().max(MAX_NAME_LENGTH).min(1),
       })
       .optional()
   ),

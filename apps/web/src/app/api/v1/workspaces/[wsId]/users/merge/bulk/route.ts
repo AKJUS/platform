@@ -4,6 +4,7 @@ import type {
   BulkMergeUsersResponse,
   MergeResult,
 } from '@tuturuuu/types/primitives';
+import { MAX_SHORT_TEXT_LENGTH } from '@tuturuuu/utils/constants';
 import {
   getPermissions,
   normalizeWorkspaceId,
@@ -23,7 +24,7 @@ const MergeItemSchema = z.object({
 });
 
 const BulkMergeRequestSchema = z.object({
-  merges: z.array(MergeItemSchema).min(1).max(100), // Limit to 100 merges at a time
+  merges: z.array(MergeItemSchema).min(1).max(MAX_SHORT_TEXT_LENGTH), // Limit to 100 merges at a time
 });
 
 interface RpcCollisionDetail {

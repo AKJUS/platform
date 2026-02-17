@@ -1,12 +1,16 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
+import {
+  MAX_COLOR_LENGTH,
+  MAX_LONG_TEXT_LENGTH,
+} from '@tuturuuu/utils/constants';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 const createConnectionSchema = z.object({
   wsId: z.string().uuid(),
-  calendarId: z.string().min(1),
-  calendarName: z.string().min(1),
-  color: z.string().optional(),
+  calendarId: z.string().max(MAX_LONG_TEXT_LENGTH).min(1),
+  calendarName: z.string().max(MAX_LONG_TEXT_LENGTH).min(1),
+  color: z.string().max(MAX_COLOR_LENGTH).optional(),
   isEnabled: z.boolean().default(true),
   authTokenId: z.string().uuid().optional(),
 });
@@ -15,11 +19,11 @@ const updateConnectionSchema = z
   .object({
     // Either id OR (calendarId + wsId) to identify the connection
     id: z.string().uuid().optional(),
-    calendarId: z.string().min(1).optional(),
+    calendarId: z.string().max(MAX_LONG_TEXT_LENGTH).min(1).optional(),
     wsId: z.string().uuid().optional(),
     isEnabled: z.boolean().optional(),
-    calendarName: z.string().min(1).optional(),
-    color: z.string().optional(),
+    calendarName: z.string().max(MAX_LONG_TEXT_LENGTH).min(1).optional(),
+    color: z.string().max(MAX_COLOR_LENGTH).optional(),
   })
   .refine((data) => data.id || (data.calendarId && data.wsId), {
     message: 'Either id or both calendarId and wsId are required',

@@ -178,7 +178,9 @@ describe('distributeBalanced', () => {
   it('handles single column', () => {
     const children = Array.from({ length: 5 }, (_, i) => node(i));
     const heights = new Map<number, number>();
-    children.forEach((_, i) => heights.set(i, 100 + i * 20));
+    children.forEach((_, i) => {
+      heights.set(i, 100 + i * 20);
+    });
 
     const result = distributeBalanced(children, 1, 0, heights, 150);
     expect(result.length).toBe(1);
@@ -258,8 +260,8 @@ describe('distributeBalanced', () => {
 
   it('handles many columns with varied heights', () => {
     const itemHeights = [
-      500, 350, 420, 280, 390, 310, 200, 450, 270, 330, 180, 410, 260, 370,
-      150, 340, 290, 380, 220, 460,
+      500, 350, 420, 280, 390, 310, 200, 450, 270, 330, 180, 410, 260, 370, 150,
+      340, 290, 380, 220, 460,
     ];
     const children = Array.from({ length: itemHeights.length }, (_, i) =>
       node(i)

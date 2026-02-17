@@ -1,16 +1,21 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
+import {
+  MAX_COLOR_LENGTH,
+  MAX_NAME_LENGTH,
+  MAX_SEARCH_LENGTH,
+} from '@tuturuuu/utils/constants';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { checkChangelogPermission } from './utils';
 
 const CreateChangelogSchema = z.object({
-  title: z.string().min(1).max(255),
-  slug: z.string().min(1).max(255),
+  title: z.string().min(1).max(MAX_NAME_LENGTH),
+  slug: z.string().min(1).max(MAX_NAME_LENGTH),
   content: z.object({
     type: z.literal('doc'),
     content: z.array(z.any()).optional(),
   }),
-  summary: z.string().max(500).optional(),
+  summary: z.string().max(MAX_SEARCH_LENGTH).optional(),
   category: z.enum([
     'feature',
     'improvement',
@@ -19,7 +24,7 @@ const CreateChangelogSchema = z.object({
     'security',
     'performance',
   ]),
-  version: z.string().max(50).optional(),
+  version: z.string().max(MAX_COLOR_LENGTH).optional(),
   cover_image_url: z.string().url().optional().nullable(),
 });
 

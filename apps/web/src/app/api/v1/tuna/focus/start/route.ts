@@ -4,12 +4,13 @@
  */
 
 import { createClient } from '@tuturuuu/supabase/next/server';
+import { MAX_SEARCH_LENGTH } from '@tuturuuu/utils/constants';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 const startFocusSchema = z.object({
   planned_duration: z.number().int().min(5).max(180), // 5 minutes to 3 hours
-  goal: z.string().max(500).optional(),
+  goal: z.string().max(MAX_SEARCH_LENGTH).optional(),
 });
 
 export async function POST(request: Request) {

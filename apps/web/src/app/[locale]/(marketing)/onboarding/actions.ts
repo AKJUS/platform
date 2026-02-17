@@ -5,6 +5,7 @@ import {
   createAdminClient,
   createClient,
 } from '@tuturuuu/supabase/next/server';
+import { MAX_WORKSPACE_NAME_LENGTH } from '@tuturuuu/utils/constants';
 import { checkWorkspaceCreationLimit } from '@tuturuuu/utils/workspace-limits';
 import { redirect } from 'next/navigation';
 import { getOrCreatePolarCustomer } from '@/utils/customer-helper';
@@ -211,6 +212,13 @@ export async function createWorkspaceFromOnboarding(
       return {
         success: false,
         error: limitCheck.errorMessage,
+      };
+    }
+
+    if (workspaceName.length > MAX_WORKSPACE_NAME_LENGTH) {
+      return {
+        success: false,
+        error: `Workspace name must be at most ${MAX_WORKSPACE_NAME_LENGTH} characters`,
       };
     }
 

@@ -2,12 +2,13 @@ import {
   createAdminClient,
   createClient,
 } from '@tuturuuu/supabase/next/server';
+import { MAX_LONG_TEXT_LENGTH } from '@tuturuuu/utils/constants';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 const updateCommentSchema = z.object({
-  content: z.string(), // Plain text (TipTap handles JSONContent conversion)
+  content: z.string().max(MAX_LONG_TEXT_LENGTH), // Plain text (TipTap handles JSONContent conversion)
 });
 
 export async function PATCH(

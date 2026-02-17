@@ -1,4 +1,10 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
+import {
+  MAX_COLOR_LENGTH,
+  MAX_LONG_TEXT_LENGTH,
+  MAX_NAME_LENGTH,
+  MAX_SEARCH_LENGTH,
+} from '@tuturuuu/utils/constants';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import {
@@ -8,12 +14,12 @@ import {
 } from '@/lib/workspace-encryption';
 
 const updateEventSchema = z.object({
-  title: z.string().optional(),
-  description: z.string().optional(),
-  location: z.string().optional(),
+  title: z.string().max(MAX_NAME_LENGTH).optional(),
+  description: z.string().max(MAX_LONG_TEXT_LENGTH).optional(),
+  location: z.string().max(MAX_SEARCH_LENGTH).optional(),
   start_at: z.string().datetime().optional(),
   end_at: z.string().datetime().optional(),
-  color: z.string().optional(),
+  color: z.string().max(MAX_COLOR_LENGTH).optional(),
   locked: z.boolean().optional(),
 });
 

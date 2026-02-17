@@ -1,5 +1,9 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
-import { resolveWorkspaceId } from '@tuturuuu/utils/constants';
+import {
+  MAX_COLOR_LENGTH,
+  MAX_SEARCH_LENGTH,
+  resolveWorkspaceId,
+} from '@tuturuuu/utils/constants';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
@@ -38,9 +42,9 @@ const querySchema = z.object({
     ])
     .nullish(),
   board_id: z.string().uuid().nullish(),
-  from: z.string().nullish(),
-  to: z.string().nullish(),
-  search: z.string().nullish(),
+  from: z.string().max(MAX_COLOR_LENGTH).nullish(),
+  to: z.string().max(MAX_COLOR_LENGTH).nullish(),
+  search: z.string().max(MAX_SEARCH_LENGTH).nullish(),
 });
 
 /**

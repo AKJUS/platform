@@ -5,7 +5,7 @@ import {
   extractIPFromRequest,
   isIPBlockedEdge,
 } from '@tuturuuu/utils/abuse-protection/edge';
-import { ROOT_WORKSPACE_ID } from '@tuturuuu/utils/constants';
+import { MAX_PAYLOAD_SIZE, ROOT_WORKSPACE_ID } from '@tuturuuu/utils/constants';
 import { getUserDefaultWorkspace } from '@tuturuuu/utils/user-helper';
 import { isPersonalWorkspace } from '@tuturuuu/utils/workspace-helper';
 import { Ratelimit } from '@upstash/ratelimit';
@@ -263,6 +263,18 @@ function initRateLimiters() {
 }
 
 export async function proxy(req: NextRequest): Promise<NextResponse> {
+  // 0. Global payload size check at the edge
+  const contentLength = req.headers.get('content-length');
+  if (contentLength) {
+    const size = parseInt(contentLength, 10);
+    if (size > MAX_PAYLOAD_SIZE) {
+      return NextResponse.json(
+        { error: 'Payload Too Large', message: 'Request body exceeds limit' },
+        { status: 413 }
+      );
+    }
+  }
+
   // Rate-limit API routes at the edge BEFORE any serverless execution
   if (req.nextUrl.pathname.startsWith('/api')) {
     initRateLimiters();

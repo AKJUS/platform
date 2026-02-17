@@ -1,4 +1,5 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
+import { MAX_URL_LENGTH } from '@tuturuuu/utils/constants';
 import { getPermissions } from '@tuturuuu/utils/workspace-helper';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
@@ -60,7 +61,7 @@ export async function PUT(req: Request, { params }: Params) {
   const SingleSchema = z.object({
     user_id: z.uuid(),
     is_completed: z.boolean(),
-    notes: z.string().max(2000).nullable().optional(),
+    notes: z.string().max(MAX_URL_LENGTH).nullable().optional(),
     // created_at is server-managed; do not accept from client
   });
   const MultipleSchema = z.array(SingleSchema);

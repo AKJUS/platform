@@ -1,4 +1,8 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
+import {
+  MAX_MEDIUM_TEXT_LENGTH,
+  MAX_NAME_LENGTH,
+} from '@tuturuuu/utils/constants';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
@@ -11,8 +15,8 @@ const cycleStatusSchema = z.enum([
 ]);
 
 const updateCycleSchema = z.object({
-  name: z.string().min(1, 'Cycle name is required').max(255),
-  description: z.string().max(1000).optional(),
+  name: z.string().min(1, 'Cycle name is required').max(MAX_NAME_LENGTH),
+  description: z.string().max(MAX_MEDIUM_TEXT_LENGTH).optional(),
   status: cycleStatusSchema,
   start_date: z
     .string()

@@ -1,5 +1,9 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
 import {
+  MAX_COLOR_LENGTH,
+  MAX_SHORT_TEXT_LENGTH,
+} from '@tuturuuu/utils/constants';
+import {
   getPermissions,
   normalizeWorkspaceId,
 } from '@tuturuuu/utils/workspace-helper';
@@ -7,8 +11,8 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 const querySchema = z.object({
-  startDate: z.string().optional().nullable(),
-  endDate: z.string().optional().nullable(),
+  startDate: z.string().max(MAX_COLOR_LENGTH).optional().nullable(),
+  endDate: z.string().max(MAX_COLOR_LENGTH).optional().nullable(),
   includeConfidential: z
     .enum(['true', 'false'])
     .optional()
@@ -27,7 +31,7 @@ const querySchema = z.object({
     .optional()
     .default('false')
     .transform((v) => v === 'true'),
-  timezone: z.string().optional().default('UTC'),
+  timezone: z.string().max(MAX_SHORT_TEXT_LENGTH).optional().default('UTC'),
 });
 
 interface Params {

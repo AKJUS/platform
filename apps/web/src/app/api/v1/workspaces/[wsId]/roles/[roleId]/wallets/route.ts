@@ -1,4 +1,5 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
+import { MAX_LONG_TEXT_LENGTH } from '@tuturuuu/utils/constants';
 import { getPermissions } from '@tuturuuu/utils/workspace-helper';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
@@ -84,7 +85,7 @@ export async function POST(req: Request, { params }: Params) {
 
   const schema = z
     .object({
-      wallet_id: z.string(),
+      wallet_id: z.string().max(MAX_LONG_TEXT_LENGTH),
       viewing_window: z.enum([
         '1_day',
         '3_days',

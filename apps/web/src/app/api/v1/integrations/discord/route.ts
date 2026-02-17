@@ -1,4 +1,5 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
+import { MAX_SHORT_TEXT_LENGTH } from '@tuturuuu/utils/constants';
 import { getCurrentUser } from '@tuturuuu/utils/user-helper';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
@@ -6,7 +7,7 @@ import { z } from 'zod';
 
 const ConnectDiscordSchema = z.object({
   wsId: z.uuid(),
-  discordGuildId: z.string().min(1),
+  discordGuildId: z.string().max(MAX_SHORT_TEXT_LENGTH).min(1),
 });
 
 const DisconnectDiscordSchema = z.object({

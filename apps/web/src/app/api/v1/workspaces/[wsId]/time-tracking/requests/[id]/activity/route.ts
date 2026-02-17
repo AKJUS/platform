@@ -1,10 +1,16 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
+import { MAX_SHORT_TEXT_LENGTH } from '@tuturuuu/utils/constants';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 const paginationSchema = z.object({
   page: z.coerce.number().int().positive().default(1),
-  limit: z.coerce.number().int().positive().max(100).default(5),
+  limit: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(MAX_SHORT_TEXT_LENGTH)
+    .default(5),
 });
 
 export async function GET(

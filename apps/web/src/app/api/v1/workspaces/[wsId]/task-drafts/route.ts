@@ -1,4 +1,9 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
+import {
+  MAX_COLOR_LENGTH,
+  MAX_LONG_TEXT_LENGTH,
+  MAX_NAME_LENGTH,
+} from '@tuturuuu/utils/constants';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
@@ -12,13 +17,13 @@ const uuidString = z
   );
 
 const createDraftSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  description: z.string().nullish(),
+  name: z.string().max(MAX_NAME_LENGTH).min(1, 'Name is required'),
+  description: z.string().max(MAX_LONG_TEXT_LENGTH).nullish(),
   priority: z.enum(['critical', 'high', 'normal', 'low']).nullish(),
   board_id: uuidString.nullish(),
   list_id: uuidString.nullish(),
-  start_date: z.string().nullish(),
-  end_date: z.string().nullish(),
+  start_date: z.string().max(MAX_COLOR_LENGTH).nullish(),
+  end_date: z.string().max(MAX_COLOR_LENGTH).nullish(),
   estimation_points: z.number().int().min(0).max(8).nullish(),
   label_ids: z.array(uuidString).default([]),
   assignee_ids: z.array(uuidString).default([]),

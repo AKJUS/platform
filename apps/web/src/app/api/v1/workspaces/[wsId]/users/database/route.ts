@@ -1,13 +1,22 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
 import type { WorkspaceUser } from '@tuturuuu/types/primitives/WorkspaceUser';
+import {
+  MAX_SEARCH_LENGTH,
+  MAX_SHORT_TEXT_LENGTH,
+} from '@tuturuuu/utils/constants';
 import { getPermissions, getWorkspace } from '@tuturuuu/utils/workspace-helper';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 const SearchParamsSchema = z.object({
-  q: z.string().default(''),
+  q: z.string().max(MAX_SEARCH_LENGTH).default(''),
   page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).default(10),
+  pageSize: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(MAX_SHORT_TEXT_LENGTH)
+    .default(10),
   includedGroups: z
     .union([z.string(), z.array(z.string())])
     .transform((val) => (Array.isArray(val) ? val : val ? [val] : []))

@@ -2,13 +2,17 @@ import {
   createAdminClient,
   createClient,
 } from '@tuturuuu/supabase/next/server';
+import {
+  MAX_LONG_TEXT_LENGTH,
+  MAX_SHORT_TEXT_LENGTH,
+} from '@tuturuuu/utils/constants';
 import bcrypt from 'bcrypt';
 import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
 const passwordUpdateSchema = z.object({
-  currentPassword: z.string().optional(),
-  newPassword: z.string().min(4).max(100).optional(),
+  currentPassword: z.string().max(MAX_LONG_TEXT_LENGTH).optional(),
+  newPassword: z.string().min(4).max(MAX_SHORT_TEXT_LENGTH).optional(),
   passwordHint: z.string().max(200).optional(),
 });
 

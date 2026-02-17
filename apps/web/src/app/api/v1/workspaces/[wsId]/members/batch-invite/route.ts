@@ -2,6 +2,7 @@ import {
   createAdminClient,
   createClient,
 } from '@tuturuuu/supabase/next/server';
+import { MAX_COLOR_LENGTH, MAX_EMAIL_LENGTH } from '@tuturuuu/utils/constants';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { getEffectiveAvailableSeats } from '@/utils/seat-limits';
@@ -13,7 +14,10 @@ interface Params {
 }
 
 const BatchInviteSchema = z.object({
-  emails: z.array(z.email()).min(1).max(50),
+  emails: z
+    .array(z.string().email().max(MAX_EMAIL_LENGTH))
+    .min(1)
+    .max(MAX_COLOR_LENGTH),
 });
 
 // Helper to trigger immediate notification processing

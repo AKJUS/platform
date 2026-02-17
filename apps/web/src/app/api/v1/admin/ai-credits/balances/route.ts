@@ -2,7 +2,10 @@ import {
   createAdminClient,
   createClient,
 } from '@tuturuuu/supabase/next/server';
-import { ROOT_WORKSPACE_ID } from '@tuturuuu/utils/constants';
+import {
+  MAX_SEARCH_LENGTH,
+  ROOT_WORKSPACE_ID,
+} from '@tuturuuu/utils/constants';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
@@ -168,7 +171,7 @@ export async function GET(req: NextRequest) {
 const bonusSchema = z.object({
   balance_id: z.string().uuid(),
   amount: z.number().positive(),
-  reason: z.string().optional(),
+  reason: z.string().max(MAX_SEARCH_LENGTH).optional(),
 });
 
 export async function POST(req: Request) {

@@ -1,6 +1,11 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
 import type { WorkspacePromotion } from '@tuturuuu/types/db';
 import {
+  MAX_COLOR_LENGTH,
+  MAX_MEDIUM_TEXT_LENGTH,
+  MAX_SEARCH_LENGTH,
+} from '@tuturuuu/utils/constants';
+import {
   type FullInvoiceData,
   transformInvoiceData,
   transformInvoiceSearchResults,
@@ -14,11 +19,16 @@ import { z } from 'zod';
 import { isPromotionAllowedForWorkspace } from '@/utils/workspace-config';
 
 const SearchParamsSchema = z.object({
-  q: z.string().default(''),
+  q: z.string().max(MAX_SEARCH_LENGTH).default(''),
   page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(1000).default(10),
-  start: z.string().optional(),
-  end: z.string().optional(),
+  pageSize: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(MAX_MEDIUM_TEXT_LENGTH)
+    .default(10),
+  start: z.string().max(MAX_COLOR_LENGTH).optional(),
+  end: z.string().max(MAX_COLOR_LENGTH).optional(),
   userIds: z
     .union([z.string(), z.array(z.string())])
     .transform((val) => (Array.isArray(val) ? val : val ? [val] : []))

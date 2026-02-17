@@ -6,6 +6,7 @@ import {
   isIPBlocked,
   recordApiAuthFailure,
 } from '@tuturuuu/utils/abuse-protection';
+import { MAX_PAYLOAD_SIZE } from '@tuturuuu/utils/constants';
 import { type NextRequest, NextResponse } from 'next/server';
 import { checkRateLimit, type RateLimitConfig } from './rate-limit';
 
@@ -19,8 +20,23 @@ export type AuthorizedRequest = {
  * Kept for backward compatibility during migration.
  */
 export async function authorizeRequest(
-  request: Pick<NextRequest, 'headers'>
+  request: Pick<NextRequest, 'headers' | 'url'>
 ): Promise<{ data: AuthorizedRequest | null; error: NextResponse | null }> {
+  // Check payload size
+  const contentLength = request.headers.get('content-length');
+  if (contentLength) {
+    const size = parseInt(contentLength, 10);
+    if (size > MAX_PAYLOAD_SIZE) {
+      return {
+        data: null,
+        error: NextResponse.json(
+          { error: 'Payload Too Large', message: 'Request body exceeds limit' },
+          { status: 413 }
+        ),
+      };
+    }
+  }
+
   const supabase = (await createClient(request)) as TypedSupabaseClient;
   const {
     data: { user },
@@ -134,6 +150,11 @@ interface SessionAuthOptions {
    * authenticated endpoints. Mutations (POST/PUT/DELETE) are never cached.
    */
   cache?: CacheConfig;
+  /**
+   * Maximum allowed payload size in bytes.
+   * Defaults to MAX_PAYLOAD_SIZE (1MB).
+   */
+  maxPayloadSize?: number;
 }
 
 /**
@@ -167,6 +188,20 @@ export function withSessionAuth<T = unknown>(
   ) => {
     const url = new URL(request.url);
     const endpoint = url.pathname;
+
+    // 0. Check payload size
+    const contentLength = request.headers.get('content-length');
+    if (contentLength) {
+      const size = parseInt(contentLength, 10);
+      const limit = options?.maxPayloadSize ?? MAX_PAYLOAD_SIZE;
+
+      if (size > limit) {
+        return NextResponse.json(
+          { error: 'Payload Too Large', message: 'Request body exceeds limit' },
+          { status: 413 }
+        );
+      }
+    }
 
     // 1. Extract IP
     const ipAddress = extractIPFromHeaders(request.headers);

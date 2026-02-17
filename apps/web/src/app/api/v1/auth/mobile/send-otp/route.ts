@@ -6,7 +6,11 @@ import {
   checkOTPSendLimit,
   extractIPFromHeaders,
 } from '@tuturuuu/utils/abuse-protection';
-import { DEV_MODE } from '@tuturuuu/utils/constants';
+import {
+  DEV_MODE,
+  MAX_CODE_LENGTH,
+  MAX_LONG_TEXT_LENGTH,
+} from '@tuturuuu/utils/constants';
 import {
   checkEmailInfrastructureBlocked,
   checkIfUserExists,
@@ -21,9 +25,9 @@ import { jsonWithCors, optionsWithCors } from '../shared';
 
 const SendOtpSchema = z.object({
   email: z.string().email(),
-  locale: z.string().optional(),
-  deviceId: z.string().optional(),
-  captchaToken: z.string().optional(),
+  locale: z.string().max(MAX_CODE_LENGTH).optional(),
+  deviceId: z.string().max(MAX_LONG_TEXT_LENGTH).optional(),
+  captchaToken: z.string().max(MAX_LONG_TEXT_LENGTH).optional(),
 });
 
 export async function OPTIONS() {

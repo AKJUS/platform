@@ -1,4 +1,9 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
+import {
+  MAX_LONG_TEXT_LENGTH,
+  MAX_NOTE_TITLE_LENGTH,
+  MAX_SHORT_TEXT_LENGTH,
+} from '@tuturuuu/utils/constants';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
@@ -6,16 +11,16 @@ import { z } from 'zod';
 // TipTap JSONContent schema for rich text
 const jsonContentSchema: z.ZodType<any> = z.lazy(() =>
   z.object({
-    type: z.string(),
+    type: z.string().max(MAX_SHORT_TEXT_LENGTH),
     attrs: z.record(z.string(), z.any()).optional(),
     content: z.array(jsonContentSchema).optional(),
     marks: z.array(z.any()).optional(),
-    text: z.string().optional(),
+    text: z.string().max(MAX_LONG_TEXT_LENGTH).optional(),
   })
 );
 
 const createNoteSchema = z.object({
-  title: z.string().nullable().optional(),
+  title: z.string().max(MAX_NOTE_TITLE_LENGTH).nullable().optional(),
   content: jsonContentSchema.refine(
     (val) => val.type === 'doc',
     'Content must be a valid TipTap document'

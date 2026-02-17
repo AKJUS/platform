@@ -1,6 +1,9 @@
 import { createAdminClient } from '@tuturuuu/supabase/next/server';
 import { suspendUser } from '@tuturuuu/utils/abuse-protection/user-suspension';
-import { ROOT_WORKSPACE_ID } from '@tuturuuu/utils/constants';
+import {
+  MAX_SEARCH_LENGTH,
+  ROOT_WORKSPACE_ID,
+} from '@tuturuuu/utils/constants';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { withSessionAuth } from '@/lib/api-auth';
@@ -42,7 +45,7 @@ export const GET = withSessionAuth(
 
 const SuspendSchema = z.object({
   userId: z.string().uuid(),
-  reason: z.string().min(1).max(500),
+  reason: z.string().min(1).max(MAX_SEARCH_LENGTH),
   expiresAt: z.string().datetime().optional(),
 });
 

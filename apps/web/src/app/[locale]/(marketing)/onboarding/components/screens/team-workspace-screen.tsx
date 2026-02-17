@@ -12,6 +12,7 @@ import {
 import { useForm } from '@tuturuuu/ui/hooks/use-form';
 import { Input } from '@tuturuuu/ui/input';
 import { zodResolver } from '@tuturuuu/ui/resolvers';
+import { MAX_WORKSPACE_NAME_LENGTH } from '@tuturuuu/utils/constants';
 import { motion } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import { z } from 'zod';
@@ -24,7 +25,10 @@ import {
 } from '../shared/onboarding-card';
 
 const FormSchema = z.object({
-  name: z.string().min(1, 'Workspace name is required').max(100),
+  name: z
+    .string()
+    .min(1, 'Workspace name is required')
+    .max(MAX_WORKSPACE_NAME_LENGTH),
 });
 
 interface TeamWorkspaceScreenProps {

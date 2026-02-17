@@ -1,5 +1,10 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
 import {
+  MAX_COLOR_LENGTH,
+  MAX_MEDIUM_TEXT_LENGTH,
+  MAX_NAME_LENGTH,
+} from '@tuturuuu/utils/constants';
+import {
   getPermissions,
   normalizeWorkspaceId,
 } from '@tuturuuu/utils/workspace-helper';
@@ -14,12 +19,12 @@ const updateContractSchema = z.object({
   employment_status: z
     .enum(['active', 'on_leave', 'terminated', 'rehired'])
     .optional(),
-  job_title: z.string().optional().nullable(),
-  department: z.string().optional().nullable(),
-  working_location: z.string().optional().nullable(),
-  start_date: z.string().optional(),
-  end_date: z.string().optional().nullable(),
-  notes: z.string().optional().nullable(),
+  job_title: z.string().max(MAX_NAME_LENGTH).optional().nullable(),
+  department: z.string().max(MAX_NAME_LENGTH).optional().nullable(),
+  working_location: z.string().max(MAX_NAME_LENGTH).optional().nullable(),
+  start_date: z.string().max(MAX_COLOR_LENGTH).optional(),
+  end_date: z.string().max(MAX_COLOR_LENGTH).optional().nullable(),
+  notes: z.string().max(MAX_MEDIUM_TEXT_LENGTH).optional().nullable(),
 });
 
 export async function GET(

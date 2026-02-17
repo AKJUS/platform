@@ -4,12 +4,13 @@
  */
 
 import { createClient } from '@tuturuuu/supabase/next/server';
+import { MAX_URL_LENGTH } from '@tuturuuu/utils/constants';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 const completeFocusSchema = z.object({
   session_id: z.string().uuid(),
-  notes: z.string().max(2000).optional(),
+  notes: z.string().max(MAX_URL_LENGTH).optional(),
 });
 
 export async function POST(request: Request) {

@@ -1,11 +1,12 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
 import { performFullSyncForWorkspace } from '@tuturuuu/trigger/google-calendar-full-sync';
+import { MAX_NAME_LENGTH } from '@tuturuuu/utils/constants';
 import { getWorkspace } from '@tuturuuu/utils/workspace-helper';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 const fullSyncSchema = z.object({
-  wsId: z.string(),
+  wsId: z.string().max(MAX_NAME_LENGTH),
 });
 
 export async function POST(request: Request) {

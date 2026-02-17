@@ -1,8 +1,29 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
+import {
+  MAX_COLOR_LENGTH,
+  MAX_TASK_DESCRIPTION_LENGTH,
+  MAX_TASK_NAME_LENGTH,
+} from '@tuturuuu/utils/constants';
 import { type NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { generateTaskEmbedding } from '@/lib/embeddings/generate-task-embedding';
 
-// Type interfaces for better type safety
+const CreateTaskSchema = z.object({
+  name: z.string().min(1).max(MAX_TASK_NAME_LENGTH),
+  description: z
+    .string()
+    .max(MAX_TASK_DESCRIPTION_LENGTH)
+    .nullable()
+    .optional(),
+  listId: z.string().uuid(),
+  priority: z.enum(['low', 'normal', 'high', 'critical']).nullable().optional(),
+  start_date: z.string().max(MAX_COLOR_LENGTH).nullable().optional(),
+  end_date: z.string().max(MAX_COLOR_LENGTH).nullable().optional(),
+  estimation_points: z.number().nullable().optional(),
+  label_ids: z.array(z.string().uuid()).optional(),
+  project_ids: z.array(z.string().uuid()).optional(),
+  assignee_ids: z.array(z.string().uuid()).optional(),
+});
 interface ProcessedAssignee {
   id: string;
   display_name: string | null;
@@ -251,8 +272,9 @@ export async function POST(
     }
 
     const body = await request.json();
+    const validatedData = CreateTaskSchema.parse(body);
     const {
-      name,
+      name: taskName,
       description,
       listId,
       priority,
@@ -262,21 +284,7 @@ export async function POST(
       label_ids,
       project_ids,
       assignee_ids,
-    } = body;
-
-    if (!name?.trim()) {
-      return NextResponse.json(
-        { error: 'Task name is required' },
-        { status: 400 }
-      );
-    }
-
-    if (!listId) {
-      return NextResponse.json(
-        { error: 'List ID is required' },
-        { status: 400 }
-      );
-    }
+    } = validatedData;
 
     // Verify that the list belongs to a board in this workspace
     const { data: listCheck } = await supabase
@@ -297,7 +305,7 @@ export async function POST(
     const { data, error } = await supabase
       .from('tasks')
       .insert({
-        name: name.trim(),
+        name: taskName.trim(),
         description: description?.trim() || null,
         list_id: listId,
         priority: priority || null,
@@ -307,7 +315,7 @@ export async function POST(
         created_at: new Date().toISOString(),
         deleted_at: null,
         completed: false,
-      })
+      } as any)
       .select(
         `
         id,
@@ -419,6 +427,12 @@ export async function POST(
 
     return NextResponse.json({ task }, { status: 201 });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Invalid request data', details: error.issues },
+        { status: 400 }
+      );
+    }
     console.error('Error creating task:', error);
     return NextResponse.json(
       { error: 'Internal server error' },

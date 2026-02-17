@@ -6,6 +6,10 @@
 
 import { createClient } from '@tuturuuu/supabase/next/server';
 import { createDocumentDataSchema } from '@tuturuuu/types';
+import {
+  MAX_SEARCH_LENGTH,
+  MAX_SHORT_TEXT_LENGTH,
+} from '@tuturuuu/utils/constants';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import {
@@ -17,8 +21,14 @@ import {
 
 // Query parameters schema for listing (query string transformations)
 const listQuerySchema = z.object({
-  search: z.string().optional(),
-  limit: z.coerce.number().int().min(1).max(100).optional().default(50),
+  search: z.string().max(MAX_SEARCH_LENGTH).optional(),
+  limit: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(MAX_SHORT_TEXT_LENGTH)
+    .optional()
+    .default(50),
   offset: z.coerce.number().int().min(0).optional().default(0),
   isPublic: z
     .string()

@@ -1,10 +1,11 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
+import { MAX_NAME_LENGTH } from '@tuturuuu/utils/constants';
 import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
 const QueryParamsSchema = z.object({
   workspaceId: z.uuid().optional(),
-  channelId: z.string().optional(),
+  channelId: z.string().max(MAX_NAME_LENGTH).optional(),
   startDate: z.iso.datetime(),
   endDate: z.iso.datetime(),
   metric: z.enum(['requests', 'users']).default('requests'),

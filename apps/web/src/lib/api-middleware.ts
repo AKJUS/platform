@@ -18,6 +18,10 @@ import {
   extractIPFromHeaders,
   isIPBlocked,
 } from '@tuturuuu/utils/abuse-protection';
+import {
+  MAX_PAYLOAD_SIZE,
+  MAX_REQUEST_BODY_BYTES,
+} from '@tuturuuu/utils/constants';
 import { type NextRequest, NextResponse } from 'next/server';
 import { checkRateLimit, type RateLimitConfig } from './rate-limit';
 
@@ -167,6 +171,11 @@ export function withApiAuth<T = unknown>(
     permissions?: PermissionId[];
     requireAll?: boolean;
     rateLimit?: RateLimitConfig | false;
+    /**
+     * Maximum allowed payload size in bytes.
+     * Defaults to MAX_PAYLOAD_SIZE (1MB).
+     */
+    maxPayloadSize?: number;
   }
 ): (
   request: NextRequest,
@@ -180,6 +189,22 @@ export function withApiAuth<T = unknown>(
     const url = new URL(request.url);
     const endpoint = url.pathname;
     const method = request.method;
+
+    // Check payload size
+    const contentLength = request.headers.get('content-length');
+    if (contentLength) {
+      const size = parseInt(contentLength, 10);
+      const limit = options?.maxPayloadSize ?? MAX_PAYLOAD_SIZE;
+
+      if (size > limit) {
+        return createErrorResponse(
+          'Payload Too Large',
+          'Request body exceeds limit',
+          413,
+          'PAYLOAD_TOO_LARGE'
+        );
+      }
+    }
 
     // Extract IP and User-Agent
     const ipAddress = extractIPFromHeaders(request.headers);
@@ -398,7 +423,6 @@ export function withApiAuth<T = unknown>(
   };
 }
 
-// Re-export rate-limit types and functions for backward compatibility
 export {
   checkRateLimit,
   RATE_LIMIT_SECRET_NAMES,
@@ -442,17 +466,43 @@ export function validateQueryParams<T>(
 }
 
 /**
- * Validates request body using Zod schema
+ * Validates request body using Zod schema with byte-size enforcement.
+ *
+ * Reads raw body text, checks UTF-8 byte length against maxBytes
+ * (default: MAX_REQUEST_BODY_BYTES), then parses as JSON and validates
+ * with the provided Zod schema.
  */
 export async function validateRequestBody<T>(
   request: NextRequest,
-  schema: { parse: (data: unknown) => T }
+  schema: { parse: (data: unknown) => T },
+  maxBytes: number = MAX_REQUEST_BODY_BYTES
 ): Promise<{ data: T } | NextResponse<ApiErrorResponse>> {
   try {
-    const body = await request.json();
+    // Read raw body text and check byte size
+    const text = await request.text();
+    const byteLength = new TextEncoder().encode(text).length;
+
+    if (byteLength > maxBytes) {
+      return createErrorResponse(
+        'Payload Too Large',
+        `Request body is ${byteLength} bytes, exceeding the ${maxBytes} byte limit`,
+        413,
+        'PAYLOAD_TOO_LARGE'
+      );
+    }
+
+    const body = JSON.parse(text);
     const data = schema.parse(body);
     return { data };
   } catch (error) {
+    if (error instanceof SyntaxError) {
+      return createErrorResponse(
+        'Bad Request',
+        'Invalid JSON in request body',
+        400,
+        'INVALID_JSON'
+      );
+    }
     console.error('Request body validation error:', error);
     return createErrorResponse(
       'Bad Request',

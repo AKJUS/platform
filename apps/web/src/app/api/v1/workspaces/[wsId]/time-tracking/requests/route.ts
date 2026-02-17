@@ -2,6 +2,7 @@ import {
   createClient,
   createDynamicClient,
 } from '@tuturuuu/supabase/next/server';
+import { MAX_NAME_LENGTH } from '@tuturuuu/utils/constants';
 import { sanitizeFilename } from '@tuturuuu/utils/storage-path';
 import { type NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
@@ -20,7 +21,7 @@ const ALLOWED_MIME_TYPES = [
 ];
 
 const TimeTrackingRequestSchema = z.object({
-  title: z.string().min(1),
+  title: z.string().max(MAX_NAME_LENGTH).min(1),
   startTime: z.iso.datetime(),
   endTime: z.iso.datetime(),
 });

@@ -8,11 +8,12 @@ import {
   createAdminClient,
   createClient,
 } from '@tuturuuu/supabase/next/server';
+import { MAX_COLOR_LENGTH } from '@tuturuuu/utils/constants';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 const updatePetSchema = z.object({
-  name: z.string().min(1).max(50).optional(),
+  name: z.string().min(1).max(MAX_COLOR_LENGTH).optional(),
 });
 
 export async function GET() {

@@ -2,6 +2,7 @@ import {
   createAdminClient,
   createClient,
 } from '@tuturuuu/supabase/next/server';
+import { MAX_NAME_LENGTH } from '@tuturuuu/utils/constants';
 import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { normalizeWorkspaceId } from '@/lib/workspace-helper';
@@ -9,7 +10,7 @@ import { normalizeWorkspaceId } from '@/lib/workspace-helper';
 const createBreakSchema = z.object({
   session_id: z.uuid('Invalid session ID format'),
   break_type_id: z.uuid('Invalid break type ID format').optional(),
-  break_type_name: z.string().optional(),
+  break_type_name: z.string().max(MAX_NAME_LENGTH).optional(),
   break_start: z.iso.datetime({ message: 'Invalid break_start timestamp' }),
   break_end: z.iso
     .datetime({ message: 'Invalid break_end timestamp' })

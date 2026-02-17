@@ -2,7 +2,7 @@ import {
   createAdminClient,
   createClient,
 } from '@tuturuuu/supabase/next/server';
-import { ROOT_WORKSPACE_ID } from '@tuturuuu/utils/constants';
+import { MAX_NAME_LENGTH, ROOT_WORKSPACE_ID } from '@tuturuuu/utils/constants';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
@@ -96,7 +96,7 @@ export async function GET(req: NextRequest) {
 }
 
 const patchSchema = z.object({
-  id: z.string(),
+  id: z.string().max(MAX_NAME_LENGTH),
   is_enabled: z.boolean(),
 });
 

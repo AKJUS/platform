@@ -2,6 +2,7 @@ import {
   createClient,
   createDynamicClient,
 } from '@tuturuuu/supabase/next/server';
+import { MAX_SEARCH_LENGTH } from '@tuturuuu/utils/constants';
 import { sanitizeFilename } from '@tuturuuu/utils/storage-path';
 import { getPermissions } from '@tuturuuu/utils/workspace-helper';
 import { type NextRequest, NextResponse } from 'next/server';
@@ -31,11 +32,17 @@ const updateRequestSchema = z.discriminatedUnion('action', [
   }),
   z.object({
     action: z.literal('reject'),
-    rejection_reason: z.string().min(1, 'Rejection reason is required'),
+    rejection_reason: z
+      .string()
+      .max(MAX_SEARCH_LENGTH)
+      .min(1, 'Rejection reason is required'),
   }),
   z.object({
     action: z.literal('needs_info'),
-    needs_info_reason: z.string().min(1, 'Needs info reason is required'),
+    needs_info_reason: z
+      .string()
+      .max(MAX_SEARCH_LENGTH)
+      .min(1, 'Needs info reason is required'),
   }),
   z.object({
     action: z.literal('resubmit'),

@@ -1,12 +1,16 @@
 import { google, OAuth2Client } from '@tuturuuu/google';
 import { createClient } from '@tuturuuu/supabase/next/server';
+import {
+  MAX_LONG_TEXT_LENGTH,
+  MAX_NAME_LENGTH,
+} from '@tuturuuu/utils/constants';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { normalizeWorkspaceId } from '@/lib/workspace-helper';
 
 const listCalendarsQuerySchema = z.object({
-  wsId: z.string(),
-  accountId: z.string().optional(),
+  wsId: z.string().max(MAX_NAME_LENGTH),
+  accountId: z.string().max(MAX_LONG_TEXT_LENGTH).optional(),
 });
 
 const getGoogleAuthClient = (tokens: {

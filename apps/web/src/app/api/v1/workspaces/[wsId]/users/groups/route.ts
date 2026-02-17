@@ -1,6 +1,10 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
 import type { UserGroup } from '@tuturuuu/types/primitives/UserGroup';
 import {
+  MAX_SEARCH_LENGTH,
+  MAX_SHORT_TEXT_LENGTH,
+} from '@tuturuuu/utils/constants';
+import {
   getPermissions,
   normalizeWorkspaceId,
 } from '@tuturuuu/utils/workspace-helper';
@@ -13,9 +17,14 @@ import {
 } from '@/app/[locale]/(dashboard)/[wsId]/users/groups/utils';
 
 const SearchParamsSchema = z.object({
-  q: z.string().optional(),
+  q: z.string().max(MAX_SEARCH_LENGTH).optional(),
   page: z.coerce.number().int().min(1).default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).default(10),
+  pageSize: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(MAX_SHORT_TEXT_LENGTH)
+    .default(10),
 });
 
 interface Params {

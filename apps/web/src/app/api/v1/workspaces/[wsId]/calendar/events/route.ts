@@ -1,11 +1,31 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
-import type { CalendarEvent } from '@tuturuuu/types/primitives/calendar-event';
+import {
+  MAX_CALENDAR_EVENT_DESCRIPTION_LENGTH,
+  MAX_CALENDAR_EVENT_TITLE_LENGTH,
+  MAX_COLOR_LENGTH,
+  MAX_SEARCH_LENGTH,
+} from '@tuturuuu/utils/constants';
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import {
   decryptEventsFromStorage,
   encryptEventForStorage,
   getWorkspaceKey,
 } from '@/lib/workspace-encryption';
+
+const CreateEventSchema = z.object({
+  title: z.string().min(1).max(MAX_CALENDAR_EVENT_TITLE_LENGTH),
+  description: z
+    .string()
+    .max(MAX_CALENDAR_EVENT_DESCRIPTION_LENGTH)
+    .nullable()
+    .optional(),
+  location: z.string().max(MAX_SEARCH_LENGTH).nullable().optional(),
+  start_at: z.string().datetime(),
+  end_at: z.string().datetime(),
+  color: z.string().max(MAX_COLOR_LENGTH).optional(),
+  locked: z.boolean().optional(),
+});
 
 interface Params {
   params: Promise<{
@@ -65,7 +85,8 @@ export async function POST(request: Request, { params }: Params) {
   const { wsId } = await params;
 
   try {
-    const event: Omit<CalendarEvent, 'id'> = await request.json();
+    const body = await request.json();
+    const event = CreateEventSchema.parse(body);
 
     // Get workspace encryption key (read-only, does not auto-create)
     // This ensures encryption only happens if E2EE was explicitly enabled
@@ -111,6 +132,12 @@ export async function POST(request: Request, { params }: Params) {
       { status: 201 }
     );
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: 'Invalid request data', details: error.issues },
+        { status: 400 }
+      );
+    }
     console.error('Calendar events API error:', error);
     return NextResponse.json(
       { error: 'An error occurred while processing your request' },

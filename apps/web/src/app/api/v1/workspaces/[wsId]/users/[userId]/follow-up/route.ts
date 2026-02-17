@@ -7,6 +7,11 @@ import {
   extractIPFromHeaders,
   isIPBlocked,
 } from '@tuturuuu/utils/abuse-protection';
+import {
+  MAX_LONG_TEXT_LENGTH,
+  MAX_NAME_LENGTH,
+  MAX_SEARCH_LENGTH,
+} from '@tuturuuu/utils/constants';
 import { getPermissions } from '@tuturuuu/utils/workspace-helper';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
@@ -14,10 +19,10 @@ import { z } from 'zod';
 
 // Define Zod schema for request body validation
 const followUpEmailSchema = z.object({
-  subject: z.string().min(1, 'Subject is required'),
-  content: z.string().min(1, 'Content is required'),
+  subject: z.string().max(MAX_SEARCH_LENGTH).min(1, 'Subject is required'),
+  content: z.string().max(MAX_LONG_TEXT_LENGTH).min(1, 'Content is required'),
   to_email: z.email('Invalid recipient email format').optional(),
-  post_id: z.string().optional(),
+  post_id: z.string().max(MAX_NAME_LENGTH).optional(),
 });
 
 export async function POST(

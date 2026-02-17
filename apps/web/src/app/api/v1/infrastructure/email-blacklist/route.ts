@@ -1,4 +1,5 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
+import { MAX_NAME_LENGTH, MAX_SEARCH_LENGTH } from '@tuturuuu/utils/constants';
 import {
   DOMAIN_BLACKLIST_REGEX,
   EMAIL_BLACKLIST_REGEX,
@@ -8,8 +9,8 @@ import { z } from 'zod';
 
 const CreateEmailBlacklistSchema = z.object({
   entry_type: z.enum(['email', 'domain']),
-  value: z.string().min(1).max(255),
-  reason: z.string().max(500).optional(),
+  value: z.string().min(1).max(MAX_NAME_LENGTH),
+  reason: z.string().max(MAX_SEARCH_LENGTH).optional(),
 });
 
 export async function GET(_req: Request) {

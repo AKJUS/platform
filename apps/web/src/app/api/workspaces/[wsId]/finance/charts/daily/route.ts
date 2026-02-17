@@ -1,4 +1,5 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
+import { MAX_COLOR_LENGTH } from '@tuturuuu/utils/constants';
 import {
   getPermissions,
   normalizeWorkspaceId,
@@ -7,8 +8,8 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 const querySchema = z.object({
-  startDate: z.string().optional().nullable(),
-  endDate: z.string().optional().nullable(),
+  startDate: z.string().max(MAX_COLOR_LENGTH).optional().nullable(),
+  endDate: z.string().max(MAX_COLOR_LENGTH).optional().nullable(),
   includeConfidential: z
     .enum(['true', 'false'])
     .optional()

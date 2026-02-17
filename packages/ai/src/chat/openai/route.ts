@@ -2,6 +2,7 @@ import {
   createAdminClient,
   createClient,
 } from '@tuturuuu/supabase/next/server';
+import { MAX_CHAT_MESSAGE_LENGTH } from '@tuturuuu/utils/constants';
 import {
   convertToModelMessages,
   gateway,
@@ -60,6 +61,33 @@ export async function POST(req: Request) {
     }
 
     const modelMessages = await convertToModelMessages(messages);
+
+    // Validate message content length
+    for (const message of modelMessages) {
+      if (
+        typeof message.content === 'string' &&
+        message.content.length > MAX_CHAT_MESSAGE_LENGTH
+      ) {
+        return new Response(
+          `Message too long (max ${MAX_CHAT_MESSAGE_LENGTH} characters)`,
+          { status: 400 }
+        );
+      }
+
+      if (Array.isArray(message.content)) {
+        for (const part of message.content) {
+          if (
+            part.type === 'text' &&
+            part.text.length > MAX_CHAT_MESSAGE_LENGTH
+          ) {
+            return new Response(
+              `Message too long (max ${MAX_CHAT_MESSAGE_LENGTH} characters)`,
+              { status: 400 }
+            );
+          }
+        }
+      }
+    }
 
     if (messages.length !== 1) {
       const userMessages = modelMessages.filter(
@@ -130,7 +158,7 @@ export async function POST(req: Request) {
     console.log(error);
     return NextResponse.json(
       {
-        message: `## Edge API Failure\nCould not complete the request. Please view the **Stack trace** below.\n\`\`\`bash\n${(error as Error)?.stack || 'No stack trace available'}`,
+        message: `## Edge API Failure\nCould not complete the request. Please view the **Stack trace** below.\n\`\`\`bash\n${(error as Error)?.stack || 'No stack trace available'}\n\`\`\``,
       },
       {
         status: 500,

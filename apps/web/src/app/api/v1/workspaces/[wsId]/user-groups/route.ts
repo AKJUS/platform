@@ -1,16 +1,20 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
+import {
+  MAX_MEDIUM_TEXT_LENGTH,
+  MAX_NAME_LENGTH,
+} from '@tuturuuu/utils/constants';
 import { getPermissions } from '@tuturuuu/utils/workspace-helper';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 const CreateUserGroupSchema = z
   .object({
-    id: z.string().optional(),
-    name: z.string().min(1),
+    id: z.string().max(MAX_NAME_LENGTH).optional(),
+    name: z.string().max(MAX_NAME_LENGTH).min(1),
     is_guest: z.boolean().default(false),
     starting_date: z.string().datetime().nullable().optional(),
     ending_date: z.string().datetime().nullable().optional(),
-    notes: z.string().optional(),
+    notes: z.string().max(MAX_MEDIUM_TEXT_LENGTH).optional(),
   })
   .refine(
     (data) => {

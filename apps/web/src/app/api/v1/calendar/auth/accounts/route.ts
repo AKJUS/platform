@@ -7,17 +7,21 @@
  */
 
 import { createClient } from '@tuturuuu/supabase/next/server';
+import {
+  MAX_LONG_TEXT_LENGTH,
+  MAX_NAME_LENGTH,
+} from '@tuturuuu/utils/constants';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { normalizeWorkspaceId } from '@/lib/workspace-helper';
 
 const accountsQuerySchema = z.object({
-  wsId: z.string(),
+  wsId: z.string().max(MAX_NAME_LENGTH),
 });
 
 const disconnectQuerySchema = z.object({
-  accountId: z.string(),
-  wsId: z.string(),
+  accountId: z.string().max(MAX_LONG_TEXT_LENGTH),
+  wsId: z.string().max(MAX_NAME_LENGTH),
 });
 
 export async function GET(request: Request): Promise<NextResponse> {

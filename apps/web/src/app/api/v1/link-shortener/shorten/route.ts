@@ -2,6 +2,11 @@ import {
   createAdminClient,
   createClient,
 } from '@tuturuuu/supabase/next/server';
+import {
+  MAX_COLOR_LENGTH,
+  MAX_NAME_LENGTH,
+  MAX_SHORT_TEXT_LENGTH,
+} from '@tuturuuu/utils/constants';
 import bcrypt from 'bcrypt';
 import { nanoid } from 'nanoid';
 import { type NextRequest, NextResponse } from 'next/server';
@@ -12,10 +17,10 @@ const ShortenRequestSchema = z.object({
   customSlug: z
     .string()
     .regex(/^[a-zA-Z0-9\-_]+$/)
-    .max(50)
+    .max(MAX_COLOR_LENGTH)
     .optional(),
-  wsId: z.string(),
-  password: z.string().min(4).max(100).optional(),
+  wsId: z.string().max(MAX_NAME_LENGTH),
+  password: z.string().min(4).max(MAX_SHORT_TEXT_LENGTH).optional(),
   passwordHint: z.string().max(200).optional(),
 });
 

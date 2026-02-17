@@ -2,6 +2,13 @@ import {
   createAdminClient,
   createClient,
 } from '@tuturuuu/supabase/next/server';
+import {
+  MAX_COLOR_LENGTH,
+  MAX_LONG_TEXT_LENGTH,
+  MAX_MEDIUM_TEXT_LENGTH,
+  MAX_NAME_LENGTH,
+  MAX_URL_LENGTH,
+} from '@tuturuuu/utils/constants';
 import { getCurrentWorkspaceUser } from '@tuturuuu/utils/user-helper';
 import { getPermissions } from '@tuturuuu/utils/workspace-helper';
 import { headers } from 'next/headers';
@@ -9,21 +16,21 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 const userUpdateSchema = z.object({
-  id: z.string().optional(),
-  full_name: z.string().nullable().optional(),
-  display_name: z.string().nullable().optional(),
-  email: z.string().nullable().optional(),
-  phone: z.string().nullable().optional(),
-  gender: z.string().nullable().optional(),
-  birthday: z.string().nullable().optional(),
-  ethnicity: z.string().nullable().optional(),
-  guardian: z.string().nullable().optional(),
-  national_id: z.string().nullable().optional(),
-  address: z.string().nullable().optional(),
-  avatar_url: z.string().nullable().optional(),
-  note: z.string().nullable().optional(),
+  id: z.string().max(MAX_NAME_LENGTH).optional(),
+  full_name: z.string().max(MAX_LONG_TEXT_LENGTH).nullable().optional(),
+  display_name: z.string().max(MAX_NAME_LENGTH).nullable().optional(),
+  email: z.string().max(MAX_LONG_TEXT_LENGTH).nullable().optional(),
+  phone: z.string().max(MAX_LONG_TEXT_LENGTH).nullable().optional(),
+  gender: z.string().max(MAX_LONG_TEXT_LENGTH).nullable().optional(),
+  birthday: z.string().max(MAX_LONG_TEXT_LENGTH).nullable().optional(),
+  ethnicity: z.string().max(MAX_LONG_TEXT_LENGTH).nullable().optional(),
+  guardian: z.string().max(MAX_LONG_TEXT_LENGTH).nullable().optional(),
+  national_id: z.string().max(MAX_LONG_TEXT_LENGTH).nullable().optional(),
+  address: z.string().max(MAX_LONG_TEXT_LENGTH).nullable().optional(),
+  avatar_url: z.string().max(MAX_URL_LENGTH).nullable().optional(),
+  note: z.string().max(MAX_MEDIUM_TEXT_LENGTH).nullable().optional(),
   archived: z.boolean().optional(),
-  archived_until: z.string().nullable().optional(),
+  archived_until: z.string().max(MAX_COLOR_LENGTH).nullable().optional(),
 });
 
 interface Params {

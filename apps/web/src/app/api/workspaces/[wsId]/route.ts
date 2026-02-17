@@ -1,6 +1,12 @@
 import { createPolarClient } from '@tuturuuu/payment/polar/server';
 import { createClient } from '@tuturuuu/supabase/next/server';
+import { MAX_WORKSPACE_NAME_LENGTH } from '@tuturuuu/utils/constants';
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
+
+const UpdateWorkspaceSchema = z.object({
+  name: z.string().min(1).max(MAX_WORKSPACE_NAME_LENGTH),
+});
 
 interface Params {
   params: Promise<{
@@ -43,22 +49,37 @@ export async function PUT(req: Request, { params }: Params) {
   const supabase = await createClient();
   const { wsId: id } = await params;
 
-  const { name } = await req.json();
+  try {
+    const body = await req.json();
+    const { name } = UpdateWorkspaceSchema.parse(body);
 
-  const { error } = await supabase
-    .from('workspaces')
-    .update({
-      name,
-    })
-    .eq('id', id);
+    const { error } = await supabase
+      .from('workspaces')
+      .update({
+        name,
+      })
+      .eq('id', id);
 
-  if (error)
+    if (error)
+      return NextResponse.json(
+        { message: 'Error updating workspace' },
+        { status: 500 }
+      );
+
+    return NextResponse.json({ message: 'success' });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { message: 'Invalid request data', errors: error.issues },
+        { status: 400 }
+      );
+    }
+
     return NextResponse.json(
       { message: 'Error updating workspace' },
       { status: 500 }
     );
-
-  return NextResponse.json({ message: 'success' });
+  }
 }
 
 export async function DELETE(_: Request, { params }: Params) {

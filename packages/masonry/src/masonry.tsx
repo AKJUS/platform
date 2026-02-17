@@ -308,7 +308,14 @@ export function Masonry({
       );
     }
     return distributeByCount(children, currentColumns);
-  }, [children, currentColumns, strategy, redistributionKey, gap, averageHeight]);
+  }, [
+    children,
+    currentColumns,
+    strategy,
+    redistributionKey,
+    gap,
+    averageHeight,
+  ]);
 
   const containerStyle: CSSProperties = {
     display: 'flex',

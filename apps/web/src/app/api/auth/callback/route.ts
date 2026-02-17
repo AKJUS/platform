@@ -1,12 +1,13 @@
 import { generateCrossAppToken, mapUrlToApp } from '@tuturuuu/auth/cross-app';
 import { createClient } from '@tuturuuu/supabase/next/server';
+import { MAX_NAME_LENGTH, MAX_URL_LENGTH } from '@tuturuuu/utils/constants';
 import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
 const queryParamsSchema = z.object({
-  code: z.string().nullable(),
-  returnUrl: z.string().nullable(),
-  nextUrl: z.string().nullable(),
+  code: z.string().max(MAX_NAME_LENGTH).nullable(),
+  returnUrl: z.string().max(MAX_URL_LENGTH).nullable(),
+  nextUrl: z.string().max(MAX_URL_LENGTH).nullable(),
   multiAccount: z
     .string()
     .nullable()

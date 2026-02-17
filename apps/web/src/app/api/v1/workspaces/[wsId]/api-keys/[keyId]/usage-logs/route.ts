@@ -1,15 +1,20 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
 import type { WorkspaceApiKeyUsageLog } from '@tuturuuu/types';
+import {
+  MAX_COLOR_LENGTH,
+  MAX_LONG_TEXT_LENGTH,
+  MAX_SHORT_TEXT_LENGTH,
+} from '@tuturuuu/utils/constants';
 import { NextResponse } from 'next/server';
 import * as z from 'zod';
 
 const UsageLogsQuerySchema = z.object({
-  page: z.string().optional().default('1'),
-  pageSize: z.string().optional().default('10'),
-  from: z.string().optional(), // ISO date string
-  to: z.string().optional(), // ISO date string
-  status: z.string().optional(), // HTTP status code filter
-  endpoint: z.string().optional(), // Endpoint filter
+  page: z.string().max(MAX_LONG_TEXT_LENGTH).optional().default('1'),
+  pageSize: z.string().max(MAX_LONG_TEXT_LENGTH).optional().default('10'),
+  from: z.string().max(MAX_COLOR_LENGTH).optional(), // ISO date string
+  to: z.string().max(MAX_COLOR_LENGTH).optional(), // ISO date string
+  status: z.string().max(MAX_SHORT_TEXT_LENGTH).optional(), // HTTP status code filter
+  endpoint: z.string().max(MAX_LONG_TEXT_LENGTH).optional(), // Endpoint filter
 });
 
 interface Params {

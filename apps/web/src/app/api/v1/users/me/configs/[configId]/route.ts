@@ -1,3 +1,4 @@
+import { MAX_MEDIUM_TEXT_LENGTH } from '@tuturuuu/utils/constants';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { withSessionAuth } from '@/lib/api-auth';
@@ -27,7 +28,7 @@ export const GET = withSessionAuth<{ configId: string }>(
 export const PUT = withSessionAuth<{ configId: string }>(
   async (req, { user, supabase }, { configId: id }) => {
     const bodySchema = z.object({
-      value: z.string().optional(),
+      value: z.string().max(MAX_MEDIUM_TEXT_LENGTH).optional(),
     });
     const parsedBody = bodySchema.safeParse(await req.json());
 

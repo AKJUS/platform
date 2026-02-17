@@ -7,6 +7,7 @@
 
 import { posix } from 'node:path';
 import { createDynamicAdminClient } from '@tuturuuu/supabase/next/server';
+import { MAX_SHORT_TEXT_LENGTH } from '@tuturuuu/utils/constants';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import {
@@ -17,7 +18,7 @@ import {
 
 // Request body schema
 const deleteBodySchema = z.object({
-  paths: z.array(z.string()).min(1).max(100), // Allow batch delete up to 100 files
+  paths: z.array(z.string()).min(1).max(MAX_SHORT_TEXT_LENGTH), // Allow batch delete up to 100 files
 });
 
 /**

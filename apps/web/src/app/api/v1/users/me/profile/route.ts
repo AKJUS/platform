@@ -1,9 +1,14 @@
+import {
+  MAX_BIO_LENGTH,
+  MAX_DISPLAY_NAME_LENGTH,
+} from '@tuturuuu/utils/constants';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { withSessionAuth } from '@/lib/api-auth';
 
 const PatchProfileSchema = z.object({
-  display_name: z.string().min(1).max(50).optional(),
+  display_name: z.string().min(1).max(MAX_DISPLAY_NAME_LENGTH).optional(),
+  bio: z.string().max(MAX_BIO_LENGTH).nullable().optional(),
   avatar_url: z.string().url().nullable().optional(),
 });
 

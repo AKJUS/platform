@@ -1,4 +1,5 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
+import { MAX_URL_LENGTH } from '@tuturuuu/utils/constants';
 import {
   getPermissions,
   normalizeWorkspaceId,
@@ -18,7 +19,7 @@ const SingleSchema = z.object({
   post_id: z.uuid(),
   user_id: z.uuid(),
   is_completed: z.boolean(),
-  notes: z.string().max(2000).nullable().optional(),
+  notes: z.string().max(MAX_URL_LENGTH).nullable().optional(),
 });
 const MultipleSchema = z.array(SingleSchema);
 

@@ -6,6 +6,7 @@
  */
 
 import { createDynamicAdminClient } from '@tuturuuu/supabase/next/server';
+import { MAX_MEDIUM_TEXT_LENGTH } from '@tuturuuu/utils/constants';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import {
@@ -16,7 +17,7 @@ import {
 
 // Request body schema
 const shareSchema = z.object({
-  path: z.string().min(1),
+  path: z.string().max(MAX_MEDIUM_TEXT_LENGTH).min(1),
   expiresIn: z.number().int().min(60).max(604800).optional().default(3600), // 1 minute to 7 days, default 1 hour
 });
 

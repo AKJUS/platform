@@ -1,4 +1,5 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
+import { MAX_SHORT_TEXT_LENGTH } from '@tuturuuu/utils/constants';
 import { getCurrentUser } from '@tuturuuu/utils/user-helper';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
@@ -14,14 +15,14 @@ const uuidSchema = z
 
 const AddDiscordMemberSchema = z.object({
   wsId: uuidSchema,
-  discordGuildId: z.string().min(1),
+  discordGuildId: z.string().max(MAX_SHORT_TEXT_LENGTH).min(1),
   platformUserId: uuidSchema,
-  discordUserId: z.string().min(1),
+  discordUserId: z.string().max(MAX_SHORT_TEXT_LENGTH).min(1),
 });
 
 const RemoveDiscordMemberSchema = z.object({
   wsId: uuidSchema,
-  discordGuildId: z.string().min(1),
+  discordGuildId: z.string().max(MAX_SHORT_TEXT_LENGTH).min(1),
   memberId: uuidSchema,
 });
 

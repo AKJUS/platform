@@ -12,16 +12,17 @@ import {
   unblockIP,
   WINDOW_MS,
 } from '@tuturuuu/utils/abuse-protection';
+import { MAX_IP_LENGTH, MAX_SEARCH_LENGTH } from '@tuturuuu/utils/constants';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 const UnblockSchema = z.object({
-  ip_address: z.string().min(1),
-  reason: z.string().max(500).optional(),
+  ip_address: z.string().max(MAX_IP_LENGTH).min(1),
+  reason: z.string().max(MAX_SEARCH_LENGTH).optional(),
 });
 
 const BlockIPSchema = z.object({
-  ip_address: z.string().min(1).max(45), // Max length for IPv6
+  ip_address: z.string().min(1).max(MAX_IP_LENGTH), // Max length for IPv6
   reason: z.enum([
     'otp_send',
     'otp_verify_failed',
@@ -33,7 +34,7 @@ const BlockIPSchema = z.object({
     'manual',
   ] as const),
   block_level: z.number().int().min(0).max(4).default(1), // 0 = permanent
-  notes: z.string().max(500).optional(),
+  notes: z.string().max(MAX_SEARCH_LENGTH).optional(),
 });
 
 // 100 years in seconds for permanent blocks

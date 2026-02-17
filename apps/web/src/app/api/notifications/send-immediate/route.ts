@@ -4,7 +4,7 @@ import { createAdminClient } from '@tuturuuu/supabase/next/server';
 import DeadlineReminderEmail from '@tuturuuu/transactional/emails/deadline-reminder';
 import NotificationDigestEmail from '@tuturuuu/transactional/emails/notification-digest';
 import WorkspaceInviteEmail from '@tuturuuu/transactional/emails/workspace-invite';
-import { ROOT_WORKSPACE_ID } from '@tuturuuu/utils/constants';
+import { MAX_NAME_LENGTH, ROOT_WORKSPACE_ID } from '@tuturuuu/utils/constants';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
@@ -15,7 +15,7 @@ const RESTRICT_TO_ROOT_WORKSPACE_ONLY = true;
 
 // Zod schema for request body validation
 const RequestBodySchema = z.object({
-  batch_id: z.string().optional(),
+  batch_id: z.string().max(MAX_NAME_LENGTH).optional(),
   batch_ids: z.array(z.string()).optional(),
 });
 

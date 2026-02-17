@@ -1,5 +1,12 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
 import {
+  MAX_COLOR_LENGTH,
+  MAX_MEDIUM_TEXT_LENGTH,
+  MAX_NAME_LENGTH,
+  MAX_SEARCH_LENGTH,
+  MAX_SHORT_TEXT_LENGTH,
+} from '@tuturuuu/utils/constants';
+import {
   getPermissions,
   normalizeWorkspaceId,
 } from '@tuturuuu/utils/workspace-helper';
@@ -7,9 +14,15 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
 const querySchema = z.object({
-  q: z.string().optional().default(''),
+  q: z.string().max(MAX_SEARCH_LENGTH).optional().default(''),
   page: z.coerce.number().int().min(1).optional().default(1),
-  pageSize: z.coerce.number().int().min(1).max(100).optional().default(20),
+  pageSize: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(MAX_SHORT_TEXT_LENGTH)
+    .optional()
+    .default(20),
   status: z
     .enum(['active', 'on_leave', 'terminated', 'rehired', 'all'])
     .optional()
@@ -26,12 +39,12 @@ const createContractSchema = z.object({
     .enum(['active', 'on_leave', 'terminated', 'rehired'])
     .optional()
     .default('active'),
-  job_title: z.string().optional(),
-  department: z.string().optional(),
-  working_location: z.string().optional(),
-  start_date: z.string(), // ISO date string
-  end_date: z.string().optional().nullable(),
-  notes: z.string().optional(),
+  job_title: z.string().max(MAX_NAME_LENGTH).optional(),
+  department: z.string().max(MAX_NAME_LENGTH).optional(),
+  working_location: z.string().max(MAX_NAME_LENGTH).optional(),
+  start_date: z.string().max(MAX_COLOR_LENGTH), // ISO date string
+  end_date: z.string().max(MAX_COLOR_LENGTH).optional().nullable(),
+  notes: z.string().max(MAX_MEDIUM_TEXT_LENGTH).optional(),
 });
 
 export async function GET(

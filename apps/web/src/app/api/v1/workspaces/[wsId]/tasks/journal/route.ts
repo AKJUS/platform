@@ -11,6 +11,12 @@ import {
   TaskPriorities,
   type TaskPriority,
 } from '@tuturuuu/types/primitives/Priority';
+import {
+  MAX_COLOR_LENGTH,
+  MAX_LONG_TEXT_LENGTH,
+  MAX_NAME_LENGTH,
+  MAX_SHORT_TEXT_LENGTH,
+} from '@tuturuuu/utils/constants';
 import { gateway, generateObject, NoObjectGeneratedError } from 'ai';
 import dayjs from 'dayjs';
 import timezone from 'dayjs/plugin/timezone';
@@ -22,17 +28,17 @@ dayjs.extend(utc);
 dayjs.extend(timezone);
 
 const providedTaskSchema = z.object({
-  title: z.string().min(1),
-  description: z.string().nullable().optional(),
+  title: z.string().max(MAX_NAME_LENGTH).min(1),
+  description: z.string().max(MAX_LONG_TEXT_LENGTH).nullable().optional(),
   priority: z.enum(['critical', 'high', 'normal', 'low']).nullable().optional(),
-  dueDate: z.string().nullable().optional(),
+  dueDate: z.string().max(MAX_COLOR_LENGTH).nullable().optional(),
   estimationPoints: z.number().int().min(0).max(8).nullable().optional(),
   projectIds: z.array(z.string()).optional(),
   labels: z
     .array(
       z.object({
-        id: z.string().optional(),
-        name: z.string().min(1),
+        id: z.string().max(MAX_NAME_LENGTH).optional(),
+        name: z.string().max(MAX_NAME_LENGTH).min(1),
       })
     )
     .optional(),
@@ -40,8 +46,11 @@ const providedTaskSchema = z.object({
 });
 
 const requestSchema = z.object({
-  entry: z.string().min(1, 'Journal entry is required'),
-  listId: z.string().optional(),
+  entry: z
+    .string()
+    .max(MAX_LONG_TEXT_LENGTH)
+    .min(1, 'Journal entry is required'),
+  listId: z.string().max(MAX_NAME_LENGTH).optional(),
   previewOnly: z.boolean().optional(),
   tasks: z.array(providedTaskSchema).optional(),
   generatedWithAI: z.boolean().optional(),
@@ -50,8 +59,8 @@ const requestSchema = z.object({
   generateDescriptions: z.boolean().optional(),
   generatePriority: z.boolean().optional(),
   generateLabels: z.boolean().optional(),
-  clientTimezone: z.string().optional(),
-  clientTimestamp: z.string().optional(),
+  clientTimezone: z.string().max(MAX_SHORT_TEXT_LENGTH).optional(),
+  clientTimestamp: z.string().max(MAX_COLOR_LENGTH).optional(),
 });
 
 const MAX_TITLE_LENGTH = 120;

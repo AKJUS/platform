@@ -1,4 +1,5 @@
 import { Input } from '@tuturuuu/ui/input';
+import { MAX_TASK_NAME_LENGTH } from '@tuturuuu/utils/constants';
 import { useTranslations } from 'next-intl';
 
 interface TaskNameInputProps {
@@ -34,6 +35,7 @@ export function TaskNameInput({
         data-task-name-input
         disabled={disabled}
         value={name}
+        maxLength={MAX_TASK_NAME_LENGTH}
         onChange={(e) => {
           setName(e.target.value);
           // Trigger debounced save while typing (in edit mode)

@@ -1,12 +1,16 @@
 import { generateApiKey, hashApiKey } from '@tuturuuu/auth/api-keys';
 import { createClient } from '@tuturuuu/supabase/next/server';
+import {
+  MAX_LONG_TEXT_LENGTH,
+  MAX_NAME_LENGTH,
+} from '@tuturuuu/utils/constants';
 import { NextResponse } from 'next/server';
 import * as z from 'zod';
 
 const ApiKeyCreateSchema = z.object({
-  name: z.string().min(1),
-  description: z.string().optional(), // Description is optional
-  role_id: z.string().nullable(),
+  name: z.string().max(MAX_NAME_LENGTH).min(1),
+  description: z.string().max(MAX_LONG_TEXT_LENGTH).optional(), // Description is optional
+  role_id: z.string().max(MAX_LONG_TEXT_LENGTH).nullable(),
   expires_at: z
     .string()
     .refine(

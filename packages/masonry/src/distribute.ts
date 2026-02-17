@@ -99,9 +99,7 @@ export function distributeBalanced(
   });
 
   // Sort items by height descending (Largest First)
-  const sortedItems = [...itemsWithHeights].sort(
-    (a, b) => b.height - a.height
-  );
+  const sortedItems = [...itemsWithHeights].sort((a, b) => b.height - a.height);
 
   const columnAssignments: number[] = new Array(sortedItems.length);
   const columnHeights = new Array<number>(columnCount).fill(0);

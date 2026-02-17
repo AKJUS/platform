@@ -13,6 +13,7 @@ import { useForm } from '@tuturuuu/ui/hooks/use-form';
 import { toast } from '@tuturuuu/ui/hooks/use-toast';
 import { Input } from '@tuturuuu/ui/input';
 import { zodResolver } from '@tuturuuu/ui/resolvers';
+import { MAX_FULL_NAME_LENGTH } from '@tuturuuu/utils/constants';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
@@ -30,7 +31,7 @@ export default function FullNameInput({ defaultValue = '', disabled }: Props) {
   const [saving, setSaving] = useState(false);
 
   const minLength = 1;
-  const maxLength = 50;
+  const maxLength = MAX_FULL_NAME_LENGTH;
   const minLengthError = t('full-name-min-error', { min: minLength });
   const maxLengthError = t('full-name-max-error', { max: maxLength });
 
@@ -38,7 +39,7 @@ export default function FullNameInput({ defaultValue = '', disabled }: Props) {
     name: z
       .string()
       .min(1, { message: minLengthError })
-      .max(50, { message: maxLengthError })
+      .max(MAX_FULL_NAME_LENGTH, { message: maxLengthError })
       .optional(),
   });
 

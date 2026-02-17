@@ -1,11 +1,15 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
+import {
+  MAX_LONG_TEXT_LENGTH,
+  MAX_NAME_LENGTH,
+} from '@tuturuuu/utils/constants';
 import { NextResponse } from 'next/server';
 import * as z from 'zod';
 
 const ApiKeyUpdateSchema = z
   .object({
-    name: z.string().min(1).optional(),
-    description: z.string().min(1).optional(),
+    name: z.string().max(MAX_NAME_LENGTH).min(1).optional(),
+    description: z.string().max(MAX_LONG_TEXT_LENGTH).min(1).optional(),
     role_id: z.string().uuid().nullable().optional(),
     expires_at: z
       .string()

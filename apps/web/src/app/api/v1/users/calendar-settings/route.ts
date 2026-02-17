@@ -1,9 +1,10 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
+import { MAX_SHORT_TEXT_LENGTH } from '@tuturuuu/utils/constants';
 import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 
 const calendarSettingsSchema = z.object({
-  timezone: z.string().optional(),
+  timezone: z.string().max(MAX_SHORT_TEXT_LENGTH).optional(),
   first_day_of_week: z
     .enum(['auto', 'sunday', 'monday', 'saturday'])
     .optional(),
