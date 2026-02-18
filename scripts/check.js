@@ -151,6 +151,9 @@ const checks = [
     command: 'bun',
     args: ['i18n:namespace-check'],
     parseOutput: (stdout) => {
+      if (stdout.includes('All namespace and key checks passed')) {
+        return 'All namespaces & keys present';
+      }
       if (stdout.includes('All namespace checks passed')) {
         return 'All namespaces present';
       }

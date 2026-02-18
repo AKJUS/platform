@@ -45,5 +45,39 @@
     "ws-tasks",
     "ws-tasks-labels"
   ],
-  "apps/rewise": ["certificates"]
+  "apps/rewise": ["certificates"],
+
+  "$keyExceptionsComment": "Key-level exceptions for shared package translation keys that specific apps do not need. Supports wildcards: 'namespace.*' skips all keys under a namespace. Remove entries as apps add the missing keys.",
+  "keyExceptions": {
+    "apps/web": ["settings.calendar.*", "ws-polls.*"],
+    "apps/tasks": ["settings.calendar.*", "ws-polls.*"],
+    "apps/calendar": ["settings.tasks.*", "ws-polls.*", "ws-tasks.*"],
+    "apps/finance": ["calendar.*", "settings.*", "ws-polls.*", "ws-tasks.*"],
+    "apps/meet": [
+      "calendar.*",
+      "common.*",
+      "dashboard.*",
+      "notifications.*",
+      "transaction-data-table.*",
+      "wallet-data-table.*",
+      "workspace-finance-transactions.*",
+      "ws-polls.*",
+      "ws-task-boards.*",
+      "ws-tasks.*"
+    ],
+    "apps/track": ["calendar.*", "settings.*", "ws-polls.*", "ws-tasks.*"],
+    "apps/nova": [
+      "calendar.*",
+      "common.*",
+      "finance-overview.*",
+      "meet-together.*",
+      "meet-together-plan-details.*",
+      "transaction-data-table.*",
+      "wallet-data-table.*",
+      "workspace-finance-tabs.*",
+      "ws-courses.*",
+      "ws-task-boards.*"
+    ],
+    "apps/rewise": ["calendar.*", "settings.*", "ws-polls.*", "ws-tasks.*"]
+  }
 }
