@@ -54,9 +54,7 @@ export async function updateSession(request: NextRequest): Promise<{
     // of sync and terminate the user's session prematurely!
 
     return {
-      res: NextResponse.next({
-        request,
-      }),
+      res: supabaseResponse,
       claims: data?.claims || null,
     };
   } catch (error) {

@@ -33,15 +33,18 @@ export async function generateCrossAppToken(
       return null;
     }
 
-    // Create parameters object - session_data is passed as null for backward compatibility
-    // The DB function still expects this param until a migration is run
-    // The target app will create its own independent session
+    // Pass the user's email through session_data so the target app can skip
+    // the getUserById admin API call. We do NOT pass refresh tokens because
+    // Supabase uses refresh token rotation — sharing a token between apps
+    // causes whichever refreshes first to invalidate the other's session.
+    const sessionData = user.email ? { email: user.email } : null;
+
     const params = {
       p_user_id: user.id,
       p_origin_app: originApp,
       p_target_app: targetApp,
       p_expiry_seconds: expirySeconds,
-      p_session_data: null, // Not used anymore - each app creates its own session
+      p_session_data: sessionData,
     };
 
     // Call the RPC function to generate a token
@@ -98,7 +101,6 @@ export async function validateCrossAppToken(
 ): Promise<{ userId: string } | null> {
   try {
     // Call the RPC function to validate the token
-    // Note: The RPC may still return session_data from the DB, but we ignore it
     const { data, error } = await supabase.rpc(
       'validate_cross_app_token_with_session',
       {
@@ -112,7 +114,7 @@ export async function validateCrossAppToken(
       return null;
     }
 
-    // Process the result - only extract user_id
+    // Process the result — only extract user_id
     const result = data as unknown as {
       user_id: string | null;
     };
@@ -121,8 +123,6 @@ export async function validateCrossAppToken(
       return null;
     }
 
-    // Return only the user ID - NO session copying!
-    // The target app must create its own session using admin API
     return {
       userId: result.user_id,
     };
@@ -242,17 +242,28 @@ export const verifyRouteToken = async ({
   userId = data.userId;
 
   if (userId) {
-    // If the server returned session tokens, store them via the browser
-    // client's own cookie handler. This avoids cookie collision because
-    // the server response has NO Set-Cookie headers — the browser client
-    // writes to its own domain-scoped cookies independently.
+    // The server creates an independent session for this satellite app via
+    // generateLink + verifyOtp. The tokens are returned in the response body
+    // (no Set-Cookie headers) so the browser client stores them in its own
+    // domain-scoped cookies, avoiding cross-app cookie collisions.
     if (data.session?.access_token && data.session?.refresh_token) {
-      await supabase.auth.setSession({
+      const { error: sessionError } = await supabase.auth.setSession({
         access_token: data.session.access_token,
         refresh_token: data.session.refresh_token,
       });
+
+      if (sessionError) {
+        console.error(
+          '[cross-app] setSession failed, trying refreshSession:',
+          sessionError
+        );
+        // setSession can fail if the tokens expired during transit.
+        // Fall back to refreshing whatever session the middleware may have set.
+        await supabase.auth.refreshSession();
+      }
     } else {
-      // Fallback: try to refresh whatever session exists
+      // No session tokens in response — server couldn't create a session.
+      // Try to refresh whatever session the middleware established.
       await supabase.auth.refreshSession();
     }
 

@@ -1,5 +1,8 @@
 import { match } from '@formatjs/intl-localematcher';
-import { createCentralizedAuthProxy } from '@tuturuuu/auth/proxy';
+import {
+  createCentralizedAuthProxy,
+  propagateAuthCookies,
+} from '@tuturuuu/auth/proxy';
 import Negotiator from 'negotiator';
 import type { NextRequest, NextResponse } from 'next/server';
 import createIntlMiddleware from 'next-intl/middleware';
@@ -40,7 +43,9 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   }
 
   // Continue with locale handling
-  return handleLocale({ req });
+  const localeRes = handleLocale({ req });
+  propagateAuthCookies(authRes, localeRes);
+  return localeRes;
 }
 
 export const config = {

@@ -11,6 +11,7 @@ import {
 } from '@tuturuuu/ui/accordion';
 import { LogoTitle } from '@tuturuuu/ui/custom/logo-title';
 import type { NavLink } from '@tuturuuu/ui/custom/navigation';
+import { SidebarFooterActions } from '@tuturuuu/ui/custom/sidebar-footer-actions';
 import { Structure as BaseStructure } from '@tuturuuu/ui/custom/structure';
 import { TuturuuLogo } from '@tuturuuu/ui/custom/tuturuuu-logo';
 import { Separator } from '@tuturuuu/ui/separator';
@@ -29,7 +30,7 @@ import {
   useState,
 } from 'react';
 import type { NavLink as ChatNavLink } from '@/components/navigation';
-import { SIDEBAR_COLLAPSED_COOKIE_NAME } from '@/constants/common';
+import { SIDEBAR_COLLAPSED_COOKIE_NAME, TTR_URL } from '@/constants/common';
 import { useSidebar } from '@/context/sidebar-context';
 import { Nav } from './nav';
 import { WorkspaceSelect } from './workspace-select';
@@ -37,6 +38,7 @@ import { WorkspaceSelect } from './workspace-select';
 interface StructureProps {
   wsId: string;
   personalOrWsId: string;
+  workspace: { tier?: string | null } | null;
   defaultCollapsed: boolean;
   links: (NavLink | null)[];
   actions: ReactNode;
@@ -47,6 +49,7 @@ interface StructureProps {
 export function Structure({
   wsId,
   personalOrWsId,
+  workspace,
   defaultCollapsed = false,
   links,
   actions,
@@ -316,6 +319,15 @@ export function Structure({
       sidebarContent={sidebarContent}
       actions={actions}
       userPopover={userPopover}
+      feedbackButton={
+        <SidebarFooterActions
+          wsId={wsId}
+          isCollapsed={isCollapsed}
+          showUpgrade={!workspace?.tier || workspace.tier === 'FREE'}
+          upgradeHref={`${TTR_URL}/${wsId}/billing`}
+          upgradeExternal
+        />
+      }
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       hideSizeToggle={behavior === 'hover'}

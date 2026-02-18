@@ -1,5 +1,8 @@
 import { match } from '@formatjs/intl-localematcher';
-import { createCentralizedAuthProxy } from '@tuturuuu/auth/proxy';
+import {
+  createCentralizedAuthProxy,
+  propagateAuthCookies,
+} from '@tuturuuu/auth/proxy';
 import { createClient } from '@tuturuuu/supabase/next/server';
 import {
   extractIPFromRequest,
@@ -386,11 +389,15 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
                 ? 'internal'
                 : defaultWorkspace.id;
             const redirectUrl = new URL(`/${target}`, req.nextUrl);
-            return NextResponse.redirect(redirectUrl);
+            const onboardRedirect = NextResponse.redirect(redirectUrl);
+            propagateAuthCookies(authRes, onboardRedirect);
+            return onboardRedirect;
           }
           // Fallback to personal if no default workspace
           const redirectUrl = new URL('/personal', req.nextUrl);
-          return NextResponse.redirect(redirectUrl);
+          const onboardFallback = NextResponse.redirect(redirectUrl);
+          propagateAuthCookies(authRes, onboardFallback);
+          return onboardFallback;
         }
       }
     } catch (error) {
@@ -438,7 +445,9 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
             }
           }
 
-          return NextResponse.redirect(redirectUrl);
+          const needsOnboardRedirect = NextResponse.redirect(redirectUrl);
+          propagateAuthCookies(authRes, needsOnboardRedirect);
+          return needsOnboardRedirect;
         }
 
         // User completed onboarding — check if their personal workspace
@@ -460,6 +469,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
               maxAge: 60 * 60 * 24, // 24 hours
               path: '/',
             });
+            propagateAuthCookies(authRes, response);
             return response;
           }
         }
@@ -481,7 +491,9 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   if (isHomePath) {
     const redirectUrl = new URL('/', req.nextUrl);
     redirectUrl.searchParams.set('no-redirect', '1');
-    return NextResponse.redirect(redirectUrl);
+    const homeRedirect = NextResponse.redirect(redirectUrl);
+    propagateAuthCookies(authRes, homeRedirect);
+    return homeRedirect;
   }
 
   // Handle direct navigation to workspace IDs that are personal workspaces
@@ -531,7 +543,9 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
       const redirectUrl = new URL(`/${newPathSegments.join('/')}`, req.nextUrl);
       redirectUrl.search = req.nextUrl.search;
 
-      return NextResponse.redirect(redirectUrl);
+      const rootRedirect = NextResponse.redirect(redirectUrl);
+      propagateAuthCookies(authRes, rootRedirect);
+      return rootRedirect;
     }
   }
 
@@ -559,7 +573,9 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
           // Preserve query parameters
           redirectUrl.search = req.nextUrl.search;
 
-          return NextResponse.redirect(redirectUrl);
+          const personalRedirect = NextResponse.redirect(redirectUrl);
+          propagateAuthCookies(authRes, personalRedirect);
+          return personalRedirect;
         }
       }
     } catch (error) {
@@ -602,7 +618,9 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
               ? 'internal'
               : defaultWorkspace.id;
           const redirectUrl = new URL(`/${target}`, req.nextUrl);
-          return NextResponse.redirect(redirectUrl);
+          const wsRedirect = NextResponse.redirect(redirectUrl);
+          propagateAuthCookies(authRes, wsRedirect);
+          return wsRedirect;
         }
       }
     } catch (error) {
@@ -611,7 +629,9 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   }
 
   // Continue with locale handling
-  return handleLocale({ req });
+  const localeRes = handleLocale({ req });
+  propagateAuthCookies(authRes, localeRes);
+  return localeRes;
 }
 
 export const config = {

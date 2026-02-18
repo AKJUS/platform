@@ -31,6 +31,12 @@ export async function navigateToCrossApp(
       return;
     }
 
+    // Pass email so the target app can skip getUserById (saves 1 round-trip).
+    // We do NOT pass refresh tokens — Supabase refresh token rotation means
+    // sharing tokens between apps causes the first-to-refresh to invalidate
+    // the other's session.
+    const sessionData = user.email ? { email: user.email } : null;
+
     // Call the RPC function to generate a token
     const { data: token, error } = await supabase.rpc(
       'generate_cross_app_token',
@@ -39,6 +45,7 @@ export async function navigateToCrossApp(
         p_origin_app: originApp,
         p_target_app: targetApp,
         p_expiry_seconds: expirySeconds,
+        p_session_data: sessionData,
       }
     );
 
@@ -89,6 +96,9 @@ export async function createCrossAppLink(
       return `${targetAppUrl}${targetPath}`;
     }
 
+    // Pass email so the target app can skip getUserById (saves 1 round-trip).
+    const sessionData = user.email ? { email: user.email } : null;
+
     // Call the RPC function to generate a token
     const { data: token, error } = await supabase.rpc(
       'generate_cross_app_token',
@@ -97,6 +107,7 @@ export async function createCrossAppLink(
         p_origin_app: originApp,
         p_target_app: targetApp,
         p_expiry_seconds: expirySeconds,
+        p_session_data: sessionData,
       }
     );
 

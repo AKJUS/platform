@@ -68,6 +68,7 @@ export default async function Layout({ children, params }: LayoutProps) {
     <SidebarProvider initialBehavior={sidebarBehavior}>
       <Structure
         wsId={wsId}
+        workspace={workspace}
         defaultCollapsed={defaultCollapsed}
         links={
           await getNavigationLinks({

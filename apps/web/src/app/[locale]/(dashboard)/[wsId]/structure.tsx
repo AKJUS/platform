@@ -6,6 +6,7 @@ import type { Workspace, WorkspaceProductTier } from '@tuturuuu/types';
 import type { WorkspaceUser } from '@tuturuuu/types/primitives/WorkspaceUser';
 import { LogoTitle } from '@tuturuuu/ui/custom/logo-title';
 import type { NavLink } from '@tuturuuu/ui/custom/navigation';
+import { SidebarFooterActions } from '@tuturuuu/ui/custom/sidebar-footer-actions';
 import { Structure as BaseStructure } from '@tuturuuu/ui/custom/structure';
 import { TuturuuLogo } from '@tuturuuu/ui/custom/tuturuuu-logo';
 import { ROOT_WORKSPACE_ID } from '@tuturuuu/utils/constants';
@@ -27,7 +28,6 @@ import { PROD_MODE, SIDEBAR_COLLAPSED_COOKIE_NAME } from '@/constants/common';
 import { useSidebar } from '@/context/sidebar-context';
 import { meetsAnyTierRequirement } from '@/lib/feature-tiers';
 import { Nav } from './nav';
-import { SidebarFooterActions } from './sidebar-footer-actions';
 import { WorkspaceSelect } from './workspace-select';
 
 interface StructureProps {

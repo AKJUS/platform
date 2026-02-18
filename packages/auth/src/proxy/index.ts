@@ -9,6 +9,20 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
 /**
+ * Copies all cookies from one NextResponse onto another.
+ * Use this to preserve auth cookies set by `updateSession` when the
+ * final response is a fresh object (e.g. from locale middleware or a redirect).
+ */
+export function propagateAuthCookies(
+  source: NextResponse,
+  target: NextResponse
+): void {
+  for (const cookie of source.cookies.getAll()) {
+    target.cookies.set(cookie);
+  }
+}
+
+/**
  * Handles MFA verification checks for authenticated users
  */
 async function handleMFACheck(
@@ -219,6 +233,7 @@ export function createCentralizedAuthProxy(options: CentralizedAuthOptions) {
 
         console.log('Redirecting to:', loginUrl);
         const redirectResponse = NextResponse.redirect(loginUrl);
+        propagateAuthCookies(res, redirectResponse);
 
         return redirectResponse;
       }
@@ -235,6 +250,7 @@ export function createCentralizedAuthProxy(options: CentralizedAuthOptions) {
         );
 
         if (mfaRedirect) {
+          propagateAuthCookies(res, mfaRedirect);
           return mfaRedirect;
         }
       }

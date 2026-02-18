@@ -1,5 +1,8 @@
 import { match } from '@formatjs/intl-localematcher';
-import { createCentralizedAuthProxy } from '@tuturuuu/auth/proxy';
+import {
+  createCentralizedAuthProxy,
+  propagateAuthCookies,
+} from '@tuturuuu/auth/proxy';
 import { createClient } from '@tuturuuu/supabase/next/server';
 import { ROOT_WORKSPACE_ID } from '@tuturuuu/utils/constants';
 import { getUserDefaultWorkspace } from '@tuturuuu/utils/user-helper';
@@ -93,7 +96,9 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
       const redirectUrl = new URL(`/${newPathSegments.join('/')}`, req.nextUrl);
       redirectUrl.search = req.nextUrl.search;
 
-      return NextResponse.redirect(redirectUrl);
+      const rootRedirect = NextResponse.redirect(redirectUrl);
+      propagateAuthCookies(authRes, rootRedirect);
+      return rootRedirect;
     }
   }
 
@@ -121,7 +126,9 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
           // Preserve query parameters
           redirectUrl.search = req.nextUrl.search;
 
-          return NextResponse.redirect(redirectUrl);
+          const personalRedirect = NextResponse.redirect(redirectUrl);
+          propagateAuthCookies(authRes, personalRedirect);
+          return personalRedirect;
         }
       }
     } catch (error) {
@@ -164,12 +171,16 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
               : defaultWorkspace.id;
           // Track app root is the overview page — redirect to /{wsId}
           const redirectUrl = new URL(`/${target}`, req.nextUrl);
-          return NextResponse.redirect(redirectUrl);
+          const wsRedirect = NextResponse.redirect(redirectUrl);
+          propagateAuthCookies(authRes, wsRedirect);
+          return wsRedirect;
         }
 
         // Fallback to personal workspace if no default workspace found
         const redirectUrl = new URL('/personal', req.nextUrl);
-        return NextResponse.redirect(redirectUrl);
+        const fallbackRedirect = NextResponse.redirect(redirectUrl);
+        propagateAuthCookies(authRes, fallbackRedirect);
+        return fallbackRedirect;
       }
     } catch (error) {
       console.error('Error handling root path redirect:', error);
@@ -177,7 +188,9 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   }
 
   // Continue with locale handling
-  return handleLocale({ req });
+  const localeRes = handleLocale({ req });
+  propagateAuthCookies(authRes, localeRes);
+  return localeRes;
 }
 
 export const config = {

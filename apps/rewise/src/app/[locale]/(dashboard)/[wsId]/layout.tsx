@@ -84,6 +84,7 @@ export default async function Layout({ children, params }: LayoutProps) {
       <Structure
         wsId={wsId}
         personalOrWsId={workspaceSlug}
+        workspace={workspace}
         defaultCollapsed={defaultCollapsed}
         links={
           await getNavigationLinks({

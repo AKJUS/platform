@@ -1,12 +1,12 @@
 'use client';
 
 import { ArrowBigUpDash, MessageSquareWarning } from '@tuturuuu/icons';
-import { ReportProblemDialog } from '@tuturuuu/ui/report-problem-dialog';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@tuturuuu/ui/tooltip';
 import { cn } from '@tuturuuu/utils/format';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { type ReactNode, useCallback, useRef, useState } from 'react';
+import { ReportProblemDialog } from '../report-problem-dialog';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../tooltip';
 
 type FooterItem = 'upgrade' | 'discord' | 'feedback';
 
@@ -14,6 +14,8 @@ interface SidebarFooterActionsProps {
   wsId: string;
   isCollapsed: boolean;
   showUpgrade: boolean;
+  upgradeHref?: string;
+  upgradeExternal?: boolean;
 }
 
 const DISCORD_LINK = process.env.NEXT_PUBLIC_DISCORD_LINK;
@@ -40,6 +42,8 @@ export function SidebarFooterActions({
   wsId,
   isCollapsed,
   showUpgrade,
+  upgradeHref,
+  upgradeExternal = false,
 }: SidebarFooterActionsProps) {
   const t = useTranslations('common');
   const [feedbackOpen, setFeedbackOpen] = useState(false);
@@ -52,6 +56,8 @@ export function SidebarFooterActions({
 
   const hasDiscord = !!DISCORD_LINK;
 
+  const resolvedUpgradeHref = upgradeHref ?? `/${wsId}/billing`;
+
   const defaultExpanded: FooterItem = showUpgrade ? 'upgrade' : 'feedback';
   const activeExpanded = hoveredItem ?? defaultExpanded;
 
@@ -61,7 +67,7 @@ export function SidebarFooterActions({
       leaveTimer.current = null;
     }
 
-    // Skip during cooldown — transition is still running
+    // Skip during cooldown -- transition is still running
     if (Date.now() < cooldownUntil.current) return;
 
     const target = (e.target as HTMLElement).closest('[data-item]');
@@ -89,7 +95,8 @@ export function SidebarFooterActions({
       <div className="flex w-full flex-col items-center gap-1">
         {showUpgrade && (
           <CollapsedItem
-            href={`/${wsId}/billing`}
+            href={resolvedUpgradeHref}
+            external={upgradeExternal}
             tooltip={t('upgrade')}
             variant="upgrade"
           >
@@ -129,7 +136,8 @@ export function SidebarFooterActions({
           id="upgrade"
           isActive={activeExpanded === 'upgrade'}
           label={t('upgrade')}
-          href={`/${wsId}/billing`}
+          href={resolvedUpgradeHref}
+          external={upgradeExternal}
           variant="upgrade"
         >
           <ArrowBigUpDash className="h-4 w-4 shrink-0" />

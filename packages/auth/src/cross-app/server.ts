@@ -75,23 +75,49 @@ export function createPOST(appName: AppName) {
       const userId = firstRow.user_id as string;
       console.log('[cross-app] Token valid for user:', userId);
 
-      // Create a fresh session for the user using admin API + detached client.
-      // The detached client has no-op cookie handlers, so verifyOtp() creates
-      // the session on Supabase's server without setting any Set-Cookie headers
-      // in this response. The session tokens are returned in the JSON body
-      // for the CLIENT to store via its own cookie handler.
+      // Create an independent session for the satellite app.
+      // We NEVER share refresh tokens between apps — Supabase uses refresh
+      // token rotation, so sharing causes the first-to-refresh to invalidate
+      // the other's session. Instead we always create a fresh session via
+      // generateLink + verifyOtp.
+      //
+      // Optimization: if the origin app passed the user's email through
+      // session_data, we skip the getUserById admin call (saves 1 round-trip).
       try {
         const sbAdmin = await createAdminClient();
 
-        // Look up user email for magic link generation
-        const { data: userData, error: userError } =
-          await sbAdmin.auth.admin.getUserById(userId);
+        const sessionData = firstRow.session_data as {
+          email?: string;
+        } | null;
 
-        if (userError || !userData?.user?.email) {
-          console.error(
-            '[cross-app] Could not get user for session creation:',
-            userError
-          );
+        let userEmail: string | undefined;
+
+        if (sessionData?.email) {
+          // Fast path: use pre-fetched email, skip getUserById
+          console.log('[cross-app] Using email from session_data (fast path)');
+          userEmail = sessionData.email;
+        } else {
+          // Slow path: look up user email via admin API
+          const { data: userData, error: userError } =
+            await sbAdmin.auth.admin.getUserById(userId);
+
+          if (userError || !userData?.user?.email) {
+            console.error(
+              '[cross-app] Could not get user for session creation:',
+              userError
+            );
+            return NextResponse.json({
+              userId,
+              valid: true,
+              sessionCreated: false,
+            });
+          }
+
+          userEmail = userData.user.email;
+        }
+
+        if (!userEmail) {
+          console.error('[cross-app] No email available for session creation');
           return NextResponse.json({
             userId,
             valid: true,
@@ -103,7 +129,7 @@ export function createPOST(appName: AppName) {
         const { data: linkData, error: linkError } =
           await sbAdmin.auth.admin.generateLink({
             type: 'magiclink',
-            email: userData.user.email,
+            email: userEmail,
           });
 
         if (linkError || !linkData) {

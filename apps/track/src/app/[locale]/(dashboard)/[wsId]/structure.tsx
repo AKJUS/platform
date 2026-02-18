@@ -3,6 +3,7 @@
 import { ArrowLeft } from '@tuturuuu/icons';
 import { LogoTitle } from '@tuturuuu/ui/custom/logo-title';
 import type { NavLink } from '@tuturuuu/ui/custom/navigation';
+import { SidebarFooterActions } from '@tuturuuu/ui/custom/sidebar-footer-actions';
 import { Structure as BaseStructure } from '@tuturuuu/ui/custom/structure';
 import { TuturuuLogo } from '@tuturuuu/ui/custom/tuturuuu-logo';
 import { ROOT_WORKSPACE_ID } from '@tuturuuu/utils/constants';
@@ -18,14 +19,14 @@ import {
   useEffect,
   useState,
 } from 'react';
-import { SIDEBAR_COLLAPSED_COOKIE_NAME } from '@/constants/common';
+import { SIDEBAR_COLLAPSED_COOKIE_NAME, TTR_URL } from '@/constants/common';
 import { useSidebar } from '@/context/sidebar-context';
-import { FeedbackButton } from './feedback-button';
 import { Nav } from './nav';
 import { WorkspaceSelect } from './workspace-select';
 
 interface StructureProps {
   wsId: string;
+  workspace: { tier?: string | null } | null;
   defaultCollapsed: boolean;
   links: (NavLink | null)[];
   actions: ReactNode;
@@ -35,6 +36,7 @@ interface StructureProps {
 
 export function Structure({
   wsId,
+  workspace,
   defaultCollapsed = false,
   links,
   actions,
@@ -517,9 +519,13 @@ export function Structure({
       actions={actions}
       userPopover={userPopover}
       feedbackButton={
-        <div className="flex w-full flex-col items-center justify-center gap-1">
-          <FeedbackButton isCollapsed={isCollapsed} />
-        </div>
+        <SidebarFooterActions
+          wsId={wsId}
+          isCollapsed={isCollapsed}
+          showUpgrade={!workspace?.tier || workspace.tier === 'FREE'}
+          upgradeHref={`${TTR_URL}/${wsId}/billing`}
+          upgradeExternal
+        />
       }
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
