@@ -55,7 +55,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.1.18",
+    "@tailwindcss/postcss": "^4.2.0",
     "@tanstack/react-query-devtools": "^5.91.3",
     "@tuturuuu/typescript-config": "workspace:*",
     "@types/negotiator": "^0.6.4",
