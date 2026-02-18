@@ -41,6 +41,20 @@ export async function POST(req: Request, { params }: Params) {
   const supabase = await createClient();
   const { wsId } = await params;
 
+  // Block invitations to personal workspaces
+  const { data: wsData } = await supabase
+    .from('workspaces')
+    .select('personal')
+    .eq('id', wsId)
+    .single();
+
+  if (wsData?.personal) {
+    return NextResponse.json(
+      { message: 'Cannot invite members to a personal workspace.' },
+      { status: 403 }
+    );
+  }
+
   const { email } = await req.json();
 
   if (!email) {

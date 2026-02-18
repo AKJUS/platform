@@ -76,6 +76,20 @@ export async function GET(_: Request, { params }: Params) {
       );
     }
 
+    // Block invites to personal workspaces
+    const { data: wsData } = await sbAdmin
+      .from('workspaces')
+      .select('personal')
+      .eq('id', inviteLink.ws_id as string)
+      .single();
+
+    if (wsData?.personal) {
+      return NextResponse.json(
+        { errorCode: 'INVITE_PERSONAL_WORKSPACE' },
+        { status: 403 }
+      );
+    }
+
     // Get member count for the workspace
     const { count: memberCount } = await sbAdmin
       .from('workspace_members')
@@ -151,6 +165,20 @@ export async function POST(_: Request, { params }: Params) {
       return NextResponse.json(
         { errorCode: 'INVITE_INVALID_WORKSPACE' },
         { status: 500 }
+      );
+    }
+
+    // Block joining personal workspaces
+    const { data: wsPostData } = await sbAdmin
+      .from('workspaces')
+      .select('personal')
+      .eq('id', inviteLink.ws_id as string)
+      .single();
+
+    if (wsPostData?.personal) {
+      return NextResponse.json(
+        { errorCode: 'INVITE_PERSONAL_WORKSPACE' },
+        { status: 403 }
       );
     }
 

@@ -447,6 +447,17 @@
   }
 }
 
+@keyframes shimmer {
+  0%,
+  65% {
+    transform: translateX(-150%) skewX(-15deg);
+  }
+
+  100% {
+    transform: translateX(250%) skewX(-15deg);
+  }
+}
+
 @utility container {
   margin-inline: auto;
   padding-inline: 2rem;

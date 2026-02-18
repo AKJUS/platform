@@ -86,6 +86,20 @@ export async function DELETE(_: Request, { params }: Params) {
   const supabase = await createClient();
   const { wsId: id } = await params;
 
+  // Block deletion of personal workspaces
+  const { data: wsData } = await supabase
+    .from('workspaces')
+    .select('personal')
+    .eq('id', id)
+    .single();
+
+  if (wsData?.personal) {
+    return NextResponse.json(
+      { message: 'Personal workspaces cannot be manually deleted.' },
+      { status: 403 }
+    );
+  }
+
   // Check for active subscription to cancel immediately
   try {
     const { data: subscription, error: subError } = await supabase

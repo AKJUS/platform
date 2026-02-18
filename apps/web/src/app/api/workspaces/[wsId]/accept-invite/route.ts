@@ -31,6 +31,20 @@ export async function POST(_: Request, { params }: Params) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
+  // Block accepting invites for personal workspaces
+  const { data: wsData } = await sbAdmin
+    .from('workspaces')
+    .select('personal')
+    .eq('id', wsId)
+    .single();
+
+  if (wsData?.personal) {
+    return NextResponse.json(
+      { error: 'Cannot join a personal workspace.' },
+      { status: 403 }
+    );
+  }
+
   // Validate that user has a pending invite
   const { data: pendingInvite } = await supabase
     .from('workspace_invites')

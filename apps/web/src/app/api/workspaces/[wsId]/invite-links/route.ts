@@ -47,8 +47,23 @@ export async function POST(req: Request, { params }: Params) {
       );
     }
 
-    // Check if DISABLE_INVITE secret is set
+    // Block invite link creation for personal workspaces
     const sbAdmin = await createAdminClient();
+
+    const { data: wsData } = await sbAdmin
+      .from('workspaces')
+      .select('personal')
+      .eq('id', wsId)
+      .single();
+
+    if (wsData?.personal) {
+      return NextResponse.json(
+        { error: 'Cannot create invite links for a personal workspace.' },
+        { status: 403 }
+      );
+    }
+
+    // Check if DISABLE_INVITE secret is set
     const { data: disableInvite } = await sbAdmin
       .from('workspace_secrets')
       .select('value')

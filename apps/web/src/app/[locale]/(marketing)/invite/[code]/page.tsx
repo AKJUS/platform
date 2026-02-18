@@ -43,6 +43,7 @@ export default async function InviteCodePage({ params }: Props) {
       INVITE_EXPIRED: 'error-invite-expired',
       INVITE_MAX_USES_REACHED: 'error-invite-max-uses-reached',
       INVITE_INVALID_WORKSPACE: 'error-invite-invalid-workspace',
+      INVITE_PERSONAL_WORKSPACE: 'error-invite-personal-workspace',
       INTERNAL_ERROR: 'error-internal',
       UNAUTHORIZED: 'error-unauthorized',
       NETWORK_ERROR: 'error-network',

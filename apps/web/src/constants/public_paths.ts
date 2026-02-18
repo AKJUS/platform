@@ -21,6 +21,8 @@ export const APP_PUBLIC_PATHS = [
   '/faq',
   '/terms',
   '/privacy',
+  '/community-guidelines',
+  '/acceptable-use',
   '/branding',
   '/changelog',
   '/ai/chats',

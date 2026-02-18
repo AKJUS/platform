@@ -26,9 +26,8 @@ import { ActiveTimerIndicator } from '@/components/active-timer-indicator';
 import { PROD_MODE, SIDEBAR_COLLAPSED_COOKIE_NAME } from '@/constants/common';
 import { useSidebar } from '@/context/sidebar-context';
 import { meetsAnyTierRequirement } from '@/lib/feature-tiers';
-import { DiscordLink } from './discord-link';
-import { FeedbackButton } from './feedback-button';
 import { Nav } from './nav';
+import { SidebarFooterActions } from './sidebar-footer-actions';
 import { WorkspaceSelect } from './workspace-select';
 
 interface StructureProps {
@@ -611,10 +610,11 @@ export function Structure({
       actions={actions}
       userPopover={userPopover}
       feedbackButton={
-        <div className="flex w-full flex-col items-center justify-center gap-1">
-          <DiscordLink isCollapsed={isCollapsed} />
-          <FeedbackButton isCollapsed={isCollapsed} />
-        </div>
+        <SidebarFooterActions
+          wsId={wsId}
+          isCollapsed={isCollapsed}
+          showUpgrade={!workspace?.tier || workspace.tier === 'FREE'}
+        />
       }
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}

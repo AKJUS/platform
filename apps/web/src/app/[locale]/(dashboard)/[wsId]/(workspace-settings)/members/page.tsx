@@ -42,6 +42,8 @@ export default async function WorkspaceMembersPage({
   return (
     <WorkspaceWrapper params={params}>
       {async ({ workspace, wsId }) => {
+        if (workspace.personal) redirect(`/${wsId}/settings`);
+
         const permissions = await getPermissions({
           wsId,
         });

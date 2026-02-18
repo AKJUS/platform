@@ -35,7 +35,9 @@ export default async function WorkspaceRolesPage({
 }: Props) {
   return (
     <WorkspaceWrapper params={params}>
-      {async ({ wsId }) => {
+      {async ({ workspace, wsId }) => {
+        if (workspace.personal) redirect(`/${wsId}/settings`);
+
         const supabase = await createClient();
 
         const workspacePermissions = await getPermissions({

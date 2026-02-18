@@ -88,6 +88,21 @@ export async function validateInvite(
       logo_url: workspaceData.logo_url,
     };
 
+    // Block invites to personal workspaces
+    const { data: wsPersonalCheck } = await sbAdmin
+      .from('workspaces')
+      .select('personal')
+      .eq('id', inviteLink.ws_id)
+      .single();
+
+    if (wsPersonalCheck?.personal) {
+      return {
+        authenticated: true,
+        error: 'This workspace does not accept new members.',
+        errorCode: 'INVITE_PERSONAL_WORKSPACE',
+      };
+    }
+
     // Check if user is already a member
     const { data: existingMember } = await sbAdmin
       .from('workspace_members')

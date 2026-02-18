@@ -26,6 +26,7 @@ interface Props {
 
 export default function Security({ workspace }: Props) {
   const isSystemWs = workspace?.id === ROOT_WORKSPACE_ID;
+  const isPersonalWs = workspace?.personal === true;
 
   const t = useTranslations('ws-settings');
   const router = useRouter();
@@ -35,13 +36,18 @@ export default function Security({ workspace }: Props) {
   const [confirmationInput, setConfirmationInput] = useState('');
 
   const handleDeleteClick = () => {
-    if (isSystemWs || !workspace) return;
+    if (isSystemWs || isPersonalWs || !workspace) return;
     setShowDeleteDialog(true);
     setConfirmationInput('');
   };
 
   const handleConfirmDelete = async () => {
-    if (isSystemWs || !workspace || confirmationInput !== workspace.name)
+    if (
+      isSystemWs ||
+      isPersonalWs ||
+      !workspace ||
+      confirmationInput !== workspace.name
+    )
       return;
     setIsDeleting(true);
 
@@ -88,7 +94,7 @@ export default function Security({ workspace }: Props) {
             onClick={handleDeleteClick}
             variant="destructive"
             className="w-full"
-            disabled={!workspace || isSystemWs || isDeleting}
+            disabled={!workspace || isSystemWs || isPersonalWs || isDeleting}
           >
             <Trash2 className="mr-2 h-4 w-4" />
             {isDeleting ? `${t('deleting')}...` : t('delete')}
