@@ -85,7 +85,11 @@
       "Bash(node scripts/i18n-namespace-check.js:*)",
       "Bash(gh cache list:*)",
       "WebFetch(domain:docs.openclaw.ai)",
-      "WebFetch(domain:useworkflow.dev)"
+      "WebFetch(domain:useworkflow.dev)",
+      "WebFetch(domain:developers.cloudflare.com)",
+      "Bash(fi)",
+      "Bash(done)",
+      "Bash(test:*)"
     ]
   }
 }

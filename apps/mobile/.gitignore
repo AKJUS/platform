@@ -102,6 +102,8 @@ app.*.map.json
 
 # Environment variables (contains secrets)
 .env
+.env.development
+.env.production
 
 # Exceptions to the above rules.
 !**/ios/**/default.mode1v3
