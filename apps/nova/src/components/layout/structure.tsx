@@ -1,6 +1,7 @@
 'use client';
 
 import { LogoTitle } from '@tuturuuu/ui/custom/logo-title';
+import { SidebarFooterActions } from '@tuturuuu/ui/custom/sidebar-footer-actions';
 import { Structure as BaseStructure } from '@tuturuuu/ui/custom/structure';
 import { cn } from '@tuturuuu/utils/format';
 import Image from 'next/image';
@@ -98,6 +99,13 @@ export default function Structure({
       mobileHeader={mobileHeader}
       sidebarHeader={sidebarHeader}
       sidebarContent={sidebarContent}
+      feedbackButton={
+        <SidebarFooterActions
+          wsId=""
+          isCollapsed={isCollapsed}
+          showUpgrade={false}
+        />
+      }
       actions={actions}
       userPopover={userPopover}
       children={children}
