@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart' hide AppBar, Scaffold;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mobile/core/responsive/responsive_padding.dart';
+import 'package:mobile/core/responsive/responsive_values.dart';
 import 'package:mobile/features/apps/cubit/app_tab_cubit.dart';
 import 'package:mobile/features/apps/models/app_module.dart';
 import 'package:mobile/features/apps/registry/app_registry.dart';
@@ -50,8 +52,12 @@ class _AppsHubPageState extends State<AppsHubPage> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final theme = shad.Theme.of(context);
-    final width = MediaQuery.sizeOf(context).width;
-    final crossAxisCount = width >= 900 ? 4 : (width >= 600 ? 3 : 2);
+    final crossAxisCount = responsiveValue(
+      context,
+      compact: 2,
+      medium: 3,
+      expanded: 4,
+    );
     final normalizedQuery = _query.trim().toLowerCase();
     final modules = AppRegistry.modules(context);
     final filteredModules = normalizedQuery.isEmpty
@@ -72,7 +78,9 @@ class _AppsHubPageState extends State<AppsHubPage> {
       ],
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: EdgeInsets.all(
+            ResponsivePadding.horizontal(context.deviceClass),
+          ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

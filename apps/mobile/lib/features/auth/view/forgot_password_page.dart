@@ -2,6 +2,8 @@ import 'package:flutter/material.dart'
     hide AppBar, FilledButton, Scaffold, TextField;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mobile/core/responsive/responsive_padding.dart';
+import 'package:mobile/core/responsive/responsive_values.dart';
 import 'package:mobile/features/auth/cubit/auth_cubit.dart';
 import 'package:mobile/features/auth/cubit/auth_state.dart';
 import 'package:mobile/l10n/l10n.dart';
@@ -100,52 +102,64 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         ),
       ],
       child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: BlocBuilder<AuthCubit, AuthState>(
-            buildWhen: (prev, curr) =>
-                prev.isLoading != curr.isLoading || prev.error != curr.error,
-            builder: (context, state) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const shad.Gap(32),
-                  Text(
-                    l10n.forgotPasswordDescription,
-                    style: shad.Theme.of(context).typography.p,
-                  ),
-                  const shad.Gap(24),
-                  shad.FormField(
-                    key: const shad.FormKey<String>(#forgotPasswordEmail),
-                    label: Text(l10n.emailLabel),
-                    child: shad.TextField(
-                      controller: _emailController,
-                      hintText: l10n.emailLabel,
-                      keyboardType: TextInputType.emailAddress,
-                      textInputAction: TextInputAction.done,
-                      onSubmitted: (_) => _handleSubmit(),
-                    ),
-                  ),
-                  if (state.error != null) ...[
-                    const shad.Gap(16),
-                    Text(
-                      state.error!,
-                      style: TextStyle(
-                        color: shad.Theme.of(context).colorScheme.destructive,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: ResponsivePadding.maxFormWidth(context.deviceClass),
+            ),
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: ResponsivePadding.horizontal(context.deviceClass),
+              ),
+              child: BlocBuilder<AuthCubit, AuthState>(
+                buildWhen: (prev, curr) =>
+                    prev.isLoading != curr.isLoading ||
+                    prev.error != curr.error,
+                builder: (context, state) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      const shad.Gap(32),
+                      Text(
+                        l10n.forgotPasswordDescription,
+                        style: shad.Theme.of(context).typography.p,
                       ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                  const shad.Gap(24),
-                  shad.PrimaryButton(
-                    onPressed: state.isLoading ? null : _handleSubmit,
-                    child: state.isLoading
-                        ? const shad.CircularProgressIndicator(size: 20)
-                        : Text(l10n.forgotPasswordSendReset),
-                  ),
-                ],
-              );
-            },
+                      const shad.Gap(24),
+                      shad.FormField(
+                        key: const shad.FormKey<String>(#forgotPasswordEmail),
+                        label: Text(l10n.emailLabel),
+                        child: shad.TextField(
+                          controller: _emailController,
+                          hintText: l10n.emailLabel,
+                          keyboardType: TextInputType.emailAddress,
+                          textInputAction: TextInputAction.done,
+                          onSubmitted: (_) => _handleSubmit(),
+                        ),
+                      ),
+                      if (state.error != null) ...[
+                        const shad.Gap(16),
+                        Text(
+                          state.error!,
+                          style: TextStyle(
+                            color: shad.Theme.of(
+                              context,
+                            ).colorScheme.destructive,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                      const shad.Gap(24),
+                      shad.PrimaryButton(
+                        onPressed: state.isLoading ? null : _handleSubmit,
+                        child: state.isLoading
+                            ? const shad.CircularProgressIndicator(size: 20)
+                            : Text(l10n.forgotPasswordSendReset),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
           ),
         ),
       ),

@@ -4,6 +4,8 @@ import 'package:flutter/material.dart'
     hide NavigationBar, NavigationBarTheme, Scaffold;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mobile/core/responsive/breakpoints.dart';
+import 'package:mobile/core/responsive/responsive_values.dart';
 import 'package:mobile/core/router/routes.dart';
 import 'package:mobile/features/apps/cubit/app_tab_cubit.dart';
 import 'package:mobile/features/apps/cubit/app_tab_state.dart';
@@ -11,9 +13,12 @@ import 'package:mobile/features/apps/registry/app_registry.dart';
 import 'package:mobile/l10n/l10n.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
-/// Shell layout with bottom navigation bar.
+/// Shell layout with adaptive navigation.
 ///
 /// Wraps all tab-level routes via GoRouter's [ShellRoute].
+/// - **compact** → bottom [shad.NavigationBar]
+/// - **medium**  → side [shad.NavigationRail]
+/// - **expanded** → side [shad.NavigationSidebar]
 class ShellPage extends StatefulWidget {
   const ShellPage({required this.child, super.key});
 
@@ -34,12 +39,11 @@ class _ShellPageState extends State<ShellPage> {
   final GlobalKey _appsTabKey = GlobalKey();
 
   bool _isAppsTabHit(Offset position) {
-    final context = _appsTabKey.currentContext;
-    if (context == null) return false;
-    final renderBox = context.findRenderObject() as RenderBox?;
+    final ctx = _appsTabKey.currentContext;
+    if (ctx == null) return false;
+    final renderBox = ctx.findRenderObject() as RenderBox?;
     if (renderBox == null || !renderBox.hasSize) return false;
-    final overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox?;
+    final overlay = Overlay.of(ctx).context.findRenderObject() as RenderBox?;
     if (overlay == null) return false;
     final topLeft = renderBox.localToGlobal(Offset.zero, ancestor: overlay);
     final bounds = topLeft & renderBox.size;
@@ -48,72 +52,137 @@ class _ShellPageState extends State<ShellPage> {
 
   @override
   Widget build(BuildContext context) {
+    final deviceClass = context.deviceClass;
+
+    return BlocBuilder<AppTabCubit, AppTabState>(
+      builder: (context, state) {
+        if (deviceClass == DeviceClass.compact) {
+          return _buildCompactLayout(context, state);
+        }
+        return _buildSideNavLayout(context, state, deviceClass);
+      },
+    );
+  }
+
+  /// Compact: bottom NavigationBar inside Scaffold footers.
+  Widget _buildCompactLayout(BuildContext context, AppTabState state) {
     final l10n = context.l10n;
     final selectedIndex = _calculateSelectedIndex(context);
+    final items = _buildNavItems(context, state, l10n);
+
+    return shad.Scaffold(
+      footers: [
+        Listener(
+          behavior: HitTestBehavior.translucent,
+          onPointerDown: _startLongPressTimer,
+          onPointerUp: _stopLongPressTimer,
+          onPointerCancel: _stopLongPressTimer,
+          child: shad.NavigationBar(
+            selectedKey: _keyForIndex(selectedIndex),
+            onSelected: (key) =>
+                _onItemTapped(_indexForKey(key), context, state),
+            children: items,
+          ),
+        ),
+      ],
+      child: widget.child,
+    );
+  }
+
+  /// Medium / Expanded: side NavigationRail or NavigationSidebar.
+  Widget _buildSideNavLayout(
+    BuildContext context,
+    AppTabState state,
+    DeviceClass deviceClass,
+  ) {
+    final l10n = context.l10n;
+    final selectedIndex = _calculateSelectedIndex(context);
+    final selectedKey = _keyForIndex(selectedIndex);
+    void onSelected(Key? key) =>
+        _onItemTapped(_indexForKey(key), context, state);
+
+    // Use non-GlobalKey for rail/sidebar items (no long-press detection).
+    final items = _buildNavItems(context, state, l10n, useGlobalKey: false);
+
+    final Widget sideNav;
+    if (deviceClass == DeviceClass.expanded) {
+      sideNav = shad.NavigationSidebar(
+        selectedKey: selectedKey,
+        onSelected: onSelected,
+        children: items,
+      );
+    } else {
+      sideNav = shad.NavigationRail(
+        selectedKey: selectedKey,
+        onSelected: onSelected,
+        children: items,
+      );
+    }
+
+    return shad.Scaffold(
+      child: Row(
+        children: [
+          sideNav,
+          Expanded(child: widget.child),
+        ],
+      ),
+    );
+  }
+
+  /// Builds the three navigation items.
+  ///
+  /// When [useGlobalKey] is true (compact mode), the Apps item uses the
+  /// [_appsTabKey] GlobalKey for long-press hit testing.
+  List<shad.NavigationItem> _buildNavItems(
+    BuildContext context,
+    AppTabState state,
+    AppLocalizations l10n, {
+    bool useGlobalKey = true,
+  }) {
     final theme = shad.Theme.of(context);
     final labelStyle = theme.typography.p.copyWith(
       fontSize: 12,
       fontWeight: FontWeight.normal,
     );
 
-    return shad.Scaffold(
-      footers: [
-        BlocBuilder<AppTabCubit, AppTabState>(
-          builder: (context, state) {
-            final selectedModule = state.hasSelection
-                ? AppRegistry.moduleById(state.selectedId)
-                : null;
-            final appsLabel = selectedModule?.label(l10n) ?? l10n.navApps;
-            final appsIcon = selectedModule?.icon ?? Icons.apps_outlined;
+    final selectedModule = state.hasSelection
+        ? AppRegistry.moduleById(state.selectedId)
+        : null;
+    final appsLabel = selectedModule?.label(l10n) ?? l10n.navApps;
+    final appsIcon = selectedModule?.icon ?? Icons.apps_outlined;
 
-            return Listener(
-              behavior: HitTestBehavior.translucent,
-              onPointerDown: _startLongPressTimer,
-              onPointerUp: _stopLongPressTimer,
-              onPointerCancel: _stopLongPressTimer,
-              child: shad.NavigationBar(
-                selectedKey: _keyForIndex(selectedIndex),
-                onSelected: (key) =>
-                    _onItemTapped(_indexForKey(key), context, state),
-                children: [
-                  shad.NavigationItem(
-                    key: _homeKey,
-                    label: Text(
-                      l10n.navHome,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: labelStyle,
-                    ),
-                    child: const Icon(Icons.home_outlined),
-                  ),
-                  shad.NavigationItem(
-                    key: _appsTabKey,
-                    label: Text(
-                      appsLabel,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: labelStyle,
-                    ),
-                    child: Icon(appsIcon),
-                  ),
-                  shad.NavigationItem(
-                    key: _profileKey,
-                    label: Text(
-                      l10n.settingsProfile,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: labelStyle,
-                    ),
-                    child: const Icon(Icons.person_outline),
-                  ),
-                ],
-              ),
-            );
-          },
+    return [
+      shad.NavigationItem(
+        key: _homeKey,
+        label: Text(
+          l10n.navHome,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: labelStyle,
         ),
-      ],
-      child: widget.child,
-    );
+        child: const Icon(Icons.home_outlined),
+      ),
+      shad.NavigationItem(
+        key: useGlobalKey ? _appsTabKey : _appsKey,
+        label: Text(
+          appsLabel,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: labelStyle,
+        ),
+        child: Icon(appsIcon),
+      ),
+      shad.NavigationItem(
+        key: _profileKey,
+        label: Text(
+          l10n.settingsProfile,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: labelStyle,
+        ),
+        child: const Icon(Icons.person_outline),
+      ),
+    ];
   }
 
   @override

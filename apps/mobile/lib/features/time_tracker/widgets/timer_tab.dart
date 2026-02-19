@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart'
     hide AlertDialog, FilledButton, TextButton, TextField;
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:mobile/core/responsive/adaptive_sheet.dart';
 import 'package:mobile/data/sources/supabase_client.dart';
 import 'package:mobile/features/time_tracker/cubit/time_tracker_cubit.dart';
 import 'package:mobile/features/time_tracker/cubit/time_tracker_state.dart';
@@ -134,33 +135,30 @@ class TimerTab extends StatelessWidget {
         context.read<WorkspaceCubit>().state.currentWorkspace?.id ?? '';
     final userId = supabase.auth.currentUser?.id ?? '';
 
-    unawaited(
-      shad.openDrawer<void>(
-        context: context,
-        position: shad.OverlayPosition.bottom,
-        builder: (_) => MissedEntryDialog(
-          categories: cubit.state.categories,
-          onSave:
-              ({
-                required title,
-                required startTime,
-                required endTime,
-                categoryId,
-                description,
-              }) {
-                unawaited(
-                  cubit.createMissedEntry(
-                    wsId,
-                    userId,
-                    title: title,
-                    categoryId: categoryId,
-                    startTime: startTime,
-                    endTime: endTime,
-                    description: description,
-                  ),
-                );
-              },
-        ),
+    showAdaptiveDrawer(
+      context: context,
+      builder: (_) => MissedEntryDialog(
+        categories: cubit.state.categories,
+        onSave:
+            ({
+              required title,
+              required startTime,
+              required endTime,
+              categoryId,
+              description,
+            }) {
+              unawaited(
+                cubit.createMissedEntry(
+                  wsId,
+                  userId,
+                  title: title,
+                  categoryId: categoryId,
+                  startTime: startTime,
+                  endTime: endTime,
+                  description: description,
+                ),
+              );
+            },
       ),
     );
   }

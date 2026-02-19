@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart' hide AppBar, Card, Scaffold;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mobile/core/responsive/responsive_padding.dart';
+import 'package:mobile/core/responsive/responsive_values.dart';
+import 'package:mobile/core/responsive/responsive_wrapper.dart';
 import 'package:mobile/core/router/routes.dart';
 import 'package:mobile/core/utils/currency_formatter.dart';
 import 'package:mobile/data/models/finance/transaction.dart';
@@ -118,17 +121,22 @@ class _FinanceView extends StatelessWidget {
               return _ErrorView(error: state.error);
             }
 
-            return RefreshIndicator(
-              onRefresh: () async => _reload(context),
-              child: ListView(
-                padding: const EdgeInsets.only(bottom: 32),
-                children: [
-                  _WalletsSection(wallets: state.wallets),
-                  const shad.Gap(8),
-                  _RecentTransactionsSection(
-                    transactions: state.recentTransactions,
-                  ),
-                ],
+            return ResponsiveWrapper(
+              maxWidth: ResponsivePadding.maxContentWidth(
+                context.deviceClass,
+              ),
+              child: RefreshIndicator(
+                onRefresh: () async => _reload(context),
+                child: ListView(
+                  padding: const EdgeInsets.only(bottom: 32),
+                  children: [
+                    _WalletsSection(wallets: state.wallets),
+                    const shad.Gap(8),
+                    _RecentTransactionsSection(
+                      transactions: state.recentTransactions,
+                    ),
+                  ],
+                ),
               ),
             );
           },
@@ -300,7 +308,12 @@ class _WalletCard extends StatelessWidget {
     final balance = wallet.balance ?? 0;
 
     return SizedBox(
-      width: 180,
+      width: responsiveValue(
+        context,
+        compact: 180,
+        medium: 200,
+        expanded: 220,
+      ),
       child: shad.Card(
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -385,7 +398,7 @@ class _WalletsSection extends StatelessWidget {
           )
         else
           SizedBox(
-            height: 120,
+            height: responsiveValue(context, compact: 120, medium: 140),
             child: ListView.separated(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),

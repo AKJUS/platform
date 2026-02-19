@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
+import 'package:mobile/core/responsive/adaptive_sheet.dart';
 import 'package:mobile/data/models/time_tracking/session.dart';
 import 'package:mobile/data/sources/supabase_client.dart';
 import 'package:mobile/features/time_tracker/cubit/time_tracker_cubit.dart';
@@ -118,9 +119,8 @@ class HistoryTab extends StatelessWidget {
         context.read<WorkspaceCubit>().state.currentWorkspace?.id ?? '';
 
     unawaited(
-      showModalBottomSheet<void>(
+      showAdaptiveSheet<void>(
         context: context,
-        isScrollControlled: true,
         builder: (_) => EditSessionDialog(
           session: session,
           categories: cubit.state.categories,

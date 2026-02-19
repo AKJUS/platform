@@ -7,6 +7,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:mobile/core/responsive/responsive_padding.dart';
+import 'package:mobile/core/responsive/responsive_values.dart';
+import 'package:mobile/core/responsive/responsive_wrapper.dart';
 import 'package:mobile/core/router/routes.dart';
 import 'package:mobile/data/repositories/profile_repository.dart';
 import 'package:mobile/features/profile/cubit/profile_cubit.dart';
@@ -90,43 +93,48 @@ class _ProfileView extends StatelessWidget {
 
           final profile = state.profile!;
 
-          return ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              // Avatar Section
-              _AvatarSection(
-                avatarUrl: profile.avatarUrl,
-                displayName: profile.displayName,
-                email: profile.email,
+          return ResponsiveWrapper(
+            maxWidth: ResponsivePadding.maxContentWidth(context.deviceClass),
+            child: ListView(
+              padding: EdgeInsets.all(
+                ResponsivePadding.horizontal(context.deviceClass),
               ),
-              const shad.Gap(24),
-              const shad.Divider(),
-              const shad.Gap(16),
+              children: [
+                // Avatar Section
+                _AvatarSection(
+                  avatarUrl: profile.avatarUrl,
+                  displayName: profile.displayName,
+                  email: profile.email,
+                ),
+                const shad.Gap(24),
+                const shad.Divider(),
+                const shad.Gap(16),
 
-              // Account Status
-              _AccountStatusCard(
-                createdAt: profile.createdAt,
-              ),
-              const shad.Gap(24),
+                // Account Status
+                _AccountStatusCard(
+                  createdAt: profile.createdAt,
+                ),
+                const shad.Gap(24),
 
-              // Display Name
-              _DisplayNameField(
-                defaultValue: profile.displayName,
-              ),
-              const shad.Gap(16),
+                // Display Name
+                _DisplayNameField(
+                  defaultValue: profile.displayName,
+                ),
+                const shad.Gap(16),
 
-              // Full Name
-              _FullNameField(
-                defaultValue: profile.fullName,
-              ),
-              const shad.Gap(16),
+                // Full Name
+                _FullNameField(
+                  defaultValue: profile.fullName,
+                ),
+                const shad.Gap(16),
 
-              // Email
-              _EmailField(
-                email: profile.email,
-                newEmail: profile.newEmail,
-              ),
-            ],
+                // Email
+                _EmailField(
+                  email: profile.email,
+                  newEmail: profile.newEmail,
+                ),
+              ],
+            ),
           );
         },
       ),
@@ -217,8 +225,8 @@ class _AvatarSection extends StatelessWidget {
     final source = await showDialog<ImageSource>(
       context: context,
       builder: (context) => Center(
-        child: SizedBox(
-          width: MediaQuery.of(context).size.width * 0.8,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
           child: shad.AlertDialog(
             barrierColor: Colors.transparent,
             title: Text(l10n.selectImageSource),
@@ -294,8 +302,8 @@ class _AvatarSection extends StatelessWidget {
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => Center(
-        child: SizedBox(
-          width: MediaQuery.of(context).size.width * 0.8,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
           child: shad.AlertDialog(
             barrierColor: Colors.transparent,
             title: Text(l10n.profileAvatar),

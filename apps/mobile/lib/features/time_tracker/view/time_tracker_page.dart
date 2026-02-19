@@ -3,6 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart' hide AppBar, Scaffold;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mobile/core/responsive/adaptive_sheet.dart';
+import 'package:mobile/core/responsive/responsive_padding.dart';
+import 'package:mobile/core/responsive/responsive_values.dart';
+import 'package:mobile/core/responsive/responsive_wrapper.dart';
 import 'package:mobile/core/router/routes.dart';
 import 'package:mobile/data/repositories/time_tracker_repository.dart';
 import 'package:mobile/data/sources/supabase_client.dart';
@@ -162,13 +166,16 @@ class _TimeTrackerViewState extends State<_TimeTrackerView> {
                 ),
               ),
             ],
-            child: IndexedStack(
-              index: _index,
-              children: [
-                TimerTab(onSeeAll: () => setState(() => _index = 1)),
-                const HistoryTab(),
-                const StatsTab(),
-              ],
+            child: ResponsiveWrapper(
+              maxWidth: ResponsivePadding.maxContentWidth(context.deviceClass),
+              child: IndexedStack(
+                index: _index,
+                children: [
+                  TimerTab(onSeeAll: () => setState(() => _index = 1)),
+                  const HistoryTab(),
+                  const StatsTab(),
+                ],
+              ),
             ),
           );
         },
@@ -178,15 +185,11 @@ class _TimeTrackerViewState extends State<_TimeTrackerView> {
 
   void _showPomodoroSettings(BuildContext context) {
     final cubit = context.read<TimeTrackerCubit>();
-    unawaited(
-      shad.openDrawer<void>(
-        context: context,
-        position: shad.OverlayPosition.bottom,
-        builder: (_) => PomodoroSettingsDialog(
-          settings: cubit.state.pomodoroSettings,
-          onSave: (settings) =>
-              unawaited(cubit.updatePomodoroSettings(settings)),
-        ),
+    showAdaptiveDrawer(
+      context: context,
+      builder: (_) => PomodoroSettingsDialog(
+        settings: cubit.state.pomodoroSettings,
+        onSave: (settings) => unawaited(cubit.updatePomodoroSettings(settings)),
       ),
     );
   }

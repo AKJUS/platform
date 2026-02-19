@@ -4,6 +4,9 @@ import 'package:flutter/material.dart'
     hide AlertDialog, AppBar, Divider, FilledButton, Scaffold, TextButton;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mobile/core/responsive/responsive_padding.dart';
+import 'package:mobile/core/responsive/responsive_values.dart';
+import 'package:mobile/core/responsive/responsive_wrapper.dart';
 import 'package:mobile/core/router/routes.dart';
 import 'package:mobile/features/auth/cubit/auth_cubit.dart';
 import 'package:mobile/features/settings/cubit/locale_cubit.dart';
@@ -27,62 +30,67 @@ class SettingsPage extends StatelessWidget {
       headers: [
         shad.AppBar(title: Text(l10n.settingsTitle)),
       ],
-      child: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _buildSettingsItem(
-            context,
-            icon: Icons.person_outline,
-            title: l10n.settingsProfile,
-            onTap: () => context.push(Routes.profileRoot),
+      child: ResponsiveWrapper(
+        maxWidth: ResponsivePadding.maxContentWidth(context.deviceClass),
+        child: ListView(
+          padding: EdgeInsets.all(
+            ResponsivePadding.horizontal(context.deviceClass),
           ),
-          const shad.Divider(),
-          BlocBuilder<LocaleCubit, LocaleState>(
-            builder: (context, localeState) {
-              return _buildSettingsItem(
-                context,
-                icon: Icons.language,
-                title: l10n.settingsLanguage,
-                subtitle: _localeDisplayName(localeState.locale, l10n),
-                onTap: () => _showLanguageDialog(context),
-              );
-            },
-          ),
-          const shad.Divider(),
-          BlocBuilder<ThemeCubit, ThemeState>(
-            builder: (context, themeState) {
-              return _buildSettingsItem(
-                context,
-                icon: Icons.palette_outlined,
-                title: l10n.settingsTheme,
-                subtitle: _themeDisplayName(themeState.themeMode, l10n),
-                onTap: () => _showThemeDialog(context),
-              );
-            },
-          ),
-          const shad.Divider(),
-          BlocBuilder<WorkspaceCubit, WorkspaceState>(
-            buildWhen: (prev, curr) =>
-                prev.currentWorkspace != curr.currentWorkspace,
-            builder: (context, state) {
-              return _buildSettingsItem(
-                context,
-                icon: Icons.swap_horiz,
-                title: l10n.settingsSwitchWorkspace,
-                subtitle: state.currentWorkspace?.name,
-                onTap: () => showWorkspacePickerSheet(context),
-              );
-            },
-          ),
-          const shad.Divider(),
-          _buildSettingsItem(
-            context,
-            icon: Icons.logout,
-            title: l10n.settingsSignOut,
-            isDestructive: true,
-            onTap: () => _showSignOutDialog(context),
-          ),
-        ],
+          children: [
+            _buildSettingsItem(
+              context,
+              icon: Icons.person_outline,
+              title: l10n.settingsProfile,
+              onTap: () => context.push(Routes.profileRoot),
+            ),
+            const shad.Divider(),
+            BlocBuilder<LocaleCubit, LocaleState>(
+              builder: (context, localeState) {
+                return _buildSettingsItem(
+                  context,
+                  icon: Icons.language,
+                  title: l10n.settingsLanguage,
+                  subtitle: _localeDisplayName(localeState.locale, l10n),
+                  onTap: () => _showLanguageDialog(context),
+                );
+              },
+            ),
+            const shad.Divider(),
+            BlocBuilder<ThemeCubit, ThemeState>(
+              builder: (context, themeState) {
+                return _buildSettingsItem(
+                  context,
+                  icon: Icons.palette_outlined,
+                  title: l10n.settingsTheme,
+                  subtitle: _themeDisplayName(themeState.themeMode, l10n),
+                  onTap: () => _showThemeDialog(context),
+                );
+              },
+            ),
+            const shad.Divider(),
+            BlocBuilder<WorkspaceCubit, WorkspaceState>(
+              buildWhen: (prev, curr) =>
+                  prev.currentWorkspace != curr.currentWorkspace,
+              builder: (context, state) {
+                return _buildSettingsItem(
+                  context,
+                  icon: Icons.swap_horiz,
+                  title: l10n.settingsSwitchWorkspace,
+                  subtitle: state.currentWorkspace?.name,
+                  onTap: () => showWorkspacePickerSheet(context),
+                );
+              },
+            ),
+            const shad.Divider(),
+            _buildSettingsItem(
+              context,
+              icon: Icons.logout,
+              title: l10n.settingsSignOut,
+              isDestructive: true,
+              onTap: () => _showSignOutDialog(context),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -149,8 +157,8 @@ class SettingsPage extends StatelessWidget {
       showDialog<void>(
         context: context,
         builder: (context) => Center(
-          child: SizedBox(
-            width: MediaQuery.of(context).size.width * 0.8,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400),
             child: shad.AlertDialog(
               barrierColor: Colors.transparent,
               title: Text(l10n.settingsLanguage),
@@ -212,8 +220,8 @@ class SettingsPage extends StatelessWidget {
       showDialog<void>(
         context: context,
         builder: (dialogContext) => Center(
-          child: SizedBox(
-            width: MediaQuery.of(context).size.width * 0.8,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400),
             child: shad.AlertDialog(
               barrierColor: Colors.transparent,
               title: Text(l10n.settingsSignOut),
@@ -246,8 +254,8 @@ class SettingsPage extends StatelessWidget {
       showDialog<void>(
         context: context,
         builder: (context) => Center(
-          child: SizedBox(
-            width: MediaQuery.of(context).size.width * 0.8,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400),
             child: shad.AlertDialog(
               barrierColor: Colors.transparent,
               title: Text(l10n.settingsTheme),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile/core/responsive/responsive_values.dart';
 import 'package:mobile/data/models/calendar_event.dart';
 import 'package:mobile/features/calendar/utils/event_colors.dart';
 
@@ -83,9 +84,14 @@ class MonthView extends StatelessWidget {
         Expanded(
           child: GridView.builder(
             physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 7,
-              childAspectRatio: 0.72,
+              childAspectRatio: responsiveValue(
+                context,
+                compact: 0.72,
+                medium: 0.85,
+                expanded: 1,
+              ),
             ),
             itemCount: startWeekday + daysInMonth,
             itemBuilder: (context, index) {

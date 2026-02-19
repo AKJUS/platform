@@ -2,12 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:mobile/core/responsive/adaptive_sheet.dart';
 import 'package:mobile/data/models/calendar_event.dart';
 import 'package:mobile/features/calendar/utils/event_colors.dart';
 import 'package:mobile/l10n/l10n.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
-/// Shows a read-only bottom sheet with event details plus edit/delete actions.
+/// Shows a bottom sheet (compact) or dialog (medium+) with event details plus
+/// edit/delete actions.
 ///
 /// Returns `'edit'` if the user taps Edit, `'delete'` if they confirm Delete,
 /// or `null` if dismissed.
@@ -15,11 +17,9 @@ Future<String?> showEventDetailSheet(
   BuildContext context, {
   required CalendarEvent event,
 }) {
-  return showModalBottomSheet<String>(
+  return showAdaptiveSheet<String>(
     context: context,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-    ),
+    isScrollControlled: false,
     builder: (context) => _EventDetailContent(event: event),
   );
 }
@@ -145,8 +145,8 @@ class _EventDetailContent extends StatelessWidget {
       showDialog<void>(
         context: context,
         builder: (ctx) => Center(
-          child: SizedBox(
-            width: MediaQuery.of(context).size.width * 0.8,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400),
             child: shad.AlertDialog(
               barrierColor: Colors.transparent,
               title: Text(l10n.calendarDeleteEvent),

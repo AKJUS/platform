@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart'
     hide AppBar, Chip, CircleAvatar, FilledButton, Scaffold;
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:mobile/core/responsive/responsive_padding.dart';
+import 'package:mobile/core/responsive/responsive_values.dart';
+import 'package:mobile/core/responsive/responsive_wrapper.dart';
 import 'package:mobile/data/models/workspace.dart';
 import 'package:mobile/features/workspace/cubit/workspace_cubit.dart';
 import 'package:mobile/features/workspace/cubit/workspace_state.dart';
@@ -132,37 +135,45 @@ class _WorkspaceListView extends StatelessWidget {
     final team = state.workspaces.where((w) => !w.personal).toList()
       ..sort((a, b) => (a.name ?? '').compareTo(b.name ?? ''));
 
-    return RefreshIndicator(
-      onRefresh: onRefresh,
-      color: theme.colorScheme.primary,
-      child: ListView(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-        children: [
-          // Limits bar
-          if (state.limits != null && state.limits!.limit > 0) ...[
-            _LimitsBar(
-              currentCount: state.limits!.currentCount,
-              limit: state.limits!.limit,
-            ),
-            const shad.Gap(16),
-          ],
+    return ResponsiveWrapper(
+      maxWidth: ResponsivePadding.maxContentWidth(context.deviceClass),
+      child: RefreshIndicator(
+        onRefresh: onRefresh,
+        color: theme.colorScheme.primary,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: EdgeInsets.fromLTRB(
+            ResponsivePadding.horizontal(context.deviceClass),
+            8,
+            ResponsivePadding.horizontal(context.deviceClass),
+            32,
+          ),
+          children: [
+            // Limits bar
+            if (state.limits != null && state.limits!.limit > 0) ...[
+              _LimitsBar(
+                currentCount: state.limits!.currentCount,
+                limit: state.limits!.limit,
+              ),
+              const shad.Gap(16),
+            ],
 
-          // Personal workspace section
-          if (personal.isNotEmpty) ...[
-            _SectionHeader(title: l10n.workspacePersonalSection),
-            const shad.Gap(8),
-            for (final w in personal) _buildTile(w),
-          ],
+            // Personal workspace section
+            if (personal.isNotEmpty) ...[
+              _SectionHeader(title: l10n.workspacePersonalSection),
+              const shad.Gap(8),
+              for (final w in personal) _buildTile(w),
+            ],
 
-          // Team workspaces section
-          if (team.isNotEmpty) ...[
-            if (personal.isNotEmpty) const shad.Gap(16),
-            _SectionHeader(title: l10n.workspaceTeamSection),
-            const shad.Gap(8),
-            for (final w in team) _buildTile(w),
+            // Team workspaces section
+            if (team.isNotEmpty) ...[
+              if (personal.isNotEmpty) const shad.Gap(16),
+              _SectionHeader(title: l10n.workspaceTeamSection),
+              const shad.Gap(8),
+              for (final w in team) _buildTile(w),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }

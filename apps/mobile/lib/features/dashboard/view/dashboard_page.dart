@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart' hide AppBar, Card, Scaffold;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mobile/core/responsive/responsive_padding.dart';
+import 'package:mobile/core/responsive/responsive_values.dart';
+import 'package:mobile/core/responsive/responsive_wrapper.dart';
 import 'package:mobile/features/apps/registry/app_registry.dart';
 import 'package:mobile/features/workspace/cubit/workspace_cubit.dart';
 import 'package:mobile/features/workspace/cubit/workspace_state.dart';
@@ -43,38 +46,48 @@ class DashboardPage extends StatelessWidget {
         ),
       ],
       child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                l10n.dashboardGreeting,
-                style: shad.Theme.of(context).typography.h3,
-              ),
-              const shad.Gap(24),
-              Text(
-                l10n.dashboardQuickActions,
-                style: shad.Theme.of(context).typography.textLarge,
-              ),
-              const shad.Gap(12),
-              Expanded(
-                child: GridView.count(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 12,
-                  crossAxisSpacing: 12,
-                  children: [
-                    for (final module in AppRegistry.pinnedModules(context))
-                      _QuickActionCard(
-                        key: ValueKey(module.id),
-                        icon: module.icon,
-                        label: module.label(l10n),
-                        onTap: () => context.go(module.route),
-                      ),
-                  ],
+        child: ResponsiveWrapper(
+          maxWidth: ResponsivePadding.maxContentWidth(context.deviceClass),
+          child: Padding(
+            padding: EdgeInsets.all(
+              ResponsivePadding.horizontal(context.deviceClass),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  l10n.dashboardGreeting,
+                  style: shad.Theme.of(context).typography.h3,
                 ),
-              ),
-            ],
+                const shad.Gap(24),
+                Text(
+                  l10n.dashboardQuickActions,
+                  style: shad.Theme.of(context).typography.textLarge,
+                ),
+                const shad.Gap(12),
+                Expanded(
+                  child: GridView.count(
+                    crossAxisCount: responsiveValue(
+                      context,
+                      compact: 2,
+                      medium: 3,
+                      expanded: 4,
+                    ),
+                    mainAxisSpacing: 12,
+                    crossAxisSpacing: 12,
+                    children: [
+                      for (final module in AppRegistry.pinnedModules(context))
+                        _QuickActionCard(
+                          key: ValueKey(module.id),
+                          icon: module.icon,
+                          label: module.label(l10n),
+                          onTap: () => context.go(module.route),
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

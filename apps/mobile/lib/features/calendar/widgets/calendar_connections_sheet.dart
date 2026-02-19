@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:mobile/core/responsive/adaptive_sheet.dart';
 import 'package:mobile/data/models/calendar_account.dart';
 import 'package:mobile/data/models/calendar_connection.dart';
 import 'package:mobile/features/calendar/cubit/calendar_connections_cubit.dart';
@@ -23,13 +24,8 @@ Future<void> showCalendarConnectionsSheet(
   BuildContext context, {
   required String wsId,
 }) async {
-  await showModalBottomSheet<void>(
+  await showAdaptiveSheet<void>(
     context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-    ),
     builder: (_) => BlocProvider(
       create: (_) {
         final cubit = CalendarConnectionsCubit();
@@ -529,8 +525,8 @@ class _LoadedBodyState extends State<_LoadedBody> {
       showDialog<void>(
         context: context,
         builder: (dialogContext) => Center(
-          child: SizedBox(
-            width: MediaQuery.of(context).size.width * 0.8,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400),
             child: shad.AlertDialog(
               barrierColor: Colors.transparent,
               title: Text(l10n.calendarConnectionsDisconnect),

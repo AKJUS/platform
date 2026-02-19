@@ -5,6 +5,7 @@ plugins {
     id("com.android.application")
     id("kotlin-android")
     id("dev.flutter.flutter-gradle-plugin")
+    id("com.google.gms.google-services")
 }
 
 val keystoreProperties = Properties()
@@ -45,7 +46,7 @@ android {
                 keyAlias = System.getenv("ANDROID_KEYSTORE_ALIAS")
                 keyPassword = System.getenv("ANDROID_KEYSTORE_PRIVATE_KEY_PASSWORD")
                 storePassword = System.getenv("ANDROID_KEYSTORE_PASSWORD")
-                
+
             } else {
                 keyAlias = keystoreProperties["keyAlias"] as String?
                 keyPassword = keystoreProperties["keyPassword"] as String?
@@ -101,6 +102,8 @@ flutter {
 }
 
 dependencies {
+    implementation(platform("com.google.firebase:firebase-bom:34.9.0"))
+    implementation("com.google.firebase:firebase-analytics")
     implementation("org.jetbrains.kotlin:kotlin-stdlib:2.2.10")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 }

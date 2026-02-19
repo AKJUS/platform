@@ -4,6 +4,9 @@ import 'package:flutter/material.dart' hide AppBar, Card, Scaffold, TextField;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:mobile/core/responsive/responsive_padding.dart';
+import 'package:mobile/core/responsive/responsive_values.dart';
+import 'package:mobile/core/responsive/responsive_wrapper.dart';
 import 'package:mobile/data/models/time_tracking/session.dart';
 import 'package:mobile/data/repositories/time_tracker_repository.dart';
 import 'package:mobile/features/workspace/cubit/workspace_cubit.dart';
@@ -161,88 +164,91 @@ class _TimeTrackerManagementPageState extends State<TimeTrackerManagementPage> {
           title: Text(l10n.timerManagementTitle),
         ),
       ],
-      child: Column(
-        children: [
-          // Search bar
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: shad.TextField(
-              controller: _searchCtrl,
-              hintText: l10n.timerSearchSessions,
-              onSubmitted: (_) => unawaited(_load()),
-              features: [
-                const shad.InputFeature.leading(
-                  Icon(shad.LucideIcons.search, size: 20),
-                ),
-                if (_searchCtrl.text.isNotEmpty)
-                  shad.InputFeature.trailing(
-                    shad.IconButton.ghost(
-                      onPressed: () {
-                        _searchCtrl.clear();
-                        unawaited(_load());
-                      },
-                      icon: const Icon(shad.LucideIcons.x, size: 16),
-                    ),
+      child: ResponsiveWrapper(
+        maxWidth: ResponsivePadding.maxContentWidth(context.deviceClass),
+        child: Column(
+          children: [
+            // Search bar
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: shad.TextField(
+                controller: _searchCtrl,
+                hintText: l10n.timerSearchSessions,
+                onSubmitted: (_) => unawaited(_load()),
+                features: [
+                  const shad.InputFeature.leading(
+                    Icon(shad.LucideIcons.search, size: 20),
                   ),
-              ],
+                  if (_searchCtrl.text.isNotEmpty)
+                    shad.InputFeature.trailing(
+                      shad.IconButton.ghost(
+                        onPressed: () {
+                          _searchCtrl.clear();
+                          unawaited(_load());
+                        },
+                        icon: const Icon(shad.LucideIcons.x, size: 16),
+                      ),
+                    ),
+                ],
+              ),
             ),
-          ),
-          // Stats overview
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              children: [
-                _OverviewCard(
-                  label: l10n.timerTotalSessions,
-                  value: '${_sessions.length}',
-                  icon: shad.LucideIcons.timer,
-                ),
-                const shad.Gap(8),
-                _OverviewCard(
-                  label: l10n.timerActiveUsers,
-                  value: '${_uniqueUsers()}',
-                  icon: shad.LucideIcons.users,
-                ),
-              ],
+            // Stats overview
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  _OverviewCard(
+                    label: l10n.timerTotalSessions,
+                    value: '${_sessions.length}',
+                    icon: shad.LucideIcons.timer,
+                  ),
+                  const shad.Gap(8),
+                  _OverviewCard(
+                    label: l10n.timerActiveUsers,
+                    value: '${_uniqueUsers()}',
+                    icon: shad.LucideIcons.users,
+                  ),
+                ],
+              ),
             ),
-          ),
-          const shad.Gap(8),
-          // Session list
-          Expanded(
-            child: _loading
-                ? const Center(child: shad.CircularProgressIndicator())
-                : _error != null
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          _error!,
-                          style: theme.typography.p.copyWith(
-                            color: theme.colorScheme.destructive,
+            const shad.Gap(8),
+            // Session list
+            Expanded(
+              child: _loading
+                  ? const Center(child: shad.CircularProgressIndicator())
+                  : _error != null
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _error!,
+                            style: theme.typography.p.copyWith(
+                              color: theme.colorScheme.destructive,
+                            ),
                           ),
-                        ),
-                        const shad.Gap(8),
-                        shad.SecondaryButton(
-                          onPressed: _load,
-                          child: Text(l10n.commonRetry),
-                        ),
-                      ],
+                          const shad.Gap(8),
+                          shad.SecondaryButton(
+                            onPressed: _load,
+                            child: Text(l10n.commonRetry),
+                          ),
+                        ],
+                      ),
+                    )
+                  : RefreshIndicator(
+                      onRefresh: _load,
+                      child: ListView.builder(
+                        itemCount: _sessions.length,
+                        padding: const EdgeInsets.only(bottom: 32),
+                        itemBuilder: (context, index) {
+                          final session = _sessions[index];
+                          return _ManagementSessionTile(session: session);
+                        },
+                      ),
                     ),
-                  )
-                : RefreshIndicator(
-                    onRefresh: _load,
-                    child: ListView.builder(
-                      itemCount: _sessions.length,
-                      padding: const EdgeInsets.only(bottom: 32),
-                      itemBuilder: (context, index) {
-                        final session = _sessions[index];
-                        return _ManagementSessionTile(session: session);
-                      },
-                    ),
-                  ),
-          ),
-        ],
+            ),
+          ],
+        ),
       ),
     );
   }

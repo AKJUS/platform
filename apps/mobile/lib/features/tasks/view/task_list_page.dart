@@ -3,6 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart' hide AppBar, Scaffold;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mobile/core/responsive/responsive_padding.dart';
+import 'package:mobile/core/responsive/responsive_values.dart';
+import 'package:mobile/core/responsive/responsive_wrapper.dart';
 import 'package:mobile/core/router/routes.dart';
 import 'package:mobile/data/models/user_task.dart';
 import 'package:mobile/data/repositories/task_repository.dart';
@@ -308,30 +311,33 @@ class _TaskSections extends StatelessWidget {
     final l10n = context.l10n;
     final theme = shad.Theme.of(context);
 
-    return RefreshIndicator(
-      onRefresh: () async => _reload(context),
-      child: ListView(
-        padding: const EdgeInsets.only(bottom: 32),
-        children: [
-          if (state.overdueTasks.isNotEmpty)
-            _TaskSection(
-              title: l10n.tasksOverdue,
-              titleColor: theme.colorScheme.destructive,
-              tasks: state.overdueTasks,
-            ),
-          if (state.todayTasks.isNotEmpty)
-            _TaskSection(
-              title: l10n.tasksDueToday,
-              titleColor: Colors.orange,
-              tasks: state.todayTasks,
-            ),
-          if (state.upcomingTasks.isNotEmpty)
-            _TaskSection(
-              title: l10n.tasksUpcoming,
-              titleColor: theme.colorScheme.primary,
-              tasks: state.upcomingTasks,
-            ),
-        ],
+    return ResponsiveWrapper(
+      maxWidth: ResponsivePadding.maxContentWidth(context.deviceClass),
+      child: RefreshIndicator(
+        onRefresh: () async => _reload(context),
+        child: ListView(
+          padding: const EdgeInsets.only(bottom: 32),
+          children: [
+            if (state.overdueTasks.isNotEmpty)
+              _TaskSection(
+                title: l10n.tasksOverdue,
+                titleColor: theme.colorScheme.destructive,
+                tasks: state.overdueTasks,
+              ),
+            if (state.todayTasks.isNotEmpty)
+              _TaskSection(
+                title: l10n.tasksDueToday,
+                titleColor: Colors.orange,
+                tasks: state.todayTasks,
+              ),
+            if (state.upcomingTasks.isNotEmpty)
+              _TaskSection(
+                title: l10n.tasksUpcoming,
+                titleColor: theme.colorScheme.primary,
+                tasks: state.upcomingTasks,
+              ),
+          ],
+        ),
       ),
     );
   }

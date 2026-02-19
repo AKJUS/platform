@@ -3,6 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart' hide AppBar, Scaffold;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mobile/core/responsive/adaptive_sheet.dart';
+import 'package:mobile/core/responsive/responsive_padding.dart';
+import 'package:mobile/core/responsive/responsive_values.dart';
+import 'package:mobile/core/responsive/responsive_wrapper.dart';
 import 'package:mobile/data/models/time_tracking/request.dart';
 import 'package:mobile/data/repositories/time_tracker_repository.dart';
 import 'package:mobile/data/repositories/workspace_permissions_repository.dart';
@@ -156,63 +160,66 @@ class _RequestsViewState extends State<_RequestsView> {
           ),
         ),
       ],
-      child: BlocBuilder<TimeTrackerRequestsCubit, TimeTrackerRequestsState>(
-        builder: (context, state) {
-          if (state.status == TimeTrackerRequestsStatus.loading) {
-            return const Center(child: shad.CircularProgressIndicator());
-          }
+      child: ResponsiveWrapper(
+        maxWidth: ResponsivePadding.maxContentWidth(context.deviceClass),
+        child: BlocBuilder<TimeTrackerRequestsCubit, TimeTrackerRequestsState>(
+          builder: (context, state) {
+            if (state.status == TimeTrackerRequestsStatus.loading) {
+              return const Center(child: shad.CircularProgressIndicator());
+            }
 
-          if (state.status == TimeTrackerRequestsStatus.error) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    shad.LucideIcons.circleAlert,
-                    size: 48,
-                    color: shad.Theme.of(context).colorScheme.destructive,
-                  ),
-                  const shad.Gap(16),
-                  Text(state.error ?? 'Error'),
-                  const shad.Gap(16),
-                  shad.SecondaryButton(
-                    onPressed: () => unawaited(
-                      context.read<TimeTrackerRequestsCubit>().loadRequests(
-                        wsId,
-                      ),
+            if (state.status == TimeTrackerRequestsStatus.error) {
+              return Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      shad.LucideIcons.circleAlert,
+                      size: 48,
+                      color: shad.Theme.of(context).colorScheme.destructive,
                     ),
-                    child: Text(l10n.commonRetry),
-                  ),
-                ],
+                    const shad.Gap(16),
+                    Text(state.error ?? 'Error'),
+                    const shad.Gap(16),
+                    shad.SecondaryButton(
+                      onPressed: () => unawaited(
+                        context.read<TimeTrackerRequestsCubit>().loadRequests(
+                          wsId,
+                        ),
+                      ),
+                      child: Text(l10n.commonRetry),
+                    ),
+                  ],
+                ),
+              );
+            }
+
+            if (state.requests.isEmpty) {
+              return Center(
+                child: Text(
+                  l10n.timerNoSessions,
+                  style: shad.Theme.of(context).typography.textMuted,
+                ),
+              );
+            }
+
+            return RefreshIndicator(
+              onRefresh: () =>
+                  context.read<TimeTrackerRequestsCubit>().loadRequests(wsId),
+              child: ListView.builder(
+                itemCount: state.requests.length,
+                padding: const EdgeInsets.only(bottom: 32),
+                itemBuilder: (context, index) {
+                  final request = state.requests[index];
+                  return _RequestTile(
+                    request: request,
+                    onTap: () => _showRequestDetail(context, request),
+                  );
+                },
               ),
             );
-          }
-
-          if (state.requests.isEmpty) {
-            return Center(
-              child: Text(
-                l10n.timerNoSessions,
-                style: shad.Theme.of(context).typography.textMuted,
-              ),
-            );
-          }
-
-          return RefreshIndicator(
-            onRefresh: () =>
-                context.read<TimeTrackerRequestsCubit>().loadRequests(wsId),
-            child: ListView.builder(
-              itemCount: state.requests.length,
-              padding: const EdgeInsets.only(bottom: 32),
-              itemBuilder: (context, index) {
-                final request = state.requests[index];
-                return _RequestTile(
-                  request: request,
-                  onTap: () => _showRequestDetail(context, request),
-                );
-              },
-            ),
-          );
-        },
+          },
+        ),
       ),
     );
   }
@@ -248,44 +255,41 @@ class _RequestsViewState extends State<_RequestsView> {
         context.read<WorkspaceCubit>().state.currentWorkspace?.id ?? '';
     final currentUserId = context.read<AuthCubit>().state.user?.id;
 
-    unawaited(
-      shad.openDrawer<void>(
-        context: context,
-        position: shad.OverlayPosition.bottom,
-        builder: (_) => RequestDetailSheet(
-          request: request,
-          wsId: wsId,
-          repository: repository,
-          currentUserId: currentUserId,
-          isManager: _canManageRequests,
-          onApprove: () => cubit.approveRequest(request.id, wsId),
-          onReject: (reason) =>
-              unawaited(cubit.rejectRequest(request.id, wsId, reason: reason)),
-          onRequestInfo: (reason) => unawaited(
-            cubit.requestMoreInfo(request.id, wsId, reason: reason),
-          ),
-          canEdit:
-              request.approvalStatus == ApprovalStatus.pending ||
-              request.approvalStatus == ApprovalStatus.needsInfo,
-          onEdit:
-              (
-                title,
-                startTime,
-                endTime, {
-                description,
-                removedImages,
-                newImagePaths,
-              }) => cubit.updateRequest(
-                wsId,
-                request.id,
-                title,
-                startTime,
-                endTime,
-                description: description,
-                removedImages: removedImages,
-                newImagePaths: newImagePaths,
-              ),
+    showAdaptiveDrawer(
+      context: context,
+      builder: (_) => RequestDetailSheet(
+        request: request,
+        wsId: wsId,
+        repository: repository,
+        currentUserId: currentUserId,
+        isManager: _canManageRequests,
+        onApprove: () => cubit.approveRequest(request.id, wsId),
+        onReject: (reason) =>
+            unawaited(cubit.rejectRequest(request.id, wsId, reason: reason)),
+        onRequestInfo: (reason) => unawaited(
+          cubit.requestMoreInfo(request.id, wsId, reason: reason),
         ),
+        canEdit:
+            request.approvalStatus == ApprovalStatus.pending ||
+            request.approvalStatus == ApprovalStatus.needsInfo,
+        onEdit:
+            (
+              title,
+              startTime,
+              endTime, {
+              description,
+              removedImages,
+              newImagePaths,
+            }) => cubit.updateRequest(
+              wsId,
+              request.id,
+              title,
+              startTime,
+              endTime,
+              description: description,
+              removedImages: removedImages,
+              newImagePaths: newImagePaths,
+            ),
       ),
     );
   }

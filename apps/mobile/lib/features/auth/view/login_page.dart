@@ -12,6 +12,8 @@ import 'package:flutter/material.dart'
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/config/env.dart';
+import 'package:mobile/core/responsive/responsive_padding.dart';
+import 'package:mobile/core/responsive/responsive_values.dart';
 import 'package:mobile/features/auth/cubit/auth_cubit.dart';
 import 'package:mobile/features/auth/cubit/auth_state.dart';
 import 'package:mobile/l10n/l10n.dart';
@@ -90,64 +92,74 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
 
+    final hPadding = ResponsivePadding.horizontal(context.deviceClass);
+    final maxFormW = ResponsivePadding.maxFormWidth(context.deviceClass);
+
     return shad.Scaffold(
       child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Column(
-            children: [
-              const shad.Gap(64),
-              Text(
-                l10n.loginTitle,
-                style: shad.Theme.of(context).typography.h2,
-              ),
-              const shad.Gap(8),
-              Text(
-                l10n.loginSubtitle,
-                style: shad.Theme.of(context).typography.textMuted,
-              ),
-              const shad.Gap(32),
-              shad.Tabs(
-                index: _index,
-                onChanged: (index) => setState(() => _index = index),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxFormW),
+            child: Padding(
+              padding: EdgeInsets.symmetric(horizontal: hPadding),
+              child: Column(
                 children: [
-                  shad.TabItem(child: Text(l10n.loginTabOtp)),
-                  shad.TabItem(child: Text(l10n.loginTabPassword)),
+                  const shad.Gap(64),
+                  Text(
+                    l10n.loginTitle,
+                    style: shad.Theme.of(context).typography.h2,
+                  ),
+                  const shad.Gap(8),
+                  Text(
+                    l10n.loginSubtitle,
+                    style: shad.Theme.of(context).typography.textMuted,
+                  ),
+                  const shad.Gap(32),
+                  shad.Tabs(
+                    index: _index,
+                    onChanged: (index) => setState(() => _index = index),
+                    children: [
+                      shad.TabItem(child: Text(l10n.loginTabOtp)),
+                      shad.TabItem(child: Text(l10n.loginTabPassword)),
+                    ],
+                  ),
+                  const shad.Gap(24),
+                  Expanded(
+                    child: IndexedStack(
+                      index: _index,
+                      children: [
+                        _buildOtpTab(),
+                        _buildPasswordTab(),
+                      ],
+                    ),
+                  ),
+                  // Error display
+                  BlocBuilder<AuthCubit, AuthState>(
+                    buildWhen: (prev, curr) => prev.error != curr.error,
+                    builder: (context, state) {
+                      if (state.error == null) return const SizedBox.shrink();
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: Text(
+                          state.error!,
+                          style: TextStyle(
+                            color: shad.Theme.of(
+                              context,
+                            ).colorScheme.destructive,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      );
+                    },
+                  ),
+                  shad.GhostButton(
+                    onPressed: () => context.push('/signup'),
+                    child: Text(l10n.loginSignUpPrompt),
+                  ),
+                  const shad.Gap(16),
                 ],
               ),
-              const shad.Gap(24),
-              Expanded(
-                child: IndexedStack(
-                  index: _index,
-                  children: [
-                    _buildOtpTab(),
-                    _buildPasswordTab(),
-                  ],
-                ),
-              ),
-              // Error display
-              BlocBuilder<AuthCubit, AuthState>(
-                buildWhen: (prev, curr) => prev.error != curr.error,
-                builder: (context, state) {
-                  if (state.error == null) return const SizedBox.shrink();
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    child: Text(
-                      state.error!,
-                      style: TextStyle(
-                        color: shad.Theme.of(context).colorScheme.destructive,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  );
-                },
-              ),
-              shad.GhostButton(
-                onPressed: () => context.push('/signup'),
-                child: Text(l10n.loginSignUpPrompt),
-              ),
-              const shad.Gap(16),
-            ],
+            ),
           ),
         ),
       ),

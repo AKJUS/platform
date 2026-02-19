@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:mobile/core/responsive/adaptive_sheet.dart';
 import 'package:mobile/data/models/calendar_event.dart';
 import 'package:mobile/features/calendar/utils/event_colors.dart';
 import 'package:mobile/l10n/l10n.dart';
 
-/// Shows a bottom sheet for creating or editing a calendar event.
+/// Shows a bottom sheet (compact) or dialog (medium+) for creating or editing
+/// a calendar event.
 ///
 /// Returns the event data as a [Map] if saved, or `null` if dismissed.
 Future<Map<String, dynamic>?> showEventFormSheet(
@@ -12,13 +14,8 @@ Future<Map<String, dynamic>?> showEventFormSheet(
   CalendarEvent? event,
   DateTime? initialStartTime,
 }) {
-  return showModalBottomSheet<Map<String, dynamic>>(
+  return showAdaptiveSheet<Map<String, dynamic>>(
     context: context,
-    isScrollControlled: true,
-    useSafeArea: true,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-    ),
     builder: (context) => _EventFormContent(
       event: event,
       initialStartTime: initialStartTime,

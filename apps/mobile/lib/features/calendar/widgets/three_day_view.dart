@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:mobile/core/responsive/responsive_values.dart';
 import 'package:mobile/data/models/calendar_event.dart';
 import 'package:mobile/features/calendar/utils/all_day_layout.dart';
 import 'package:mobile/features/calendar/utils/event_colors.dart';
@@ -39,9 +40,13 @@ class ThreeDayView extends StatefulWidget {
 
 class _ThreeDayViewState extends State<ThreeDayView> {
   final ScrollController _scrollController = ScrollController();
-  static const _hourHeight = 50.0;
-  static const _timeGutterWidth = 42.0;
   bool _didAutoScroll = false;
+
+  double _hourHeight(BuildContext context) =>
+      responsiveValue(context, compact: 50, medium: 56, expanded: 60);
+
+  double _timeGutterWidth(BuildContext context) =>
+      responsiveValue(context, compact: 42, medium: 48, expanded: 52);
 
   @override
   void initState() {
@@ -62,9 +67,10 @@ class _ThreeDayViewState extends State<ThreeDayView> {
     if (_didAutoScroll || !_scrollController.hasClients) return;
     _didAutoScroll = true;
 
+    final hourH = _hourHeight(context);
     final now = DateTime.now();
     final targetHour = _isToday ? (now.hour - 1).clamp(0, 20) : 8;
-    final offset = targetHour * _hourHeight;
+    final offset = targetHour * hourH;
 
     unawaited(
       _scrollController.animateTo(
@@ -121,6 +127,8 @@ class _ThreeDayViewState extends State<ThreeDayView> {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final dayFormat = DateFormat.E(); // e.g. "Mon"
+    final hourH = _hourHeight(context);
+    final gutterW = _timeGutterWidth(context);
 
     return GestureDetector(
       onHorizontalDragEnd: (details) {
@@ -146,7 +154,7 @@ class _ThreeDayViewState extends State<ThreeDayView> {
             child: Row(
               children: [
                 // Time gutter spacer.
-                const SizedBox(width: _timeGutterWidth),
+                SizedBox(width: gutterW),
                 // Day columns.
                 ...dates.map((date) {
                   final isToday = date == today;
@@ -209,7 +217,7 @@ class _ThreeDayViewState extends State<ThreeDayView> {
           _AllDayRow(
             dates: dates,
             events: widget.events,
-            timeGutterWidth: _timeGutterWidth,
+            timeGutterWidth: gutterW,
             onEventTap: widget.onEventTap,
           ),
           // Scrollable time grid.
@@ -217,18 +225,18 @@ class _ThreeDayViewState extends State<ThreeDayView> {
             child: SingleChildScrollView(
               controller: _scrollController,
               child: SizedBox(
-                height: 24 * _hourHeight,
+                height: 24 * hourH,
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Time gutter.
                     SizedBox(
-                      width: _timeGutterWidth,
-                      height: 24 * _hourHeight,
+                      width: gutterW,
+                      height: 24 * hourH,
                       child: Stack(
                         children: List.generate(24, (hour) {
                           return Positioned(
-                            top: hour * _hourHeight,
+                            top: hour * hourH,
                             left: 0,
                             right: 4,
                             child: Text(
@@ -255,7 +263,7 @@ class _ThreeDayViewState extends State<ThreeDayView> {
                         child: _DayColumn(
                           date: date,
                           layouts: layouts,
-                          hourHeight: _hourHeight,
+                          hourHeight: hourH,
                           isToday: dateIsToday,
                           onEventTap: widget.onEventTap,
                           onLongPress: widget.onCreateAtTime,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile/core/responsive/responsive_values.dart';
 import 'package:mobile/data/models/time_tracking/stats.dart';
 import 'package:mobile/l10n/l10n.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
@@ -38,6 +39,19 @@ class ActivityHeatmap extends StatelessWidget {
       (max, v) => v > max ? v : max,
     );
 
+    final double cellSize = responsiveValue(
+      context,
+      compact: 12,
+      medium: 14,
+      expanded: 16,
+    );
+    final double heatmapHeight = responsiveValue(
+      context,
+      compact: 110,
+      medium: 126,
+      expanded: 142,
+    );
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -49,7 +63,7 @@ class ActivityHeatmap extends StatelessWidget {
           ),
         ),
         SizedBox(
-          height: 110,
+          height: heatmapHeight,
           child: SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -78,8 +92,8 @@ class ActivityHeatmap extends StatelessWidget {
                       return Padding(
                         padding: const EdgeInsets.all(1),
                         child: Container(
-                          width: 12,
-                          height: 12,
+                          width: cellSize,
+                          height: cellSize,
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(2),
                             color: day.duration > 0
@@ -108,8 +122,14 @@ class ActivityHeatmap extends StatelessWidget {
 
 Widget _dayLabel(String text, BuildContext context) {
   final theme = shad.Theme.of(context);
+  final double labelHeight = responsiveValue(
+    context,
+    compact: 14,
+    medium: 16,
+    expanded: 18,
+  );
   return SizedBox(
-    height: 14,
+    height: labelHeight,
     child: text.isNotEmpty
         ? Text(
             text,

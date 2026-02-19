@@ -1,18 +1,19 @@
 import 'package:flutter/material.dart' hide Chip, CircleAvatar, Divider;
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:mobile/core/responsive/adaptive_sheet.dart';
 import 'package:mobile/data/sources/api_client.dart';
 import 'package:mobile/features/workspace/cubit/workspace_cubit.dart';
 import 'package:mobile/features/workspace/cubit/workspace_state.dart';
 import 'package:mobile/l10n/l10n.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
-/// Shows a bottom sheet dialog for creating a new workspace.
+/// Shows a bottom drawer (compact) or dialog (medium+) for creating a new
+/// workspace.
 Future<void> showCreateWorkspaceDialog(BuildContext context) async {
   final workspaceCubit = context.read<WorkspaceCubit>();
 
-  await shad.openDrawer<void>(
+  showAdaptiveDrawer(
     context: context,
-    position: shad.OverlayPosition.bottom,
     builder: (context) {
       return BlocProvider<WorkspaceCubit>.value(
         value: workspaceCubit,

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:mobile/core/responsive/responsive_padding.dart';
+import 'package:mobile/core/responsive/responsive_values.dart';
 import 'package:mobile/data/models/time_tracking/stats.dart';
 import 'package:mobile/l10n/l10n.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
@@ -13,7 +15,9 @@ class StatsCards extends StatelessWidget {
     final l10n = context.l10n;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: EdgeInsets.symmetric(
+        horizontal: ResponsivePadding.horizontal(context.deviceClass),
+      ),
       child: Row(
         children: [
           _StatCard(
