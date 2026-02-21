@@ -43,7 +43,7 @@
     "cookies-next": "^6.1.1",
     "date-fns": "^4.1.0",
     "dayjs": "^1.11.19",
-    "framer-motion": "^12.34.2",
+    "framer-motion": "^12.34.3",
     "nanoid": "^5.1.6",
     "negotiator": "^1.0.0",
     "next": "^16.1.6",
@@ -52,7 +52,7 @@
     "qrcode.react": "^4.2.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "react-hook-form": "^7.71.1",
+    "react-hook-form": "^7.71.2",
     "use-debounce": "^10.1.0",
     "uuid": "^13.0.0",
     "zod": "^4.3.6"
