@@ -1,13 +1,9 @@
 import 'package:flutter/material.dart' hide AppBar, Card, Scaffold;
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/responsive/responsive_padding.dart';
 import 'package:mobile/core/responsive/responsive_values.dart';
 import 'package:mobile/core/responsive/responsive_wrapper.dart';
 import 'package:mobile/features/apps/registry/app_registry.dart';
-import 'package:mobile/features/workspace/cubit/workspace_cubit.dart';
-import 'package:mobile/features/workspace/cubit/workspace_state.dart';
-import 'package:mobile/features/workspace/widgets/workspace_picker_sheet.dart';
 import 'package:mobile/l10n/l10n.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
@@ -19,32 +15,6 @@ class DashboardPage extends StatelessWidget {
     final l10n = context.l10n;
 
     return shad.Scaffold(
-      headers: [
-        shad.AppBar(
-          title: BlocBuilder<WorkspaceCubit, WorkspaceState>(
-            buildWhen: (prev, curr) =>
-                prev.currentWorkspace != curr.currentWorkspace,
-            builder: (context, state) {
-              return shad.GhostButton(
-                onPressed: () => showWorkspacePickerSheet(context),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Flexible(
-                      child: Text(
-                        state.currentWorkspace?.name ?? l10n.appTitle,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const shad.Gap(4),
-                    const Icon(Icons.arrow_drop_down, size: 20),
-                  ],
-                ),
-              );
-            },
-          ),
-        ),
-      ],
       child: SafeArea(
         child: ResponsiveWrapper(
           maxWidth: ResponsivePadding.maxContentWidth(context.deviceClass),

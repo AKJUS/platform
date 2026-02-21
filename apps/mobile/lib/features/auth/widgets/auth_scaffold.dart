@@ -1,0 +1,107 @@
+import 'package:flutter/material.dart';
+import 'package:mobile/core/responsive/responsive_padding.dart';
+import 'package:mobile/core/responsive/responsive_values.dart';
+import 'package:mobile/l10n/l10n.dart';
+import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
+
+class AuthScaffold extends StatelessWidget {
+  const AuthScaffold({
+    required this.child,
+    this.title,
+    this.showBackButton = false,
+    this.onBack,
+    super.key,
+  });
+
+  final Widget child;
+  final String? title;
+  final bool showBackButton;
+  final VoidCallback? onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final theme = shad.Theme.of(context);
+    final deviceClass = context.deviceClass;
+    final hPadding = ResponsivePadding.horizontal(deviceClass);
+    final maxFormW = ResponsivePadding.maxFormWidth(deviceClass);
+
+    return shad.Scaffold(
+      child: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxFormW),
+            child: SingleChildScrollView(
+              padding: EdgeInsets.symmetric(horizontal: hPadding, vertical: 24),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (showBackButton)
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: Padding(
+                        padding: const EdgeInsets.only(bottom: 24),
+                        child: shad.GhostButton(
+                          onPressed:
+                              onBack ?? () => Navigator.of(context).pop(),
+                          child: const Icon(Icons.arrow_back),
+                        ),
+                      ),
+                    ),
+
+                  // Brand Header
+                  Column(
+                    children: [
+                      // Animated Logo Placeholder (or simplified text logo)
+                      ShaderMask(
+                        shaderCallback: (bounds) => const LinearGradient(
+                          colors: [
+                            Colors.blue,
+                            Colors.purple,
+                            Colors.amber,
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ).createShader(bounds),
+                        child: Text(
+                          l10n.appTitle,
+                          style: theme.typography.h1.copyWith(
+                            fontSize: 48,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white, // Required for ShaderMask
+                          ),
+                        ),
+                      ),
+                      const shad.Gap(8),
+                      Text(
+                        l10n.authTagline,
+                        style: theme.typography.lead.copyWith(
+                          color: theme.colorScheme.mutedForeground,
+                          fontSize: 18,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ],
+                  ),
+
+                  const shad.Gap(48),
+
+                  if (title != null) ...[
+                    Text(
+                      title!,
+                      style: theme.typography.h2,
+                      textAlign: TextAlign.center,
+                    ),
+                    const shad.Gap(24),
+                  ],
+
+                  child,
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

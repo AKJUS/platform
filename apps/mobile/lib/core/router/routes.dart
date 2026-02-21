@@ -5,6 +5,7 @@ abstract final class Routes {
   static const signUp = '/signup';
   static const forgotPassword = '/forgot-password';
   static const mfaVerify = '/mfa-verify';
+  static const onboarding = '/onboarding';
 
   // Workspace
   static const workspaceSelect = '/workspace-select';

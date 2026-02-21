@@ -24,6 +24,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get loginSubtitle => 'Sign in to continue';
 
   @override
+  String get authTagline => 'Your AI productivity companion';
+
+  @override
   String get loginTabOtp => 'OTP';
 
   @override
@@ -42,6 +45,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get loginSignIn => 'Sign in';
+
+  @override
+  String get authLogOut => 'Log out';
 
   @override
   String get loginForgotPassword => 'Forgot password?';
@@ -861,4 +867,25 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get commonNext => 'Next';
+
+  @override
+  String get onboardingSlide1Title => 'Meet Mira';
+
+  @override
+  String get onboardingSlide1Subtitle => 'Your AI companion for work and life. Mira connects your tasks, calendar, and finances.';
+
+  @override
+  String get onboardingSlide2Title => 'Everything in One App';
+
+  @override
+  String get onboardingSlide2Subtitle => 'Tasks, Calendar, and Track - all unified. No more switching between apps.';
+
+  @override
+  String get onboardingSlide3Title => 'Intelligence That Grows';
+
+  @override
+  String get onboardingSlide3Subtitle => 'Mira remembers your preferences and gets smarter the more you use her.';
+
+  @override
+  String get onboardingGetStarted => 'Get Started';
 }

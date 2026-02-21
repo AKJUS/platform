@@ -10,6 +10,7 @@ class SettingsRepository {
   static const _localeKey = 'locale';
   static const _lastTabRouteKey = 'last-tab-route';
   static const _lastAppRouteKey = 'last-app-route';
+  static const _hasSeenOnboardingKey = 'has_seen_onboarding';
 
   Future<String> getThemeMode() async {
     final prefs = await SharedPreferences.getInstance();
@@ -87,5 +88,10 @@ class SettingsRepository {
     } else {
       await prefs.setString(_localeKey, locale);
     }
+  }
+
+  Future<bool> hasSeenOnboarding() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_hasSeenOnboardingKey) ?? false;
   }
 }

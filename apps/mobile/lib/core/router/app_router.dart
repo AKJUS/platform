@@ -14,6 +14,7 @@ import 'package:mobile/features/auth/view/mfa_verify_page.dart';
 import 'package:mobile/features/auth/view/signup_page.dart';
 import 'package:mobile/features/dashboard/view/dashboard_page.dart';
 import 'package:mobile/features/finance/view/transaction_list_page.dart';
+import 'package:mobile/features/onboarding/view/onboarding_page.dart';
 import 'package:mobile/features/profile/view/profile_page.dart';
 import 'package:mobile/features/settings/view/settings_page.dart';
 import 'package:mobile/features/shell/view/shell_page.dart';
@@ -32,6 +33,7 @@ GoRouter createAppRouter(
   WorkspaceCubit workspaceCubit,
   AppTabCubit appTabCubit, {
   String? initialLocation,
+  bool hasSeenOnboarding = false,
 }) {
   return GoRouter(
     debugLogDiagnostics: true,
@@ -65,9 +67,15 @@ GoRouter createAppRouter(
         return isAuthRoute ? null : Routes.login;
       }
 
-      // Not authenticated → redirect to login
+      // Not authenticated → redirect to login or onboarding
       if (authState.status == AuthStatus.unauthenticated && !isAuthRoute) {
-        return Routes.login;
+        if (!hasSeenOnboarding && state.matchedLocation != Routes.onboarding) {
+          return Routes.onboarding;
+        }
+        if (hasSeenOnboarding && state.matchedLocation != Routes.login) {
+          return Routes.login;
+        }
+        return null;
       }
 
       // MFA required → redirect to MFA verify page
@@ -129,6 +137,10 @@ GoRouter createAppRouter(
       GoRoute(
         path: Routes.mfaVerify,
         builder: (context, state) => const MfaVerifyPage(),
+      ),
+      GoRoute(
+        path: Routes.onboarding,
+        builder: (context, state) => const OnboardingPage(),
       ),
 
       // ── Workspace selection ──────────────────────

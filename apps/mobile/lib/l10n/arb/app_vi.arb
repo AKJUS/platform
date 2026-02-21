@@ -8,6 +8,7 @@
 
     "loginTitle": "Chào mừng trở lại",
     "loginSubtitle": "Đăng nhập để tiếp tục",
+    "authTagline": "Người bạn đồng hành AI cho công việc",
     "loginTabOtp": "OTP",
     "loginTabPassword": "Mật khẩu",
     "loginSendOtp": "Gửi OTP",
@@ -21,6 +22,7 @@
         }
     },
     "loginSignIn": "Đăng nhập",
+    "authLogOut": "Đăng xuất",
     "loginForgotPassword": "Quên mật khẩu?",
     "loginSignUpPrompt": "Chưa có tài khoản? Đăng ký",
     "emailLabel": "Email",
@@ -345,5 +347,13 @@
 
     "commonRetry": "Thử lại",
     "commonPrevious": "Trước",
-    "commonNext": "Tiếp"
+    "commonNext": "Tiếp",
+
+    "onboardingSlide1Title": "Gặp gỡ Mira",
+    "onboardingSlide1Subtitle": "Người bạn đồng hành AI cho công việc và cuộc sống. Mira kết nối công việc, lịch và tài chính của bạn.",
+    "onboardingSlide2Title": "Tất cả trong một ứng dụng",
+    "onboardingSlide2Subtitle": "Công việc, Lịch và Theo dõi - tất cả đều được thống nhất. Không còn phải chuyển đổi giữa các ứng dụng.",
+    "onboardingSlide3Title": "Trí tuệ phát triển cùng bạn",
+    "onboardingSlide3Subtitle": "Mira ghi nhớ sở thích của bạn và trở nên thông minh hơn khi bạn sử dụng nhiều hơn.",
+    "onboardingGetStarted": "Bắt đầu ngay"
 }

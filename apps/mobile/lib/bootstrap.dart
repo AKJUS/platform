@@ -23,7 +23,11 @@ class AppBlocObserver extends BlocObserver {
 }
 
 Future<void> bootstrap(
-  FutureOr<Widget> Function({String? initialRoute}) builder,
+  FutureOr<Widget> Function({
+    String? initialRoute,
+    bool? hasSeenOnboarding,
+  })
+  builder,
 ) async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -42,6 +46,12 @@ Future<void> bootstrap(
 
   // Pre-load the user's last tab route so the router starts there directly.
   final initialRoute = await SettingsRepository().getLastTabRoute();
+  final hasSeenOnboarding = await SettingsRepository().hasSeenOnboarding();
 
-  runApp(await builder(initialRoute: initialRoute));
+  runApp(
+    await builder(
+      initialRoute: initialRoute,
+      hasSeenOnboarding: hasSeenOnboarding,
+    ),
+  );
 }

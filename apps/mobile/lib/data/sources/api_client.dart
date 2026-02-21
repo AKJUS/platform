@@ -266,8 +266,21 @@ class ApiClient {
     }
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
+      final errorMessage =
+          parsed?['error'] as String? ??
+          parsed?['message'] as String? ??
+          'Request failed';
+      // Log the full response for debugging
+      final truncatedBody = response.body.length > 500
+          ? response.body.substring(0, 500)
+          : response.body;
+      // ignore: avoid_print, debug logging for API errors
+      print(
+        '[ApiClient] HTTP ${response.statusCode} '
+        '| $errorMessage | body: $truncatedBody',
+      );
       throw ApiException(
-        message: parsed?['error'] as String? ?? 'Request failed',
+        message: errorMessage,
         statusCode: response.statusCode,
         retryAfter: parsed?['retryAfter'] as int?,
       );

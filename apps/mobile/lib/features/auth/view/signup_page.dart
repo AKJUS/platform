@@ -1,13 +1,11 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart'
     hide AppBar, FilledButton, Scaffold, TextButton, TextField;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:mobile/core/responsive/responsive_padding.dart';
-import 'package:mobile/core/responsive/responsive_values.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'package:mobile/features/auth/cubit/auth_cubit.dart';
 import 'package:mobile/features/auth/cubit/auth_state.dart';
+import 'package:mobile/features/auth/widgets/auth_scaffold.dart';
 import 'package:mobile/l10n/l10n.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
@@ -23,201 +21,32 @@ class _SignUpPageState extends State<SignUpPage> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _formKey = const shad.FormKey<String>(#signUpForm);
-  final _formController = shad.FormController();
   bool _signUpSuccess = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-
-    if (_signUpSuccess) {
-      return shad.Scaffold(
-        headers: [
-          shad.AppBar(
-            leading: [
-              shad.OutlineButton(
-                density: shad.ButtonDensity.icon,
-                onPressed: () => context.go('/login'),
-                child: const Icon(Icons.arrow_back),
-              ),
-            ],
-          ),
-        ],
-        child: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(
-                  Icons.mark_email_read_outlined,
-                  size: 64,
-                  color: shad.Theme.of(context).colorScheme.primary,
-                ),
-                const shad.Gap(16),
-                Text(
-                  l10n.signUpSuccessTitle,
-                  style: shad.Theme.of(context).typography.h3,
-                  textAlign: TextAlign.center,
-                ),
-                const shad.Gap(8),
-                Text(
-                  l10n.signUpSuccessMessage,
-                  style: shad.Theme.of(context).typography.p,
-                  textAlign: TextAlign.center,
-                ),
-                const shad.Gap(24),
-                shad.PrimaryButton(
-                  onPressed: () => context.go('/login'),
-                  child: Text(l10n.signUpBackToLogin),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
-
-    return shad.Scaffold(
-      headers: [
-        shad.AppBar(
-          leading: [
-            shad.OutlineButton(
-              density: shad.ButtonDensity.icon,
-              onPressed: () => context.pop(),
-              child: const Icon(Icons.arrow_back),
-            ),
-          ],
-          title: Text(l10n.signUpTitle),
-        ),
-      ],
-      child: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              maxWidth: ResponsivePadding.maxFormWidth(context.deviceClass),
-            ),
-            child: Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: ResponsivePadding.horizontal(context.deviceClass),
-              ),
-              child: BlocBuilder<AuthCubit, AuthState>(
-                buildWhen: (prev, curr) =>
-                    prev.isLoading != curr.isLoading ||
-                    prev.error != curr.error,
-                builder: (context, state) {
-                  return shad.Form(
-                    key: _formKey,
-                    controller: _formController,
-                    child: ListView(
-                      children: [
-                        const shad.Gap(32),
-                        shad.FormField(
-                          key: const shad.FormKey<String>(#signUpEmail),
-                          label: Text(l10n.emailLabel),
-                          child: shad.TextField(
-                            controller: _emailController,
-                            hintText: l10n.emailLabel,
-                            keyboardType: TextInputType.emailAddress,
-                            textInputAction: TextInputAction.next,
-                          ),
-                        ),
-                        const shad.Gap(16),
-                        shad.FormField(
-                          key: const shad.FormKey<String>(#signUpPassword),
-                          label: Text(l10n.passwordLabel),
-                          validator: shad.ValidatorBuilder<String>(
-                            (value) => _asValidationResult(
-                              _validatePassword(value ?? ''),
-                            ),
-                          ),
-                          child: shad.TextField(
-                            controller: _passwordController,
-                            hintText: l10n.passwordLabel,
-                            obscureText: true,
-                            textInputAction: TextInputAction.next,
-                          ),
-                        ),
-                        const shad.Gap(16),
-                        shad.FormField(
-                          key: const shad.FormKey<String>(
-                            #signUpConfirmPassword,
-                          ),
-                          label: Text(l10n.signUpConfirmPassword),
-                          validator: shad.ValidatorBuilder<String>(
-                            (value) {
-                              final confirmValue = value ?? '';
-                              if (confirmValue != _passwordController.text) {
-                                return shad.InvalidResult(
-                                  context.l10n.signUpPasswordMismatch,
-                                  state: shad.FormValidationMode.submitted,
-                                );
-                              }
-                              return null;
-                            },
-                            dependencies: [
-                              const shad.FormKey<String>(#signUpPassword),
-                            ],
-                          ),
-                          child: shad.TextField(
-                            controller: _confirmPasswordController,
-                            hintText: l10n.signUpConfirmPassword,
-                            obscureText: true,
-                            textInputAction: TextInputAction.done,
-                            onSubmitted: (_) => _handleSignUp(),
-                          ),
-                        ),
-                        if (state.error != null) ...[
-                          const shad.Gap(16),
-                          Text(
-                            state.error!,
-                            style: TextStyle(
-                              color: shad.Theme.of(
-                                context,
-                              ).colorScheme.destructive,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                        ],
-                        const shad.Gap(24),
-                        shad.PrimaryButton(
-                          onPressed: state.isLoading ? null : _handleSignUp,
-                          child: state.isLoading
-                              ? const shad.CircularProgressIndicator(size: 20)
-                              : Text(l10n.signUpButton),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
-    _formController.dispose();
     super.dispose();
   }
 
   Future<void> _handleSignUp() async {
-    _formController.revalidate(
-      context,
-      shad.FormValidationMode.submitted,
-    );
-    if (_formController.errors.isNotEmpty) return;
-
+    // Basic validation
     final email = _emailController.text.trim();
     final password = _passwordController.text;
+    final confirm = _confirmPasswordController.text;
 
-    if (email.isEmpty) return;
+    if (email.isEmpty || password.isEmpty) return;
+    if (password != confirm) {
+      shad.showToast(
+        context: context,
+        builder: (context, overlay) => shad.Alert.destructive(
+          title: Text(context.l10n.signUpPasswordMismatch),
+        ),
+      );
+      return;
+    }
 
     final success = await context.read<AuthCubit>().signUp(email, password);
     if (success && mounted) {
@@ -225,25 +54,222 @@ class _SignUpPageState extends State<SignUpPage> {
     }
   }
 
-  String? _validatePassword(String password) {
-    if (password.length < 8) return context.l10n.signUpPasswordMinLength;
-    if (!password.contains(RegExp('[A-Z]'))) {
-      return context.l10n.signUpPasswordUppercase;
-    }
-    if (!password.contains(RegExp('[a-z]'))) {
-      return context.l10n.signUpPasswordLowercase;
-    }
-    if (!password.contains(RegExp('[0-9]'))) {
-      return context.l10n.signUpPasswordNumber;
-    }
-    return null;
-  }
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final theme = shad.Theme.of(context);
 
-  shad.ValidationResult? _asValidationResult(String? message) {
-    if (message == null) return null;
-    return shad.InvalidResult(
-      message,
-      state: shad.FormValidationMode.submitted,
+    if (_signUpSuccess) {
+      return AuthScaffold(
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: theme.colorScheme.primary.withValues(alpha: 0.1),
+              ),
+              child: Icon(
+                LucideIcons.mailCheck,
+                size: 48,
+                color: theme.colorScheme.primary,
+              ),
+            ),
+            const shad.Gap(24),
+            Text(
+              l10n.signUpSuccessTitle,
+              style: theme.typography.h3,
+              textAlign: TextAlign.center,
+            ),
+            const shad.Gap(8),
+            Text(
+              l10n.signUpSuccessMessage,
+              style: theme.typography.lead.copyWith(
+                color: theme.colorScheme.mutedForeground,
+                fontSize: 16,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const shad.Gap(32),
+            SizedBox(
+              width: double.infinity,
+              child: shad.PrimaryButton(
+                onPressed: () => context.go('/login'),
+                child: Text(l10n.signUpBackToLogin),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return AuthScaffold(
+      showBackButton: true,
+      title: l10n.signUpTitle,
+      child: BlocBuilder<AuthCubit, AuthState>(
+        buildWhen: (prev, curr) =>
+            prev.isLoading != curr.isLoading || prev.error != curr.error,
+        builder: (context, state) {
+          return shad.Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                shad.FormField(
+                  key: const shad.FormKey<String>(#signUpEmail),
+                  label: Text(l10n.emailLabel),
+                  child: shad.TextField(
+                    controller: _emailController,
+                    placeholder: Text(l10n.emailLabel),
+                    keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.next,
+                  ),
+                ),
+                const shad.Gap(16),
+                shad.FormField(
+                  key: const shad.FormKey<String>(#signUpPassword),
+                  label: Text(l10n.passwordLabel),
+                  child: Column(
+                    children: [
+                      shad.TextField(
+                        controller: _passwordController,
+                        placeholder: Text(l10n.passwordLabel),
+                        obscureText: true,
+                        textInputAction: TextInputAction.next,
+                        onChanged: (_) => setState(() {}),
+                      ),
+                      const shad.Gap(8),
+                      _PasswordStrengthIndicator(
+                        password: _passwordController.text,
+                      ),
+                    ],
+                  ),
+                ),
+                const shad.Gap(16),
+                shad.FormField(
+                  key: const shad.FormKey<String>(#signUpConfirmPassword),
+                  label: Text(l10n.signUpConfirmPassword),
+                  child: shad.TextField(
+                    controller: _confirmPasswordController,
+                    placeholder: Text(l10n.signUpConfirmPassword),
+                    obscureText: true,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _handleSignUp(),
+                  ),
+                ),
+                if (state.error != null) ...[
+                  const shad.Gap(16),
+                  Text(
+                    state.error!,
+                    style: theme.typography.small.copyWith(
+                      color: theme.colorScheme.destructive,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+                const shad.Gap(24),
+                SizedBox(
+                  width: double.infinity,
+                  child: shad.PrimaryButton(
+                    onPressed: state.isLoading ? null : _handleSignUp,
+                    child: state.isLoading
+                        ? const shad.CircularProgressIndicator(size: 16)
+                        : Text(l10n.signUpButton),
+                  ),
+                ),
+                const shad.Gap(16),
+                Center(
+                  child: GestureDetector(
+                    onTap: () => context.go('/login'),
+                    child: RichText(
+                      text: TextSpan(
+                        style: theme.typography.p,
+                        children: [
+                          TextSpan(
+                            text: 'Already have an account? ',
+                            style: theme.typography.textMuted,
+                          ),
+                          TextSpan(
+                            text: 'Sign in',
+                            style: TextStyle(
+                              color: theme.colorScheme.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _PasswordStrengthIndicator extends StatelessWidget {
+  const _PasswordStrengthIndicator({required this.password});
+
+  final String password;
+
+  @override
+  Widget build(BuildContext context) {
+    if (password.isEmpty) return const SizedBox.shrink();
+
+    var strength = 0;
+    if (password.length >= 8) strength++;
+    if (password.contains(RegExp('[A-Z]'))) strength++;
+    if (password.contains(RegExp('[0-9]'))) strength++;
+    if (password.contains(RegExp(r'[!@#\$%^&*(),.?":{}|<>]'))) strength++;
+
+    final color = switch (strength) {
+      0 || 1 => Colors.red,
+      2 => Colors.orange,
+      3 => Colors.yellow,
+      4 => Colors.green,
+      _ => Colors.grey,
+    };
+
+    final label = switch (strength) {
+      0 || 1 => 'Weak',
+      2 => 'Fair',
+      3 => 'Good',
+      4 => 'Strong',
+      _ => '',
+    };
+
+    return Row(
+      children: [
+        Expanded(
+          child: Row(
+            children: List.generate(4, (index) {
+              return Expanded(
+                child: Container(
+                  height: 4,
+                  margin: const EdgeInsets.symmetric(horizontal: 2),
+                  decoration: BoxDecoration(
+                    color: index < strength
+                        ? color
+                        : shad.Theme.of(context).colorScheme.muted,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              );
+            }),
+          ),
+        ),
+        const shad.Gap(8),
+        Text(
+          label,
+          style: shad.Theme.of(context).typography.small.copyWith(
+            color: color,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ],
     );
   }
 }

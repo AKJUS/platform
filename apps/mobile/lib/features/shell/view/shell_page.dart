@@ -10,6 +10,10 @@ import 'package:mobile/core/router/routes.dart';
 import 'package:mobile/features/apps/cubit/app_tab_cubit.dart';
 import 'package:mobile/features/apps/cubit/app_tab_state.dart';
 import 'package:mobile/features/apps/registry/app_registry.dart';
+import 'package:mobile/features/shell/view/avatar_dropdown.dart';
+import 'package:mobile/features/workspace/cubit/workspace_cubit.dart';
+import 'package:mobile/features/workspace/cubit/workspace_state.dart';
+import 'package:mobile/features/workspace/widgets/workspace_picker_sheet.dart';
 import 'package:mobile/l10n/l10n.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
@@ -31,7 +35,6 @@ class ShellPage extends StatefulWidget {
 class _ShellPageState extends State<ShellPage> {
   static const ValueKey<String> _homeKey = ValueKey('home');
   static const ValueKey<String> _appsKey = ValueKey('apps');
-  static const ValueKey<String> _profileKey = ValueKey('profile');
 
   final Stopwatch _tapStopwatch = Stopwatch();
   int? _lastTabIndex;
@@ -67,21 +70,25 @@ class _ShellPageState extends State<ShellPage> {
   /// Compact: bottom NavigationBar inside Scaffold footers.
   Widget _buildCompactLayout(BuildContext context, AppTabState state) {
     final l10n = context.l10n;
-    final selectedIndex = _calculateSelectedIndex(context);
     final items = _buildNavItems(context, state, l10n);
 
     return shad.Scaffold(
+      headers: [
+        _buildAppBar(context, l10n),
+      ],
       footers: [
-        Listener(
-          behavior: HitTestBehavior.translucent,
-          onPointerDown: _startLongPressTimer,
-          onPointerUp: _stopLongPressTimer,
-          onPointerCancel: _stopLongPressTimer,
-          child: shad.NavigationBar(
-            selectedKey: _keyForIndex(selectedIndex),
-            onSelected: (key) =>
-                _onItemTapped(_indexForKey(key), context, state),
-            children: items,
+        SafeArea(
+          top: false,
+          child: Listener(
+            behavior: HitTestBehavior.translucent,
+            onPointerDown: _startLongPressTimer,
+            onPointerUp: _stopLongPressTimer,
+            onPointerCancel: _stopLongPressTimer,
+            child: shad.NavigationBar(
+              onSelected: (key) =>
+                  _onItemTapped(_indexForKey(key), context, state),
+              children: items,
+            ),
           ),
         ),
       ],
@@ -120,12 +127,46 @@ class _ShellPageState extends State<ShellPage> {
     }
 
     return shad.Scaffold(
+      headers: [
+        _buildAppBar(context, l10n),
+      ],
       child: Row(
         children: [
           sideNav,
           Expanded(child: widget.child),
         ],
       ),
+    );
+  }
+
+  shad.AppBar _buildAppBar(BuildContext context, AppLocalizations l10n) {
+    return shad.AppBar(
+      title: BlocBuilder<WorkspaceCubit, WorkspaceState>(
+        buildWhen: (prev, curr) =>
+            prev.currentWorkspace != curr.currentWorkspace,
+        builder: (context, state) {
+          return shad.GhostButton(
+            onPressed: () => showWorkspacePickerSheet(context),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    state.currentWorkspace?.name ?? l10n.appTitle,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const shad.Gap(4),
+                const Icon(Icons.arrow_drop_down, size: 20),
+              ],
+            ),
+          );
+        },
+      ),
+      trailing: const [
+        // Avatar dropdown
+        AvatarDropdown(),
+      ],
     );
   }
 
@@ -172,16 +213,6 @@ class _ShellPageState extends State<ShellPage> {
         ),
         child: Icon(appsIcon),
       ),
-      shad.NavigationItem(
-        key: _profileKey,
-        label: Text(
-          l10n.settingsProfile,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: labelStyle,
-        ),
-        child: const Icon(Icons.person_outline),
-      ),
     ];
   }
 
@@ -222,7 +253,6 @@ class _ShellPageState extends State<ShellPage> {
         : null;
     final route = switch (index) {
       1 => appRoute ?? Routes.apps,
-      2 => Routes.profileRoot,
       _ => Routes.home,
     };
     if (context.mounted) context.go(route);
@@ -249,13 +279,11 @@ class _ShellPageState extends State<ShellPage> {
 
   Key _keyForIndex(int index) => switch (index) {
     1 => _appsTabKey,
-    2 => _profileKey,
     _ => _homeKey,
   };
 
   static int _indexForKey(Key? key) {
     if (key == _appsKey || key is GlobalKey) return 1;
-    if (key == _profileKey) return 2;
     return 0;
   }
 
@@ -263,8 +291,6 @@ class _ShellPageState extends State<ShellPage> {
     final location = GoRouterState.of(context).matchedLocation;
 
     if (location.startsWith(Routes.apps)) return 1;
-    if (location.startsWith(Routes.profileRoot)) return 2;
-    if (location.startsWith(Routes.settings)) return 2;
     if (AppRegistry.moduleFromLocation(location) != null) return 1;
     return 0; // home
   }

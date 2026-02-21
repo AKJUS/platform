@@ -121,6 +121,12 @@ abstract class AppLocalizations {
   /// **'Sign in to continue'**
   String get loginSubtitle;
 
+  /// No description provided for @authTagline.
+  ///
+  /// In en, this message translates to:
+  /// **'Your AI productivity companion'**
+  String get authTagline;
+
   /// No description provided for @loginTabOtp.
   ///
   /// In en, this message translates to:
@@ -156,6 +162,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Sign in'**
   String get loginSignIn;
+
+  /// No description provided for @authLogOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Log out'**
+  String get authLogOut;
 
   /// No description provided for @loginForgotPassword.
   ///
@@ -1770,6 +1782,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Next'**
   String get commonNext;
+
+  /// No description provided for @onboardingSlide1Title.
+  ///
+  /// In en, this message translates to:
+  /// **'Meet Mira'**
+  String get onboardingSlide1Title;
+
+  /// No description provided for @onboardingSlide1Subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Your AI companion for work and life. Mira connects your tasks, calendar, and finances.'**
+  String get onboardingSlide1Subtitle;
+
+  /// No description provided for @onboardingSlide2Title.
+  ///
+  /// In en, this message translates to:
+  /// **'Everything in One App'**
+  String get onboardingSlide2Title;
+
+  /// No description provided for @onboardingSlide2Subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tasks, Calendar, and Track - all unified. No more switching between apps.'**
+  String get onboardingSlide2Subtitle;
+
+  /// No description provided for @onboardingSlide3Title.
+  ///
+  /// In en, this message translates to:
+  /// **'Intelligence That Grows'**
+  String get onboardingSlide3Title;
+
+  /// No description provided for @onboardingSlide3Subtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Mira remembers your preferences and gets smarter the more you use her.'**
+  String get onboardingSlide3Subtitle;
+
+  /// No description provided for @onboardingGetStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Get Started'**
+  String get onboardingGetStarted;
 }
 
 class _AppLocalizationsDelegate extends LocalizationsDelegate<AppLocalizations> {

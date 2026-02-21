@@ -8,6 +8,7 @@
 
     "loginTitle": "Welcome back",
     "loginSubtitle": "Sign in to continue",
+    "authTagline": "Your AI productivity companion",
     "loginTabOtp": "OTP",
     "loginTabPassword": "Password",
     "loginSendOtp": "Send OTP",
@@ -21,6 +22,7 @@
         }
     },
     "loginSignIn": "Sign in",
+    "authLogOut": "Log out",
     "loginForgotPassword": "Forgot password?",
     "loginSignUpPrompt": "Don't have an account? Sign up",
     "emailLabel": "Email",
@@ -345,5 +347,13 @@
 
     "commonRetry": "Retry",
     "commonPrevious": "Previous",
-    "commonNext": "Next"
+    "commonNext": "Next",
+
+    "onboardingSlide1Title": "Meet Mira",
+    "onboardingSlide1Subtitle": "Your AI companion for work and life. Mira connects your tasks, calendar, and finances.",
+    "onboardingSlide2Title": "Everything in One App",
+    "onboardingSlide2Subtitle": "Tasks, Calendar, and Track - all unified. No more switching between apps.",
+    "onboardingSlide3Title": "Intelligence That Grows",
+    "onboardingSlide3Subtitle": "Mira remembers your preferences and gets smarter the more you use her.",
+    "onboardingGetStarted": "Get Started"
 }

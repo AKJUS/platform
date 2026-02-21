@@ -24,6 +24,9 @@ class AppLocalizationsVi extends AppLocalizations {
   String get loginSubtitle => 'Đăng nhập để tiếp tục';
 
   @override
+  String get authTagline => 'Người bạn đồng hành AI cho công việc';
+
+  @override
   String get loginTabOtp => 'OTP';
 
   @override
@@ -42,6 +45,9 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get loginSignIn => 'Đăng nhập';
+
+  @override
+  String get authLogOut => 'Đăng xuất';
 
   @override
   String get loginForgotPassword => 'Quên mật khẩu?';
@@ -861,4 +867,25 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get commonNext => 'Tiếp';
+
+  @override
+  String get onboardingSlide1Title => 'Gặp gỡ Mira';
+
+  @override
+  String get onboardingSlide1Subtitle => 'Người bạn đồng hành AI cho công việc và cuộc sống. Mira kết nối công việc, lịch và tài chính của bạn.';
+
+  @override
+  String get onboardingSlide2Title => 'Tất cả trong một ứng dụng';
+
+  @override
+  String get onboardingSlide2Subtitle => 'Công việc, Lịch và Theo dõi - tất cả đều được thống nhất. Không còn phải chuyển đổi giữa các ứng dụng.';
+
+  @override
+  String get onboardingSlide3Title => 'Trí tuệ phát triển cùng bạn';
+
+  @override
+  String get onboardingSlide3Subtitle => 'Mira ghi nhớ sở thích của bạn và trở nên thông minh hơn khi bạn sử dụng nhiều hơn.';
+
+  @override
+  String get onboardingGetStarted => 'Bắt đầu ngay';
 }

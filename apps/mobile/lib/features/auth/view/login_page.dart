@@ -171,13 +171,14 @@ class _LoginPageState extends State<LoginPage> {
       buildWhen: (prev, curr) => prev.isLoading != curr.isLoading,
       builder: (context, state) {
         return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             shad.FormField(
               key: const shad.FormKey<String>(#loginEmail),
               label: Text(context.l10n.emailLabel),
               child: shad.TextField(
                 controller: _emailController,
-                hintText: context.l10n.emailLabel,
+                placeholder: Text(context.l10n.emailLabel),
                 keyboardType: TextInputType.emailAddress,
                 textInputAction: TextInputAction.done,
                 onSubmitted: (_) => _handleSendOtp(),
@@ -252,13 +253,14 @@ class _LoginPageState extends State<LoginPage> {
       buildWhen: (prev, curr) => prev.isLoading != curr.isLoading,
       builder: (context, state) {
         return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             shad.FormField(
               key: const shad.FormKey<String>(#loginEmailPassword),
               label: Text(context.l10n.emailLabel),
               child: shad.TextField(
                 controller: _emailController,
-                hintText: context.l10n.emailLabel,
+                placeholder: Text(context.l10n.emailLabel),
                 keyboardType: TextInputType.emailAddress,
                 textInputAction: TextInputAction.next,
               ),
@@ -269,7 +271,7 @@ class _LoginPageState extends State<LoginPage> {
               label: Text(context.l10n.passwordLabel),
               child: shad.TextField(
                 controller: _passwordController,
-                hintText: context.l10n.passwordLabel,
+                placeholder: Text(context.l10n.passwordLabel),
                 obscureText: true,
                 textInputAction: TextInputAction.done,
                 onSubmitted: (_) => _handlePasswordLogin(),

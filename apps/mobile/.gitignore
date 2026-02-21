@@ -124,3 +124,8 @@ app.*.map.json
 # Generated l10n files — tracked in this project so CI/tests
 # work without requiring `flutter gen-l10n` as a build step.
 # lib/l10n/gen/
+
+# firebase
+firebase.json
+firepit-log.txt
+GoogleService-Info.plist

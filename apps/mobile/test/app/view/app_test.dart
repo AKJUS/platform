@@ -4,7 +4,7 @@ import 'package:mobile/app/app.dart';
 void main() {
   group('App', () {
     test('can be instantiated', () {
-      expect(App.new, returnsNormally);
+      expect(() => const App(hasSeenOnboarding: false), returnsNormally);
     });
   });
 }
