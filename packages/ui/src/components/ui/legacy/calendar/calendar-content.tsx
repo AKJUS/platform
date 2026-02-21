@@ -617,11 +617,11 @@ export const CalendarContent = ({
 
       <div
         className={cn(
-          'scrollbar-none relative flex-1 overflow-auto focus:outline-none',
+          'scrollbar-none relative flex-1 overflow-auto rounded-lg focus:outline-none',
           view === 'agenda' ||
             view === 'month' ||
             view === 'year' ||
-            'bg-background/50'
+            'rounded-t-none bg-background/50'
         )}
         onWheel={(e) => {
           // Ensure scroll events are always captured

@@ -568,21 +568,18 @@ export default function CalendarConnectionsUnified({ wsId }: { wsId: string }) {
     >
   );
 
-  // Note: Removed early return - we always show the full UI now so Tuturuuu calendars are visible
-
   return (
     <div className="flex items-center gap-2">
       {/* Quick calendar visibility toggle */}
       <Popover>
         <PopoverTrigger asChild>
-          <Button variant="outline" size="sm" className="gap-2">
-            <Calendar className="h-4 w-4" />
-            <span className="hidden sm:inline">{t('calendars')}</span>
+          <Button variant="outline" size="xs" className="gap-1">
             {enabledCount > 0 && (
-              <Badge variant="secondary" className="ml-1">
+              <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-0.5 font-medium text-[10px] text-background">
                 {enabledCount}
-              </Badge>
+              </span>
             )}
+            <Calendar className="h-3.5 w-3.5" />
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-80" align="end">

@@ -65,6 +65,7 @@ import { Separator } from '@tuturuuu/ui/separator';
 import { toast } from '@tuturuuu/ui/sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@tuturuuu/ui/tabs';
 import { Textarea } from '@tuturuuu/ui/textarea';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@tuturuuu/ui/tooltip';
 import { cn } from '@tuturuuu/utils/format';
 import { usePlatform } from '@tuturuuu/utils/hooks/use-platform';
 import { useCallback, useEffect, useState } from 'react';
@@ -817,36 +818,31 @@ export default function TimeTracker({ wsId, tasks = [] }: TimeTrackerProps) {
   return (
     <>
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogTrigger asChild>
-          <Button
-            variant={isRunning ? 'destructive' : 'outline'}
-            size="sm"
-            className={cn('gap-2', 'relative w-full')}
-          >
-            {isRunning && (
-              <div className="absolute inset-0 animate-pulse bg-linear-to-r from-red-600/20 to-transparent" />
-            )}
-            <div className="relative flex items-center gap-2">
-              {isRunning ? (
-                <>
-                  <Square className="h-3 w-3 animate-pulse" />
-                  <span className="@[100px]:inline hidden font-mono">
-                    {formatTime(elapsedTime)}
-                  </span>
-                  <span className="@[100px]:hidden font-mono">
-                    {Math.floor(elapsedTime / 60)}m
-                  </span>
-                </>
-              ) : (
-                <>
-                  <Timer className="h-3 w-3" />
-                  <span className="@[100px]:inline hidden">Time Tracker</span>
-                  <span className="@[100px]:hidden">Timer</span>
-                </>
-              )}
-            </div>
-          </Button>
-        </DialogTrigger>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <DialogTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                className={cn(
+                  'h-8 w-8',
+                  isRunning
+                    ? 'border-dynamic-red/50 bg-dynamic-red/10 text-dynamic-red hover:bg-dynamic-red/20'
+                    : 'border-transparent bg-transparent text-muted-foreground hover:bg-accent/80 hover:text-foreground'
+                )}
+              >
+                {isRunning ? (
+                  <Square className="h-3.5 w-3.5" />
+                ) : (
+                  <Timer className="h-4 w-4" />
+                )}
+              </Button>
+            </DialogTrigger>
+          </TooltipTrigger>
+          <TooltipContent>
+            {isRunning ? formatTime(elapsedTime) : 'Time Tracker'}
+          </TooltipContent>
+        </Tooltip>
 
         <DialogContent className="@container max-h-[95vh] max-w-7xl overflow-y-auto">
           <DialogHeader>

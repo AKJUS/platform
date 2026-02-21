@@ -1,26 +1,14 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  Calendar,
-  Clock,
-  Flame,
-  Pencil,
-  Plus,
-  RefreshCw,
-  Repeat,
-} from '@tuturuuu/icons';
+import { Flame, Pencil, RefreshCw, Repeat } from '@tuturuuu/icons';
 import type { Habit, HabitStreak } from '@tuturuuu/types/primitives/Habit';
 import { getRecurrenceDescription } from '@tuturuuu/types/primitives/Habit';
-import { Badge } from '@tuturuuu/ui/badge';
 import { Button } from '@tuturuuu/ui/button';
-import { Card, CardContent } from '@tuturuuu/ui/card';
-import { ScrollArea } from '@tuturuuu/ui/scroll-area';
 import { Skeleton } from '@tuturuuu/ui/skeleton';
 import { toast } from '@tuturuuu/ui/sonner';
 import { Switch } from '@tuturuuu/ui/switch';
 import { cn } from '@tuturuuu/utils/format';
-import Link from 'next/link';
 import { useState } from 'react';
 import HabitFormDialog from '../../tasks/habits/habit-form-dialog';
 
@@ -42,13 +30,6 @@ const colorMap: Record<string, string> = {
   PINK: 'bg-dynamic-pink',
   CYAN: 'bg-dynamic-cyan',
   ORANGE: 'bg-dynamic-orange',
-};
-
-const priorityColors: Record<string, string> = {
-  critical: 'text-dynamic-red',
-  high: 'text-dynamic-orange',
-  normal: 'text-dynamic-blue',
-  low: 'text-muted-foreground',
 };
 
 export function HabitsPanel({ wsId }: HabitsPanelProps) {
@@ -152,9 +133,9 @@ export function HabitsPanel({ wsId }: HabitsPanelProps) {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col gap-3 p-4">
+      <div className="flex flex-col gap-1.5">
         {[1, 2, 3].map((i) => (
-          <Skeleton key={i} className="h-24 w-full rounded-lg" />
+          <Skeleton key={i} className="h-14 w-full rounded-md" />
         ))}
       </div>
     );
@@ -162,10 +143,12 @@ export function HabitsPanel({ wsId }: HabitsPanelProps) {
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center gap-3 p-8 text-center">
-        <p className="text-muted-foreground text-sm">Failed to load habits</p>
-        <Button variant="outline" size="sm" onClick={() => refetch()}>
-          <RefreshCw className="mr-2 h-4 w-4" />
+      <div className="flex flex-col items-center justify-center gap-2 py-4 text-center">
+        <p className="text-muted-foreground/60 text-xs">
+          Failed to load habits
+        </p>
+        <Button variant="ghost" size="sm" onClick={() => refetch()}>
+          <RefreshCw className="mr-1.5 h-3 w-3" />
           Retry
         </Button>
       </div>
@@ -174,148 +157,72 @@ export function HabitsPanel({ wsId }: HabitsPanelProps) {
 
   if (habits.length === 0) {
     return (
-      <>
-        <div className="flex flex-col items-center justify-center gap-3 p-8 text-center">
-          <Repeat className="h-12 w-12 text-muted-foreground" />
-          <div>
-            <h4 className="font-medium">No active habits</h4>
-            <p className="text-muted-foreground text-sm">
-              Create habits to track recurring activities
-            </p>
-          </div>
-          <Button size="sm" onClick={() => setIsHabitDialogOpen(true)}>
-            <Plus className="mr-1 h-4 w-4" />
-            Create Habit
-          </Button>
-        </div>
-        <HabitFormDialog
-          open={isHabitDialogOpen}
-          onOpenChange={handleDialogClose}
-          wsId={wsId}
-          habit={editingHabit ?? undefined}
-          onSuccess={() => {
-            setIsHabitDialogOpen(false);
-            setEditingHabit(null);
-            refetch();
-          }}
-        />
-      </>
+      <div className="flex flex-col items-center justify-center gap-1 py-4 text-center">
+        <Repeat className="h-5 w-5 text-muted-foreground/40" />
+        <p className="text-[11px] text-muted-foreground/50">No active habits</p>
+      </div>
     );
   }
 
   return (
-    <div className="flex h-full flex-col">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b p-3">
-        <div className="flex items-center gap-2">
-          <Repeat className="h-4 w-4" />
-          <span className="font-medium text-sm">
-            {habits.length} active habit{habits.length !== 1 ? 's' : ''}
-          </span>
-        </div>
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => setIsHabitDialogOpen(true)}
-            title="Create new habit"
+    <div className="flex flex-col gap-1">
+      {habits.map((habit) => {
+        const colorClass = colorMap[habit.color] || colorMap.BLUE;
+        const isVisible = habit.is_visible_in_calendar ?? true;
+
+        return (
+          <div
+            key={habit.id}
+            className={cn(
+              'group/habit rounded-md border border-border/40 bg-background/50 p-2 transition-colors hover:border-border/60 hover:bg-background/80',
+              !isVisible && 'opacity-50'
+            )}
           >
-            <Plus className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => refetch()}
-          >
-            <RefreshCw className="h-4 w-4" />
-          </Button>
-        </div>
-      </div>
-
-      {/* Habits List */}
-      <ScrollArea className="flex-1">
-        <div className="flex flex-col gap-2 p-3">
-          {habits.map((habit) => {
-            const colorClass = colorMap[habit.color] || colorMap.BLUE;
-            const isVisible = habit.is_visible_in_calendar ?? true;
-
-            return (
-              <Card
-                key={habit.id}
-                className={cn(
-                  'relative overflow-hidden transition-all',
-                  !isVisible && 'opacity-60'
-                )}
-              >
-                <div
-                  className={cn('absolute top-0 left-0 h-full w-1', colorClass)}
-                />
-                <CardContent className="p-3 pl-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <h4 className="truncate font-medium">{habit.name}</h4>
-                      <p className="flex items-center gap-1 text-muted-foreground text-xs">
-                        <Calendar className="h-3 w-3" />
-                        {getRecurrenceDescription(habit)}
-                      </p>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7"
-                        onClick={() => handleEditHabit(habit)}
-                        title="Edit habit"
-                      >
-                        <Pencil className="h-3.5 w-3.5" />
-                      </Button>
-                      <Switch
-                        checked={isVisible}
-                        onCheckedChange={() =>
-                          toggleVisibility(habit.id, isVisible)
-                        }
-                      />
-                    </div>
-                  </div>
-
-                  {/* Badges */}
-                  <div className="mt-2 flex flex-wrap gap-1">
-                    <Badge variant="secondary" className="gap-1 text-xs">
-                      <Clock className="h-3 w-3" />
-                      {habit.duration_minutes}m
-                    </Badge>
-                    <Badge
-                      variant="outline"
-                      className={cn('text-xs', priorityColors[habit.priority])}
-                    >
-                      {habit.priority}
-                    </Badge>
-                    {habit.streak && habit.streak.current_streak > 0 && (
-                      <Badge variant="secondary" className="gap-1 text-xs">
-                        <Flame className="h-3 w-3 text-dynamic-orange" />
+            <div className="flex items-center gap-2">
+              {/* Color dot */}
+              <div
+                className={cn('h-2 w-2 shrink-0 rounded-full', colorClass)}
+              />
+              {/* Name + recurrence */}
+              <div className="min-w-0 flex-1">
+                <div className="truncate font-medium text-xs">{habit.name}</div>
+                <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground/60">
+                  <span>{getRecurrenceDescription(habit)}</span>
+                  <span>·</span>
+                  <span>{habit.duration_minutes}m</span>
+                  {habit.streak && habit.streak.current_streak > 0 && (
+                    <>
+                      <span>·</span>
+                      <span className="flex items-center gap-0.5 text-dynamic-orange">
+                        <Flame className="h-2.5 w-2.5" />
                         {habit.streak.current_streak}
-                      </Badge>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      </ScrollArea>
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+              {/* Actions */}
+              <div className="flex shrink-0 items-center gap-0.5">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 opacity-0 transition-opacity group-hover/habit:opacity-100"
+                  onClick={() => handleEditHabit(habit)}
+                >
+                  <Pencil className="h-3 w-3" />
+                </Button>
+                <Switch
+                  checked={isVisible}
+                  onCheckedChange={() => toggleVisibility(habit.id, isVisible)}
+                  className="scale-75"
+                />
+              </div>
+            </div>
+          </div>
+        );
+      })}
 
-      {/* Footer */}
-      <div className="border-t p-3">
-        <Link href={`/${wsId}/tasks/habits`}>
-          <Button variant="outline" size="sm" className="w-full">
-            Manage Habits
-          </Button>
-        </Link>
-      </div>
-
-      {/* Habit Creation/Edit Dialog */}
+      {/* Habit Edit Dialog */}
       <HabitFormDialog
         open={isHabitDialogOpen}
         onOpenChange={handleDialogClose}

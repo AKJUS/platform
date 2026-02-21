@@ -1,25 +1,34 @@
 'use client';
 
 import {
-  CalendarClock,
+  CheckSquare,
   LayoutDashboard,
   PanelLeftClose,
   PanelRightClose,
+  Plus,
   Repeat,
 } from '@tuturuuu/icons';
 import { Button } from '@tuturuuu/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@tuturuuu/ui/dropdown-menu';
 import { ScrollArea } from '@tuturuuu/ui/scroll-area';
-import { cn } from '@tuturuuu/utils/format';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@tuturuuu/ui/tooltip';
+import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
+import HabitFormDialog from '../../../tasks/habits/habit-form-dialog';
 import type { ExtendedWorkspaceTask } from '../../../time-tracker/types';
+import { useE2EE } from '../../hooks/use-e2ee';
+import CalendarConnectionsUnified from '../calendar-connections-unified';
+import { E2EEStatusBadge } from '../e2ee-status-badge';
 import { HabitsPanel } from '../habits-panel';
 import PriorityView from '../priority-view';
-import { TaskSchedulerPanel } from '../task-scheduler-panel';
-import TimeTracker from '../time-tracker';
+import { QuickTaskDialog } from '../quick-task-dialog';
 
 const SIDEBAR_COLLAPSED_KEY = 'calendar-sidebar-collapsed';
-
-type SidebarTab = 'tasks' | 'habits' | 'schedule';
 
 interface CalendarSidebarProps {
   wsId: string;
@@ -31,32 +40,6 @@ interface CalendarSidebarProps {
   isPersonalWorkspace?: boolean;
 }
 
-const SIDEBAR_TABS: Array<{
-  id: SidebarTab;
-  label: string;
-  shortLabel: string;
-  icon: typeof LayoutDashboard;
-}> = [
-  {
-    id: 'tasks',
-    label: 'Tasks',
-    shortLabel: 'T',
-    icon: LayoutDashboard,
-  },
-  {
-    id: 'habits',
-    label: 'Habits',
-    shortLabel: 'H',
-    icon: Repeat,
-  },
-  {
-    id: 'schedule',
-    label: 'Schedule',
-    shortLabel: 'S',
-    icon: CalendarClock,
-  },
-];
-
 export function CalendarSidebar({
   wsId,
   assigneeId,
@@ -64,82 +47,109 @@ export function CalendarSidebar({
   onEventCreated,
   isPersonalWorkspace = false,
 }: CalendarSidebarProps) {
-  // Load collapsed state from localStorage, default to true (collapsed)
+  const t = useTranslations('calendar');
+  const e2ee = useE2EE(wsId);
+
   const [isCollapsed, setIsCollapsed] = useState(() => {
     if (typeof window === 'undefined') return true;
     const saved = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
     return saved === null ? true : saved === 'true';
   });
-  const [activeTab, setActiveTab] = useState<SidebarTab>('tasks');
 
-  // Persist collapsed state to localStorage
+  const [quickTaskOpen, setQuickTaskOpen] = useState(false);
+  const [habitFormOpen, setHabitFormOpen] = useState(false);
+
   useEffect(() => {
     localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(isCollapsed));
   }, [isCollapsed]);
 
-  // Collapsed state - show only expand button
   if (isCollapsed) {
     return (
-      <div className="ml-2 hidden h-full flex-col items-center rounded-lg border border-border bg-background/60 p-2 shadow-lg backdrop-blur-md transition-all duration-300 ease-in-out hover:bg-background/70 xl:flex">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setIsCollapsed(false)}
-          aria-label="Expand sidebar"
-          className="group relative overflow-hidden rounded-lg transition-all duration-200 hover:scale-105 hover:bg-accent/60"
-        >
-          <PanelLeftClose className="h-5 w-5 text-foreground transition-colors duration-200" />
-        </Button>
+      <div className="-mt-4 -mr-4 -mb-8 ml-4 hidden h-screen flex-none flex-col items-center border-l bg-background/50 p-2 pt-3 xl:flex">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsCollapsed(false)}
+              aria-label="Expand sidebar"
+            >
+              <PanelLeftClose className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="left">Expand sidebar</TooltipContent>
+        </Tooltip>
       </div>
     );
   }
 
   return (
-    <div className="@container ml-2 hidden h-full w-80 shrink-0 flex-col rounded-lg border border-border bg-background/60 shadow-xl backdrop-blur-md xl:flex">
-      {/* Header with TimeTracker and Collapse Button */}
-      <div className="flex flex-row items-center justify-between border-border/50 border-b bg-background/80 p-3 backdrop-blur-sm">
-        <div className="transition-all duration-300 hover:scale-105">
-          <TimeTracker wsId={wsId} tasks={tasks} />
+    <div className="-mt-4 -mr-4 ml-4 hidden h-screen w-80 flex-none flex-col border-l bg-background/50 xl:flex">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-1 px-3 pt-3 pb-2">
+        <div className="flex items-center gap-1">
+          <E2EEStatusBadge
+            status={e2ee.status}
+            isLoading={e2ee.isLoading}
+            isVerifying={e2ee.isVerifying}
+            isFixing={e2ee.isFixing}
+            isMigrating={e2ee.isMigrating}
+            isEnabling={e2ee.isEnabling}
+            fixProgress={e2ee.fixProgress}
+            hasUnencryptedEvents={e2ee.hasUnencryptedEvents ?? false}
+            onVerify={e2ee.verify}
+            onMigrate={e2ee.migrate}
+            onEnable={e2ee.enable}
+          />
+          {/*<TimeTracker wsId={wsId} tasks={tasks} />*/}
+          <CalendarConnectionsUnified wsId={wsId} />
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setIsCollapsed(true)}
-          aria-label="Collapse sidebar"
-          className="group relative overflow-hidden rounded-lg transition-all duration-200 hover:scale-105 hover:bg-accent/60"
-        >
-          <PanelRightClose className="h-5 w-5 text-foreground transition-colors duration-200" />
-        </Button>
+        <div className="flex items-center gap-0.5">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" aria-label={t('new')}>
+                <Plus className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem onClick={() => setQuickTaskOpen(true)}>
+                <CheckSquare className="mr-2 h-4 w-4 text-dynamic-blue" />
+                {t('new-task')}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setHabitFormOpen(true)}>
+                <Repeat className="mr-2 h-4 w-4 text-dynamic-green" />
+                {t('new-habit')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setIsCollapsed(true)}
+            aria-label="Collapse sidebar"
+          >
+            <PanelRightClose className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
-      {/* Tab Navigation */}
-      <div className="border-border/50 border-b bg-muted/10 p-2">
-        <div className="flex flex-row gap-1">
-          {SIDEBAR_TABS.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={cn(
-                'flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-transparent px-2 py-2 text-sm transition-all duration-200',
-                activeTab === tab.id
-                  ? 'border-border/50 bg-background font-medium shadow-md'
-                  : 'text-muted-foreground hover:border-border/50 hover:bg-accent/60 hover:text-foreground'
-              )}
-            >
-              <tab.icon className="h-4 w-4" />
-              <span className="@[200px]:inline hidden">{tab.label}</span>
-              <span className="@[200px]:hidden">{tab.shortLabel}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Tab Content */}
+      {/* Scrollable Content */}
       <div className="min-h-0 flex-1 overflow-hidden">
-        {activeTab === 'tasks' && (
-          <ScrollArea className="h-full">
-            <div className="fade-in-50 animate-in p-2 duration-300">
+        <ScrollArea className="h-full">
+          <div className="p-2 pt-1">
+            {/* Tasks Section */}
+            <div className="mb-1">
+              <div className="mb-1.5 flex items-center gap-1.5 px-1">
+                <LayoutDashboard className="h-3 w-3 text-muted-foreground/70" />
+                <span className="font-medium text-[11px] text-muted-foreground/70 uppercase tracking-wider">
+                  Tasks
+                </span>
+                {tasks.length > 0 && (
+                  <span className="rounded-full bg-foreground/8 px-1.5 py-px font-medium text-[10px] text-foreground/50">
+                    {tasks.length}
+                  </span>
+                )}
+              </div>
               <PriorityView
                 wsId={wsId}
                 allTasks={tasks}
@@ -147,26 +157,42 @@ export function CalendarSidebar({
                 isPersonalWorkspace={isPersonalWorkspace}
               />
             </div>
-          </ScrollArea>
-        )}
 
-        {activeTab === 'habits' && (
-          <div className="fade-in-50 h-full animate-in overflow-hidden duration-300">
-            <HabitsPanel wsId={wsId} onEventCreated={onEventCreated} />
-          </div>
-        )}
+            {/* Section Divider */}
+            <div className="my-2 h-px bg-border/40" />
 
-        {activeTab === 'schedule' && (
-          <div className="fade-in-50 h-full animate-in overflow-hidden duration-300">
-            <TaskSchedulerPanel
-              wsId={wsId}
-              userId={assigneeId}
-              onEventCreated={onEventCreated}
-              isPersonalWorkspace={isPersonalWorkspace}
-            />
+            {/* Habits Section */}
+            <div>
+              <div className="mb-1.5 flex items-center gap-1.5 px-1">
+                <Repeat className="h-3 w-3 text-muted-foreground/70" />
+                <span className="font-medium text-[11px] text-muted-foreground/70 uppercase tracking-wider">
+                  Habits
+                </span>
+              </div>
+              <HabitsPanel wsId={wsId} onEventCreated={onEventCreated} />
+            </div>
           </div>
-        )}
+        </ScrollArea>
       </div>
+
+      {/* Dialogs */}
+      <QuickTaskDialog
+        wsId={wsId}
+        open={quickTaskOpen}
+        onOpenChange={setQuickTaskOpen}
+        userId={assigneeId}
+        isPersonalWorkspace={isPersonalWorkspace}
+      />
+
+      <HabitFormDialog
+        wsId={wsId}
+        open={habitFormOpen}
+        onOpenChange={setHabitFormOpen}
+        onSuccess={() => {
+          setHabitFormOpen(false);
+          onEventCreated?.();
+        }}
+      />
     </div>
   );
 }

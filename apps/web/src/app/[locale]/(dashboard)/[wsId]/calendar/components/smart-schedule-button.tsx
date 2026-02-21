@@ -71,14 +71,9 @@ export function SmartScheduleButton({ wsId }: SmartScheduleButtonProps) {
 
       <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
         <DropdownMenuTrigger asChild>
-          <Button
-            disabled={previewOpen}
-            variant="default"
-            size="sm"
-            className="gap-1.5"
-          >
+          <Button disabled={previewOpen} variant="secondary" size="xs">
             <Sparkles className="h-4 w-4" />
-            <span className="hidden sm:inline">Smart Schedule</span>
+            <span className="hidden sm:inline">Schedule</span>
             <ChevronDown className="h-3 w-3 opacity-60" />
           </Button>
         </DropdownMenuTrigger>

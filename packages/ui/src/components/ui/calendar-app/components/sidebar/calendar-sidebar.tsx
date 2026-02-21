@@ -1,25 +1,21 @@
 'use client';
 
 import {
-  CalendarClock,
   LayoutDashboard,
   PanelLeftClose,
   PanelRightClose,
   Repeat,
 } from '@tuturuuu/icons';
-import { cn } from '@tuturuuu/utils/format';
 import { useEffect, useState } from 'react';
 import { Button } from '../../../button';
 import { ScrollArea } from '../../../scroll-area';
 import type { ExtendedWorkspaceTask } from '../../../time-tracker/types';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../../../tooltip';
 import { HabitsPanel } from '../habits-panel';
 import PriorityView from '../priority-view';
-import { TaskSchedulerPanel } from '../task-scheduler-panel';
 import TimeTracker from '../time-tracker';
 
 const SIDEBAR_COLLAPSED_KEY = 'calendar-sidebar-collapsed';
-
-type SidebarTab = 'tasks' | 'habits' | 'schedule';
 
 interface CalendarSidebarProps {
   wsId: string;
@@ -31,32 +27,6 @@ interface CalendarSidebarProps {
   isPersonalWorkspace?: boolean;
 }
 
-const SIDEBAR_TABS: Array<{
-  id: SidebarTab;
-  label: string;
-  shortLabel: string;
-  icon: typeof LayoutDashboard;
-}> = [
-  {
-    id: 'tasks',
-    label: 'Tasks',
-    shortLabel: 'T',
-    icon: LayoutDashboard,
-  },
-  {
-    id: 'habits',
-    label: 'Habits',
-    shortLabel: 'H',
-    icon: Repeat,
-  },
-  {
-    id: 'schedule',
-    label: 'Schedule',
-    shortLabel: 'S',
-    icon: CalendarClock,
-  },
-];
-
 export function CalendarSidebar({
   wsId,
   assigneeId,
@@ -64,108 +34,94 @@ export function CalendarSidebar({
   onEventCreated,
   isPersonalWorkspace = false,
 }: CalendarSidebarProps) {
-  // Load collapsed state from localStorage, default to true (collapsed)
   const [isCollapsed, setIsCollapsed] = useState(() => {
     if (typeof window === 'undefined') return true;
     const saved = localStorage.getItem(SIDEBAR_COLLAPSED_KEY);
     return saved === null ? true : saved === 'true';
   });
-  const [activeTab, setActiveTab] = useState<SidebarTab>('tasks');
 
-  // Persist collapsed state to localStorage
   useEffect(() => {
     localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(isCollapsed));
   }, [isCollapsed]);
 
-  // Collapsed state - show only expand button
   if (isCollapsed) {
     return (
-      <div className="ml-2 hidden h-full flex-col items-center rounded-lg border border-border bg-background/60 p-2 shadow-lg backdrop-blur-md transition-all duration-300 ease-in-out hover:bg-background/70 xl:flex">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setIsCollapsed(false)}
-          aria-label="Expand sidebar"
-          className="group relative overflow-hidden rounded-lg transition-all duration-200 hover:scale-105 hover:bg-accent/60"
-        >
-          <PanelLeftClose className="h-5 w-5 text-foreground transition-colors duration-200" />
-        </Button>
+      <div className="ml-2 hidden h-full flex-col items-center rounded-lg border border-border/40 bg-background/80 p-2 backdrop-blur-xl transition-all duration-300 xl:flex">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsCollapsed(false)}
+              aria-label="Expand sidebar"
+              className="h-8 w-8 rounded-lg text-muted-foreground transition-colors hover:bg-accent/80 hover:text-foreground"
+            >
+              <PanelLeftClose className="h-4 w-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="left">Expand sidebar</TooltipContent>
+        </Tooltip>
       </div>
     );
   }
 
   return (
-    <div className="@container ml-2 hidden h-full w-80 shrink-0 flex-col rounded-lg border border-border bg-background/60 shadow-xl backdrop-blur-md xl:flex">
-      {/* Header with TimeTracker and Collapse Button */}
-      <div className="flex flex-row items-center justify-between border-border/50 border-b bg-background/80 p-3 backdrop-blur-sm">
-        <div className="transition-all duration-300 hover:scale-105">
-          <TimeTracker wsId={wsId} tasks={tasks} />
-        </div>
+    <div className="ml-2 hidden h-full w-80 shrink-0 flex-col rounded-lg border border-border/40 bg-background/80 backdrop-blur-xl xl:flex">
+      {/* Header */}
+      <div className="flex items-center justify-between px-3 pt-3 pb-2">
+        <TimeTracker wsId={wsId} tasks={tasks} />
         <Button
           variant="ghost"
           size="icon"
           onClick={() => setIsCollapsed(true)}
           aria-label="Collapse sidebar"
-          className="group relative overflow-hidden rounded-lg transition-all duration-200 hover:scale-105 hover:bg-accent/60"
+          className="h-8 w-8 rounded-lg text-muted-foreground transition-colors hover:bg-accent/80 hover:text-foreground"
         >
-          <PanelRightClose className="h-5 w-5 text-foreground transition-colors duration-200" />
+          <PanelRightClose className="h-4 w-4" />
         </Button>
       </div>
 
-      {/* Tab Navigation */}
-      <div className="border-border/50 border-b bg-muted/10 p-2">
-        <div className="flex flex-row gap-1">
-          {SIDEBAR_TABS.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={cn(
-                'flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-transparent px-2 py-2 text-sm transition-all duration-200',
-                activeTab === tab.id
-                  ? 'border-border/50 bg-background font-medium shadow-md'
-                  : 'text-muted-foreground hover:border-border/50 hover:bg-accent/60 hover:text-foreground'
-              )}
-            >
-              <tab.icon className="h-4 w-4" />
-              <span className="@[200px]:inline hidden">{tab.label}</span>
-              <span className="@[200px]:hidden">{tab.shortLabel}</span>
-            </button>
-          ))}
-        </div>
-      </div>
+      {/* Divider */}
+      <div className="mx-3 h-px bg-border/60" />
 
-      {/* Tab Content */}
+      {/* Scrollable Content */}
       <div className="min-h-0 flex-1 overflow-hidden">
-        {activeTab === 'tasks' && (
-          <ScrollArea className="h-full">
-            <div className="fade-in-50 animate-in p-2 duration-300">
-              <PriorityView
-                wsId={wsId}
-                allTasks={tasks}
-                assigneeId={assigneeId}
-                isPersonalWorkspace={isPersonalWorkspace}
-              />
+        <ScrollArea className="h-full">
+          {/* Tasks Section */}
+          <div className="px-3 pt-3 pb-1">
+            <div className="mb-2 flex items-center gap-2">
+              <LayoutDashboard className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                Tasks
+              </span>
+              {tasks.length > 0 && (
+                <span className="rounded-full bg-foreground/10 px-1.5 py-px font-medium text-[10px] text-foreground/60">
+                  {tasks.length}
+                </span>
+              )}
             </div>
-          </ScrollArea>
-        )}
-
-        {activeTab === 'habits' && (
-          <div className="fade-in-50 h-full animate-in overflow-hidden duration-300">
-            <HabitsPanel wsId={wsId} onEventCreated={onEventCreated} />
-          </div>
-        )}
-
-        {activeTab === 'schedule' && (
-          <div className="fade-in-50 h-full animate-in overflow-hidden duration-300">
-            <TaskSchedulerPanel
+            <PriorityView
               wsId={wsId}
-              userId={assigneeId}
-              onEventCreated={onEventCreated}
+              allTasks={tasks}
+              assigneeId={assigneeId}
               isPersonalWorkspace={isPersonalWorkspace}
             />
           </div>
-        )}
+
+          {/* Section Divider */}
+          <div className="mx-3 my-2 h-px bg-border/60" />
+
+          {/* Habits Section */}
+          <div className="px-3 pt-1 pb-3">
+            <div className="mb-2 flex items-center gap-2">
+              <Repeat className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="font-medium text-muted-foreground text-xs uppercase tracking-wider">
+                Habits
+              </span>
+            </div>
+            <HabitsPanel wsId={wsId} onEventCreated={onEventCreated} />
+          </div>
+        </ScrollArea>
       </div>
     </div>
   );

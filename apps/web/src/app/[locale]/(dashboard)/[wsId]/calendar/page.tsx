@@ -78,7 +78,6 @@ export default async function CalendarPage({ params }: PageProps) {
               <div className="flex h-[calc(100vh-2rem)]">
                 <CalendarClientPage
                   experimentalGoogleToken={googleToken}
-                  calendarConnections={calendarConnections || []}
                   workspace={workspace}
                   enableSmartScheduling={enableSmartScheduling}
                 />
