@@ -1,0 +1,16 @@
+{
+  "plugins": {
+    "supabase": {
+      "enabled": true
+    },
+    "cloudflare": {
+      "enabled": true
+    },
+    "context7-plugin": {
+      "enabled": true
+    },
+    "superpowers": {
+      "enabled": true
+    }
+  }
+}
