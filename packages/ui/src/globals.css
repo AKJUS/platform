@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @source "components";
+@source "../node_modules/streamdown/dist/*.js";
 
 @plugin "@tailwindcss/typography";
 @plugin "tailwind-scrollbar-hide";
@@ -455,6 +456,22 @@
 
   100% {
     transform: translateX(250%) skewX(-15deg);
+  }
+}
+
+@keyframes mira-blob {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  25% {
+    transform: translate(40px, -30px) scale(1.08);
+  }
+  50% {
+    transform: translate(-20px, 20px) scale(0.95);
+  }
+  75% {
+    transform: translate(30px, 10px) scale(1.05);
   }
 }
 

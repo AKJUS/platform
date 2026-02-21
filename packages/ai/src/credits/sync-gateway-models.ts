@@ -7,6 +7,7 @@ interface GatewayModelPricing {
   input_cache_read?: string;
   input_cache_write?: string;
   web_search?: string;
+  image?: string;
   input_tiers?: Array<{ cost: string; min: number; max?: number }>;
   output_tiers?: Array<{ cost: string; min: number; max?: number }>;
 }
@@ -36,6 +37,12 @@ interface SyncResult {
 }
 
 const GATEWAY_URL = 'https://ai-gateway.vercel.sh/v1/models';
+
+function isImageGenModelId(id: string): boolean {
+  return (
+    id.startsWith('google/imagen-') || id === 'google/gemini-2.5-flash-image'
+  );
+}
 
 /**
  * Fetches model data from the Vercel AI Gateway and upserts into ai_gateway_models.
@@ -98,6 +105,12 @@ export async function syncGatewayModels(
       web_search_price: m.pricing?.web_search
         ? parseFloat(m.pricing.web_search)
         : null,
+      // Use gateway image price when present; fallback for known image models so credit deduction stays correct
+      image_gen_price: m.pricing?.image
+        ? parseFloat(m.pricing.image)
+        : isImageGenModelId(m.id)
+          ? 0.0001
+          : null,
       released_at: m.created ? new Date(m.created * 1000).toISOString() : null,
       synced_at: new Date().toISOString(),
     };

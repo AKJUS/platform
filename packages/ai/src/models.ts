@@ -39,6 +39,14 @@ export const models: {
     context: 1000000,
   },
   {
+    value: 'gemini-2.5-flash-lite',
+    label: 'gemini-2.5-flash-lite',
+    provider: 'Google',
+    description:
+      'Gemini 2.5 Flash Lite is a fast, lightweight model optimized for cost-efficiency and quick responses.',
+    context: 1000000,
+  },
+  {
     value: 'gemini-2.0-flash-lite',
     label: 'gemini-2.0-flash-lite',
     provider: 'Google',
@@ -206,3 +214,30 @@ export type Model = (typeof models)[number];
 export type ModelName = Model['value'];
 
 export type Provider = (typeof models)[number]['provider'];
+
+/** Maps UI provider labels to AI Gateway provider prefixes */
+export const providerToGatewayId: Record<string, string> = {
+  Google: 'google',
+  'Google Vertex': 'vertex',
+  OpenAI: 'openai',
+  Anthropic: 'anthropic',
+};
+
+/**
+ * Converts a model value + provider into a gateway model ID
+ * e.g. ("gemini-2.5-flash", "Google") → "google/gemini-2.5-flash"
+ */
+export function getGatewayModelId(
+  modelValue: string,
+  provider?: string
+): string {
+  // Already in gateway format (e.g. "google/gemini-2.5-flash")
+  if (modelValue.includes('/')) return modelValue;
+
+  const model = models.find(
+    (m) => m.value === modelValue && (!provider || m.provider === provider)
+  );
+  const gatewayId =
+    providerToGatewayId[model?.provider ?? provider ?? 'Google'];
+  return `${gatewayId ?? 'google'}/${modelValue}`;
+}

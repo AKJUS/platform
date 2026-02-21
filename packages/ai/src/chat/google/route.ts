@@ -9,6 +9,7 @@ import {
   createDynamicClient,
 } from '@tuturuuu/supabase/next/server';
 import { MAX_CHAT_MESSAGE_LENGTH } from '@tuturuuu/utils/constants';
+import type { ToolSet } from 'ai';
 import {
   convertToModelMessages,
   type FilePart,
@@ -16,11 +17,18 @@ import {
   type ImagePart,
   type ModelMessage,
   smoothStream,
+  stepCountIs,
   streamText,
   type TextPart,
   type UIMessage,
 } from 'ai';
 import { type NextRequest, NextResponse } from 'next/server';
+import { buildMiraContext } from '../../tools/context-builder';
+import {
+  createMiraStreamTools,
+  type MiraToolContext,
+} from '../../tools/mira-tools';
+import { buildMiraSystemInstruction } from '../mira-system-instruction';
 
 export const maxDuration = 60;
 export const preferredRegion = 'sin1';
@@ -219,29 +227,32 @@ function addFilesToContent(
 }
 
 export function createPOST(
-  _options: { serverAPIKeyFallback?: boolean } = {
-    serverAPIKeyFallback: false,
-  }
+  _options: {
+    serverAPIKeyFallback?: boolean;
+    /** Gateway provider prefix for bare model names (e.g., 'openai', 'anthropic', 'vertex'). Defaults to 'google'. */
+    defaultProvider?: string;
+  } = {}
 ) {
+  const defaultProvider = _options.defaultProvider ?? 'google';
+
   // Higher-order function that returns the actual request handler
   return async function handler(req: NextRequest): Promise<Response> {
-    const sbAdmin = await createAdminClient();
-
-    const {
-      id,
-      model = DEFAULT_MODEL_NAME,
-      messages,
-      wsId,
-    } = (await req.json()) as {
-      id?: string;
-      model?: string;
-      messages?: UIMessage[];
-      wsId?: string;
-    };
-
-    // Override provided model
-
     try {
+      const sbAdmin = await createAdminClient();
+
+      const {
+        id,
+        model = DEFAULT_MODEL_NAME,
+        messages,
+        wsId,
+        isMiraMode,
+      } = (await req.json()) as {
+        id?: string;
+        model?: string;
+        messages?: UIMessage[];
+        wsId?: string;
+        isMiraMode?: boolean;
+      };
       if (!id) return new Response('Missing chat ID', { status: 400 });
       if (!messages) {
         console.error('Missing messages');
@@ -326,8 +337,14 @@ export function createPOST(
         }
       }
 
+      // Normalize roles (DB stores uppercase USER/ASSISTANT, SDK expects lowercase)
+      const normalizedMessages = messages.map((msg) => ({
+        ...msg,
+        role: msg.role.toLowerCase() as UIMessage['role'],
+      }));
+
       // Convert UIMessages to ModelMessages
-      const modelMessages = await convertToModelMessages(messages);
+      const modelMessages = await convertToModelMessages(normalizedMessages);
 
       // Validate message content length
       for (const message of modelMessages) {
@@ -392,7 +409,7 @@ export function createPOST(
           {
             message: messageContent,
             chat_id: chatId,
-            source: 'Rewise',
+            source: isMiraMode ? 'Mira' : 'Rewise',
           }
         );
 
@@ -439,12 +456,59 @@ export function createPOST(
         );
       }
 
+      // Build Mira context + tools if in Mira mode
+      let miraSystemPrompt: string | undefined;
+      let miraTools: ToolSet | undefined;
+
+      if (isMiraMode && wsId) {
+        const ctx: MiraToolContext = { userId: user.id, wsId, supabase };
+        try {
+          const { contextString, soul, isFirstInteraction } =
+            await buildMiraContext(ctx);
+          const dynamicInstruction = buildMiraSystemInstruction({
+            soul,
+            isFirstInteraction,
+          });
+          miraSystemPrompt = `${contextString}\n\n${dynamicInstruction}`;
+        } catch (ctxErr) {
+          console.error(
+            'Failed to build Mira context (continuing with default instruction):',
+            ctxErr
+          );
+          miraSystemPrompt = buildMiraSystemInstruction();
+        }
+        miraTools = createMiraStreamTools(ctx);
+      }
+
+      const effectiveSource = isMiraMode ? 'Mira' : 'Rewise';
+
+      const resolvedGatewayModel = model.includes('/')
+        ? model
+        : `${defaultProvider}/${model}`;
+
       const result = streamText({
         experimental_transform: smoothStream(),
-        model: gateway(`google/${model}`),
+        model: gateway(resolvedGatewayModel),
         messages: processedMessages,
-        system: systemInstruction,
+        system:
+          isMiraMode && miraSystemPrompt ? miraSystemPrompt : systemInstruction,
         ...(cappedMaxOutput ? { maxOutputTokens: cappedMaxOutput } : {}),
+        ...(miraTools
+          ? {
+              tools: miraTools,
+              stopWhen: stepCountIs(10),
+              toolChoice: 'auto' as const,
+              // Force tool call on step 0 to prevent hallucination.
+              // The no_action_needed tool serves as an escape-hatch for
+              // conversational messages that don't need real tool use.
+              prepareStep: ({ steps }: { steps: unknown[] }) => {
+                if (steps.length === 0) {
+                  return { toolChoice: 'required' as const };
+                }
+                return {};
+              },
+            }
+          : {}),
         providerOptions: {
           google: {
             safetySettings: [
@@ -466,11 +530,46 @@ export function createPOST(
               },
             ],
           },
+          vertex: {
+            safetySettings: [
+              {
+                category: 'HARM_CATEGORY_HARASSMENT',
+                threshold: 'BLOCK_NONE',
+              },
+              {
+                category: 'HARM_CATEGORY_HATE_SPEECH',
+                threshold: 'BLOCK_NONE',
+              },
+              {
+                category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+                threshold: 'BLOCK_NONE',
+              },
+              {
+                category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+                threshold: 'BLOCK_NONE',
+              },
+            ],
+          },
+          anthropic: {
+            cacheControl: true,
+          },
         },
         onFinish: async (response) => {
-          if (!response.text) {
-            console.log('No content found');
-            throw new Error('No content found');
+          // Aggregate tool calls/results from ALL steps — response.toolCalls
+          // only has the final step's data, which is empty when the last step
+          // is a text response (the common case for multi-step tool calling).
+          const allToolCalls = (response.steps ?? []).flatMap(
+            (step) => step.toolCalls ?? []
+          );
+          const allToolResults = (response.steps ?? []).flatMap(
+            (step) => step.toolResults ?? []
+          );
+
+          if (!response.text && !allToolCalls.length) {
+            console.warn(
+              'onFinish: no text and no tool calls — skipping DB save'
+            );
+            return;
           }
 
           const { data: msgData, error } = await sbAdmin
@@ -478,13 +577,31 @@ export function createPOST(
             .insert({
               chat_id: chatId,
               creator_id: user.id,
-              content: response.text,
+              content: response.text || '',
               role: 'ASSISTANT',
-              model: model.toLowerCase(),
+              model: (model.includes('/')
+                ? model.split('/').pop()!
+                : model
+              ).toLowerCase(),
               finish_reason: response.finishReason,
-              prompt_tokens: response.usage.inputTokens,
-              completion_tokens: response.usage.outputTokens,
-              metadata: { source: 'Rewise' },
+              prompt_tokens:
+                response.totalUsage?.inputTokens ?? response.usage.inputTokens,
+              completion_tokens:
+                response.totalUsage?.outputTokens ??
+                response.usage.outputTokens,
+              metadata: {
+                source: effectiveSource,
+                ...(allToolCalls.length
+                  ? {
+                      toolCalls: JSON.parse(JSON.stringify(allToolCalls)),
+                    }
+                  : {}),
+                ...(allToolResults.length
+                  ? {
+                      toolResults: JSON.parse(JSON.stringify(allToolResults)),
+                    }
+                  : {}),
+              },
             })
             .select('id')
             .single();
@@ -497,18 +614,19 @@ export function createPOST(
 
           console.log('AI Response saved to database');
 
-          // Deduct AI credits
+          // Deduct AI credits — use totalUsage (all steps) for accurate billing
+          const usage = response.totalUsage ?? response.usage;
           if (wsId) {
             deductAiCredits({
               wsId,
               userId: user.id,
               modelId: model,
-              inputTokens: response.usage.inputTokens ?? 0,
-              outputTokens: response.usage.outputTokens ?? 0,
+              inputTokens: usage.inputTokens ?? 0,
+              outputTokens: usage.outputTokens ?? 0,
               reasoningTokens:
-                response.usage.outputTokenDetails?.reasoningTokens ??
-                response.usage.reasoningTokens ??
-                0,
+                ((usage as Record<string, unknown>).reasoningTokens as
+                  | number
+                  | undefined) ?? 0,
               feature: 'chat',
               chatMessageId: msgData?.id,
             }).catch((err) =>

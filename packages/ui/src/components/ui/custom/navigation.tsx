@@ -21,6 +21,8 @@ export interface NavLink {
   matchExact?: boolean;
   excludePaths?: string[];
   label?: string;
+  /** When set, renders a labeled section header above this item in the sidebar. */
+  sectionLabel?: string;
   external?: boolean;
   disabled?: boolean;
   tempDisabled?: boolean;

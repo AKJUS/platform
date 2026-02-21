@@ -64,6 +64,7 @@ export interface DeductCreditsParams {
   inputTokens: number;
   outputTokens: number;
   reasoningTokens?: number;
+  imageCount?: number;
   feature: AiFeature;
   executionId?: string;
   chatMessageId?: string;

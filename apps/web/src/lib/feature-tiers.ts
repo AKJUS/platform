@@ -30,7 +30,7 @@ export type FeatureId =
   | 'ai_lab'
   | 'voice_assistant'
   | 'workforce'
-  | 'tuna'
+  | 'mira'
   | 'realtime_cursors';
 
 /**
@@ -59,7 +59,7 @@ export const FEATURE_TIERS: Record<FeatureId, WorkspaceProductTier> = {
   drive: 'PRO',
   ai_lab: 'PRO',
   voice_assistant: 'PRO',
-  tuna: 'PRO',
+  mira: 'PRO',
 };
 
 /**

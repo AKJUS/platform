@@ -55,14 +55,22 @@ export function Nav({
           }
 
           return (
-            <NavLink
-              key={`nav-link-${link.href || link.title}-${index}`}
-              wsId={wsId}
-              link={link}
-              isCollapsed={isCollapsed}
-              onSubMenuClick={onSubMenuClick}
-              onClick={onClick}
-            />
+            <div key={`nav-item-${link.href || link.title}-${index}`}>
+              {link.sectionLabel && !isCollapsed && (
+                <div className="px-2 pt-2 pb-1">
+                  <span className="font-semibold text-muted-foreground text-xs uppercase tracking-wider">
+                    {link.sectionLabel}
+                  </span>
+                </div>
+              )}
+              <NavLink
+                wsId={wsId}
+                link={link}
+                isCollapsed={isCollapsed}
+                onSubMenuClick={onSubMenuClick}
+                onClick={onClick}
+              />
+            </div>
           );
         })}
       </nav>

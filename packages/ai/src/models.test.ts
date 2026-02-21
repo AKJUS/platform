@@ -74,7 +74,7 @@ describe('models', () => {
 });
 
 describe('defaultModel', () => {
-  it('should select Vertex AI Gemini 2.0 Flash as default if available', () => {
+  it('should select Gemini 2.5 Flash as default if available', () => {
     expect(defaultModel).toBeDefined();
     expect(defaultModel?.value).toBe('gemini-2.5-flash');
     expect(defaultModel?.provider).toBe('Google');

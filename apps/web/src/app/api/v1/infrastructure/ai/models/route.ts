@@ -5,12 +5,11 @@ export async function GET(_: Request) {
   const sbAdmin = await createAdminClient();
 
   const { data, error } = await sbAdmin
-    .from('ai_models')
-    .select('*', {
-      count: 'exact',
-    })
-    .eq('enabled', true)
-    .order('name', { ascending: true });
+    .from('ai_gateway_models')
+    .select('id, name, provider, description, context_window, type, is_enabled')
+    .eq('is_enabled', true)
+    .order('provider')
+    .order('name');
 
   if (error) {
     console.log(error);

@@ -8,19 +8,22 @@ export const preferredRegion = 'sin1';
 const HUMAN_PROMPT = '\n\nHuman:';
 const AI_PROMPT = '\n\nAssistant:';
 
-const DEFAULT_MODEL_NAME = 'gemini-2.5-flash';
+/** Always use a lightweight model for title generation */
+const TITLE_MODEL = 'google/gemini-2.5-flash-lite';
 
-export function createPOST() {
+export function createPOST(
+  _options: {
+    /** Gateway provider prefix for bare model names. Defaults to 'google'. */
+    defaultProvider?: string;
+  } = {}
+) {
   return async function handler(req: Request) {
     try {
-      const {
-        id,
-        model = DEFAULT_MODEL_NAME,
-        message,
-      } = (await req.json()) as {
+      const { id, model, message, isMiraMode } = (await req.json()) as {
         id?: string;
         model?: string;
         message?: string;
+        isMiraMode?: boolean;
       };
 
       if (!message)
@@ -42,8 +45,9 @@ export function createPOST() {
         },
       ]);
 
+      // Always use TITLE_MODEL for generating chat titles (cheap + fast)
       const result = await generateText({
-        model: gateway(`google/${model}`),
+        model: gateway(TITLE_MODEL),
         prompt,
         providerOptions: {
           google: {
@@ -80,13 +84,18 @@ export function createPOST() {
         );
       }
 
+      // Store bare model name for DB compatibility (ai_models FK)
+      const resolvedModel = model
+        ? (model.includes('/') ? model.split('/').pop()! : model).toLowerCase()
+        : 'gemini-2.5-flash-lite';
+
       const { data: chat, error: chatError } = await supabase
         .from('ai_chats')
         .insert({
           id,
           title,
           creator_id: user.id,
-          model: model.toLowerCase(),
+          model: resolvedModel,
         })
         .select('id')
         .single();
@@ -99,7 +108,7 @@ export function createPOST() {
       const { error: msgError } = await supabase.rpc('insert_ai_chat_message', {
         message: message,
         chat_id: chat.id,
-        source: 'Rewise',
+        source: isMiraMode ? 'Mira' : 'Rewise',
       });
 
       if (msgError) {
@@ -115,7 +124,7 @@ export function createPOST() {
           message: `## Edge API Failure\nCould not complete the request. Please view the **Stack trace** below.\n\`\`\`bash\n${error instanceof Error ? error.stack : 'Unknown error'}`,
         },
         {
-          status: 200,
+          status: 500,
         }
       );
     }

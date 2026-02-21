@@ -7,6 +7,7 @@ export const AI_FEATURES = [
   'generate',
   'task_journal',
   'email_draft',
+  'image_generation',
 ] as const;
 
 export type AiFeature = (typeof AI_FEATURES)[number];

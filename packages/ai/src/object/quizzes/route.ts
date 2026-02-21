@@ -2,7 +2,7 @@ import {
   createAdminClient,
   createClient,
 } from '@tuturuuu/supabase/next/server';
-import { gateway, streamObject } from 'ai';
+import { gateway, Output, streamText } from 'ai';
 import { NextResponse } from 'next/server';
 import { quizSchema } from '../types';
 
@@ -66,13 +66,12 @@ export async function POST(req: Request) {
     //   chatId = data.id;
     // }
 
-    const result = streamObject({
+    const result = streamText({
       model: gateway(DEFAULT_MODEL_NAME),
-      // output: 'array',
       prompt:
         `Generate 10 quizzes with the following context (in the same language as the provided context): ` +
         context,
-      schema: quizSchema,
+      output: Output.object({ schema: quizSchema }),
       providerOptions: {
         google: {
           safetySettings: [

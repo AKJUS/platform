@@ -3,7 +3,7 @@ import {
   createAdminClient,
   createClient,
 } from '@tuturuuu/supabase/next/server';
-import { streamObject } from 'ai';
+import { Output, streamText } from 'ai';
 import { NextResponse } from 'next/server';
 import { yearPlanSchema } from '../types';
 
@@ -117,7 +117,7 @@ export async function POST(req: Request) {
     `;
 
     try {
-      const result = streamObject({
+      const result = streamText({
         model: vertex('gemini-2.5-flash-lite'),
         maxOutputTokens: 8192,
         providerOptions: {
@@ -172,7 +172,7 @@ export async function POST(req: Request) {
 
           Today's date: ${new Date().toISOString().split('T')[0]}
         `,
-        schema: yearPlanSchema,
+        output: Output.object({ schema: yearPlanSchema }),
       });
 
       return result.toTextStreamResponse();

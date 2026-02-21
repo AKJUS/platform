@@ -49,11 +49,11 @@ export function TaskSettings({ workspace }: TaskSettingsProps) {
   } = useUserBooleanConfig('TASK_DRAFT_MODE_ENABLED', false);
 
   const {
-    value: expandTunaSections,
-    setValue: setExpandTunaSections,
-    isLoading: expandTunaSectionsLoading,
-    isPending: expandTunaSectionsPending,
-  } = useUserBooleanConfig('TUNA_EXPAND_ALL_TASK_SECTIONS', true);
+    value: expandMiraSections,
+    setValue: setExpandMiraSections,
+    isLoading: expandMiraSectionsLoading,
+    isPending: expandMiraSectionsPending,
+  } = useUserBooleanConfig('MIRA_EXPAND_ALL_TASK_SECTIONS', true);
 
   const {
     value: forceDefaultWsRedirect,
@@ -160,13 +160,13 @@ export function TaskSettings({ workspace }: TaskSettingsProps) {
         </SettingItemTab>
         <Separator />
         <SettingItemTab
-          title={t('expand_tuna_sections')}
-          description={t('expand_tuna_sections_description')}
+          title={t('expand_mira_sections')}
+          description={t('expand_mira_sections_description')}
         >
           <Switch
-            checked={expandTunaSections}
-            onCheckedChange={setExpandTunaSections}
-            disabled={expandTunaSectionsLoading || expandTunaSectionsPending}
+            checked={expandMiraSections}
+            onCheckedChange={setExpandMiraSections}
+            disabled={expandMiraSectionsLoading || expandMiraSectionsPending}
           />
         </SettingItemTab>
         <Separator />

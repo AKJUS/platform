@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import {
   Bell,
+  Brain,
   Building,
   CalendarDays,
   CheckSquare,
@@ -21,6 +22,7 @@ import {
   Paintbrush,
   PanelLeft,
   Shield,
+  Sparkles,
   Star,
   Ticket,
   User,
@@ -57,6 +59,8 @@ import FinanceNavigationSettings from './finance/finance-navigation-settings';
 import InvoiceSettings from './finance/invoice-settings';
 import InvoiceVisibilitySettings from './finance/invoice-visibility-settings';
 import ReferralSettings from './inventory/referral-settings';
+import { MiraMemorySettings } from './mira/mira-memory-settings';
+import { MiraPersonalitySettings } from './mira/mira-personality-settings';
 import { ReportDefaultTitleSettings } from './reports/report-default-title-settings';
 import UserAvatar from './settings-avatar';
 import DisplayNameInput from './settings-display-name-input';
@@ -280,6 +284,25 @@ export function SettingsDialog({
           icon: CheckSquare,
           description: t('settings.tasks.general_description'),
           keywords: ['Tasks', 'General'],
+        },
+      ],
+    },
+    {
+      label: t('settings.mira.title'),
+      items: [
+        {
+          name: 'mira_personality',
+          label: t('settings.mira.personality'),
+          icon: Sparkles,
+          description: t('settings.mira.personality_description'),
+          keywords: ['Mira', 'AI', 'Personality', 'Soul', 'Assistant'],
+        },
+        {
+          name: 'mira_memories',
+          label: t('settings.mira.memories'),
+          icon: Brain,
+          description: t('settings.mira.memories_description'),
+          keywords: ['Mira', 'Memory', 'Remember', 'Facts'],
         },
       ],
     },
@@ -629,6 +652,18 @@ export function SettingsDialog({
         {activeTab === 'tasks_general' && (
           <div className="h-full">
             <TaskSettings workspace={workspace} />
+          </div>
+        )}
+
+        {activeTab === 'mira_personality' && (
+          <div className="h-full">
+            <MiraPersonalitySettings />
+          </div>
+        )}
+
+        {activeTab === 'mira_memories' && (
+          <div className="h-full">
+            <MiraMemorySettings />
           </div>
         )}
 
