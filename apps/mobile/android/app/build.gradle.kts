@@ -20,6 +20,15 @@ android {
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
+    // Disable Crashlytics mapping uploads for dev builds to avoid CI failures
+    buildTypes {
+        release {
+            firebaseCrashlytics {
+                mappingFileUploadEnabled = false
+            }
+        }
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
