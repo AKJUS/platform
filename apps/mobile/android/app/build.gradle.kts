@@ -1,5 +1,7 @@
 import java.util.Properties
 import java.io.FileInputStream
+import com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     id("com.android.application")
@@ -20,22 +22,9 @@ android {
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
-    // Disable Crashlytics mapping uploads for dev builds to avoid CI failures
-    buildTypes {
-        release {
-            firebaseCrashlytics {
-                mappingFileUploadEnabled = false
-            }
-        }
-    }
-
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
-    }
-
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11.toString()
     }
 
     defaultConfig {
@@ -89,6 +78,10 @@ android {
 
     buildTypes {
         getByName("release") {
+            // Disable Crashlytics mapping uploads for dev/CI builds
+            configure<CrashlyticsExtension> {
+                mappingFileUploadEnabled = false
+            }
             // Only apply release signing if a valid keystore is configured;
             // otherwise let flavor-level signingConfig (e.g. debug for dev) take effect.
             val releaseSigning = signingConfigs.getByName("release")
@@ -104,6 +97,12 @@ android {
         getByName("debug") {
             signingConfig = signingConfigs.getByName("debug")
         }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(JvmTarget.JVM_11)
     }
 }
 

@@ -25,7 +25,7 @@ jobs:
       workflow_name: mobile-build-ios.yaml
 
   build-ios:
-    name: Build iOS (Development, no codesign)
+    name: Build iOS (Development, simulator)
     needs: [check-ci]
     if: needs.check-ci.outputs.should_run == 'true'
     runs-on: macos-latest
@@ -86,12 +86,12 @@ jobs:
           </plist>
           EOF
 
-      - name: Build iOS (development flavor, no codesign)
-        run: flutter build ios --flavor development --target lib/main_development.dart --no-codesign
+      - name: Build iOS (development flavor, simulator)
+        run: flutter build ios --flavor development --target lib/main_development.dart --simulator
 
       - name: Upload iOS app artifact
         uses: actions/upload-artifact@v6
         with:
           name: ios-dev-app
-          path: apps/mobile/build/ios/iphoneos/Runner.app
+          path: apps/mobile/build/ios/iphonesimulator/Runner.app
           retention-days: 7
