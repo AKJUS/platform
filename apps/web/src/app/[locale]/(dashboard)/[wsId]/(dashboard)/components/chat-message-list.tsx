@@ -63,6 +63,15 @@ function hasToolParts(message: UIMessage): boolean {
   );
 }
 
+/** True if the message has at least one text (output) part — used to treat reasoning as "done" once reply text exists */
+function hasOutputText(message: UIMessage): boolean {
+  return (
+    message.parts?.some(
+      (p) => p.type === 'text' && (p as { text: string }).text.trim().length > 0
+    ) ?? false
+  );
+}
+
 /** Humanize a tool name: "get_my_tasks" → "Get my tasks" */
 function humanizeToolName(name: string): string {
   const words = name.replace(/[-_]/g, ' ');
@@ -926,15 +935,17 @@ export default function ChatMessageList({
                         return groups.map((group, gi) => {
                           if (group.kind === 'reasoning') {
                             const isLatestReasoning = gi === lastReasoningIdx;
+                            // Only show "reasoning..." on the latest assistant message while it has no text yet
+                            const isReasoningInProgress =
+                              isLatestReasoning &&
+                              isStreaming &&
+                              isLastAssistant &&
+                              !hasOutputText(message);
                             return (
                               <ReasoningPart
                                 key={`reasoning-${group.index}`}
                                 text={group.text}
-                                isAnimating={
-                                  isLatestReasoning &&
-                                  isStreaming &&
-                                  isLastAssistant
-                                }
+                                isAnimating={isReasoningInProgress}
                               />
                             );
                           }
