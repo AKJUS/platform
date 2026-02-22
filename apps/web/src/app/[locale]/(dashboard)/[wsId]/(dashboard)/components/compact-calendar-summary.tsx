@@ -43,14 +43,14 @@ export default async function CompactCalendarSummary({
     .slice(0, 3);
 
   return (
-    <Card className="border-border/50">
-      <CardHeader className="px-4 pt-4 pb-2">
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 font-semibold text-sm">
-            <Calendar className="h-4 w-4 text-dynamic-cyan" />
-            {t('compact_calendar_title')}
+    <Card className="min-w-0 border-border/50">
+      <CardHeader className="px-3 pt-3 pb-2 sm:px-4 sm:pt-4">
+        <div className="flex min-w-0 items-center justify-between gap-2">
+          <CardTitle className="flex min-w-0 items-center gap-2 truncate font-semibold text-sm">
+            <Calendar className="h-4 w-4 shrink-0 text-dynamic-cyan" />
+            <span className="truncate">{t('compact_calendar_title')}</span>
           </CardTitle>
-          <Link href={`/${wsId}/calendar`}>
+          <Link href={`/${wsId}/calendar`} className="shrink-0">
             <Button variant="ghost" size="sm" className="h-7 text-xs">
               {t('view_all')}
               <ArrowRight className="ml-1 h-3 w-3" />
@@ -58,9 +58,9 @@ export default async function CompactCalendarSummary({
           </Link>
         </div>
       </CardHeader>
-      <CardContent className="px-4 pb-4">
+      <CardContent className="px-3 pb-3 sm:px-4 sm:pb-4">
         {upcomingEvents.length === 0 ? (
-          <p className="text-muted-foreground text-sm">
+          <p className="min-w-0 truncate text-muted-foreground text-sm">
             {t('compact_calendar_empty')}
           </p>
         ) : (
@@ -68,14 +68,14 @@ export default async function CompactCalendarSummary({
             {upcomingEvents.map((event) => (
               <div
                 key={event.id}
-                className="flex items-start gap-2 rounded-md border border-border/30 p-2"
+                className="flex min-w-0 items-start gap-2 rounded-md border border-border/30 p-2"
               >
                 <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-dynamic-cyan" />
-                <div className="min-w-0 flex-1">
+                <div className="min-w-0 flex-1 overflow-hidden">
                   <p className="truncate font-medium text-xs">
                     {event.title || t('compact_calendar_untitled')}
                   </p>
-                  <p className="text-[11px] text-muted-foreground">
+                  <p className="truncate text-[11px] text-muted-foreground">
                     {format(new Date(event.start_at), 'MMM d, h:mm a')}
                   </p>
                 </div>

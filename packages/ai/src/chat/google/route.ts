@@ -644,7 +644,9 @@ export function createPOST(
           let inputTokens = usage.inputTokens ?? 0;
           let outputTokens = usage.outputTokens ?? 0;
           let reasoningTokens =
-            ((usage as Record<string, unknown>).reasoningTokens as number | undefined) ?? 0;
+            ((usage as Record<string, unknown>).reasoningTokens as
+              | number
+              | undefined) ?? 0;
           // When stream is aborted, totalUsage/usage can be 0; aggregate from completed steps.
           if (
             inputTokens === 0 &&
@@ -658,7 +660,9 @@ export function createPOST(
                 inputTokens += u.inputTokens ?? 0;
                 outputTokens += u.outputTokens ?? 0;
                 reasoningTokens +=
-                  ((u as Record<string, unknown>).reasoningTokens as number | undefined) ?? 0;
+                  ((u as Record<string, unknown>).reasoningTokens as
+                    | number
+                    | undefined) ?? 0;
               }
             }
           }
@@ -703,7 +707,10 @@ export function createPOST(
 
           console.log('AI Response saved to database');
 
-          if (wsId && (inputTokens > 0 || outputTokens > 0 || reasoningTokens > 0)) {
+          if (
+            wsId &&
+            (inputTokens > 0 || outputTokens > 0 || reasoningTokens > 0)
+          ) {
             deductAiCredits({
               wsId,
               userId: user.id,

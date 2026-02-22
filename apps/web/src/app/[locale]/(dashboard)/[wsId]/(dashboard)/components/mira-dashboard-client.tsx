@@ -66,10 +66,10 @@ export default function MiraDashboardClient({
   return (
     <div
       className={cn(
-        'relative flex flex-col gap-6 overflow-hidden',
+        'relative flex flex-col gap-4 overflow-hidden sm:gap-6',
         isFullscreen
-          ? 'fixed inset-0 z-50 bg-background p-4'
-          : 'h-[calc(100vh-4rem)] xl:h-[calc(100vh-2rem)]'
+          ? 'fixed inset-0 z-50 bg-background p-3 sm:p-4'
+          : 'h-[calc(100vh-4rem)] min-h-0 xl:h-[calc(100vh-2rem)]'
       )}
     >
       {/* Animated gradient backdrop in fullscreen */}
@@ -87,14 +87,14 @@ export default function MiraDashboardClient({
       {/* Main layout: chat + insights */}
       <div
         className={cn(
-          'relative z-10 flex h-full min-h-0 flex-1 gap-6',
-          isFullscreen ? 'flex-col' : 'flex-col xl:flex-row'
+          'relative z-10 flex min-h-0 min-w-0 flex-1 flex-col gap-4 sm:gap-6 xl:flex-row',
+          !isFullscreen && 'xl:h-full'
         )}
       >
-        {/* Chat panel — hero element */}
+        {/* Chat panel — hero element; strict containment so content wraps inside on mobile */}
         <div
           className={cn(
-            'flex min-h-0 flex-1 flex-col rounded-xl border p-4 pb-0 shadow-sm backdrop-blur-sm',
+            'flex min-h-0 min-w-0 max-w-full flex-1 flex-col overflow-hidden rounded-xl border p-3 pb-0 shadow-sm backdrop-blur-sm sm:p-4',
             isFullscreen
               ? 'border-border/30 bg-card/40'
               : 'border-border/60 bg-card/50'
@@ -109,9 +109,9 @@ export default function MiraDashboardClient({
           />
         </div>
 
-        {/* Insight sidebar — hidden in fullscreen */}
+        {/* Insight sidebar — hidden in fullscreen; full width on mobile, constrained on xl+ */}
         {!isFullscreen && (
-          <div className="w-full shrink-0 xl:max-w-xs 2xl:max-w-sm">
+          <div className="w-full min-w-0 shrink-0 xl:max-w-xs 2xl:max-w-sm">
             {children}
           </div>
         )}

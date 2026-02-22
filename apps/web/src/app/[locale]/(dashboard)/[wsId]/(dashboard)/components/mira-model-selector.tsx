@@ -158,7 +158,7 @@ export default function MiraModelSelector({
         <Button
           variant="ghost"
           size="sm"
-          className="h-7 gap-2 rounded-full px-2.5 font-mono text-muted-foreground text-xs"
+          className="h-7 min-w-0 max-w-full gap-2 rounded-full px-2.5 font-mono text-muted-foreground text-xs"
           disabled={disabled}
         >
           {(model.provider?.toLowerCase().includes('google') ||
@@ -172,8 +172,8 @@ export default function MiraModelSelector({
               className="shrink-0"
             />
           )}
-          {model.label}
-          <ChevronDown className="h-3 w-3 opacity-50" />
+          <span className="min-w-0 truncate">{model.label}</span>
+          <ChevronDown className="h-3 w-3 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-72 p-0" align="start" sideOffset={4}>

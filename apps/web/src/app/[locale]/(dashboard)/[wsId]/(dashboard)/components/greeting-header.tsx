@@ -46,14 +46,14 @@ export default function GreetingHeader({
     '';
 
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="space-y-1">
-        <h1 className="font-semibold text-2xl tracking-tight sm:text-3xl">
+    <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="min-w-0 space-y-1">
+        <h1 className="truncate font-semibold text-2xl tracking-tight sm:text-3xl">
           {t(greetingKey)}
           {userName ? `, ${userName}` : ''}!
         </h1>
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Sparkles className="h-4 w-4 text-dynamic-purple" />
+        <div className="flex min-w-0 flex-wrap items-center gap-2 text-muted-foreground">
+          <Sparkles className="h-4 w-4 shrink-0 text-dynamic-purple" />
           <span className="text-sm">
             {t('assistant_ready', { name: assistantName })}
           </span>
@@ -61,7 +61,7 @@ export default function GreetingHeader({
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex shrink-0 items-center gap-3">
         <AiCreditIndicator wsId={wsId} />
         <Badge
           variant="outline"

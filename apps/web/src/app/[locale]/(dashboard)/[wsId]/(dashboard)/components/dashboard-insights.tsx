@@ -13,7 +13,7 @@ export default function DashboardInsights({
   userId,
 }: DashboardInsightsProps) {
   return (
-    <div className="space-y-3">
+    <div className="min-w-0 space-y-3">
       <Suspense fallback={<DashboardCardSkeleton />}>
         <CompactTasksSummary wsId={wsId} userId={userId} />
       </Suspense>

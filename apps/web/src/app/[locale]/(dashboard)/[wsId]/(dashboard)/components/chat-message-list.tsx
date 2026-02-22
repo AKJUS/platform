@@ -199,22 +199,24 @@ function AssistantMarkdown({
   isAnimating: boolean;
 }) {
   return (
-    <MarkdownErrorBoundary
-      fallback={<p className="whitespace-pre-wrap">{text}</p>}
-    >
-      <Streamdown
-        plugins={plugins}
-        caret="block"
-        isAnimating={isAnimating}
-        controls={{
-          code: !isAnimating,
-          mermaid: !isAnimating,
-        }}
-        linkSafety={{ enabled: false }}
+    <div className="wrap-break-word min-w-0 max-w-full overflow-hidden [&_code]:break-all [&_pre]:max-w-full [&_pre]:overflow-x-auto">
+      <MarkdownErrorBoundary
+        fallback={<p className="wrap-break-word whitespace-pre-wrap">{text}</p>}
       >
-        {text}
-      </Streamdown>
-    </MarkdownErrorBoundary>
+        <Streamdown
+          plugins={plugins}
+          caret="block"
+          isAnimating={isAnimating}
+          controls={{
+            code: !isAnimating,
+            mermaid: !isAnimating,
+          }}
+          linkSafety={{ enabled: false }}
+        >
+          {text}
+        </Streamdown>
+      </MarkdownErrorBoundary>
+    </div>
   );
 }
 
@@ -829,7 +831,7 @@ export default function ChatMessageList({
     <div
       ref={setScrollContainerRef}
       className={cn(
-        'scrollbar-none flex flex-1 flex-col gap-1 overflow-y-auto px-1 py-3',
+        'scrollbar-none flex min-w-0 flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden px-1 py-3',
         scrollContainerRef && 'pb-48'
       )}
     >
@@ -889,10 +891,10 @@ export default function ChatMessageList({
               )}
             </div>
 
-            {/* Message content */}
+            {/* Message content — min-w-0 so bubble can shrink and wrap inside chat area */}
             <div
               className={cn(
-                'flex max-w-[80%] flex-col',
+                'flex min-w-0 max-w-[85%] flex-col sm:max-w-[80%]',
                 isUser ? 'items-end' : 'items-start'
               )}
             >
@@ -911,22 +913,24 @@ export default function ChatMessageList({
               {/* Bubble + actions row */}
               <div
                 className={cn(
-                  'flex items-end gap-1',
+                  'flex min-w-0 items-end gap-1',
                   isUser ? 'flex-row-reverse' : ''
                 )}
               >
                 <div
                   className={cn(
-                    'rounded-2xl px-3.5 py-2.5 text-sm',
+                    'wrap-break-word min-w-0 max-w-full overflow-hidden rounded-2xl px-3.5 py-2.5 text-sm',
                     isUser
                       ? 'bg-foreground text-background'
                       : 'bg-muted/50 text-foreground'
                   )}
                 >
                   {isUser ? (
-                    <p className="whitespace-pre-wrap">{messageText}</p>
+                    <p className="wrap-break-word whitespace-pre-wrap">
+                      {messageText}
+                    </p>
                   ) : (
-                    <div className="flex flex-col gap-2">
+                    <div className="flex min-w-0 max-w-full flex-col gap-2 overflow-hidden *:min-w-0 *:max-w-full">
                       {(() => {
                         const groups = groupMessageParts(message.parts);
                         const lastReasoningIdx = groups.findLastIndex(

@@ -54,14 +54,14 @@ export default async function CompactTasksSummary({
   });
 
   return (
-    <Card className="border-border/50">
-      <CardHeader className="px-4 pt-4 pb-2">
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 font-semibold text-sm">
-            <ListTodo className="h-4 w-4 text-dynamic-orange" />
-            {t('compact_tasks_title')}
+    <Card className="min-w-0 border-border/50">
+      <CardHeader className="px-3 pt-3 pb-2 sm:px-4 sm:pt-4">
+        <div className="flex min-w-0 items-center justify-between gap-2">
+          <CardTitle className="flex min-w-0 items-center gap-2 truncate font-semibold text-sm">
+            <ListTodo className="h-4 w-4 shrink-0 text-dynamic-orange" />
+            <span className="truncate">{t('compact_tasks_title')}</span>
           </CardTitle>
-          <Link href={`/${wsId}/tasks`}>
+          <Link href={`/${wsId}/tasks`} className="shrink-0">
             <Button variant="ghost" size="sm" className="h-7 text-xs">
               {t('view_all')}
               <ArrowRight className="ml-1 h-3 w-3" />
@@ -69,16 +69,16 @@ export default async function CompactTasksSummary({
           </Link>
         </div>
       </CardHeader>
-      <CardContent className="px-4 pb-4">
+      <CardContent className="px-3 pb-3 sm:px-4 sm:pb-4">
         {total === 0 ? (
-          <div className="flex items-center gap-2 text-muted-foreground text-sm">
-            <CheckCircle2 className="h-4 w-4 text-dynamic-green" />
-            <span>{t('compact_tasks_empty')}</span>
+          <div className="flex min-w-0 items-center gap-2 text-muted-foreground text-sm">
+            <CheckCircle2 className="h-4 w-4 shrink-0 text-dynamic-green" />
+            <span className="truncate">{t('compact_tasks_empty')}</span>
           </div>
         ) : (
-          <div className="flex items-center gap-3">
-            <div className="font-bold text-2xl">{total}</div>
-            <div className="flex flex-col gap-0.5 text-xs">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="shrink-0 font-bold text-2xl">{total}</div>
+            <div className="flex min-w-0 flex-col gap-0.5 text-xs">
               {overdue > 0 && (
                 <span
                   className={cn(

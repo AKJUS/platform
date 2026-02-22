@@ -45,7 +45,7 @@ export default function ChatInputBar({
         setInput('');
       }}
       className={cn(
-        'flex items-end gap-2 rounded-xl border border-border/50 bg-background/80 p-2 backdrop-blur-sm',
+        'flex min-w-0 items-end gap-2 rounded-xl border border-border/50 bg-background/80 p-2 backdrop-blur-sm',
         'transition-colors focus-within:border-dynamic-purple/30'
       )}
     >
@@ -60,7 +60,7 @@ export default function ChatInputBar({
         placeholder={t('placeholder', { name: assistantName })}
         spellCheck={false}
         disabled={disabled || isStreaming}
-        className="scrollbar-none min-h-[36px] flex-1 resize-none bg-transparent px-2 py-1.5 text-sm placeholder-muted-foreground focus:outline-none"
+        className="scrollbar-none min-h-[36px] min-w-0 flex-1 resize-none bg-transparent px-2 py-1.5 text-sm placeholder-muted-foreground focus:outline-none"
       />
 
       <div className="flex items-center gap-1">

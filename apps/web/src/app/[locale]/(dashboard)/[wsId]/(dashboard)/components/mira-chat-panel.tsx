@@ -509,62 +509,66 @@ export default function MiraChatPanel({
       })();
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      {/* Header: model selector + new conversation */}
-      <div className="flex items-center gap-2 pb-2">
-        <MiraModelSelector
-          wsId={wsId}
-          model={model}
-          onChange={setModel}
-          disabled={isBusy}
-        />
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      {/* Header: model selector + new conversation; wraps on narrow screens */}
+      <div className="flex min-w-0 flex-wrap items-center gap-2 pb-2">
+        <div className="min-w-0 flex-1 sm:min-w-0">
+          <MiraModelSelector
+            wsId={wsId}
+            model={model}
+            onChange={setModel}
+            disabled={isBusy}
+          />
+        </div>
         {isFullscreen && <MiraCreditBar wsId={wsId} />}
-        <div className="flex-1" />
-        {hasMessages && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7"
-            onClick={handleNewConversation}
-            title={t('new_conversation')}
-          >
-            <MessageSquarePlus className="h-3.5 w-3.5" />
-          </Button>
-        )}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="h-7 w-7"
-          onClick={() => setViewOnly((v) => !v)}
-          title={viewOnlyButtonTitle}
-        >
-          {viewOnly ? (
-            <PanelBottomOpen className="h-3.5 w-3.5" />
-          ) : (
-            <Eye className="h-3.5 w-3.5" />
+        <div className="hidden flex-1 sm:block" />
+        <div className="flex shrink-0 items-center gap-0.5">
+          {hasMessages && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={handleNewConversation}
+              title={t('new_conversation')}
+            >
+              <MessageSquarePlus className="h-3.5 w-3.5" />
+            </Button>
           )}
-        </Button>
-        {onToggleFullscreen && (
           <Button
             variant="ghost"
             size="icon"
             className="h-7 w-7"
-            onClick={onToggleFullscreen}
-            title={isFullscreen ? t('exit_fullscreen') : t('fullscreen')}
+            onClick={() => setViewOnly((v) => !v)}
+            title={viewOnlyButtonTitle}
           >
-            {isFullscreen ? (
-              <Minimize2 className="h-3.5 w-3.5" />
+            {viewOnly ? (
+              <PanelBottomOpen className="h-3.5 w-3.5" />
             ) : (
-              <Maximize2 className="h-3.5 w-3.5" />
+              <Eye className="h-3.5 w-3.5" />
             )}
           </Button>
-        )}
+          {onToggleFullscreen && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7"
+              onClick={onToggleFullscreen}
+              title={isFullscreen ? t('exit_fullscreen') : t('fullscreen')}
+            >
+              {isFullscreen ? (
+                <Minimize2 className="h-3.5 w-3.5" />
+              ) : (
+                <Maximize2 className="h-3.5 w-3.5" />
+              )}
+            </Button>
+          )}
+        </div>
       </div>
 
-      {/* Messages area + floating bottom bar container */}
-      <div className="relative flex min-h-0 flex-1 flex-col">
+      {/* Messages area + floating bottom bar container; overflow hidden so content stays inside chat area */}
+      <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {hasMessages ? (
-          <div className="flex min-h-0 flex-1 flex-col">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
             <ChatMessageList
               messages={
                 pendingDisplay && messages.length === 0
@@ -595,46 +599,52 @@ export default function MiraChatPanel({
             />
           </div>
         ) : (
-          <div className="flex flex-1 flex-col items-center justify-center gap-6 py-8">
-            <div className="flex flex-col items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-dynamic-purple/15">
+          <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-6 overflow-auto px-2 py-8">
+            <div className="flex w-full max-w-full flex-col items-center gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-dynamic-purple/15">
                 <Sparkles className="h-6 w-6 text-dynamic-purple" />
               </div>
-              <div className="text-center">
+              <div className="min-w-0 max-w-full text-center">
                 <p className="font-medium text-sm">{assistantName}</p>
                 <p className="mt-1 max-w-xs text-muted-foreground text-xs">
                   {t('empty_state', { name: assistantName })}
                 </p>
               </div>
             </div>
-            <QuickActionChips
-              onSend={handleSubmit}
-              disabled={isBusy}
-              variant="cards"
-            />
+            <div className="w-full min-w-0 max-w-full">
+              <QuickActionChips
+                onSend={handleSubmit}
+                disabled={isBusy}
+                variant="cards"
+              />
+            </div>
           </div>
         )}
 
         {/* Floating bottom bar: suggested prompts + input (overlays content) */}
         <div
           className={cn(
-            'absolute right-0 bottom-0 left-0 z-10 flex flex-col gap-2 p-4 pt-8 transition-transform duration-300 ease-out',
+            'absolute right-0 bottom-0 left-0 z-10 flex min-w-0 max-w-full flex-col gap-2 p-3 pt-6 transition-transform duration-300 ease-out sm:p-4 sm:pt-8',
             (!bottomBarVisible || viewOnly) &&
               'pointer-events-none translate-y-full'
           )}
         >
           {hasMessages && !isBusy && (
-            <QuickActionChips onSend={handleSubmit} disabled={isBusy} />
+            <div className="min-w-0 overflow-x-auto overflow-y-hidden">
+              <QuickActionChips onSend={handleSubmit} disabled={isBusy} />
+            </div>
           )}
-          <ChatInputBar
-            input={input}
-            setInput={setInput}
-            onSubmit={handleSubmit}
-            isStreaming={isBusy}
-            assistantName={assistantName}
-            onVoiceToggle={onVoiceToggle}
-            inputRef={inputRef}
-          />
+          <div className="min-w-0">
+            <ChatInputBar
+              input={input}
+              setInput={setInput}
+              onSubmit={handleSubmit}
+              isStreaming={isBusy}
+              assistantName={assistantName}
+              onVoiceToggle={onVoiceToggle}
+              inputRef={inputRef}
+            />
+          </div>
         </div>
       </div>
     </div>
