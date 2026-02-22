@@ -3,10 +3,171 @@ import type { Tool, ToolSet } from 'ai';
 import { z } from 'zod';
 import { tool } from './core';
 
+// ── Executor imports ──
+
+import {
+  executeCheckE2EEStatus,
+  executeCreateEvent,
+  executeDeleteEvent,
+  executeEnableE2EE,
+  executeGetUpcomingEvents,
+  executeUpdateEvent,
+} from './executors/calendar';
+import {
+  executeCreateTransactionCategory,
+  executeCreateTransactionTag,
+  executeCreateWallet,
+  executeDeleteTransaction,
+  executeDeleteTransactionCategory,
+  executeDeleteTransactionTag,
+  executeDeleteWallet,
+  executeGetSpendingSummary,
+  executeGetTransaction,
+  executeListTransactionCategories,
+  executeListTransactions,
+  executeListTransactionTags,
+  executeListWallets,
+  executeLogTransaction,
+  executeSetDefaultCurrency,
+  executeUpdateTransaction,
+  executeUpdateTransactionCategory,
+  executeUpdateTransactionTag,
+  executeUpdateWallet,
+} from './executors/finance';
+import { executeGenerateImage } from './executors/image';
+import {
+  executeDeleteMemory,
+  executeListMemories,
+  executeMergeMemories,
+  executeRecall,
+  executeRemember,
+} from './executors/memory';
+import { executeUpdateMySettings } from './executors/settings';
+import {
+  executeAddTaskAssignee,
+  executeAddTaskLabels,
+  executeAddTaskToProject,
+  executeCompleteTask,
+  executeCreateBoard,
+  executeCreateProject,
+  executeCreateTask,
+  executeCreateTaskLabel,
+  executeCreateTaskList,
+  executeDeleteBoard,
+  executeDeleteProject,
+  executeDeleteTask,
+  executeDeleteTaskLabel,
+  executeDeleteTaskList,
+  executeGetMyTasks,
+  executeListBoards,
+  executeListProjects,
+  executeListTaskLabels,
+  executeListTaskLists,
+  executeRemoveTaskAssignee,
+  executeRemoveTaskFromProject,
+  executeRemoveTaskLabels,
+  executeUpdateBoard,
+  executeUpdateProject,
+  executeUpdateTask,
+  executeUpdateTaskLabel,
+  executeUpdateTaskList,
+} from './executors/tasks';
+import { executeSetTheme } from './executors/theme';
+import { executeStartTimer, executeStopTimer } from './executors/timer';
+import { executeListWorkspaceMembers } from './executors/workspace';
+
+// ── Tool Directory (name → one-line description for system prompt) ──
+
+export const MIRA_TOOL_DIRECTORY: Record<string, string> = {
+  // Tasks
+  get_my_tasks: 'Get your tasks by status (overdue, today, upcoming)',
+  create_task: 'Create a new task',
+  complete_task: 'Mark a task as completed',
+  update_task: 'Update task fields (name, priority, dates, etc.)',
+  delete_task: 'Soft-delete a task',
+  list_boards: 'List all task boards in the workspace',
+  create_board: 'Create a new task board',
+  update_board: 'Update a task board name',
+  delete_board: 'Delete a task board',
+  list_task_lists: 'List columns/lists within a board',
+  create_task_list: 'Create a new list in a board',
+  update_task_list: 'Update a task list',
+  delete_task_list: 'Delete a task list',
+  list_task_labels: 'List workspace task labels',
+  create_task_label: 'Create a task label',
+  update_task_label: 'Update a task label',
+  delete_task_label: 'Delete a task label',
+  add_task_labels: 'Assign labels to a task',
+  remove_task_labels: 'Remove labels from a task',
+  list_projects: 'List workspace projects',
+  create_project: 'Create a project',
+  update_project: 'Update a project',
+  delete_project: 'Delete a project',
+  add_task_to_project: 'Link a task to a project',
+  remove_task_from_project: 'Unlink a task from a project',
+  add_task_assignee: 'Assign a user to a task',
+  remove_task_assignee: 'Remove a user from a task',
+  // Calendar
+  get_upcoming_events: 'Get calendar events for the next N days',
+  create_event: 'Create a calendar event',
+  check_e2ee_status: 'Check E2EE encryption status for calendar',
+  enable_e2ee: 'Enable end-to-end encryption for calendar events',
+  // Finance
+  log_transaction: 'Log an income or expense transaction',
+  get_spending_summary: 'Get spending/income summary for N days',
+  list_wallets: 'List workspace wallets',
+  create_wallet: 'Create a new wallet',
+  update_wallet: 'Update wallet details',
+  delete_wallet: 'Delete a wallet',
+  list_transactions: 'List recent transactions (with filters)',
+  get_transaction: 'Get a single transaction by ID',
+  update_transaction: 'Update a transaction',
+  delete_transaction: 'Delete a transaction',
+  list_transaction_categories: 'List transaction categories',
+  create_transaction_category: 'Create a transaction category',
+  update_transaction_category: 'Update a transaction category',
+  delete_transaction_category: 'Delete a transaction category',
+  list_transaction_tags: 'List transaction tags',
+  create_transaction_tag: 'Create a transaction tag',
+  update_transaction_tag: 'Update a transaction tag',
+  delete_transaction_tag: 'Delete a transaction tag',
+  set_default_currency: 'Set the default currency for the workspace',
+  // Time tracking
+  start_timer: 'Start a time tracking session',
+  stop_timer: 'Stop the running time tracking session',
+  // Memory
+  remember: 'Save a fact/preference about the user',
+  recall: 'Search saved memories',
+  // Image
+  create_image: 'Generate an image from a text description',
+  // Self-configuration
+  update_my_settings: "Update the assistant's personality settings",
+  // Appearance
+  set_theme: 'Switch dark mode, light mode, or system theme',
+  // Workspace
+  list_workspace_members: 'List all members of the workspace',
+  // Meta (always active)
+  no_action_needed: 'Conversational message — no tool action required',
+};
+
 // ── Tool Definitions (schemas only, passed to streamText) ──
 
 export const miraToolDefinitions = {
-  // Tasks
+  // ── Meta: select_tools (step-0 routing tool) ──
+  select_tools: tool({
+    description:
+      'Pick which tools you need for this request. You MUST call this as your FIRST action every turn. Choose from the available tool names listed in the system prompt. For pure conversation, pick no_action_needed.',
+    inputSchema: z.object({
+      tools: z
+        .array(z.string())
+        .min(1)
+        .describe(
+          'Array of tool names to activate (e.g. ["get_my_tasks", "create_task"]). Include all tools you expect to call.'
+        ),
+    }),
+  }),
+
+  // ── Tasks ──
   get_my_tasks: tool({
     description:
       "Get the current user's tasks organized by status. Returns overdue, due today, and upcoming tasks with priority and dates.",
@@ -21,7 +182,7 @@ export const miraToolDefinitions = {
 
   create_task: tool({
     description:
-      "Create a new task in the user's workspace. By default the task is assigned to the current user. Returns the created task with its ID.",
+      "Create a new task in the user's workspace. By default the task is assigned to the current user.",
     inputSchema: z.object({
       name: z.string().describe('Task title'),
       description: z
@@ -35,58 +196,260 @@ export const miraToolDefinitions = {
       assignToSelf: z
         .boolean()
         .optional()
-        .describe(
-          'Whether to assign the task to the current user. Defaults to true. Set false only if the user explicitly says not to assign it.'
-        ),
+        .describe('Assign to current user. Defaults to true.'),
     }),
   }),
 
   complete_task: tool({
-    description:
-      'Mark a task as completed by its ID. The task must belong to the current workspace.',
+    description: 'Mark a task as completed by its ID.',
     inputSchema: z.object({
       taskId: z.string().describe('UUID of the task to complete'),
     }),
   }),
 
-  // Calendar
+  update_task: tool({
+    description:
+      'Update fields on an existing task. Only pass fields that need changing.',
+    inputSchema: z.object({
+      taskId: z.string().describe('UUID of the task'),
+      name: z.string().optional().describe('New task name'),
+      description: z.string().nullable().optional().describe('New description'),
+      priority: z
+        .enum(['low', 'normal', 'high', 'critical'])
+        .nullable()
+        .optional()
+        .describe('New priority'),
+      startDate: z.string().nullable().optional().describe('Start date ISO'),
+      endDate: z.string().nullable().optional().describe('Due date ISO'),
+      estimationPoints: z
+        .number()
+        .int()
+        .min(0)
+        .max(7)
+        .optional()
+        .describe('Estimation point index (0-7)'),
+      listId: z.string().optional().describe('Move to a different list'),
+    }),
+  }),
+
+  delete_task: tool({
+    description: 'Soft-delete a task by ID.',
+    inputSchema: z.object({
+      taskId: z.string().describe('UUID of the task to delete'),
+    }),
+  }),
+
+  list_boards: tool({
+    description: 'List all task boards in the workspace.',
+    inputSchema: z.object({}),
+  }),
+
+  create_board: tool({
+    description: 'Create a new task board.',
+    inputSchema: z.object({
+      name: z.string().describe('Board name'),
+    }),
+  }),
+
+  update_board: tool({
+    description: 'Update a board name.',
+    inputSchema: z.object({
+      boardId: z.string().describe('Board UUID'),
+      name: z.string().describe('New board name'),
+    }),
+  }),
+
+  delete_board: tool({
+    description: 'Delete a task board.',
+    inputSchema: z.object({
+      boardId: z.string().describe('Board UUID'),
+    }),
+  }),
+
+  list_task_lists: tool({
+    description: 'List columns/lists within a specific board.',
+    inputSchema: z.object({
+      boardId: z.string().describe('Board UUID'),
+    }),
+  }),
+
+  create_task_list: tool({
+    description: 'Create a new list/column in a board.',
+    inputSchema: z.object({
+      boardId: z.string().describe('Board UUID'),
+      name: z.string().describe('List name'),
+      color: z.string().optional().describe('Color hex code'),
+    }),
+  }),
+
+  update_task_list: tool({
+    description: 'Update a task list.',
+    inputSchema: z.object({
+      listId: z.string().describe('List UUID'),
+      name: z.string().optional().describe('New name'),
+      color: z.string().optional().describe('New color'),
+      position: z.number().int().optional().describe('New sort position'),
+    }),
+  }),
+
+  delete_task_list: tool({
+    description: 'Delete a task list.',
+    inputSchema: z.object({
+      listId: z.string().describe('List UUID'),
+    }),
+  }),
+
+  list_task_labels: tool({
+    description: 'List all task labels in the workspace.',
+    inputSchema: z.object({}),
+  }),
+
+  create_task_label: tool({
+    description: 'Create a task label.',
+    inputSchema: z.object({
+      name: z.string().describe('Label name'),
+      color: z.string().optional().describe('Color hex code'),
+    }),
+  }),
+
+  update_task_label: tool({
+    description: 'Update a task label.',
+    inputSchema: z.object({
+      labelId: z.string().describe('Label UUID'),
+      name: z.string().optional().describe('New name'),
+      color: z.string().optional().describe('New color'),
+    }),
+  }),
+
+  delete_task_label: tool({
+    description: 'Delete a task label.',
+    inputSchema: z.object({
+      labelId: z.string().describe('Label UUID'),
+    }),
+  }),
+
+  add_task_labels: tool({
+    description: 'Assign one or more labels to a task.',
+    inputSchema: z.object({
+      taskId: z.string().describe('Task UUID'),
+      labelIds: z.array(z.string()).min(1).describe('Label UUIDs to add'),
+    }),
+  }),
+
+  remove_task_labels: tool({
+    description: 'Remove one or more labels from a task.',
+    inputSchema: z.object({
+      taskId: z.string().describe('Task UUID'),
+      labelIds: z.array(z.string()).min(1).describe('Label UUIDs to remove'),
+    }),
+  }),
+
+  list_projects: tool({
+    description: 'List all projects in the workspace.',
+    inputSchema: z.object({}),
+  }),
+
+  create_project: tool({
+    description: 'Create a new project.',
+    inputSchema: z.object({
+      name: z.string().describe('Project name'),
+      description: z.string().optional().describe('Project description'),
+    }),
+  }),
+
+  update_project: tool({
+    description: 'Update a project.',
+    inputSchema: z.object({
+      projectId: z.string().describe('Project UUID'),
+      name: z.string().optional().describe('New name'),
+      description: z.string().optional().describe('New description'),
+    }),
+  }),
+
+  delete_project: tool({
+    description: 'Delete a project.',
+    inputSchema: z.object({
+      projectId: z.string().describe('Project UUID'),
+    }),
+  }),
+
+  add_task_to_project: tool({
+    description: 'Link a task to a project.',
+    inputSchema: z.object({
+      taskId: z.string().describe('Task UUID'),
+      projectId: z.string().describe('Project UUID'),
+    }),
+  }),
+
+  remove_task_from_project: tool({
+    description: 'Unlink a task from a project.',
+    inputSchema: z.object({
+      taskId: z.string().describe('Task UUID'),
+      projectId: z.string().describe('Project UUID'),
+    }),
+  }),
+
+  add_task_assignee: tool({
+    description:
+      'Assign a user to a task. Use list_workspace_members to find user IDs.',
+    inputSchema: z.object({
+      taskId: z.string().describe('Task UUID'),
+      userId: z.string().describe('User UUID to assign'),
+    }),
+  }),
+
+  remove_task_assignee: tool({
+    description: 'Remove a user from a task.',
+    inputSchema: z.object({
+      taskId: z.string().describe('Task UUID'),
+      userId: z.string().describe('User UUID to remove'),
+    }),
+  }),
+
+  // ── Calendar ──
   get_upcoming_events: tool({
     description:
-      'Get upcoming calendar events for the next N days. Returns title, start/end times, and location.',
+      'Get upcoming calendar events for the next N days. Events are automatically decrypted if E2EE is enabled.',
     inputSchema: z.object({
       days: z
         .number()
         .int()
         .min(1)
         .max(30)
-        .describe('Number of days to look ahead (e.g. 7 for a week)'),
+        .describe('Number of days to look ahead'),
     }),
   }),
 
   create_event: tool({
     description:
-      'Create a new calendar event. Requires title, start time, and end time in ISO 8601 format.',
+      'Create a new calendar event. Events are automatically encrypted if E2EE is enabled.',
     inputSchema: z.object({
       title: z.string().describe('Event title'),
-      startAt: z
-        .string()
-        .describe('Start time in ISO 8601 (e.g. 2026-02-20T09:00:00Z)'),
-      endAt: z
-        .string()
-        .describe('End time in ISO 8601 (e.g. 2026-02-20T10:00:00Z)'),
+      startAt: z.string().describe('Start time ISO 8601'),
+      endAt: z.string().describe('End time ISO 8601'),
       description: z.string().nullable().describe('Event description, or null'),
       location: z.string().nullable().describe('Event location, or null'),
     }),
   }),
 
-  // Finance
+  check_e2ee_status: tool({
+    description:
+      'Check whether end-to-end encryption is enabled for calendar events in this workspace.',
+    inputSchema: z.object({}),
+  }),
+
+  enable_e2ee: tool({
+    description:
+      'Enable end-to-end encryption for calendar events. Once enabled, new events will be encrypted automatically.',
+    inputSchema: z.object({}),
+  }),
+
+  // ── Finance ──
   log_transaction: tool({
     description:
-      'Log a financial transaction (expense or income). Positive amount = income, negative = expense.',
+      'Log a financial transaction. Positive amount = income, negative = expense.',
     inputSchema: z.object({
-      amount: z
-        .number()
-        .describe('Transaction amount (positive=income, negative=expense)'),
+      amount: z.number().describe('Amount (positive=income, negative=expense)'),
       description: z.string().nullable().describe('What was this for?'),
       walletId: z
         .string()
@@ -96,22 +459,156 @@ export const miraToolDefinitions = {
   }),
 
   get_spending_summary: tool({
-    description:
-      'Get a summary of spending and income for a given number of past days. Shows total income, expenses, and net balance.',
+    description: 'Get income/expense summary for the past N days.',
     inputSchema: z.object({
       days: z
         .number()
         .int()
         .min(1)
         .max(365)
-        .describe('Number of past days to summarize (e.g. 30 for a month)'),
+        .describe('Number of past days to summarize'),
     }),
   }),
 
-  // Time tracking
+  list_wallets: tool({
+    description: 'List all wallets in the workspace.',
+    inputSchema: z.object({}),
+  }),
+
+  create_wallet: tool({
+    description: 'Create a new wallet.',
+    inputSchema: z.object({
+      name: z.string().describe('Wallet name'),
+      currency: z.string().optional().describe('Currency code (e.g. USD, VND)'),
+      balance: z.number().optional().describe('Initial balance'),
+      type: z.string().optional().describe('Wallet type'),
+    }),
+  }),
+
+  update_wallet: tool({
+    description: 'Update wallet details.',
+    inputSchema: z.object({
+      walletId: z.string().describe('Wallet UUID'),
+      name: z.string().optional().describe('New name'),
+      currency: z.string().optional().describe('New currency'),
+      balance: z.number().optional().describe('New balance'),
+    }),
+  }),
+
+  delete_wallet: tool({
+    description: 'Delete a wallet.',
+    inputSchema: z.object({
+      walletId: z.string().describe('Wallet UUID'),
+    }),
+  }),
+
+  list_transactions: tool({
+    description: 'List transactions with optional filters.',
+    inputSchema: z.object({
+      walletId: z.string().optional().describe('Filter by wallet UUID'),
+      categoryId: z.string().optional().describe('Filter by category UUID'),
+      days: z.number().int().optional().describe('Only last N days'),
+      limit: z
+        .number()
+        .int()
+        .min(1)
+        .max(100)
+        .optional()
+        .describe('Max results (default 50)'),
+    }),
+  }),
+
+  get_transaction: tool({
+    description: 'Get a single transaction by ID.',
+    inputSchema: z.object({
+      transactionId: z.string().describe('Transaction UUID'),
+    }),
+  }),
+
+  update_transaction: tool({
+    description: 'Update a transaction.',
+    inputSchema: z.object({
+      transactionId: z.string().describe('Transaction UUID'),
+      amount: z.number().optional().describe('New amount'),
+      description: z.string().optional().describe('New description'),
+      categoryId: z.string().optional().describe('New category UUID'),
+    }),
+  }),
+
+  delete_transaction: tool({
+    description: 'Delete a transaction.',
+    inputSchema: z.object({
+      transactionId: z.string().describe('Transaction UUID'),
+    }),
+  }),
+
+  list_transaction_categories: tool({
+    description: 'List all transaction categories.',
+    inputSchema: z.object({}),
+  }),
+
+  create_transaction_category: tool({
+    description: 'Create a transaction category.',
+    inputSchema: z.object({
+      name: z.string().describe('Category name'),
+      isExpense: z
+        .boolean()
+        .optional()
+        .describe('Is this an expense category? Default true.'),
+    }),
+  }),
+
+  update_transaction_category: tool({
+    description: 'Update a transaction category.',
+    inputSchema: z.object({
+      categoryId: z.string().describe('Category UUID'),
+      name: z.string().optional().describe('New name'),
+      isExpense: z.boolean().optional().describe('Is expense?'),
+    }),
+  }),
+
+  delete_transaction_category: tool({
+    description: 'Delete a transaction category.',
+    inputSchema: z.object({
+      categoryId: z.string().describe('Category UUID'),
+    }),
+  }),
+
+  list_transaction_tags: tool({
+    description: 'List all transaction tags.',
+    inputSchema: z.object({}),
+  }),
+
+  create_transaction_tag: tool({
+    description: 'Create a transaction tag.',
+    inputSchema: z.object({
+      name: z.string().describe('Tag name'),
+      color: z.string().optional().describe('Color hex'),
+      description: z.string().optional().describe('Tag description'),
+    }),
+  }),
+
+  update_transaction_tag: tool({
+    description: 'Update a transaction tag.',
+    inputSchema: z.object({
+      tagId: z.string().describe('Tag UUID'),
+      name: z.string().optional().describe('New name'),
+      color: z.string().optional().describe('New color'),
+      description: z.string().optional().describe('New description'),
+    }),
+  }),
+
+  delete_transaction_tag: tool({
+    description: 'Delete a transaction tag.',
+    inputSchema: z.object({
+      tagId: z.string().describe('Tag UUID'),
+    }),
+  }),
+
+  // ── Time Tracking ──
   start_timer: tool({
     description:
-      'Start a new time tracking session. Stops any currently running timer first.',
+      'Start a time tracking session. Stops any currently running timer first.',
     inputSchema: z.object({
       title: z.string().describe('What are you working on?'),
       description: z
@@ -122,49 +619,95 @@ export const miraToolDefinitions = {
   }),
 
   stop_timer: tool({
-    description:
-      'Stop the currently running time tracking session. Returns the elapsed duration.',
+    description: 'Stop the currently running time tracking session.',
     inputSchema: z.object({
       sessionId: z
         .string()
         .nullable()
-        .describe('Session UUID to stop. If null, stops the active session.'),
+        .describe('Session UUID, or null for active session'),
     }),
   }),
 
-  // Memory
+  // ── Memory ──
   remember: tool({
     description:
-      'Save a memory or fact about the user for future reference. Use when the user shares preferences, goals, important facts, or asks to remember something. IMPORTANT: Store rich, contextual values — don\'t split related facts into separate entries. For people, use a single entry per person with all known details (e.g. key: "person_quoc", value: "Quoc — friend from university at RMIT, co-founder at Zeus/Olympia HQ"). For topics, include relationships and context in the value.',
+      'Save a memory or fact about the user. Store rich, contextual values. For people use key format person_<name>.',
     inputSchema: z.object({
       key: z
         .string()
-        .describe(
-          'Short label for the memory. For people use "person_<name>" (e.g. "person_quoc"). For user facts use descriptive keys (e.g. "user_birthday", "favorite_color", "project_deadline").'
-        ),
-      value: z
-        .string()
-        .describe(
-          'The content to remember. Be detailed and contextual — include relationships, context, and connections to other facts. Avoid single-word values.'
-        ),
+        .describe('Short label (e.g. "user_birthday", "person_quoc")'),
+      value: z.string().describe('Detailed contextual content to remember'),
       category: z
         .enum(['preference', 'fact', 'conversation_topic', 'event', 'person'])
-        .describe('Category of the memory'),
+        .describe('Memory category'),
     }),
   }),
 
-  // Image generation
-  create_image: tool({
+  recall: tool({
     description:
-      'Generate an image from a text description. Returns a URL to the generated image saved in workspace storage.',
+      'Search saved memories. Pass null query with high maxResults for "everything" requests.',
     inputSchema: z.object({
-      prompt: z
+      query: z
         .string()
-        .describe('Detailed description of the image to generate'),
+        .nullish()
+        .describe('Search keywords, or null/omit for all'),
+      category: z
+        .enum(['preference', 'fact', 'conversation_topic', 'event', 'person'])
+        .nullable()
+        .describe('Filter by category, or null'),
+      maxResults: z
+        .number()
+        .int()
+        .min(1)
+        .max(50)
+        .describe('Max results (20-50 for broad queries, 5-10 for specific)'),
+    }),
+  }),
+
+  delete_memory: tool({
+    description: 'Delete a single memory by its exact key.',
+    inputSchema: z.object({
+      key: z.string().describe('The exact key of the memory to delete'),
+    }),
+  }),
+
+  list_memories: tool({
+    description:
+      'List all stored memories, optionally filtered by category. Used for memory hygiene and review.',
+    inputSchema: z.object({
+      category: z
+        .enum(['preference', 'fact', 'conversation_topic', 'event', 'person'])
+        .nullish()
+        .describe('Category to filter memories by'),
+    }),
+  }),
+
+  merge_memories: tool({
+    description:
+      'Consolidate multiple existing memories into a single new memory. The old memories will be deleted.',
+    inputSchema: z.object({
+      keysToDelete: z
+        .array(z.string())
+        .describe('Array of exact keys to delete'),
+      newKey: z.string().describe('The key for the new consolidated memory'),
+      newValue: z
+        .string()
+        .describe('The value for the new consolidated memory'),
+      newCategory: z
+        .enum(['preference', 'fact', 'conversation_topic', 'event', 'person'])
+        .describe('Category for the new memory'),
+    }),
+  }),
+
+  // ── Image Generation ──
+  create_image: tool({
+    description: 'Generate an image from a text description.',
+    inputSchema: z.object({
+      prompt: z.string().describe('Detailed image description'),
       aspectRatio: z
         .enum(['1:1', '3:4', '4:3', '9:16', '16:9'])
         .optional()
-        .describe('Aspect ratio for the image. Defaults to 1:1.'),
+        .describe('Aspect ratio (default 1:1)'),
       model: z
         .enum([
           'google/imagen-4.0-fast-generate-001',
@@ -172,49 +715,16 @@ export const miraToolDefinitions = {
           'google/gemini-2.5-flash-image',
         ])
         .optional()
-        .describe(
-          'Image model to use. Default: free plan uses Imagen 4 Fast; paid plans use Imagen 4.'
-        ),
+        .describe('Image model (auto-selected by plan if omitted)'),
     }),
   }),
 
-  recall: tool({
-    description:
-      'Search the user\'s saved memories for relevant context. Use to recall preferences, facts, or past conversations. To get ALL memories (e.g. "tell me everything you know about me"), pass query as null with a high maxResults. Use a single recall call with broad query instead of many narrow calls.',
-    inputSchema: z.object({
-      query: z
-        .string()
-        .nullish()
-        .describe(
-          'What to search for in memories (keywords or natural language). Pass null or omit to get ALL memories without filtering.'
-        ),
-      category: z
-        .enum(['preference', 'fact', 'conversation_topic', 'event', 'person'])
-        .nullable()
-        .describe('Filter by memory category, or null for all'),
-      maxResults: z
-        .number()
-        .int()
-        .min(1)
-        .max(50)
-        .describe(
-          'Max results to return. Use 20-50 for broad "everything" queries, 5-10 for specific lookups.'
-        ),
-    }),
-  }),
-
-  // Self-configuration
+  // ── Self-Configuration ──
   update_my_settings: tool({
     description:
-      'Update YOUR OWN (the assistant\'s) personality settings. IMPORTANT: The `name` field is YOUR name (the AI assistant), NOT the user\'s name. If the user says "call me X" or "my name is X", that is the USER\'s name — use the `remember` tool instead. Only use this tool\'s `name` field when the user says "call yourself X", "your name is X", or "rename yourself to X". Proactively use this for behavior changes like "be warmer", "keep it short". Only set fields that need changing.',
+      "Update YOUR OWN (the assistant's) personality. The `name` field is YOUR name, not the user's. Use `remember` for user's name.",
     inputSchema: z.object({
-      name: z
-        .string()
-        .max(50)
-        .nullish()
-        .describe(
-          'New name for YOU (the AI assistant). NEVER set this to the user\'s name. Only change when the user explicitly renames the assistant (e.g. "call yourself Mira").'
-        ),
+      name: z.string().max(50).nullish().describe('New assistant name'),
       tone: z
         .enum([
           'balanced',
@@ -226,19 +736,13 @@ export const miraToolDefinitions = {
           'warm',
         ])
         .nullish()
-        .describe('New communication tone, or omit to keep current'),
+        .describe('Communication tone'),
       personality: z
         .string()
         .max(2000)
         .nullish()
-        .describe(
-          'New personality description. Use this for freeform behavioral preferences too (e.g. "use emojis", "include code examples"). Append to existing personality if updating — don\'t overwrite unless the user wants a fresh start. Omit to keep current.'
-        ),
-      boundaries: z
-        .string()
-        .max(2000)
-        .nullish()
-        .describe('New boundaries, or omit to keep current'),
+        .describe('Personality description / behavioral preferences'),
+      boundaries: z.string().max(2000).nullish().describe('Custom boundaries'),
       vibe: z
         .enum([
           'calm',
@@ -250,42 +754,65 @@ export const miraToolDefinitions = {
           'witty',
         ])
         .nullish()
-        .describe('New energy/vibe, or omit to keep current'),
+        .describe('Energy/vibe'),
       chat_tone: z
         .enum(['thorough', 'concise', 'detailed', 'brief'])
         .nullish()
-        .describe('New chat response style, or omit to keep current'),
+        .describe('Response verbosity'),
     }),
   }),
 
-  // Escape-hatch: lets the model skip real tools for conversational messages
-  // while still satisfying `toolChoice: 'required'`.
-  no_action_needed: tool({
+  // ── Finance Settings ──
+  set_default_currency: tool({
     description:
-      'Call this ONLY when the user message is purely conversational and requires NO real action — e.g. greetings ("hi", "thanks"), follow-up questions, or casual chat. For ANY request that involves tasks, calendar, finance, timers, memory, settings, or images you MUST call the appropriate tool instead.',
+      'Set the default currency for the workspace. Use standard currency codes.',
     inputSchema: z.object({
-      reason: z
+      currency: z
         .string()
         .describe(
-          'Brief reason why no action tool is needed (e.g. "user said thanks")'
+          'Currency code (e.g. USD, VND, EUR, JPY, GBP, KRW, THB, SGD)'
         ),
     }),
   }),
-};
 
-// ── Stream Tools Factory (returns tools with execute bound to context) ──
+  // ── Appearance ──
+  set_theme: tool({
+    description:
+      'Switch the UI theme. Use when user asks for dark mode, light mode, or system theme.',
+    inputSchema: z.object({
+      theme: z.enum(['light', 'dark', 'system']).describe('Theme to apply'),
+    }),
+  }),
+
+  // ── Workspace ──
+  list_workspace_members: tool({
+    description: 'List all members of the current workspace with their roles.',
+    inputSchema: z.object({}),
+  }),
+
+  // ── Escape-hatch ──
+  no_action_needed: tool({
+    description:
+      'Call when the message is purely conversational and requires NO real action.',
+    inputSchema: z.object({
+      reason: z.string().describe('Brief reason (e.g. "user said thanks")'),
+    }),
+  }),
+} as const;
+
+// ── Types ──
 
 export type MiraToolContext = {
   userId: string;
   wsId: string;
   supabase: SupabaseClient;
+  timezone?: string;
 };
 
-/**
- * Creates tools with `execute` functions bound to the given context.
- * Pass the result directly to `streamText({ tools })` for server-side
- * multi-turn tool execution with `maxSteps`.
- */
+export type MiraToolName = keyof typeof miraToolDefinitions;
+
+// ── Stream Tools Factory ──
+
 export function createMiraStreamTools(ctx: MiraToolContext): ToolSet {
   const tools: ToolSet = {};
   for (const [name, def] of Object.entries(miraToolDefinitions)) {
@@ -298,758 +825,167 @@ export function createMiraStreamTools(ctx: MiraToolContext): ToolSet {
   return tools;
 }
 
-// ── Tool Executors (called from chat route when tools are invoked) ──
+// ── Tool Dispatcher ──
 
-/**
- * Executes a Mira tool call by name with the given arguments.
- * Called from the chat route's tool call handling logic.
- */
 export async function executeMiraTool(
   toolName: string,
   args: Record<string, unknown>,
   ctx: MiraToolContext
 ): Promise<unknown> {
-  const { userId, wsId, supabase } = ctx;
-
   switch (toolName) {
-    case 'get_my_tasks':
-      return executeGetMyTasks(args, userId, wsId, supabase);
-    case 'create_task':
-      return executeCreateTask(args, userId, wsId, supabase);
-    case 'complete_task':
-      return executeCompleteTask(args, supabase);
-    case 'get_upcoming_events':
-      return executeGetUpcomingEvents(args, wsId, supabase);
-    case 'create_event':
-      return executeCreateEvent(args, wsId, supabase);
-    case 'log_transaction':
-      return executeLogTransaction(args, wsId, supabase);
-    case 'get_spending_summary':
-      return executeGetSpendingSummary(args, wsId, supabase);
-    case 'start_timer':
-      return executeStartTimer(args, userId, wsId, supabase);
-    case 'stop_timer':
-      return executeStopTimer(args, userId, wsId, supabase);
-    case 'create_image':
-      return executeGenerateImage(args, ctx);
-    case 'remember':
-      return executeRemember(args, userId, supabase);
-    case 'recall':
-      return executeRecall(args, userId, supabase);
-    case 'update_my_settings':
-      return executeUpdateMySettings(args, userId, supabase);
+    // Meta
+    case 'select_tools':
+      return { ok: true, selectedTools: args.tools };
     case 'no_action_needed':
       return { ok: true };
+
+    // Tasks
+    case 'get_my_tasks':
+      return executeGetMyTasks(args, ctx);
+    case 'create_task':
+      return executeCreateTask(args, ctx);
+    case 'complete_task':
+      return executeCompleteTask(args, ctx);
+    case 'update_task':
+      return executeUpdateTask(args, ctx);
+    case 'delete_task':
+      return executeDeleteTask(args, ctx);
+    case 'list_boards':
+      return executeListBoards(args, ctx);
+    case 'create_board':
+      return executeCreateBoard(args, ctx);
+    case 'update_board':
+      return executeUpdateBoard(args, ctx);
+    case 'delete_board':
+      return executeDeleteBoard(args, ctx);
+    case 'list_task_lists':
+      return executeListTaskLists(args, ctx);
+    case 'create_task_list':
+      return executeCreateTaskList(args, ctx);
+    case 'update_task_list':
+      return executeUpdateTaskList(args, ctx);
+    case 'delete_task_list':
+      return executeDeleteTaskList(args, ctx);
+    case 'list_task_labels':
+      return executeListTaskLabels(args, ctx);
+    case 'create_task_label':
+      return executeCreateTaskLabel(args, ctx);
+    case 'update_task_label':
+      return executeUpdateTaskLabel(args, ctx);
+    case 'delete_task_label':
+      return executeDeleteTaskLabel(args, ctx);
+    case 'add_task_labels':
+      return executeAddTaskLabels(args, ctx);
+    case 'remove_task_labels':
+      return executeRemoveTaskLabels(args, ctx);
+    case 'list_projects':
+      return executeListProjects(args, ctx);
+    case 'create_project':
+      return executeCreateProject(args, ctx);
+    case 'update_project':
+      return executeUpdateProject(args, ctx);
+    case 'delete_project':
+      return executeDeleteProject(args, ctx);
+    case 'add_task_to_project':
+      return executeAddTaskToProject(args, ctx);
+    case 'remove_task_from_project':
+      return executeRemoveTaskFromProject(args, ctx);
+    case 'add_task_assignee':
+      return executeAddTaskAssignee(args, ctx);
+    case 'remove_task_assignee':
+      return executeRemoveTaskAssignee(args, ctx);
+
+    // Calendar
+    case 'get_upcoming_events':
+      return executeGetUpcomingEvents(args, ctx);
+    case 'create_event':
+      return executeCreateEvent(args, ctx);
+    case 'update_event':
+      return executeUpdateEvent(args, ctx);
+    case 'delete_event':
+      return executeDeleteEvent(args, ctx);
+    case 'check_e2ee_status':
+      return executeCheckE2EEStatus(args, ctx);
+    case 'enable_e2ee':
+      return executeEnableE2EE(args, ctx);
+
+    // Finance
+    case 'log_transaction':
+      return executeLogTransaction(args, ctx);
+    case 'get_spending_summary':
+      return executeGetSpendingSummary(args, ctx);
+    case 'list_wallets':
+      return executeListWallets(args, ctx);
+    case 'create_wallet':
+      return executeCreateWallet(args, ctx);
+    case 'update_wallet':
+      return executeUpdateWallet(args, ctx);
+    case 'delete_wallet':
+      return executeDeleteWallet(args, ctx);
+    case 'list_transactions':
+      return executeListTransactions(args, ctx);
+    case 'get_transaction':
+      return executeGetTransaction(args, ctx);
+    case 'update_transaction':
+      return executeUpdateTransaction(args, ctx);
+    case 'delete_transaction':
+      return executeDeleteTransaction(args, ctx);
+    case 'list_transaction_categories':
+      return executeListTransactionCategories(args, ctx);
+    case 'create_transaction_category':
+      return executeCreateTransactionCategory(args, ctx);
+    case 'update_transaction_category':
+      return executeUpdateTransactionCategory(args, ctx);
+    case 'delete_transaction_category':
+      return executeDeleteTransactionCategory(args, ctx);
+    case 'list_transaction_tags':
+      return executeListTransactionTags(args, ctx);
+    case 'create_transaction_tag':
+      return executeCreateTransactionTag(args, ctx);
+    case 'update_transaction_tag':
+      return executeUpdateTransactionTag(args, ctx);
+    case 'delete_transaction_tag':
+      return executeDeleteTransactionTag(args, ctx);
+
+    // Time tracking
+    case 'start_timer':
+      return executeStartTimer(args, ctx);
+    case 'stop_timer':
+      return executeStopTimer(args, ctx);
+
+    // Memory
+    case 'remember':
+      return executeRemember(args, ctx);
+    case 'recall':
+      return executeRecall(args, ctx);
+    case 'list_memories':
+      return executeListMemories(args, ctx);
+    case 'delete_memory':
+      return executeDeleteMemory(args, ctx);
+    case 'merge_memories':
+      return executeMergeMemories(args, ctx);
+
+    // Image
+    case 'create_image':
+      return executeGenerateImage(args, ctx);
+
+    // Self-configuration
+    case 'update_my_settings':
+      return executeUpdateMySettings(args, ctx);
+
+    // Finance Settings
+    case 'set_default_currency':
+      return executeSetDefaultCurrency(args, ctx);
+
+    // Appearance
+    case 'set_theme':
+      return executeSetTheme(args, ctx);
+
+    // Workspace
+    case 'list_workspace_members':
+      return executeListWorkspaceMembers(args, ctx);
+
     default:
       return { error: `Unknown tool: ${toolName}` };
   }
-}
-
-// ── Executor Implementations ──
-
-async function executeGetMyTasks(
-  args: Record<string, unknown>,
-  userId: string,
-  wsId: string,
-  supabase: SupabaseClient
-) {
-  const category = (args.category as string) || 'all';
-
-  const { data: tasks, error } = await supabase.rpc(
-    'get_user_accessible_tasks',
-    {
-      p_user_id: userId,
-      p_ws_id: wsId,
-      p_include_deleted: false,
-      p_list_statuses: ['not_started', 'active', 'done'],
-    }
-  );
-
-  if (error) return { error: error.message };
-
-  const now = new Date();
-  const todayStart = new Date(now);
-  todayStart.setHours(0, 0, 0, 0);
-  const todayEnd = new Date(now);
-  todayEnd.setHours(23, 59, 59, 999);
-
-  type RpcTask = {
-    task_id: string;
-    task_name: string;
-    task_priority: string | null;
-    task_end_date: string | null;
-    task_completed_at: string | null;
-    task_closed_at: string | null;
-  };
-
-  const active = ((tasks as RpcTask[]) || []).filter(
-    (t) => !t.task_completed_at && !t.task_closed_at
-  );
-
-  const mapTask = (t: RpcTask) => ({
-    id: t.task_id,
-    name: t.task_name,
-    priority: t.task_priority,
-    dueDate: t.task_end_date,
-  });
-
-  const overdue = active
-    .filter((t) => t.task_end_date && t.task_end_date < now.toISOString())
-    .map(mapTask)
-    .slice(0, 30);
-
-  const today = active
-    .filter(
-      (t) =>
-        t.task_end_date &&
-        t.task_end_date >= todayStart.toISOString() &&
-        t.task_end_date <= todayEnd.toISOString() &&
-        t.task_end_date >= now.toISOString()
-    )
-    .map(mapTask)
-    .slice(0, 30);
-
-  const upcoming = active
-    .filter((t) => !t.task_end_date || t.task_end_date > todayEnd.toISOString())
-    .map(mapTask)
-    .slice(0, 30);
-
-  const result: Record<string, unknown> = { totalActive: active.length };
-  if (category === 'all' || category === 'overdue')
-    result.overdue = { count: overdue.length, tasks: overdue };
-  if (category === 'all' || category === 'today')
-    result.today = { count: today.length, tasks: today };
-  if (category === 'all' || category === 'upcoming')
-    result.upcoming = { count: upcoming.length, tasks: upcoming };
-  return result;
-}
-
-async function executeCreateTask(
-  args: Record<string, unknown>,
-  userId: string,
-  wsId: string,
-  supabase: SupabaseClient
-) {
-  const name = args.name as string;
-  const description = args.description as string | null;
-  const priority = args.priority as string | null;
-  const assignToSelf = (args.assignToSelf as boolean | undefined) !== false;
-
-  // Find an existing board, or auto-create one named "Tasks"
-  let { data: board } = await supabase
-    .from('workspace_boards')
-    .select('id')
-    .eq('ws_id', wsId)
-    .limit(1)
-    .single();
-
-  if (!board) {
-    const { data: newBoard, error: boardErr } = await supabase
-      .from('workspace_boards')
-      .insert({ name: 'Tasks', ws_id: wsId })
-      .select('id')
-      .single();
-    if (boardErr || !newBoard)
-      return {
-        error: `Failed to create board: ${boardErr?.message ?? 'Unknown error'}`,
-      };
-    board = newBoard;
-  }
-
-  // Find an existing list, or auto-create one named "To Do"
-  let { data: list } = await supabase
-    .from('task_lists')
-    .select('id')
-    .eq('board_id', board.id)
-    .eq('is_archived', false)
-    .order('created_at', { ascending: true })
-    .limit(1)
-    .single();
-
-  if (!list) {
-    const { data: newList, error: listErr } = await supabase
-      .from('task_lists')
-      .insert({ name: 'To Do', board_id: board.id })
-      .select('id')
-      .single();
-    if (listErr || !newList)
-      return {
-        error: `Failed to create list: ${listErr?.message ?? 'Unknown error'}`,
-      };
-    list = newList;
-  }
-
-  const { data: task, error } = await supabase
-    .from('tasks')
-    .insert({
-      name,
-      description: description
-        ? JSON.stringify({
-            type: 'doc',
-            content: [
-              {
-                type: 'paragraph',
-                content: [{ type: 'text', text: description }],
-              },
-            ],
-          })
-        : null,
-      list_id: list.id,
-      priority,
-      completed: false,
-    })
-    .select('id, name, priority, created_at')
-    .single();
-
-  if (error) return { error: error.message };
-
-  // Auto-assign the task to the current user unless opted out
-  if (assignToSelf && task) {
-    const { error: assignErr } = await supabase
-      .from('task_assignees')
-      .insert({ task_id: task.id, user_id: userId });
-    if (assignErr) {
-      // Non-fatal — task is created, just assignment failed
-      return {
-        success: true,
-        message: `Task "${name}" created, but auto-assignment failed: ${assignErr.message}`,
-        task,
-      };
-    }
-    return {
-      success: true,
-      message: `Task "${name}" created and assigned to you`,
-      task,
-    };
-  }
-
-  return {
-    success: true,
-    message: `Task "${name}" created (unassigned)`,
-    task,
-  };
-}
-
-async function executeCompleteTask(
-  args: Record<string, unknown>,
-  supabase: SupabaseClient
-) {
-  const taskId = args.taskId as string;
-
-  const { error } = await supabase
-    .from('tasks')
-    .update({ completed: true, completed_at: new Date().toISOString() })
-    .eq('id', taskId);
-
-  if (error) return { error: error.message };
-  return { success: true, message: 'Task marked as completed' };
-}
-
-async function executeGetUpcomingEvents(
-  args: Record<string, unknown>,
-  wsId: string,
-  supabase: SupabaseClient
-) {
-  const days = (args.days as number) || 7;
-  const now = new Date();
-  const future = new Date(now);
-  future.setDate(future.getDate() + days);
-
-  const { data: events, error } = await supabase
-    .from('workspace_calendar_events')
-    .select('id, title, description, start_at, end_at, location')
-    .eq('ws_id', wsId)
-    .gte('start_at', now.toISOString())
-    .lte('start_at', future.toISOString())
-    .order('start_at', { ascending: true })
-    .limit(50);
-
-  if (error) return { error: error.message };
-
-  return {
-    count: events?.length ?? 0,
-    events: (events || []).map(
-      (e: {
-        id: string;
-        title: string;
-        start_at: string;
-        end_at: string;
-        location: string | null;
-      }) => ({
-        id: e.id,
-        title: e.title,
-        start: e.start_at,
-        end: e.end_at,
-        location: e.location,
-      })
-    ),
-  };
-}
-
-async function executeCreateEvent(
-  args: Record<string, unknown>,
-  wsId: string,
-  supabase: SupabaseClient
-) {
-  const { data: event, error } = await supabase
-    .from('workspace_calendar_events')
-    .insert({
-      title: args.title as string,
-      start_at: args.startAt as string,
-      end_at: args.endAt as string,
-      description: (args.description as string) ?? '',
-      location: (args.location as string) ?? null,
-      ws_id: wsId,
-    })
-    .select('id, title, start_at, end_at')
-    .single();
-
-  if (error) return { error: error.message };
-  return {
-    success: true,
-    message: `Event "${args.title}" created`,
-    event,
-  };
-}
-
-async function executeLogTransaction(
-  args: Record<string, unknown>,
-  wsId: string,
-  supabase: SupabaseClient
-) {
-  const amount = args.amount as number;
-  let walletId = args.walletId as string | null;
-
-  if (!walletId) {
-    const { data: wallet } = await supabase
-      .from('workspace_wallets')
-      .select('id')
-      .eq('ws_id', wsId)
-      .limit(1)
-      .single();
-
-    if (!wallet) return { error: 'No wallet found in workspace' };
-    walletId = wallet.id;
-  }
-
-  const { data: tx, error } = await supabase
-    .from('wallet_transactions')
-    .insert({
-      amount,
-      description: (args.description as string) ?? null,
-      wallet_id: walletId,
-      taken_at: new Date().toISOString(),
-    })
-    .select('id, amount, description, taken_at')
-    .single();
-
-  if (error) return { error: error.message };
-  return {
-    success: true,
-    message: `Transaction of ${amount} logged`,
-    transaction: tx,
-  };
-}
-
-async function executeGetSpendingSummary(
-  args: Record<string, unknown>,
-  wsId: string,
-  supabase: SupabaseClient
-) {
-  const days = (args.days as number) || 30;
-  const since = new Date();
-  since.setDate(since.getDate() - days);
-
-  const { data: wallets } = await supabase
-    .from('workspace_wallets')
-    .select('id, name, currency, balance')
-    .eq('ws_id', wsId);
-
-  if (!wallets?.length)
-    return { wallets: [], totalIncome: 0, totalExpenses: 0, net: 0 };
-
-  const walletIds = wallets.map(
-    (w: { id: string; name: string; currency: string; balance: number }) => w.id
-  );
-
-  const { data: transactions } = await supabase
-    .from('wallet_transactions')
-    .select('amount, wallet_id')
-    .in('wallet_id', walletIds)
-    .gte('taken_at', since.toISOString());
-
-  let totalIncome = 0;
-  let totalExpenses = 0;
-
-  for (const tx of transactions || []) {
-    if (tx.amount && tx.amount > 0) totalIncome += tx.amount;
-    else if (tx.amount && tx.amount < 0) totalExpenses += Math.abs(tx.amount);
-  }
-
-  return {
-    period: `Last ${days} days`,
-    totalIncome,
-    totalExpenses,
-    net: totalIncome - totalExpenses,
-    wallets: wallets.map(
-      (w: { id: string; name: string; currency: string; balance: number }) => ({
-        id: w.id,
-        name: w.name,
-        currency: w.currency,
-        balance: w.balance,
-      })
-    ),
-  };
-}
-
-async function executeStartTimer(
-  args: Record<string, unknown>,
-  userId: string,
-  wsId: string,
-  supabase: SupabaseClient
-) {
-  const title = args.title as string;
-
-  // Stop any currently running session
-  await supabase
-    .from('time_tracking_sessions')
-    .update({ is_running: false, end_time: new Date().toISOString() })
-    .eq('user_id', userId)
-    .eq('ws_id', wsId)
-    .eq('is_running', true);
-
-  const now = new Date();
-
-  const { data: session, error } = await supabase
-    .from('time_tracking_sessions')
-    .insert({
-      title,
-      description: (args.description as string) ?? null,
-      start_time: now.toISOString(),
-      is_running: true,
-      user_id: userId,
-      ws_id: wsId,
-      date: now.toISOString().split('T')[0],
-    })
-    .select('id, title, start_time')
-    .single();
-
-  if (error) return { error: error.message };
-  return { success: true, message: `Timer started: "${title}"`, session };
-}
-
-async function executeStopTimer(
-  args: Record<string, unknown>,
-  userId: string,
-  wsId: string,
-  supabase: SupabaseClient
-) {
-  const sessionId = args.sessionId as string | null;
-
-  let query = supabase
-    .from('time_tracking_sessions')
-    .select('id, title, start_time')
-    .eq('user_id', userId)
-    .eq('ws_id', wsId)
-    .eq('is_running', true);
-
-  if (sessionId) query = query.eq('id', sessionId);
-
-  const { data: session } = await query.limit(1).single();
-
-  if (!session) return { error: 'No running timer found' };
-
-  const endTime = new Date();
-  const startTime = new Date(session.start_time);
-  const durationSeconds = Math.round(
-    (endTime.getTime() - startTime.getTime()) / 1000
-  );
-
-  const { error } = await supabase
-    .from('time_tracking_sessions')
-    .update({
-      is_running: false,
-      end_time: endTime.toISOString(),
-      duration_seconds: durationSeconds,
-    })
-    .eq('id', session.id);
-
-  if (error) return { error: error.message };
-
-  const hours = Math.floor(durationSeconds / 3600);
-  const minutes = Math.floor((durationSeconds % 3600) / 60);
-
-  return {
-    success: true,
-    message: `Timer stopped: "${session.title}" — ${hours}h ${minutes}m`,
-    session: {
-      id: session.id,
-      title: session.title,
-      durationSeconds,
-      durationFormatted: `${hours}h ${minutes}m`,
-    },
-  };
-}
-
-const IMAGEN_4_FAST = 'google/imagen-4.0-fast-generate-001';
-const IMAGEN_4 = 'google/imagen-4.0-generate-001';
-
-async function executeGenerateImage(
-  args: Record<string, unknown>,
-  ctx: MiraToolContext
-): Promise<unknown> {
-  const prompt = args.prompt as string;
-  const aspectRatio = (args.aspectRatio as string) ?? '1:1';
-
-  // Default model: FREE plan uses fast (cheaper); paid plans use standard Imagen 4
-  const resolvedModel =
-    (args.model as string) ??
-    (await (async () => {
-      const { getWorkspaceTier } = await import(
-        '@tuturuuu/utils/workspace-helper'
-      );
-      const tier = await getWorkspaceTier(ctx.wsId, { useAdmin: true });
-      return tier === 'FREE' ? IMAGEN_4_FAST : IMAGEN_4;
-    })());
-  const selectedModel = resolvedModel;
-
-  // Pre-flight credit check before generating
-  const { checkAiCredits } = await import('../credits/check-credits');
-  const creditCheck = await checkAiCredits(
-    ctx.wsId,
-    selectedModel,
-    'image_generation',
-    {
-      userId: ctx.userId,
-    }
-  );
-
-  if (!creditCheck.allowed) {
-    const errorMessages: Record<string, string> = {
-      FEATURE_NOT_ALLOWED:
-        'Image generation is not available on your current plan.',
-      MODEL_NOT_ALLOWED: `The model ${selectedModel} is not enabled for your workspace.`,
-      CREDITS_EXHAUSTED: 'You have run out of AI credits for image generation.',
-      NO_ALLOCATION: 'Image generation is not configured for your workspace.',
-    };
-    return {
-      success: false,
-      error:
-        errorMessages[creditCheck.errorCode ?? ''] ??
-        'Image generation is not available. Please check your AI credit settings.',
-    };
-  }
-
-  const { generateImage, gateway } = await import('ai');
-  const { createAdminClient } = await import('@tuturuuu/supabase/next/server');
-
-  // Generate image via AI Gateway (uses AI_GATEWAY_API_KEY from env)
-  const { image } = await generateImage({
-    model: gateway.image(selectedModel),
-    prompt,
-    aspectRatio: aspectRatio as `${number}:${number}`,
-  });
-
-  // Upload to workspace storage
-  const sbAdmin = await createAdminClient();
-  const imageId = crypto.randomUUID();
-  const storagePath = `${ctx.wsId}/mira/images/${imageId}.png`;
-
-  const { error: uploadError } = await sbAdmin.storage
-    .from('workspaces')
-    .upload(storagePath, image.uint8Array, {
-      contentType: 'image/png',
-      upsert: false,
-    });
-
-  if (uploadError) {
-    return { success: false, error: `Upload failed: ${uploadError.message}` };
-  }
-
-  // Generate signed URL (30 days — long-lived for chat history persistence)
-  const { data: urlData, error: urlError } = await sbAdmin.storage
-    .from('workspaces')
-    .createSignedUrl(storagePath, 60 * 60 * 24 * 30);
-
-  if (urlError || !urlData) {
-    return {
-      success: false,
-      error: `Signed URL failed: ${urlError?.message ?? 'No data returned'}`,
-    };
-  }
-
-  // Deduct credits for image generation (fire-and-forget)
-  const { deductAiCredits } = await import('../credits/check-credits');
-  void deductAiCredits({
-    wsId: ctx.wsId,
-    userId: ctx.userId,
-    modelId: selectedModel,
-    inputTokens: 0,
-    outputTokens: 0,
-    imageCount: 1,
-    feature: 'image_generation',
-    metadata: {
-      prompt,
-      aspectRatio,
-      storagePath,
-      model: selectedModel,
-    },
-  }).catch((err: unknown) =>
-    console.error('Image credit deduction failed:', err)
-  );
-
-  return {
-    success: true,
-    imageUrl: urlData.signedUrl,
-    storagePath,
-    prompt,
-  };
-}
-
-async function executeRemember(
-  args: Record<string, unknown>,
-  userId: string,
-  supabase: SupabaseClient
-) {
-  const key = args.key as string;
-  const value = args.value as string;
-  const category = args.category as string;
-
-  // Upsert: update if same key exists
-  const { data: existing } = await supabase
-    .from('mira_memories')
-    .select('id')
-    .eq('user_id', userId)
-    .eq('key', key)
-    .maybeSingle();
-
-  if (existing) {
-    const { error } = await supabase
-      .from('mira_memories')
-      .update({
-        value,
-        category,
-        updated_at: new Date().toISOString(),
-        last_referenced_at: new Date().toISOString(),
-      })
-      .eq('id', existing.id);
-
-    if (error) return { error: error.message };
-    return {
-      success: true,
-      message: `Memory "${key}" updated`,
-      action: 'updated',
-    };
-  }
-
-  const { error } = await supabase.from('mira_memories').insert({
-    user_id: userId,
-    key,
-    value,
-    category,
-    source: 'mira_chat',
-  });
-
-  if (error) return { error: error.message };
-  return { success: true, message: `Remembered: "${key}"`, action: 'created' };
-}
-
-async function executeRecall(
-  args: Record<string, unknown>,
-  userId: string,
-  supabase: SupabaseClient
-) {
-  const query = (args.query as string | null | undefined) ?? null;
-  const category = args.category as string | null;
-  const maxResults = (args.maxResults as number) || 10;
-
-  let dbQuery = supabase
-    .from('mira_memories')
-    .select('key, value, category, updated_at')
-    .eq('user_id', userId)
-    .order('updated_at', { ascending: false })
-    .limit(maxResults);
-
-  if (category) dbQuery = dbQuery.eq('category', category);
-
-  // Only filter by query when a specific search term is provided.
-  // Null/empty query returns all memories (for "tell me everything" requests).
-  if (query?.trim()) {
-    dbQuery = dbQuery.or(`key.ilike.%${query}%,value.ilike.%${query}%`);
-  }
-
-  const { data: memories, error } = await dbQuery;
-
-  if (error) return { error: error.message };
-
-  // Touch last_referenced_at for relevance tracking
-  if (memories?.length) {
-    void supabase
-      .from('mira_memories')
-      .update({ last_referenced_at: new Date().toISOString() })
-      .eq('user_id', userId)
-      .in(
-        'key',
-        memories.map((m: { key: string }) => m.key)
-      );
-  }
-
-  return {
-    count: memories?.length ?? 0,
-    memories: (memories || []).map(
-      (m: {
-        key: string;
-        value: string;
-        category: string;
-        updated_at: string;
-      }) => ({
-        key: m.key,
-        value: m.value,
-        category: m.category,
-        updatedAt: m.updated_at,
-      })
-    ),
-  };
-}
-
-async function executeUpdateMySettings(
-  args: Record<string, unknown>,
-  userId: string,
-  supabase: SupabaseClient
-) {
-  // Build update payload — only include non-null fields
-  const updates: Record<string, string> = {};
-  const fields = [
-    'name',
-    'tone',
-    'personality',
-    'boundaries',
-    'vibe',
-    'chat_tone',
-  ] as const;
-
-  for (const field of fields) {
-    const value = args[field];
-    if (typeof value === 'string') {
-      updates[field] = value;
-    }
-  }
-
-  if (Object.keys(updates).length === 0) {
-    return { success: true, message: 'No settings to update' };
-  }
-
-  // Upsert: create if not exists, update if exists
-  const { error } = await supabase
-    .from('mira_soul')
-    .upsert({ user_id: userId, ...updates }, { onConflict: 'user_id' });
-
-  if (error) return { error: error.message };
-
-  const changedFields = Object.keys(updates).join(', ');
-  return {
-    success: true,
-    message: `Settings updated: ${changedFields}`,
-    updated: updates,
-  };
 }

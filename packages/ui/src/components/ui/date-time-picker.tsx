@@ -14,6 +14,12 @@ import {
 } from '@tuturuuu/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@tuturuuu/ui/tabs';
 import { cn } from '@tuturuuu/utils/format';
+import {
+  buildDateInTimezone,
+  formatInTimezone,
+  getDatePartsInTimezone,
+  resolveTaskTimezone,
+} from '@tuturuuu/utils/task-date-timezone';
 import { getTimeFormatPattern } from '@tuturuuu/utils/time-helper';
 import { format, parse } from 'date-fns';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -86,6 +92,12 @@ export function DateTimePicker({
   );
   const popoverRef = useRef<HTMLDivElement>(null);
 
+  const tz = useMemo(
+    () =>
+      preferences?.timezone ? resolveTaskTimezone(preferences.timezone) : null,
+    [preferences?.timezone]
+  );
+
   // Update date directly without casting workaround
   const updateDate = (next?: Date) => {
     setDate(next);
@@ -96,10 +108,21 @@ export function DateTimePicker({
     setSelectedDate(date);
   }, [date]);
 
-  // Keep manualTimeInput in sync with date prop
+  // Keep manualTimeInput in sync with date prop (show time in configured TZ when set)
   useEffect(() => {
-    setManualTimeInput(date ? format(date, 'HH:mm') : '');
-  }, [date]);
+    if (!date) {
+      setManualTimeInput('');
+      return;
+    }
+    if (tz) {
+      const parts = getDatePartsInTimezone(date, tz);
+      setManualTimeInput(
+        `${parts.hour.toString().padStart(2, '0')}:${parts.minute.toString().padStart(2, '0')}`
+      );
+    } else {
+      setManualTimeInput(format(date, 'HH:mm'));
+    }
+  }, [date, tz]);
 
   // Enhanced auto-scroll logic
   useEffect(() => {
@@ -145,20 +168,33 @@ export function DateTimePicker({
 
   const handleSelect = (selectedDate: Date | undefined) => {
     if (!selectedDate) return;
-    // Preserve the time if the date already exists
-    if (date) {
-      selectedDate.setHours(date.getHours());
-      selectedDate.setMinutes(date.getMinutes());
+    let next: Date;
+    if (tz) {
+      const hour = date ? getDatePartsInTimezone(date, tz).hour : 0;
+      const minute = date ? getDatePartsInTimezone(date, tz).minute : 0;
+      next = buildDateInTimezone(
+        selectedDate.getFullYear(),
+        selectedDate.getMonth() + 1,
+        selectedDate.getDate(),
+        hour,
+        minute,
+        tz
+      );
+    } else {
+      if (date) {
+        selectedDate.setHours(date.getHours());
+        selectedDate.setMinutes(date.getMinutes());
+      }
+      next = selectedDate;
     }
-    setSelectedDate(selectedDate);
-    updateDate(selectedDate);
+    setSelectedDate(next);
+    updateDate(next);
     if (!inline) {
       setIsCalendarOpen(false);
     }
   };
 
   const handleTimeChange = (timeString: string) => {
-    // Parse the time string (format: "HH:MM")
     const parts = timeString.split(':');
     if (parts.length !== 2) return;
 
@@ -173,21 +209,38 @@ export function DateTimePicker({
     if (Number.isNaN(hours) || Number.isNaN(minutes)) return;
 
     const baseDate = selectedDate ?? date ?? minDate ?? new Date();
-    const newDate = new Date(baseDate);
-    newDate.setHours(hours);
-    newDate.setMinutes(minutes);
+    let newDate: Date;
 
-    // If minDate is set and this is the end time picker, and the new time is before or equal to minDate on the same day, increment the date by one day
-    if (
-      minDate &&
-      newDate.getFullYear() === minDate.getFullYear() &&
-      newDate.getMonth() === minDate.getMonth() &&
-      newDate.getDate() === minDate.getDate()
-    ) {
-      const minTimeValue = minDate.getHours() * 60 + minDate.getMinutes();
-      const newTimeValue = newDate.getHours() * 60 + newDate.getMinutes();
-      if (newTimeValue <= minTimeValue) {
-        newDate.setDate(newDate.getDate() + 1);
+    if (tz) {
+      const p = getDatePartsInTimezone(baseDate, tz);
+      newDate = buildDateInTimezone(p.year, p.month, p.day, hours, minutes, tz);
+      if (minDate && newDate.getTime() <= minDate.getTime()) {
+        const minParts = getDatePartsInTimezone(minDate, tz);
+        newDate = buildDateInTimezone(
+          minParts.year,
+          minParts.month,
+          minParts.day + 1,
+          hours,
+          minutes,
+          tz
+        );
+      }
+    } else {
+      newDate = new Date(baseDate);
+      newDate.setHours(hours);
+      newDate.setMinutes(minutes);
+
+      if (
+        minDate &&
+        newDate.getFullYear() === minDate.getFullYear() &&
+        newDate.getMonth() === minDate.getMonth() &&
+        newDate.getDate() === minDate.getDate()
+      ) {
+        const minTimeValue = minDate.getHours() * 60 + minDate.getMinutes();
+        const newTimeValue = newDate.getHours() * 60 + newDate.getMinutes();
+        if (newTimeValue <= minTimeValue) {
+          newDate.setDate(newDate.getDate() + 1);
+        }
       }
     }
 
@@ -211,9 +264,23 @@ export function DateTimePicker({
           !Number.isNaN(m)
         ) {
           const baseDate = selectedDate ?? date ?? minDate ?? new Date();
-          const newDate = new Date(baseDate);
-          newDate.setHours(h);
-          newDate.setMinutes(m);
+          const baseParts = tz ? getDatePartsInTimezone(baseDate, tz) : null;
+          const newDate =
+            tz && baseParts
+              ? buildDateInTimezone(
+                  baseParts.year,
+                  baseParts.month,
+                  baseParts.day,
+                  h,
+                  m,
+                  tz
+                )
+              : (() => {
+                  const d = new Date(baseDate);
+                  d.setHours(h);
+                  d.setMinutes(m);
+                  return d;
+                })();
           setSelectedDate(newDate);
           updateDate(newDate);
           setIsManualTimeEntry(false);
@@ -292,17 +359,38 @@ export function DateTimePicker({
 
     // After filtering, ensure the selected time is always present in the dropdown
     if (date) {
-      const customValue = `${format(date, 'HH')}:${format(date, 'mm')}`;
+      const hourMinute =
+        tz !== null
+          ? getDatePartsInTimezone(date, tz)
+          : {
+              hour: date.getHours(),
+              minute: date.getMinutes(),
+            };
+      const customValue = `${hourMinute.hour.toString().padStart(2, '0')}:${hourMinute.minute.toString().padStart(2, '0')}`;
       if (!options.some((t) => t.value === customValue)) {
-        options = [
-          ...options,
-          { value: customValue, display: format(date, timePattern) },
-        ];
+        const display =
+          tz !== null
+            ? formatInTimezone(
+                date,
+                tz,
+                timeFormat === '24h' ? 'HH:mm' : 'h:mm A'
+              )
+            : format(date, timePattern);
+        options = [...options, { value: customValue, display }];
         options.sort((a, b) => a.value.localeCompare(b.value));
       }
     }
     return options;
-  }, [date, minDate, maxDate, minTime, timeOptions, timePattern]);
+  }, [
+    date,
+    minDate,
+    maxDate,
+    minTime,
+    timeOptions,
+    timePattern,
+    tz,
+    timeFormat,
+  ]);
 
   // If the filtered list is empty, show an error message
   const noValidTimes = filteredTimeOptions.length === 0;
@@ -384,7 +472,11 @@ export function DateTimePicker({
               <span className="font-medium text-sm">Select time</span>
             </div>
             <span className="text-muted-foreground text-xs">
-              {date ? format(date, 'MMM d, yyyy') : ''}
+              {date
+                ? tz !== null
+                  ? formatInTimezone(date, tz, 'MMM D, YYYY')
+                  : format(date, 'MMM d, yyyy')
+                : ''}
             </span>
           </div>
 
@@ -414,7 +506,13 @@ export function DateTimePicker({
                   noValidTimes
                     ? undefined
                     : date
-                      ? `${format(date, 'HH')}:${format(date, 'mm')}`
+                      ? (() => {
+                          if (tz !== null) {
+                            const p = getDatePartsInTimezone(date, tz);
+                            return `${p.hour.toString().padStart(2, '0')}:${p.minute.toString().padStart(2, '0')}`;
+                          }
+                          return `${format(date, 'HH')}:${format(date, 'mm')}`;
+                        })()
                       : undefined
                 }
                 onValueChange={handleTimeChange}
@@ -551,19 +649,37 @@ export function DateTimePicker({
             disabled={disabled}
             aria-label={
               date
-                ? `Selected ${format(date, `PPP ${timePattern}`)}`
+                ? `Selected ${
+                    tz !== null
+                      ? formatInTimezone(
+                          date,
+                          tz,
+                          `MMM D, YYYY ${timeFormat === '24h' ? 'HH:mm' : 'h:mm A'}`
+                        )
+                      : format(date, `PPP ${timePattern}`)
+                  }`
                 : 'Open date and time picker'
             }
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
             {date ? (
               <div className="flex items-center gap-2">
-                <span>{format(date, 'PPP')}</span>
+                <span>
+                  {tz !== null
+                    ? formatInTimezone(date, tz, 'MMM D, YYYY')
+                    : format(date, 'PPP')}
+                </span>
                 {showTimeSelect && (
                   <>
                     <span className="text-muted-foreground">•</span>
                     <span className="text-muted-foreground">
-                      {format(date, timePattern)}
+                      {tz !== null
+                        ? formatInTimezone(
+                            date,
+                            tz,
+                            timeFormat === '24h' ? 'HH:mm' : 'h:mm A'
+                          )
+                        : format(date, timePattern)}
                     </span>
                   </>
                 )}

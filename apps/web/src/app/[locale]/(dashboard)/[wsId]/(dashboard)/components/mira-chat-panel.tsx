@@ -1,6 +1,6 @@
 'use client';
 
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { DefaultChatTransport } from '@tuturuuu/ai/core';
 import {
   defaultModel,
@@ -10,19 +10,24 @@ import {
 import { useChat } from '@tuturuuu/ai/react';
 import type { UIMessage } from '@tuturuuu/ai/types';
 import {
+  Eye,
   Maximize2,
   MessageSquarePlus,
   Minimize2,
+  PanelBottomOpen,
   Sparkles,
 } from '@tuturuuu/icons';
 import { createClient } from '@tuturuuu/supabase/next/client';
 import type { AIChat } from '@tuturuuu/types';
 import { Button } from '@tuturuuu/ui/button';
 import { toast } from '@tuturuuu/ui/sonner';
+import { cn } from '@tuturuuu/utils/format';
 import { generateRandomUUID } from '@tuturuuu/utils/uuid-helper';
 import { getToolName, isToolUIPart } from 'ai';
+import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { resolveTimezone } from '@/lib/calendar-settings-resolver';
 import ChatInputBar from './chat-input-bar';
 import ChatMessageList from './chat-message-list';
 import MiraCreditBar from './mira-credit-bar';
@@ -61,6 +66,13 @@ export default function MiraChatPanel({
   const [initialMessages, setInitialMessages] = useState<UIMessage[]>([]);
   const [initialLoaded, setInitialLoaded] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const scrollEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Bottom bar (suggested prompts + input) visibility: hide while scrolling, show after scroll stops
+  const [bottomBarVisible, setBottomBarVisible] = useState(true);
+  // Fullscreen only: view-only mode hides the input panel for a clean read-only view
+  const [viewOnly, setViewOnly] = useState(false);
 
   // ── Message queue for debounced batching ──
   const messageQueueRef = useRef<string[]>([]);
@@ -80,6 +92,43 @@ export default function MiraChatPanel({
     [model]
   );
 
+  // User and workspace calendar settings for task CRUD timezone
+  const { data: userCalendarSettings } = useQuery({
+    queryKey: ['users', 'calendar-settings'],
+    queryFn: async () => {
+      const res = await fetch('/api/v1/users/calendar-settings', {
+        cache: 'no-store',
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data as { timezone?: string | null };
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: workspaceCalendarSettings } = useQuery({
+    queryKey: ['workspace-calendar-settings', wsId],
+    queryFn: async () => {
+      const res = await fetch(`/api/v1/workspaces/${wsId}/calendar-settings`, {
+        cache: 'no-store',
+      });
+      if (!res.ok) return null;
+      const data = await res.json();
+      return data as { timezone?: string | null };
+    },
+    enabled: !!wsId,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const timezoneForChat = useMemo(
+    () =>
+      resolveTimezone(
+        userCalendarSettings ?? null,
+        workspaceCalendarSettings ?? null
+      ),
+    [userCalendarSettings, workspaceCalendarSettings]
+  );
+
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
@@ -89,9 +138,10 @@ export default function MiraChatPanel({
           wsId,
           model: gatewayModelId,
           isMiraMode: true,
+          timezone: timezoneForChat,
         },
       }),
-    [wsId, gatewayModelId]
+    [wsId, gatewayModelId, timezoneForChat]
   );
 
   // Use the server-assigned chat ID when available, otherwise use the stable
@@ -100,6 +150,7 @@ export default function MiraChatPanel({
   const stableChatId = chat?.id ?? fallbackChatId;
 
   const queryClient = useQueryClient();
+  const router = useRouter();
 
   const {
     id: chatId,
@@ -116,6 +167,20 @@ export default function MiraChatPanel({
       toast.error(error?.message || t('error'));
     },
   });
+
+  // Refresh widgets & credits when the assistant finishes responding.
+  // Track the previous status so we only trigger once per completion cycle.
+  const prevStatusRef = useRef(status);
+  useEffect(() => {
+    const prev = prevStatusRef.current;
+    prevStatusRef.current = status;
+
+    const wasBusy = prev === 'submitted' || prev === 'streaming';
+    if (wasBusy && status === 'ready') {
+      queryClient.invalidateQueries({ queryKey: ['ai-credits'] });
+      router.refresh();
+    }
+  }, [status, queryClient, router]);
 
   // Keep ref in sync so callbacks always use the latest sendMessage
   sendMessageRef.current = sendMessage;
@@ -182,11 +247,21 @@ export default function MiraChatPanel({
             .filter(
               (msg) =>
                 msg.content != null ||
-                (msg.metadata as Record<string, unknown>)?.toolCalls
+                (msg.metadata as Record<string, unknown>)?.toolCalls ||
+                (msg.metadata as Record<string, unknown>)?.reasoning
             )
             .map((msg) => {
               const parts: UIMessage['parts'] = [];
               const meta = msg.metadata as Record<string, unknown> | null;
+
+              // Reconstruct reasoning part (appears before text)
+              const reasoning = meta?.reasoning as string | undefined;
+              if (reasoning) {
+                parts.push({
+                  type: 'reasoning' as const,
+                  text: reasoning,
+                } as UIMessage['parts'][number]);
+              }
 
               // Add text part if content exists
               if (msg.content) {
@@ -265,6 +340,7 @@ export default function MiraChatPanel({
             model: gatewayModelId,
             message: userInput,
             isMiraMode: true,
+            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
           }),
         });
 
@@ -384,10 +460,53 @@ export default function MiraChatPanel({
   }, [wsId]);
 
   const isStreaming = status === 'streaming';
+  const isBusy = status === 'submitted' || isStreaming;
   // queuedText = messages accumulating during debounce (not yet sent)
   // pendingPrompt = first message waiting for chat creation
   const pendingDisplay = queuedText ?? pendingPrompt;
   const hasMessages = messages.length > 0 || !!pendingDisplay;
+
+  // Hide bottom bar while scrolling, show again after scroll stops
+  const SCROLL_END_DELAY_MS = 700;
+  useEffect(() => {
+    if (!hasMessages) return;
+    const el = scrollContainerRef.current;
+    if (!el) return;
+
+    const onScroll = () => {
+      setBottomBarVisible(false);
+      if (scrollEndTimerRef.current) clearTimeout(scrollEndTimerRef.current);
+      scrollEndTimerRef.current = setTimeout(() => {
+        scrollEndTimerRef.current = null;
+        setBottomBarVisible(true);
+      }, SCROLL_END_DELAY_MS);
+    };
+
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      el.removeEventListener('scroll', onScroll);
+      if (scrollEndTimerRef.current) {
+        clearTimeout(scrollEndTimerRef.current);
+        scrollEndTimerRef.current = null;
+      }
+    };
+  }, [hasMessages]);
+
+  const viewOnlyButtonTitle = viewOnly
+    ? (() => {
+        try {
+          return t('show_input_panel');
+        } catch {
+          return 'Show input panel';
+        }
+      })()
+    : (() => {
+        try {
+          return t('view_only');
+        } catch {
+          return 'View only';
+        }
+      })();
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -397,7 +516,7 @@ export default function MiraChatPanel({
           wsId={wsId}
           model={model}
           onChange={setModel}
-          disabled={isStreaming}
+          disabled={isBusy}
         />
         {isFullscreen && <MiraCreditBar wsId={wsId} />}
         <div className="flex-1" />
@@ -412,6 +531,19 @@ export default function MiraChatPanel({
             <MessageSquarePlus className="h-3.5 w-3.5" />
           </Button>
         )}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          onClick={() => setViewOnly((v) => !v)}
+          title={viewOnlyButtonTitle}
+        >
+          {viewOnly ? (
+            <PanelBottomOpen className="h-3.5 w-3.5" />
+          ) : (
+            <Eye className="h-3.5 w-3.5" />
+          )}
+        </Button>
         {onToggleFullscreen && (
           <Button
             variant="ghost"
@@ -429,72 +561,81 @@ export default function MiraChatPanel({
         )}
       </div>
 
-      {/* Messages area */}
-      {hasMessages ? (
-        <ChatMessageList
-          messages={
-            pendingDisplay && messages.length === 0
-              ? [
-                  {
-                    id: 'pending',
-                    role: 'user' as const,
-                    parts: [{ type: 'text' as const, text: pendingDisplay }],
-                  },
-                ]
-              : queuedText
-                ? [
-                    ...messages,
-                    {
-                      id: 'queued',
-                      role: 'user' as const,
-                      parts: [{ type: 'text' as const, text: queuedText }],
-                    },
-                  ]
-                : messages
-          }
-          isStreaming={isStreaming || !!pendingPrompt}
-          assistantName={assistantName}
-          userAvatarUrl={userAvatarUrl}
-        />
-      ) : (
-        <div className="flex flex-1 flex-col items-center justify-center gap-6 py-8">
-          <div className="flex flex-col items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-dynamic-purple/15">
-              <Sparkles className="h-6 w-6 text-dynamic-purple" />
-            </div>
-            <div className="text-center">
-              <p className="font-medium text-sm">{assistantName}</p>
-              <p className="mt-1 max-w-xs text-muted-foreground text-xs">
-                {t('empty_state', { name: assistantName })}
-              </p>
-            </div>
+      {/* Messages area + floating bottom bar container */}
+      <div className="relative flex min-h-0 flex-1 flex-col">
+        {hasMessages ? (
+          <div className="flex min-h-0 flex-1 flex-col">
+            <ChatMessageList
+              messages={
+                pendingDisplay && messages.length === 0
+                  ? [
+                      {
+                        id: 'pending',
+                        role: 'user' as const,
+                        parts: [
+                          { type: 'text' as const, text: pendingDisplay },
+                        ],
+                      },
+                    ]
+                  : queuedText
+                    ? [
+                        ...messages,
+                        {
+                          id: 'queued',
+                          role: 'user' as const,
+                          parts: [{ type: 'text' as const, text: queuedText }],
+                        },
+                      ]
+                    : messages
+              }
+              isStreaming={isBusy || !!pendingPrompt}
+              assistantName={assistantName}
+              userAvatarUrl={userAvatarUrl}
+              scrollContainerRef={scrollContainerRef}
+            />
           </div>
-          <QuickActionChips
-            onSend={handleSubmit}
-            disabled={isStreaming}
-            variant="cards"
+        ) : (
+          <div className="flex flex-1 flex-col items-center justify-center gap-6 py-8">
+            <div className="flex flex-col items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-dynamic-purple/15">
+                <Sparkles className="h-6 w-6 text-dynamic-purple" />
+              </div>
+              <div className="text-center">
+                <p className="font-medium text-sm">{assistantName}</p>
+                <p className="mt-1 max-w-xs text-muted-foreground text-xs">
+                  {t('empty_state', { name: assistantName })}
+                </p>
+              </div>
+            </div>
+            <QuickActionChips
+              onSend={handleSubmit}
+              disabled={isBusy}
+              variant="cards"
+            />
+          </div>
+        )}
+
+        {/* Floating bottom bar: suggested prompts + input (overlays content) */}
+        <div
+          className={cn(
+            'absolute right-0 bottom-0 left-0 z-10 flex flex-col gap-2 p-4 pt-8 transition-transform duration-300 ease-out',
+            (!bottomBarVisible || viewOnly) &&
+              'pointer-events-none translate-y-full'
+          )}
+        >
+          {hasMessages && !isBusy && (
+            <QuickActionChips onSend={handleSubmit} disabled={isBusy} />
+          )}
+          <ChatInputBar
+            input={input}
+            setInput={setInput}
+            onSubmit={handleSubmit}
+            isStreaming={isBusy}
+            assistantName={assistantName}
+            onVoiceToggle={onVoiceToggle}
+            inputRef={inputRef}
           />
         </div>
-      )}
-
-      {/* Quick actions when there are messages */}
-      {hasMessages && !isStreaming && (
-        <div className="py-2">
-          <QuickActionChips onSend={handleSubmit} disabled={isStreaming} />
-        </div>
-      )}
-
-      {/* Input bar */}
-      <div className="pt-2">
-        <ChatInputBar
-          input={input}
-          setInput={setInput}
-          onSubmit={handleSubmit}
-          isStreaming={isStreaming}
-          assistantName={assistantName}
-          onVoiceToggle={onVoiceToggle}
-          inputRef={inputRef}
-        />
       </div>
     </div>
   );

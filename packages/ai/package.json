@@ -44,6 +44,7 @@
     "@streamdown/code": "^1.0.3",
     "@streamdown/math": "^1.0.2",
     "@streamdown/mermaid": "^1.0.2",
+    "@tuturuuu/google": "workspace:*",
     "@tuturuuu/supabase": "workspace:*",
     "@tuturuuu/utils": "workspace:*",
     "ai": "^6.0.97",

@@ -1,11 +1,13 @@
 'use client';
 
+import { cjk } from '@streamdown/cjk';
 import { code } from '@streamdown/code';
 import { math } from '@streamdown/math';
 import { mermaid } from '@streamdown/mermaid';
 import type { UIMessage } from '@tuturuuu/ai/types';
 import {
   AlertCircle,
+  Brain,
   Check,
   ChevronRight,
   ClipboardCopy,
@@ -18,6 +20,7 @@ import { Dialog, DialogContent, DialogTitle } from '@tuturuuu/ui/dialog';
 import { cn } from '@tuturuuu/utils/format';
 import { getToolName, isToolUIPart } from 'ai';
 import { useTranslations } from 'next-intl';
+import { useTheme } from 'next-themes';
 import {
   Component,
   type ErrorInfo,
@@ -28,20 +31,27 @@ import {
   useState,
 } from 'react';
 import { Streamdown } from 'streamdown';
+import 'katex/dist/katex.min.css';
 
 interface ChatMessageListProps {
   messages: UIMessage[];
   isStreaming: boolean;
   assistantName?: string;
   userAvatarUrl?: string | null;
+  /** Optional ref for the scrollable container (e.g. for scroll-based UI) */
+  scrollContainerRef?: React.RefObject<HTMLDivElement | null>;
 }
 
-const plugins = { code, mermaid, math };
+const plugins = { code, mermaid, math, cjk };
 
 function hasTextContent(message: UIMessage): boolean {
   return (
-    message.parts?.some((p) => p.type === 'text' && p.text.trim().length > 0) ??
-    false
+    message.parts?.some(
+      (p) =>
+        (p.type === 'text' && p.text.trim().length > 0) ||
+        (p.type === 'reasoning' &&
+          (p as { text: string }).text.trim().length > 0)
+    ) ?? false
   );
 }
 
@@ -77,6 +87,7 @@ type ToolPartData = { type: string; [key: string]: unknown };
  */
 type RenderGroup =
   | { kind: 'text'; text: string; index: number }
+  | { kind: 'reasoning'; text: string; index: number }
   | {
       kind: 'tool';
       toolName: string;
@@ -122,6 +133,15 @@ function groupMessageParts(parts: UIMessage['parts']): RenderGroup[] {
       if (part.type === 'text' && (part as { text: string }).text.trim()) {
         groups.push({
           kind: 'text',
+          text: (part as { text: string }).text,
+          index: i,
+        });
+      } else if (
+        part.type === 'reasoning' &&
+        (part as { text: string }).text.trim()
+      ) {
+        groups.push({
+          kind: 'reasoning',
           text: (part as { text: string }).text,
           index: i,
         });
@@ -173,18 +193,75 @@ function AssistantMarkdown({
     <MarkdownErrorBoundary
       fallback={<p className="whitespace-pre-wrap">{text}</p>}
     >
-      <div className="prose prose-sm dark:prose-invert wrap-break-word max-w-none [&>*:first-child]:mt-0 [&>*:last-child]:mb-0">
-        <Streamdown
-          plugins={plugins}
-          caret="block"
-          isAnimating={isAnimating}
-          controls={{ code: true }}
-          linkSafety={{ enabled: false }}
-        >
-          {text}
-        </Streamdown>
-      </div>
+      <Streamdown
+        plugins={plugins}
+        caret="block"
+        isAnimating={isAnimating}
+        controls={{
+          code: !isAnimating,
+          mermaid: !isAnimating,
+        }}
+        linkSafety={{ enabled: false }}
+      >
+        {text}
+      </Streamdown>
     </MarkdownErrorBoundary>
+  );
+}
+
+function ReasoningPart({
+  text,
+  isAnimating,
+}: {
+  text: string;
+  isAnimating: boolean;
+}) {
+  const t = useTranslations('dashboard.mira_chat');
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="flex flex-col gap-1">
+      <button
+        type="button"
+        onClick={() => setExpanded((e) => !e)}
+        className="flex items-center gap-1.5 text-muted-foreground text-xs transition-colors hover:text-foreground"
+      >
+        {isAnimating ? (
+          <Loader2 className="h-3 w-3 animate-spin" />
+        ) : (
+          <Brain className="h-3 w-3" />
+        )}
+        <span className="font-medium">
+          {isAnimating ? t('reasoning') : t('reasoned')}
+        </span>
+        <ChevronRight
+          className={cn(
+            'h-3 w-3 transition-transform',
+            expanded && 'rotate-90'
+          )}
+        />
+      </button>
+      {expanded && (
+        <div className="border-dynamic-purple/20 border-l-2 pl-3 text-muted-foreground text-xs">
+          <MarkdownErrorBoundary
+            fallback={<p className="whitespace-pre-wrap">{text}</p>}
+          >
+            <Streamdown
+              plugins={plugins}
+              caret="block"
+              isAnimating={isAnimating}
+              controls={{
+                code: !isAnimating,
+                mermaid: false,
+              }}
+              linkSafety={{ enabled: false }}
+            >
+              {text}
+            </Streamdown>
+          </MarkdownErrorBoundary>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -224,6 +301,136 @@ function CopyButton({ text }: { text: string }) {
   );
 }
 
+type JsonToken =
+  | { t: 'key'; v: string }
+  | { t: 'string'; v: string }
+  | { t: 'number'; v: string }
+  | { t: 'keyword'; v: string }
+  | { t: 'punct'; v: string }
+  | { t: 'plain'; v: string };
+
+function tokenizeJson(line: string): JsonToken[] {
+  const tokens: JsonToken[] = [];
+  let i = 0;
+  const n = line.length;
+  const skipWs = () => {
+    const start = i;
+    while (i < n && /[\s]/.test(line[i]!)) i++;
+    if (i > start) tokens.push({ t: 'plain', v: line.slice(start, i) });
+  };
+  while (i < n) {
+    skipWs();
+    if (i >= n) break;
+    const c = line[i];
+    if (c === '"') {
+      const start = i;
+      i++;
+      while (i < n) {
+        if (line[i] === '\\') i += 2;
+        else if (line[i] === '"') {
+          i++;
+          break;
+        } else i++;
+      }
+      const value = line.slice(start, i);
+      const rest = line.slice(i);
+      const isKey = /^\s*:/.test(rest);
+      tokens.push(isKey ? { t: 'key', v: value } : { t: 'string', v: value });
+      continue;
+    }
+    if (/[{}[\],:]/.test(c!)) {
+      tokens.push({ t: 'punct', v: c! });
+      i++;
+      continue;
+    }
+    const numMatch = line.slice(i).match(/^-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?/);
+    if (numMatch) {
+      tokens.push({ t: 'number', v: numMatch[0]! });
+      i += numMatch[0]!.length;
+      continue;
+    }
+    if (line.slice(i).startsWith('true')) {
+      tokens.push({ t: 'keyword', v: 'true' });
+      i += 4;
+      continue;
+    }
+    if (line.slice(i).startsWith('false')) {
+      tokens.push({ t: 'keyword', v: 'false' });
+      i += 5;
+      continue;
+    }
+    if (line.slice(i).startsWith('null')) {
+      tokens.push({ t: 'keyword', v: 'null' });
+      i += 4;
+      continue;
+    }
+    tokens.push({ t: 'plain', v: line[i]! });
+    i++;
+  }
+  return tokens;
+}
+
+function JsonHighlight({
+  text,
+  isError,
+}: {
+  text: string;
+  isError?: boolean;
+}): ReactNode {
+  const trimmed = text.trim();
+  const looksLikeJson = trimmed.startsWith('{') || trimmed.startsWith('[');
+  if (isError || !looksLikeJson) {
+    return (
+      <span className="wrap-break-word whitespace-pre-wrap text-muted-foreground">
+        {text}
+      </span>
+    );
+  }
+  const lines = text.split('\n');
+  return (
+    <>
+      {lines.map((line, idx) => (
+        <span key={idx} className="block">
+          {tokenizeJson(line).map((tok, i) => {
+            const key = `${idx}-${i}`;
+            if (tok.t === 'plain') return <span key={key}>{tok.v}</span>;
+            if (tok.t === 'key')
+              return (
+                <span key={key} className="text-dynamic-blue">
+                  {tok.v}
+                </span>
+              );
+            if (tok.t === 'string')
+              return (
+                <span key={key} className="text-dynamic-green">
+                  {tok.v}
+                </span>
+              );
+            if (tok.t === 'number')
+              return (
+                <span key={key} className="text-dynamic-orange">
+                  {tok.v}
+                </span>
+              );
+            if (tok.t === 'keyword')
+              return (
+                <span key={key} className="text-dynamic-purple">
+                  {tok.v}
+                </span>
+              );
+            return (
+              <span key={key} className="text-muted-foreground">
+                {tok.v}
+              </span>
+            );
+          })}
+          {idx < lines.length - 1 ? '\n' : null}
+        </span>
+      ))}
+    </>
+  );
+}
+
 /** Extract status info from a single tool part */
 function getToolPartStatus(part: ToolPartData) {
   const state = (part as { state?: string }).state ?? '';
@@ -247,6 +454,7 @@ function ToolCallPart({ part }: { part: ToolPartData }) {
   const errorText = (part as { errorText?: string }).errorText;
 
   const { isDone, isError, isRunning } = getToolPartStatus(part);
+
   const hasOutput = isDone || isError;
 
   // For create_image: the model writes ![](url) in its text response which
@@ -268,6 +476,39 @@ function ToolCallPart({ part }: { part: ToolPartData }) {
     const timer = setTimeout(() => setCopied(false), 1500);
     return () => clearTimeout(timer);
   }, [copied]);
+
+  // Apply theme change when set_theme tool completes
+  const { setTheme } = useTheme();
+  useEffect(() => {
+    if (rawToolName !== 'set_theme' || !isDone) return;
+    const action = (output as { action?: string } | undefined)?.action;
+    const theme = (output as { theme?: string } | undefined)?.theme;
+    if (action === 'set_theme' && theme) {
+      setTheme(theme);
+    }
+  }, [rawToolName, isDone, output, setTheme]);
+
+  // Compact display for select_tools when only no_action_needed was selected
+  if (rawToolName === 'select_tools') {
+    const selected = (output as { selectedTools?: string[] } | undefined)
+      ?.selectedTools;
+    const isNoAction =
+      selected?.length === 1 && selected[0] === 'no_action_needed';
+    if (isNoAction) {
+      return (
+        <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
+          {isDone ? (
+            <Check className="h-3 w-3 text-dynamic-green" />
+          ) : isError ? (
+            <AlertCircle className="h-3 w-3 text-dynamic-red" />
+          ) : (
+            <Loader2 className="h-3 w-3 animate-spin" />
+          )}
+          <span>{t('no_tools_needed')}</span>
+        </div>
+      );
+    }
+  }
 
   // Running state for image tool shows specific message
   if (isImageTool && isRunning) {
@@ -403,8 +644,8 @@ function ToolCallPart({ part }: { part: ToolPartData }) {
                 <ClipboardCopy className="h-3 w-3" />
               )}
             </button>
-            <pre className="max-h-40 select-text overflow-auto whitespace-pre-wrap rounded bg-foreground/5 p-2 pr-6 font-mono text-[11px] text-muted-foreground">
-              {outputText}
+            <pre className="max-h-40 select-text overflow-auto whitespace-pre-wrap rounded bg-foreground/5 p-2 pr-6 font-mono text-[11px]">
+              <JsonHighlight text={outputText} isError={isError} />
             </pre>
           </div>
         )}
@@ -523,8 +764,8 @@ function GroupedToolCallParts({
                 <ClipboardCopy className="h-3 w-3" />
               )}
             </button>
-            <pre className="max-h-40 select-text overflow-auto whitespace-pre-wrap rounded bg-foreground/5 p-2 pr-6 font-mono text-[11px] text-muted-foreground">
-              {combinedOutput}
+            <pre className="max-h-40 select-text overflow-auto whitespace-pre-wrap rounded bg-foreground/5 p-2 pr-6 font-mono text-[11px]">
+              <JsonHighlight text={combinedOutput} />
             </pre>
           </div>
         )}
@@ -538,10 +779,24 @@ export default function ChatMessageList({
   isStreaming,
   assistantName,
   userAvatarUrl,
+  scrollContainerRef,
 }: ChatMessageListProps) {
   const t = useTranslations('dashboard.mira_chat');
 
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const setScrollContainerRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      (containerRef as React.MutableRefObject<HTMLDivElement | null>).current =
+        el;
+      if (scrollContainerRef) {
+        (
+          scrollContainerRef as React.MutableRefObject<HTMLDivElement | null>
+        ).current = el;
+      }
+    },
+    [scrollContainerRef]
+  );
 
   // Auto-scroll to bottom when messages change or while streaming.
   // Uses scrollTop instead of scrollIntoView to avoid stealing focus from the input.
@@ -563,8 +818,11 @@ export default function ChatMessageList({
 
   return (
     <div
-      ref={containerRef}
-      className="scrollbar-none flex flex-1 flex-col gap-1 overflow-y-auto px-1 py-3"
+      ref={setScrollContainerRef}
+      className={cn(
+        'scrollbar-none flex flex-1 flex-col gap-1 overflow-y-auto px-1 py-3',
+        scrollContainerRef && 'pb-48'
+      )}
     >
       {messages.map((message, index) => {
         const isUser = message.role === 'user';
@@ -660,36 +918,55 @@ export default function ChatMessageList({
                     <p className="whitespace-pre-wrap">{messageText}</p>
                   ) : (
                     <div className="flex flex-col gap-2">
-                      {groupMessageParts(message.parts).map((group) => {
-                        if (group.kind === 'text') {
-                          return (
-                            <AssistantMarkdown
-                              key={`text-${group.index}`}
-                              text={group.text}
-                              isAnimating={isStreaming && isLastAssistant}
-                            />
-                          );
-                        }
-                        if (group.kind === 'tool') {
-                          // Single tool call → render normally; multiple → group
-                          if (group.parts.length === 1) {
+                      {(() => {
+                        const groups = groupMessageParts(message.parts);
+                        const lastReasoningIdx = groups.findLastIndex(
+                          (g) => g.kind === 'reasoning'
+                        );
+                        return groups.map((group, gi) => {
+                          if (group.kind === 'reasoning') {
+                            const isLatestReasoning = gi === lastReasoningIdx;
                             return (
-                              <ToolCallPart
-                                key={`tool-${group.startIndex}`}
-                                part={group.parts[0]!}
+                              <ReasoningPart
+                                key={`reasoning-${group.index}`}
+                                text={group.text}
+                                isAnimating={
+                                  isLatestReasoning &&
+                                  isStreaming &&
+                                  isLastAssistant
+                                }
                               />
                             );
                           }
-                          return (
-                            <GroupedToolCallParts
-                              key={`toolgroup-${group.startIndex}`}
-                              parts={group.parts}
-                              toolName={group.toolName}
-                            />
-                          );
-                        }
-                        return null;
-                      })}
+                          if (group.kind === 'text') {
+                            return (
+                              <AssistantMarkdown
+                                key={`text-${group.index}`}
+                                text={group.text}
+                                isAnimating={isStreaming && isLastAssistant}
+                              />
+                            );
+                          }
+                          if (group.kind === 'tool') {
+                            if (group.parts.length === 1) {
+                              return (
+                                <ToolCallPart
+                                  key={`tool-${group.startIndex}`}
+                                  part={group.parts[0]!}
+                                />
+                              );
+                            }
+                            return (
+                              <GroupedToolCallParts
+                                key={`toolgroup-${group.startIndex}`}
+                                parts={group.parts}
+                                toolName={group.toolName}
+                              />
+                            );
+                          }
+                          return null;
+                        });
+                      })()}
                     </div>
                   )}
                 </div>

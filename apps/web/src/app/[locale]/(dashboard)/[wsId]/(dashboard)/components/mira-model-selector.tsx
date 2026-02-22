@@ -42,8 +42,7 @@ async function fetchGatewayModels(): Promise<Model[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from('ai_gateway_models')
-    .select('id, name, provider, description, context_window, type')
-    .eq('is_enabled', true)
+    .select('id, name, provider, description, context_window, type, is_enabled')
     .eq('type', 'language')
     .order('provider')
     .order('name');
@@ -56,6 +55,7 @@ async function fetchGatewayModels(): Promise<Model[]> {
     provider: m.provider,
     description: m.description ?? undefined,
     context: m.context_window ?? undefined,
+    disabled: !m.is_enabled,
   }));
 }
 
@@ -97,14 +97,17 @@ export default function MiraModelSelector({
   }, [credits?.allowedModels]);
 
   const isModelAllowed = useMemo(() => {
-    if (!allowedModelIds) return () => true; // All allowed
     return (modelId: string) => {
+      const m = availableModels.find((model) => model.value === modelId);
+      if (m?.disabled) return false;
+
+      if (!allowedModelIds) return true; // All allowed
       if (allowedModelIds.has(modelId)) return true;
       // Also check bare model name (strip provider prefix)
       const bare = modelId.includes('/') ? modelId.split('/').pop()! : modelId;
       return allowedModelIds.has(bare);
     };
-  }, [allowedModelIds]);
+  }, [allowedModelIds, availableModels]);
 
   const groupedModels = useMemo(() => {
     const groups: Record<string, Model[]> = {};
@@ -113,13 +116,41 @@ export default function MiraModelSelector({
       if (!groups[key]) groups[key] = [];
       groups[key].push(m);
     }
-    return groups;
-  }, [availableModels]);
 
-  const providerList = useMemo(
-    () => Object.keys(groupedModels).sort(),
-    [groupedModels]
-  );
+    // Sort models within each group: allowed first, then alphabetically by label
+    for (const key in groups) {
+      groups[key]?.sort((a, b) => {
+        const aAllowed = isModelAllowed(a.value);
+        const bAllowed = isModelAllowed(b.value);
+
+        if (aAllowed !== bAllowed) {
+          return aAllowed ? -1 : 1; // allowed comes first
+        }
+
+        return a.label.localeCompare(b.label);
+      });
+    }
+
+    return groups;
+  }, [availableModels, isModelAllowed]);
+
+  const providerList = useMemo(() => {
+    return Object.keys(groupedModels).sort((a, b) => {
+      // Sort providers: providers with at least one allowed model come first
+      const aHasAllowed = groupedModels[a]?.some((m) =>
+        isModelAllowed(m.value)
+      );
+      const bHasAllowed = groupedModels[b]?.some((m) =>
+        isModelAllowed(m.value)
+      );
+
+      if (aHasAllowed !== bHasAllowed) {
+        return aHasAllowed ? -1 : 1;
+      }
+
+      return a.localeCompare(b);
+    });
+  }, [groupedModels, isModelAllowed]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -127,10 +158,12 @@ export default function MiraModelSelector({
         <Button
           variant="ghost"
           size="sm"
-          className="h-7 gap-1 rounded-full px-2.5 font-mono text-muted-foreground text-xs"
+          className="h-7 gap-2 rounded-full px-2.5 font-mono text-muted-foreground text-xs"
           disabled={disabled}
         >
-          {model.provider?.toLowerCase().includes('google') && (
+          {(model.provider?.toLowerCase().includes('google') ||
+            model.provider?.toLowerCase().includes('vertex') ||
+            model.value?.toLowerCase().startsWith('google/')) && (
             <Image
               src="/media/logos/google.svg"
               alt=""

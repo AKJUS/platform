@@ -66,6 +66,7 @@ import UserAvatar from './settings-avatar';
 import DisplayNameInput from './settings-display-name-input';
 import EmailInput from './settings-email-input';
 import FullNameInput from './settings-full-name-input';
+import UserIdInput from './settings-user-id-input';
 import SidebarSettings from './sidebar-settings';
 import { TaskSettings } from './tasks/task-settings';
 import { TimeTrackerCategoriesSettings } from './time-tracker/time-tracker-categories-settings';
@@ -591,6 +592,12 @@ export function SettingsDialog({
               </SettingItemTab>
               <AccountStatusSection user={user} />
               <Separator />
+              <SettingItemTab
+                title={t('settings-account.user-id')}
+                description={t('settings-account.user-id-description')}
+              >
+                <UserIdInput userId={user.id} />
+              </SettingItemTab>
               <SettingItemTab
                 title={t('settings-account.display-name')}
                 description={t('settings-account.display-name-description')}

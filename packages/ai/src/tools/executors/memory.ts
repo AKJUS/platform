@@ -1,0 +1,282 @@
+import { google } from '@ai-sdk/google';
+import { embed } from 'ai';
+import type { MiraToolContext } from '../mira-tools';
+
+async function generateEmbedding(text: string) {
+  try {
+    const { embedding } = await embed({
+      model: google.embeddingModel('gemini-embedding-001'),
+      value: text,
+    });
+    return embedding;
+  } catch (error) {
+    console.error('Failed to generate embedding:', error);
+    return null;
+  }
+}
+export async function executeRemember(
+  args: Record<string, unknown>,
+  ctx: MiraToolContext
+) {
+  const key = args.key as string;
+  const value = args.value as string;
+  const category = args.category as string;
+
+  const { data: existing } = await ctx.supabase
+    .from('mira_memories')
+    .select('id')
+    .eq('user_id', ctx.userId)
+    .eq('key', key)
+    .maybeSingle();
+
+  const combinedText = `${key}: ${value}`;
+  const embedding = await generateEmbedding(combinedText);
+
+  if (existing) {
+    const { error } = await ctx.supabase
+      .from('mira_memories')
+      .update({
+        value,
+        category,
+        embedding: embedding ? (embedding as any) : undefined,
+        updated_at: new Date().toISOString(),
+        last_referenced_at: new Date().toISOString(),
+      })
+      .eq('id', existing.id);
+
+    if (error) return { error: error.message };
+    return {
+      success: true,
+      message: `Memory "${key}" updated`,
+      action: 'updated',
+    };
+  }
+
+  const { error } = await ctx.supabase.from('mira_memories').insert({
+    user_id: ctx.userId,
+    key,
+    value,
+    category,
+    embedding: embedding ? (embedding as any) : undefined,
+    source: 'mira_chat',
+  });
+
+  if (error) return { error: error.message };
+  return { success: true, message: `Remembered: "${key}"`, action: 'created' };
+}
+
+export async function executeRecall(
+  args: Record<string, unknown>,
+  ctx: MiraToolContext
+) {
+  const query = (args.query as string | null | undefined) ?? null;
+  const category = args.category as string | null;
+  const maxResults = (args.maxResults as number) || 10;
+
+  let memories: any[] = [];
+  let errorMsg: string | null = null;
+
+  if (query?.trim()) {
+    // Semantic search using the match_memories RPC
+    const embedding = await generateEmbedding(query);
+
+    if (embedding) {
+      const { data, error } = await ctx.supabase.rpc('match_memories', {
+        query_embedding: embedding as any,
+        match_count: maxResults,
+        filter_category: category,
+      });
+
+      if (error) {
+        errorMsg = error.message;
+      } else {
+        memories = data || [];
+      }
+    } else {
+      // Fallback to text search if embedding generation fails
+      let dbQuery = ctx.supabase
+        .from('mira_memories')
+        .select('key, value, category, updated_at')
+        .eq('user_id', ctx.userId)
+        .order('updated_at', { ascending: false })
+        .limit(maxResults);
+
+      if (category) dbQuery = dbQuery.eq('category', category);
+
+      dbQuery = dbQuery.or(`key.ilike.%${query}%,value.ilike.%${query}%`);
+
+      const { data, error } = await dbQuery;
+      if (error) errorMsg = error.message;
+      else memories = data || [];
+    }
+  } else {
+    // Standard list fetch without semantic query
+    let dbQuery = ctx.supabase
+      .from('mira_memories')
+      .select('key, value, category, updated_at')
+      .eq('user_id', ctx.userId)
+      .order('updated_at', { ascending: false })
+      .limit(maxResults);
+
+    if (category) dbQuery = dbQuery.eq('category', category);
+
+    const { data, error } = await dbQuery;
+
+    if (error) errorMsg = error.message;
+    else memories = data || [];
+  }
+
+  if (errorMsg) return { error: errorMsg };
+
+  if (memories?.length) {
+    void ctx.supabase
+      .from('mira_memories')
+      .update({ last_referenced_at: new Date().toISOString() })
+      .eq('user_id', ctx.userId)
+      .in(
+        'key',
+        memories.map((m: { key: string }) => m.key)
+      );
+  }
+
+  return {
+    count: memories?.length ?? 0,
+    memories: (memories || []).map(
+      (m: {
+        key: string;
+        value: string;
+        category: string;
+        updated_at: string;
+      }) => ({
+        key: m.key,
+        value: m.value,
+        category: m.category,
+        updatedAt: m.updated_at,
+      })
+    ),
+  };
+}
+
+export async function executeDeleteMemory(
+  args: Record<string, unknown>,
+  ctx: MiraToolContext
+) {
+  const key = args.key as string;
+
+  const { error } = await ctx.supabase
+    .from('mira_memories')
+    .delete()
+    .eq('user_id', ctx.userId)
+    .eq('key', key);
+
+  if (error) return { error: error.message };
+  return { success: true, message: `Memory "${key}" deleted` };
+}
+
+export async function executeListMemories(
+  args: Record<string, unknown>,
+  ctx: MiraToolContext
+) {
+  const category = args.category as string | null;
+
+  let dbQuery = ctx.supabase
+    .from('mira_memories')
+    .select('key, value, category, updated_at')
+    .eq('user_id', ctx.userId)
+    .order('updated_at', { ascending: false });
+
+  if (category) {
+    dbQuery = dbQuery.eq('category', category);
+  }
+
+  const { data: memories, error } = await dbQuery;
+
+  if (error) return { error: error.message };
+
+  return {
+    count: memories?.length ?? 0,
+    memories: (memories || []).map(
+      (m: {
+        key: string;
+        value: string;
+        category: string;
+        updated_at: string;
+      }) => ({
+        key: m.key,
+        value: m.value,
+        category: m.category,
+        updatedAt: m.updated_at,
+      })
+    ),
+  };
+}
+
+export async function executeMergeMemories(
+  args: Record<string, unknown>,
+  ctx: MiraToolContext
+) {
+  const keysToDelete = args.keysToDelete as string[];
+  const newKey = args.newKey as string;
+  const newValue = args.newValue as string;
+  const newCategory = args.newCategory as string;
+
+  if (!keysToDelete || keysToDelete.length === 0) {
+    return { error: 'No keys provided to delete' };
+  }
+
+  const combinedText = `${newKey}: ${newValue}`;
+  const embedding = await generateEmbedding(combinedText);
+
+  // First, insert or update the new combined memory
+  const { data: existing } = await ctx.supabase
+    .from('mira_memories')
+    .select('id')
+    .eq('user_id', ctx.userId)
+    .eq('key', newKey)
+    .maybeSingle();
+
+  if (existing) {
+    const { error: updateError } = await ctx.supabase
+      .from('mira_memories')
+      .update({
+        value: newValue,
+        category: newCategory,
+        embedding: embedding ? (embedding as any) : undefined,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', existing.id);
+
+    if (updateError) return { error: updateError.message };
+  } else {
+    const { error: insertError } = await ctx.supabase
+      .from('mira_memories')
+      .insert({
+        user_id: ctx.userId,
+        key: newKey,
+        value: newValue,
+        category: newCategory,
+        embedding: embedding ? (embedding as any) : undefined,
+        source: 'mira_chat',
+      });
+
+    if (insertError) return { error: insertError.message };
+  }
+
+  // Delete all the old keys (excluding the newKey if it was in the list)
+  const keysToRemove = keysToDelete.filter((k) => k !== newKey);
+
+  if (keysToRemove.length > 0) {
+    const { error: deleteError } = await ctx.supabase
+      .from('mira_memories')
+      .delete()
+      .eq('user_id', ctx.userId)
+      .in('key', keysToRemove);
+
+    if (deleteError) return { error: deleteError.message };
+  }
+
+  return {
+    success: true,
+    message: `Merged ${keysToDelete.length} memories into "${newKey}"`,
+  };
+}

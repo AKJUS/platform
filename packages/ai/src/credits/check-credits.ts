@@ -33,24 +33,24 @@ export async function checkAiCredits(
   if (error) {
     console.error('Error checking AI credits:', error);
     return {
-      allowed: true, // Fail-open: allow if credit check itself fails
+      allowed: false,
       remainingCredits: 0,
       tier: 'FREE',
       maxOutputTokens: null,
-      errorCode: null,
-      errorMessage: null,
+      errorCode: 'CREDIT_CHECK_FAILED',
+      errorMessage: 'AI credit check failed. Please try again.',
     };
   }
 
   const row = Array.isArray(data) ? data[0] : data;
   if (!row) {
     return {
-      allowed: true,
+      allowed: false,
       remainingCredits: 0,
       tier: 'FREE',
       maxOutputTokens: null,
-      errorCode: null,
-      errorMessage: null,
+      errorCode: 'CREDIT_CHECK_FAILED',
+      errorMessage: 'AI credit check returned no result. Please try again.',
     };
   }
 

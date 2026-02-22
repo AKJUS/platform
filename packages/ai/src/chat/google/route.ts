@@ -246,12 +246,14 @@ export function createPOST(
         messages,
         wsId,
         isMiraMode,
+        timezone,
       } = (await req.json()) as {
         id?: string;
         model?: string;
         messages?: UIMessage[];
         wsId?: string;
         isMiraMode?: boolean;
+        timezone?: string;
       };
       if (!id) return new Response('Missing chat ID', { status: 400 });
       if (!messages) {
@@ -374,10 +376,17 @@ export function createPOST(
       }
 
       // Process messages and handle file attachments
-      const processedMessages =
+      let processedMessages =
         wsId && chatId
           ? await processMessagesWithFiles(modelMessages, wsId, chatId)
           : modelMessages;
+
+      // Limit the number of messages sent to the AI to prevent context overflow and save credits
+      if (processedMessages.length > 10) {
+        // Keep the system prompt/instruction (if any inserted earlier, though streamText takes `system` separately)
+        // Keep the last 10 messages
+        processedMessages = processedMessages.slice(-10);
+      }
 
       if (processedMessages.length !== 1) {
         const userMessages = processedMessages.filter(
@@ -461,7 +470,12 @@ export function createPOST(
       let miraTools: ToolSet | undefined;
 
       if (isMiraMode && wsId) {
-        const ctx: MiraToolContext = { userId: user.id, wsId, supabase };
+        const ctx: MiraToolContext = {
+          userId: user.id,
+          wsId,
+          supabase,
+          timezone,
+        };
         try {
           const { contextString, soul, isFirstInteraction } =
             await buildMiraContext(ctx);
@@ -483,12 +497,20 @@ export function createPOST(
       const effectiveSource = isMiraMode ? 'Mira' : 'Rewise';
 
       const resolvedGatewayModel = model.includes('/')
-        ? model
-        : `${defaultProvider}/${model}`;
+        ? gateway(model)
+        : gateway(`${defaultProvider}/${model}`);
+
+      // Enable thinking for models that support it (Gemini 2.5+, 3+)
+      const modelLower = model.toLowerCase();
+      const supportsThinking =
+        modelLower.includes('gemini-2.5') || modelLower.includes('gemini-3');
+      const thinkingConfig = supportsThinking
+        ? { thinkingConfig: { includeThoughts: true } }
+        : {};
 
       const result = streamText({
         experimental_transform: smoothStream(),
-        model: gateway(resolvedGatewayModel),
+        model: resolvedGatewayModel,
         messages: processedMessages,
         system:
           isMiraMode && miraSystemPrompt ? miraSystemPrompt : systemInstruction,
@@ -496,21 +518,45 @@ export function createPOST(
         ...(miraTools
           ? {
               tools: miraTools,
-              stopWhen: stepCountIs(10),
+              stopWhen: stepCountIs(25),
               toolChoice: 'auto' as const,
-              // Force tool call on step 0 to prevent hallucination.
-              // The no_action_needed tool serves as an escape-hatch for
-              // conversational messages that don't need real tool use.
               prepareStep: ({ steps }: { steps: unknown[] }) => {
                 if (steps.length === 0) {
-                  return { toolChoice: 'required' as const };
+                  // Step 0: only select_tools + no_action_needed are active.
+                  // The model reads the tool directory from the system prompt
+                  // and picks which tools it needs via select_tools.
+                  return {
+                    toolChoice: 'required' as const,
+                    activeTools: ['select_tools', 'no_action_needed'],
+                  };
                 }
+
+                // Step 1+: extract selected tools from the select_tools call
+                type StepLike = {
+                  toolCalls?: Array<{
+                    toolName: string;
+                    args?: Record<string, unknown>;
+                  }>;
+                };
+                const step0 = steps[0] as StepLike | undefined;
+                const selectCall = step0?.toolCalls?.find(
+                  (tc) => tc.toolName === 'select_tools'
+                );
+                if (selectCall?.args) {
+                  const selectedTools = (selectCall.args.tools ??
+                    []) as string[];
+                  return {
+                    activeTools: [...selectedTools, 'no_action_needed'],
+                  };
+                }
+
                 return {};
               },
             }
           : {}),
         providerOptions: {
           google: {
+            ...thinkingConfig,
             safetySettings: [
               {
                 category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
@@ -531,6 +577,7 @@ export function createPOST(
             ],
           },
           vertex: {
+            ...thinkingConfig,
             safetySettings: [
               {
                 category: 'HARM_CATEGORY_HARASSMENT',
@@ -550,8 +597,9 @@ export function createPOST(
               },
             ],
           },
-          anthropic: {
-            cacheControl: true,
+          gateway: {
+            order: ['vertex', 'google'],
+            caching: 'auto',
           },
         },
         onFinish: async (response) => {
@@ -564,6 +612,23 @@ export function createPOST(
           const allToolResults = (response.steps ?? []).flatMap(
             (step) => step.toolResults ?? []
           );
+
+          // Collect reasoning from all steps
+          const allReasoning = (response.steps ?? [])
+            .map(
+              (step) =>
+                (step as Record<string, unknown>).reasoningText as
+                  | string
+                  | undefined
+            )
+            .filter(Boolean)
+            .join('\n\n');
+          const reasoningText =
+            allReasoning ||
+            ((response as Record<string, unknown>).reasoningText as
+              | string
+              | undefined) ||
+            '';
 
           if (!response.text && !allToolCalls.length) {
             console.warn(
@@ -591,6 +656,7 @@ export function createPOST(
                 response.usage.outputTokens,
               metadata: {
                 source: effectiveSource,
+                ...(reasoningText ? { reasoning: reasoningText } : {}),
                 ...(allToolCalls.length
                   ? {
                       toolCalls: JSON.parse(JSON.stringify(allToolCalls)),
@@ -636,7 +702,9 @@ export function createPOST(
         },
       });
 
-      return result.toUIMessageStreamResponse();
+      return result.toUIMessageStreamResponse({
+        sendReasoning: true,
+      });
     } catch (error) {
       if (error instanceof Error) {
         console.log(error.message);

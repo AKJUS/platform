@@ -19,6 +19,7 @@ type ContextOptions = {
   userId: string;
   wsId: string;
   supabase: SupabaseClient;
+  timezone?: string;
 };
 
 export type MiraContextResult = {
@@ -40,9 +41,44 @@ export type MiraContextResult = {
 export async function buildMiraContext(
   opts: ContextOptions
 ): Promise<MiraContextResult> {
-  const { userId, wsId, supabase } = opts;
+  const { userId, wsId, supabase, timezone = 'UTC' } = opts;
 
-  const now = new Date();
+  let now = new Date();
+  try {
+    // If a valid timezone is provided, try to shift our "now" perspective
+    // to match the local calendar day for better "today" logic
+    const tzDateStr = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    }).format(now);
+
+    // Parse the output back (MM/DD/YYYY, HH:mm:ss) to create a local-time equivalent Date
+    const [datePart, timePart] = tzDateStr.split(', ');
+    const [month, day, year] = datePart!.split('/');
+    const [hour, min, sec] = timePart!.split(':');
+    if (year && month && day && hour && min && sec) {
+      now = new Date(
+        parseInt(year, 10),
+        parseInt(month, 10) - 1,
+        parseInt(day, 10),
+        parseInt(hour, 10),
+        parseInt(min, 10),
+        parseInt(sec, 10)
+      );
+    }
+  } catch (err) {
+    console.warn(
+      'Failed to parse timezone for context builder, falling back to UTC',
+      err
+    );
+  }
+
   const todayStart = new Date(now);
   todayStart.setHours(0, 0, 0, 0);
   const todayEnd = new Date(now);
@@ -120,9 +156,38 @@ export async function buildMiraContext(
   }
 
   // ── Meta ──
+  const formatterOptions: Intl.DateTimeFormatOptions = {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: timezone,
+    timeZoneName: 'short',
+  };
+
+  let timeStr = now.toISOString();
+  let dateStr = now.toLocaleDateString('en-US');
+
+  try {
+    // Re-use real current time for the literal string output so it shows actual timezone
+    const realNow = new Date();
+    timeStr = realNow.toLocaleString('en-US', formatterOptions);
+    dateStr = realNow.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      timeZone: timezone,
+    });
+  } catch (_) {
+    // Ignore formatting errors
+  }
+
   const metaLines = [
-    `Current time: ${now.toISOString()}`,
-    `Today: ${now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`,
+    `Current time: ${timeStr} (${timezone})`,
+    `Today: ${dateStr}`,
   ];
   sections.push(
     truncateSection(
@@ -211,12 +276,24 @@ export async function buildMiraContext(
     for (const e of events) {
       const start = new Date(e.start_at);
       const end = new Date(e.end_at);
-      const dateStr = start.toLocaleDateString('en-US', {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-      });
-      const timeStr = `${start.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}–${end.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
+
+      let dateStr: string, timeStr: string;
+      try {
+        dateStr = start.toLocaleDateString('en-US', {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+          timeZone: timezone,
+        });
+        timeStr = `${start.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: timezone })}–${end.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: timezone })}`;
+      } catch (_) {
+        dateStr = start.toLocaleDateString('en-US', {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+        });
+        timeStr = `${start.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}–${end.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
+      }
       const loc = e.location ? ` @ ${e.location}` : '';
       eventLines.push(`- ${dateStr} ${timeStr}: ${e.title}${loc}`);
     }

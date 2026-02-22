@@ -27,7 +27,7 @@ function FullscreenGradientBg() {
     >
       {/* Blob 1 — top-left, purple-indigo */}
       <div
-        className="absolute -top-32 -left-32 h-[600px] w-[600px] animate-[mira-blob_18s_ease-in-out_infinite] rounded-full opacity-[0.12] blur-[120px] dark:opacity-[0.07]"
+        className="absolute -top-32 -left-32 h-150 w-150 animate-[mira-blob_18s_ease-in-out_infinite] rounded-full opacity-[0.12] blur-[120px] dark:opacity-[0.07]"
         style={{
           background:
             'radial-gradient(circle, var(--color-dynamic-purple) 0%, var(--color-dynamic-indigo) 100%)',
@@ -35,7 +35,7 @@ function FullscreenGradientBg() {
       />
       {/* Blob 2 — bottom-right, cyan-blue */}
       <div
-        className="absolute -right-40 -bottom-40 h-[500px] w-[500px] animate-[mira-blob_22s_ease-in-out_infinite_reverse] rounded-full opacity-[0.10] blur-[100px] dark:opacity-[0.06]"
+        className="absolute -right-40 -bottom-40 h-125 w-125 animate-[mira-blob_22s_ease-in-out_infinite_reverse] rounded-full opacity-[0.10] blur-[100px] dark:opacity-[0.06]"
         style={{
           background:
             'radial-gradient(circle, var(--color-dynamic-cyan) 0%, var(--color-dynamic-blue) 100%)',
@@ -43,7 +43,7 @@ function FullscreenGradientBg() {
       />
       {/* Blob 3 — center-right, pink-rose */}
       <div
-        className="absolute top-1/3 right-1/4 h-[400px] w-[400px] animate-[mira-blob_15s_ease-in-out_2s_infinite] rounded-full opacity-[0.08] blur-[90px] dark:opacity-[0.05]"
+        className="absolute top-1/3 right-1/4 h-100 w-100 animate-[mira-blob_15s_ease-in-out_2s_infinite] rounded-full opacity-[0.08] blur-[90px] dark:opacity-[0.05]"
         style={{
           background:
             'radial-gradient(circle, var(--color-dynamic-pink) 0%, var(--color-dynamic-rose) 100%)',
@@ -66,10 +66,10 @@ export default function MiraDashboardClient({
   return (
     <div
       className={cn(
-        'relative flex flex-col gap-6',
+        'relative flex flex-col gap-6 overflow-hidden',
         isFullscreen
-          ? 'fixed inset-0 z-50 overflow-hidden bg-background p-4'
-          : 'h-[calc(100vh-2rem)]'
+          ? 'fixed inset-0 z-50 bg-background p-4'
+          : 'h-[calc(100vh-4rem)] xl:h-[calc(100vh-2rem)]'
       )}
     >
       {/* Animated gradient backdrop in fullscreen */}
@@ -87,14 +87,14 @@ export default function MiraDashboardClient({
       {/* Main layout: chat + insights */}
       <div
         className={cn(
-          'relative z-10 flex min-h-0 flex-1 gap-6',
+          'relative z-10 flex h-full min-h-0 flex-1 gap-6',
           isFullscreen ? 'flex-col' : 'flex-col xl:flex-row'
         )}
       >
         {/* Chat panel — hero element */}
         <div
           className={cn(
-            'flex min-h-0 flex-1 flex-col rounded-xl border p-4 shadow-sm backdrop-blur-sm',
+            'flex min-h-0 flex-1 flex-col rounded-xl border p-4 pb-0 shadow-sm backdrop-blur-sm',
             isFullscreen
               ? 'border-border/30 bg-card/40'
               : 'border-border/60 bg-card/50'

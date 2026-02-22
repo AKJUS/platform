@@ -5,4 +5,11 @@ type Messages = typeof en;
 declare global {
   // Use type safe message keys with next-intl
   interface IntlMessages extends Messages {}
+
+  interface Window {
+    webkitAudioContext: typeof AudioContext;
+  }
 }
+
+declare module '*.css';
+declare module '*.layer.css';

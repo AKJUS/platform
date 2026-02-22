@@ -29,6 +29,7 @@ describe('constants', () => {
     it('contains all expected error codes', () => {
       expect(CREDIT_ERROR_CODES.CREDITS_EXHAUSTED).toBe('CREDITS_EXHAUSTED');
       expect(CREDIT_ERROR_CODES.MODEL_NOT_ALLOWED).toBe('MODEL_NOT_ALLOWED');
+      expect(CREDIT_ERROR_CODES.MODEL_DISABLED).toBe('MODEL_DISABLED');
       expect(CREDIT_ERROR_CODES.FEATURE_NOT_ALLOWED).toBe(
         'FEATURE_NOT_ALLOWED'
       );
@@ -37,10 +38,13 @@ describe('constants', () => {
       );
       expect(CREDIT_ERROR_CODES.NO_ALLOCATION).toBe('NO_ALLOCATION');
       expect(CREDIT_ERROR_CODES.NO_BALANCE).toBe('NO_BALANCE');
+      expect(CREDIT_ERROR_CODES.CREDIT_CHECK_FAILED).toBe(
+        'CREDIT_CHECK_FAILED'
+      );
     });
 
-    it('has exactly 6 error codes', () => {
-      expect(Object.keys(CREDIT_ERROR_CODES)).toHaveLength(6);
+    it('has exactly 8 error codes', () => {
+      expect(Object.keys(CREDIT_ERROR_CODES)).toHaveLength(8);
     });
   });
 });

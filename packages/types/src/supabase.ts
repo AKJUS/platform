@@ -5104,6 +5104,7 @@ export type Database = {
           category: Database['public']['Enums']['mira_memory_category'];
           confidence: number;
           created_at: string;
+          embedding: string | null;
           id: string;
           key: string;
           last_referenced_at: string | null;
@@ -5116,6 +5117,7 @@ export type Database = {
           category: Database['public']['Enums']['mira_memory_category'];
           confidence?: number;
           created_at?: string;
+          embedding?: string | null;
           id?: string;
           key: string;
           last_referenced_at?: string | null;
@@ -5128,6 +5130,7 @@ export type Database = {
           category?: Database['public']['Enums']['mira_memory_category'];
           confidence?: number;
           created_at?: string;
+          embedding?: string | null;
           id?: string;
           key?: string;
           last_referenced_at?: string | null;
@@ -21340,6 +21343,20 @@ export type Database = {
       is_workspace_owner: {
         Args: { p_user_id: string; p_ws_id: string };
         Returns: boolean;
+      };
+      match_memories: {
+        Args: {
+          filter_category?: string;
+          match_count?: number;
+          query_embedding: string;
+        };
+        Returns: {
+          category: Database['public']['Enums']['mira_memory_category'];
+          id: string;
+          key: string;
+          similarity: number;
+          value: string;
+        }[];
       };
       match_tasks: {
         Args: {
