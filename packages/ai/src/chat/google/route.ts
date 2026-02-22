@@ -531,26 +531,31 @@ export function createPOST(
                   };
                 }
 
-                // Step 1+: extract selected tools from the select_tools call
+                // Step 1+: use latest select_tools result as cached set; keep select_tools available to add/change tools
                 type StepLike = {
                   toolCalls?: Array<{
                     toolName: string;
                     args?: Record<string, unknown>;
                   }>;
                 };
-                const step0 = steps[0] as StepLike | undefined;
-                const selectCall = step0?.toolCalls?.find(
-                  (tc) => tc.toolName === 'select_tools'
-                );
-                if (selectCall?.args) {
-                  const selectedTools = (selectCall.args.tools ??
-                    []) as string[];
-                  return {
-                    activeTools: [...selectedTools, 'no_action_needed'],
-                  };
+                let selectedTools: string[] = [];
+                for (let i = steps.length - 1; i >= 0; i--) {
+                  const step = steps[i] as StepLike | undefined;
+                  const selectCall = step?.toolCalls?.find(
+                    (tc) => tc.toolName === 'select_tools'
+                  );
+                  if (selectCall?.args?.tools) {
+                    selectedTools = selectCall.args.tools as string[];
+                    break;
+                  }
                 }
-
-                return {};
+                // Current cached set + select_tools so the model can reuse cache or change tools when needed
+                const active = [
+                  ...selectedTools.filter((t) => t !== 'select_tools'),
+                  'select_tools',
+                  'no_action_needed',
+                ];
+                return { activeTools: active };
               },
             }
           : {}),
