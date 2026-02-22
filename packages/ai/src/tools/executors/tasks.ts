@@ -23,7 +23,7 @@ export async function executeGetMyTasks(
   ctx: MiraToolContext
 ) {
   const { userId, wsId, supabase } = ctx;
-  const category = (args.category as string) || 'all';
+  const category = ((args.category ?? args.status) as string) || 'all';
 
   const { data: tasks, error } = await supabase.rpc(
     'get_user_accessible_tasks',
@@ -196,11 +196,19 @@ export async function executeCompleteTask(
 
 // ── New CRUD tools ──
 
+const UPDATE_TASK_FIELDS_HINT =
+  'Accepted fields: taskId (or id), endDate (or dueDate, ISO), name, description, priority, startDate, listId, estimationPoints.';
+
 export async function executeUpdateTask(
   args: Record<string, unknown>,
   ctx: MiraToolContext
 ) {
-  const taskId = args.taskId as string;
+  const taskId = (args.taskId ?? args.id) as string | undefined;
+  if (!taskId) {
+    return {
+      error: `Task ID required. Use taskId or id. ${UPDATE_TASK_FIELDS_HINT}`,
+    };
+  }
   const updates: Record<string, unknown> = {};
 
   if (args.name !== undefined) updates.name = args.name;
@@ -225,8 +233,9 @@ export async function executeUpdateTask(
           ? parseTaskDateToUTCISO(v, ctx.timezone, false)
           : v;
   }
-  if (args.endDate !== undefined) {
-    const v = args.endDate as string | null;
+  const endDateValue = args.endDate ?? args.dueDate;
+  if (endDateValue !== undefined) {
+    const v = endDateValue as string | null;
     updates.end_date =
       v == null
         ? null
@@ -239,7 +248,10 @@ export async function executeUpdateTask(
   if (args.listId !== undefined) updates.list_id = args.listId;
 
   if (Object.keys(updates).length === 0) {
-    return { success: true, message: 'No fields to update' };
+    return {
+      success: true,
+      message: `No fields to update. ${UPDATE_TASK_FIELDS_HINT}`,
+    };
   }
 
   const { error } = await ctx.supabase

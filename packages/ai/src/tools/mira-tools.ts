@@ -170,13 +170,18 @@ export const miraToolDefinitions = {
   // ── Tasks ──
   get_my_tasks: tool({
     description:
-      "Get the current user's tasks organized by status. Returns overdue, due today, and upcoming tasks with priority and dates.",
+      "Get the current user's tasks organized by status. Returns overdue, due today, and upcoming tasks with priority and dates. Use category (or status) with values: all, overdue, today, upcoming.",
     inputSchema: z.object({
       category: z
         .enum(['all', 'overdue', 'today', 'upcoming'])
+        .optional()
         .describe(
           'Filter tasks by time category. Use "all" to get everything.'
         ),
+      status: z
+        .enum(['all', 'overdue', 'today', 'upcoming'])
+        .optional()
+        .describe('Alias for category. Use either category or status.'),
     }),
   }),
 
@@ -209,9 +214,13 @@ export const miraToolDefinitions = {
 
   update_task: tool({
     description:
-      'Update fields on an existing task. Only pass fields that need changing.',
+      'Update fields on an existing task. Use taskId (or id) for the task UUID and endDate (or dueDate) for due date (ISO). Only pass fields that need changing.',
     inputSchema: z.object({
-      taskId: z.string().describe('UUID of the task'),
+      taskId: z.string().optional().describe('UUID of the task'),
+      id: z
+        .string()
+        .optional()
+        .describe('Alias for taskId. Use either taskId or id.'),
       name: z.string().optional().describe('New task name'),
       description: z.string().nullable().optional().describe('New description'),
       priority: z
@@ -220,7 +229,16 @@ export const miraToolDefinitions = {
         .optional()
         .describe('New priority'),
       startDate: z.string().nullable().optional().describe('Start date ISO'),
-      endDate: z.string().nullable().optional().describe('Due date ISO'),
+      endDate: z
+        .string()
+        .nullable()
+        .optional()
+        .describe('Due date ISO (use for due date)'),
+      dueDate: z
+        .string()
+        .nullable()
+        .optional()
+        .describe('Alias for endDate. Use either endDate or dueDate.'),
       estimationPoints: z
         .number()
         .int()

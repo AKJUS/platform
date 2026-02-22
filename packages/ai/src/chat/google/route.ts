@@ -11,6 +11,7 @@ import {
 import { MAX_CHAT_MESSAGE_LENGTH } from '@tuturuuu/utils/constants';
 import type { ToolSet } from 'ai';
 import {
+  consumeStream,
   convertToModelMessages,
   type FilePart,
   gateway,
@@ -509,6 +510,7 @@ export function createPOST(
         : {};
 
       const result = streamText({
+        abortSignal: req.signal,
         experimental_transform: smoothStream(),
         model: resolvedGatewayModel,
         messages: processedMessages,
@@ -608,9 +610,6 @@ export function createPOST(
           },
         },
         onFinish: async (response) => {
-          // Aggregate tool calls/results from ALL steps — response.toolCalls
-          // only has the final step's data, which is empty when the last step
-          // is a text response (the common case for multi-step tool calling).
           const allToolCalls = (response.steps ?? []).flatMap(
             (step) => step.toolCalls ?? []
           );
@@ -618,7 +617,6 @@ export function createPOST(
             (step) => step.toolResults ?? []
           );
 
-          // Collect reasoning from all steps
           const allReasoning = (response.steps ?? [])
             .map(
               (step) =>
@@ -642,6 +640,29 @@ export function createPOST(
             return;
           }
 
+          const usage = response.totalUsage ?? response.usage;
+          let inputTokens = usage.inputTokens ?? 0;
+          let outputTokens = usage.outputTokens ?? 0;
+          let reasoningTokens =
+            ((usage as Record<string, unknown>).reasoningTokens as number | undefined) ?? 0;
+          // When stream is aborted, totalUsage/usage can be 0; aggregate from completed steps.
+          if (
+            inputTokens === 0 &&
+            outputTokens === 0 &&
+            reasoningTokens === 0 &&
+            (response.steps?.length ?? 0) > 0
+          ) {
+            for (const step of response.steps ?? []) {
+              const u = step.usage;
+              if (u) {
+                inputTokens += u.inputTokens ?? 0;
+                outputTokens += u.outputTokens ?? 0;
+                reasoningTokens +=
+                  ((u as Record<string, unknown>).reasoningTokens as number | undefined) ?? 0;
+              }
+            }
+          }
+
           const { data: msgData, error } = await sbAdmin
             .from('ai_chat_messages')
             .insert({
@@ -654,11 +675,8 @@ export function createPOST(
                 : model
               ).toLowerCase(),
               finish_reason: response.finishReason,
-              prompt_tokens:
-                response.totalUsage?.inputTokens ?? response.usage.inputTokens,
-              completion_tokens:
-                response.totalUsage?.outputTokens ??
-                response.usage.outputTokens,
+              prompt_tokens: inputTokens,
+              completion_tokens: outputTokens,
               metadata: {
                 source: effectiveSource,
                 ...(reasoningText ? { reasoning: reasoningText } : {}),
@@ -685,19 +703,14 @@ export function createPOST(
 
           console.log('AI Response saved to database');
 
-          // Deduct AI credits — use totalUsage (all steps) for accurate billing
-          const usage = response.totalUsage ?? response.usage;
-          if (wsId) {
+          if (wsId && (inputTokens > 0 || outputTokens > 0 || reasoningTokens > 0)) {
             deductAiCredits({
               wsId,
               userId: user.id,
               modelId: model,
-              inputTokens: usage.inputTokens ?? 0,
-              outputTokens: usage.outputTokens ?? 0,
-              reasoningTokens:
-                ((usage as Record<string, unknown>).reasoningTokens as
-                  | number
-                  | undefined) ?? 0,
+              inputTokens,
+              outputTokens,
+              reasoningTokens,
               feature: 'chat',
               chatMessageId: msgData?.id,
             }).catch((err) =>
@@ -707,7 +720,11 @@ export function createPOST(
         },
       });
 
+      // Per https://ai-sdk.dev/docs/advanced/stopping-streams: consumeSseStream ensures
+      // the stream is consumed on abort so cleanup can run; use onFinish in toUIMessageStreamResponse
+      // to handle isAborted when needed.
       return result.toUIMessageStreamResponse({
+        consumeSseStream: consumeStream,
         sendReasoning: true,
       });
     } catch (error) {
