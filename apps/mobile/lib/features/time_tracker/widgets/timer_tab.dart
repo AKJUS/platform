@@ -55,8 +55,10 @@ class TimerTab extends StatelessWidget {
               isRunning: state.isRunning,
               isPaused: state.isPaused,
               onStart: () => unawaited(cubit.startSession(wsId)),
-              onStop: () => unawaited(cubit.stopSession(wsId, userId)),
-              onPause: () => unawaited(cubit.pauseSession()),
+              onStop: () =>
+                  unawaited(_handleStop(context, cubit, wsId, userId)),
+              onPause: () =>
+                  unawaited(_handlePause(context, cubit, wsId, userId)),
               onResume: () => unawaited(cubit.resumeSession()),
               onAddMissedEntry: () => _showMissedEntryDialog(context),
             ),
@@ -129,8 +131,122 @@ class TimerTab extends StatelessWidget {
     );
   }
 
-  void _showMissedEntryDialog(BuildContext context) {
+  Future<void> _handleStop(
+    BuildContext context,
+    TimeTrackerCubit cubit,
+    String wsId,
+    String userId,
+  ) async {
+    final runningSession = cubit.state.runningSession;
+    if (runningSession != null &&
+        cubit.sessionExceedsThreshold(runningSession)) {
+      final action = await _showExceededSessionActionDialog(context);
+      if (!context.mounted || action == null) {
+        return;
+      }
+
+      if (action == _ExceededSessionAction.discard) {
+        await cubit.discardRunningSession(wsId, userId);
+        return;
+      }
+
+      _showMissedEntryDialog(
+        context,
+        initialStartTime: runningSession.startTime,
+        initialEndTime: DateTime.now(),
+        initialTitle: runningSession.title,
+        initialDescription: runningSession.description,
+        initialCategoryId: runningSession.categoryId,
+        discardRunningSessionOnSave: true,
+      );
+      return;
+    }
+
+    await cubit.stopSession(wsId, userId);
+  }
+
+  Future<void> _handlePause(
+    BuildContext context,
+    TimeTrackerCubit cubit,
+    String wsId,
+    String userId,
+  ) async {
+    final runningSession = cubit.state.runningSession;
+    if (runningSession != null &&
+        cubit.sessionExceedsThreshold(runningSession)) {
+      final action = await _showExceededSessionActionDialog(context);
+      if (!context.mounted || action == null) {
+        return;
+      }
+
+      if (action == _ExceededSessionAction.discard) {
+        await cubit.discardRunningSession(wsId, userId);
+        return;
+      }
+
+      _showMissedEntryDialog(
+        context,
+        initialStartTime: runningSession.startTime,
+        initialEndTime: DateTime.now(),
+        initialTitle: runningSession.title,
+        initialDescription: runningSession.description,
+        initialCategoryId: runningSession.categoryId,
+        discardRunningSessionOnSave: true,
+      );
+      return;
+    }
+
+    await cubit.pauseSession();
+  }
+
+  Future<_ExceededSessionAction?> _showExceededSessionActionDialog(
+    BuildContext context,
+  ) {
+    final l10n = context.l10n;
+    return showDialog<_ExceededSessionAction>(
+      context: context,
+      builder: (dialogCtx) => Center(
+        child: SizedBox(
+          width: MediaQuery.of(context).size.width * 0.85,
+          child: shad.AlertDialog(
+            barrierColor: Colors.transparent,
+            title: Text(l10n.timerSessionExceeded),
+            content: Text(l10n.timerSessionExceededDescription),
+            actions: [
+              shad.OutlineButton(
+                onPressed: () => Navigator.of(dialogCtx).pop(),
+                child: Text(context.l10n.commonCancel),
+              ),
+              shad.DestructiveButton(
+                onPressed: () => Navigator.of(dialogCtx).pop(
+                  _ExceededSessionAction.discard,
+                ),
+                child: Text(l10n.timerDiscardSession),
+              ),
+              shad.PrimaryButton(
+                onPressed: () => Navigator.of(dialogCtx).pop(
+                  _ExceededSessionAction.submitRequest,
+                ),
+                child: Text(l10n.timerSubmitAsRequest),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showMissedEntryDialog(
+    BuildContext context, {
+    DateTime? initialStartTime,
+    DateTime? initialEndTime,
+    String? initialTitle,
+    String? initialDescription,
+    String? initialCategoryId,
+    bool discardRunningSessionOnSave = false,
+  }) {
     final cubit = context.read<TimeTrackerCubit>();
+    final state = cubit.state;
     final wsId =
         context.read<WorkspaceCubit>().state.currentWorkspace?.id ?? '';
     final userId = supabase.auth.currentUser?.id ?? '';
@@ -139,14 +255,44 @@ class TimerTab extends StatelessWidget {
       context: context,
       builder: (_) => MissedEntryDialog(
         categories: cubit.state.categories,
+        thresholdDays: state.thresholdDays,
+        initialStartTime: initialStartTime,
+        initialEndTime: initialEndTime,
+        initialTitle: initialTitle,
+        initialDescription: initialDescription,
+        initialCategoryId: initialCategoryId,
         onSave:
             ({
               required title,
               required startTime,
               required endTime,
+              required shouldSubmitAsRequest,
+              required imagePaths,
               categoryId,
               description,
             }) {
+              if (shouldSubmitAsRequest) {
+                unawaited(
+                  cubit
+                      .createMissedEntryAsRequest(
+                        wsId,
+                        userId,
+                        title: title,
+                        categoryId: categoryId,
+                        startTime: startTime,
+                        endTime: endTime,
+                        description: description,
+                        imagePaths: imagePaths,
+                      )
+                      .then((_) async {
+                        if (discardRunningSessionOnSave) {
+                          await cubit.discardRunningSession(wsId, userId);
+                        }
+                      }),
+                );
+                return;
+              }
+
               unawaited(
                 cubit.createMissedEntry(
                   wsId,
@@ -206,3 +352,5 @@ class TimerTab extends StatelessWidget {
     );
   }
 }
+
+enum _ExceededSessionAction { discard, submitRequest }

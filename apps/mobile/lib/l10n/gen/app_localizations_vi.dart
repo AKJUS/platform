@@ -625,6 +625,32 @@ class AppLocalizationsVi extends AppLocalizations {
   String get timerWorkSession => 'Phiên làm việc';
 
   @override
+  String get timerSubmitForApproval => 'Gửi duyệt';
+
+  @override
+  String get timerSessionExceeded => 'Phiên vượt ngưỡng';
+
+  @override
+  String get timerSessionExceededDescription => 'Phiên này đã vượt quá ngưỡng thời gian của không gian làm việc. Bạn có thể hủy phiên hoặc gửi yêu cầu để được duyệt.';
+
+  @override
+  String get timerDiscardSession => 'Hủy phiên';
+
+  @override
+  String get timerSubmitAsRequest => 'Gửi yêu cầu';
+
+  @override
+  String get timerThresholdWarningAll => 'Mọi mục bổ sung trong không gian làm việc này đều cần được duyệt. Vui lòng thêm ít nhất một ảnh minh chứng trước khi gửi.';
+
+  @override
+  String timerThresholdWarning(int days) {
+    return 'Các mục cũ hơn $days ngày cần được duyệt. Vui lòng thêm ít nhất một ảnh minh chứng trước khi gửi.';
+  }
+
+  @override
+  String get timerProofOfWorkRequired => 'Cần ít nhất một ảnh minh chứng.';
+
+  @override
   String get timerAutoStartBreaks => 'Tự động bắt đầu nghỉ';
 
   @override

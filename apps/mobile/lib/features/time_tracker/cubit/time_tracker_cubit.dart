@@ -6,6 +6,7 @@ import 'package:mobile/data/models/time_tracking/category.dart';
 import 'package:mobile/data/models/time_tracking/pomodoro_settings.dart';
 import 'package:mobile/data/models/time_tracking/session.dart';
 import 'package:mobile/data/models/time_tracking/stats.dart';
+import 'package:mobile/data/models/workspace_settings.dart';
 import 'package:mobile/data/repositories/time_tracker_repository.dart';
 import 'package:mobile/features/time_tracker/cubit/time_tracker_state.dart';
 
@@ -27,6 +28,7 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
         _repo.getSessions(wsId, limit: 5),
         _repo.getStats(wsId, userId),
         _repo.loadPomodoroSettings(),
+        _safeGetWorkspaceSettings(wsId),
       ]);
 
       final runningSession = results[0] as TimeTrackingSession?;
@@ -34,6 +36,7 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
       final recentSessions = results[2]! as List<TimeTrackingSession>;
       final stats = results[3]! as TimeTrackerStats;
       final pomodoroSettings = results[4]! as PomodoroSettings;
+      final workspaceSettings = results[5] as WorkspaceSettings?;
 
       TimeTrackingBreak? activeBreak;
       if (runningSession != null) {
@@ -58,6 +61,7 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
           categories: categories,
           stats: stats,
           pomodoroSettings: pomodoroSettings,
+          thresholdDays: workspaceSettings?.missedEntryDateThreshold,
           isPaused: isPaused,
           clearRunningSession: runningSession == null,
           clearActiveBreak: activeBreak == null,
@@ -102,6 +106,24 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
     } on Exception catch (e) {
       emit(state.copyWith(error: e.toString()));
     }
+  }
+
+  bool sessionExceedsThreshold(TimeTrackingSession session) {
+    if (session.startTime == null) {
+      return false;
+    }
+
+    final thresholdDays = state.thresholdDays;
+    if (thresholdDays == null) {
+      return false;
+    }
+
+    if (thresholdDays == 0) {
+      return true;
+    }
+
+    final thresholdAgo = DateTime.now().subtract(Duration(days: thresholdDays));
+    return session.startTime!.isBefore(thresholdAgo);
   }
 
   Future<void> stopSession(String wsId, String userId) async {
@@ -289,6 +311,74 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
     }
   }
 
+  Future<void> createMissedEntryAsRequest(
+    String wsId,
+    String userId, {
+    required String title,
+    required DateTime startTime,
+    required DateTime endTime,
+    String? categoryId,
+    String? description,
+    List<String>? imagePaths,
+  }) async {
+    try {
+      await _repo.createRequest(
+        wsId,
+        title: title,
+        description: description,
+        categoryId: categoryId,
+        startTime: startTime,
+        endTime: endTime,
+        imagePaths: imagePaths,
+      );
+
+      final results = await Future.wait([
+        _repo.getSessions(wsId, limit: 5),
+        _repo.getStats(wsId, userId),
+      ]);
+
+      emit(
+        state.copyWith(
+          recentSessions: results[0] as List<TimeTrackingSession>,
+          stats: results[1] as TimeTrackerStats,
+          clearError: true,
+        ),
+      );
+    } on Exception catch (e) {
+      emit(state.copyWith(error: e.toString()));
+    }
+  }
+
+  Future<void> discardRunningSession(String wsId, String userId) async {
+    if (state.runningSession == null) {
+      return;
+    }
+
+    try {
+      _stopTick();
+      await _repo.deleteSession(wsId, state.runningSession!.id);
+
+      final results = await Future.wait([
+        _repo.getSessions(wsId, limit: 5),
+        _repo.getStats(wsId, userId),
+      ]);
+
+      emit(
+        state.copyWith(
+          elapsed: Duration.zero,
+          recentSessions: results[0] as List<TimeTrackingSession>,
+          stats: results[1] as TimeTrackerStats,
+          isPaused: false,
+          clearRunningSession: true,
+          clearActiveBreak: true,
+          clearError: true,
+        ),
+      );
+    } on Exception catch (e) {
+      emit(state.copyWith(error: e.toString()));
+    }
+  }
+
   Future<void> createCategory(
     String wsId,
     String name, {
@@ -372,6 +462,14 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
   void _stopTick() {
     _ticker?.cancel();
     _ticker = null;
+  }
+
+  Future<WorkspaceSettings?> _safeGetWorkspaceSettings(String wsId) async {
+    try {
+      return await _repo.getWorkspaceSettings(wsId);
+    } on Exception {
+      return null;
+    }
   }
 
   @override

@@ -248,6 +248,21 @@
     "timerSearchSessions": "Tìm kiếm phiên...",
     "timerDescription": "Mô tả",
     "timerWorkSession": "Phiên làm việc",
+    "timerSubmitForApproval": "Gửi duyệt",
+    "timerSessionExceeded": "Phiên vượt ngưỡng",
+    "timerSessionExceededDescription": "Phiên này đã vượt quá ngưỡng thời gian của không gian làm việc. Bạn có thể hủy phiên hoặc gửi yêu cầu để được duyệt.",
+    "timerDiscardSession": "Hủy phiên",
+    "timerSubmitAsRequest": "Gửi yêu cầu",
+    "timerThresholdWarningAll": "Mọi mục bổ sung trong không gian làm việc này đều cần được duyệt. Vui lòng thêm ít nhất một ảnh minh chứng trước khi gửi.",
+    "timerThresholdWarning": "Các mục cũ hơn {days} ngày cần được duyệt. Vui lòng thêm ít nhất một ảnh minh chứng trước khi gửi.",
+    "@timerThresholdWarning": {
+        "placeholders": {
+            "days": {
+                "type": "int"
+            }
+        }
+    },
+    "timerProofOfWorkRequired": "Cần ít nhất một ảnh minh chứng.",
     "timerAutoStartBreaks": "Tự động bắt đầu nghỉ",
     "timerAutoStartFocus": "Tự động bắt đầu tập trung",
     "commonCancel": "Hủy",

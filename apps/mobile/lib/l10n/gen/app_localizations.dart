@@ -1303,6 +1303,54 @@ abstract class AppLocalizations {
   /// **'Work session'**
   String get timerWorkSession;
 
+  /// No description provided for @timerSubmitForApproval.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit for approval'**
+  String get timerSubmitForApproval;
+
+  /// No description provided for @timerSessionExceeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Session exceeds threshold'**
+  String get timerSessionExceeded;
+
+  /// No description provided for @timerSessionExceededDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'This session is older than your workspace threshold. You can discard it or submit it as a request for approval.'**
+  String get timerSessionExceededDescription;
+
+  /// No description provided for @timerDiscardSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard session'**
+  String get timerDiscardSession;
+
+  /// No description provided for @timerSubmitAsRequest.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit as request'**
+  String get timerSubmitAsRequest;
+
+  /// No description provided for @timerThresholdWarningAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All missed entries in this workspace require approval. Add at least one proof image before submitting.'**
+  String get timerThresholdWarningAll;
+
+  /// No description provided for @timerThresholdWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Entries older than {days} day(s) require approval. Add at least one proof image before submitting.'**
+  String timerThresholdWarning(int days);
+
+  /// No description provided for @timerProofOfWorkRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'At least one proof image is required.'**
+  String get timerProofOfWorkRequired;
+
   /// No description provided for @timerAutoStartBreaks.
   ///
   /// In en, this message translates to:

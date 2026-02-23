@@ -10,6 +10,7 @@ import 'package:mobile/data/models/time_tracking/request_activity.dart';
 import 'package:mobile/data/models/time_tracking/request_comment.dart';
 import 'package:mobile/data/models/time_tracking/session.dart';
 import 'package:mobile/data/models/time_tracking/stats.dart';
+import 'package:mobile/data/models/workspace_settings.dart';
 import 'package:mobile/data/sources/api_client.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -98,7 +99,10 @@ abstract class ITimeTrackerRepository {
     String? categoryId,
     DateTime? startTime,
     DateTime? endTime,
+    List<String>? imagePaths,
   });
+
+  Future<WorkspaceSettings?> getWorkspaceSettings(String wsId);
 
   Future<TimeTrackingRequest> updateRequestStatus(
     String wsId,
@@ -465,21 +469,57 @@ class TimeTrackerRepository implements ITimeTrackerRepository {
     String? categoryId,
     DateTime? startTime,
     DateTime? endTime,
+    List<String>? imagePaths,
   }) async {
-    final data = await _api.postJson(
-      '/api/v1/workspaces/$wsId/time-tracking/requests',
-      {
-        'title': title,
-        if (description != null) 'description': description,
-        if (categoryId != null) 'categoryId': categoryId,
-        if (startTime != null) 'startTime': startTime.toIso8601String(),
-        if (endTime != null) 'endTime': endTime.toIso8601String(),
-      },
-    );
+    final uploadImagePaths = imagePaths ?? const <String>[];
+    final hasImages = uploadImagePaths.isNotEmpty;
+
+    final data = hasImages
+        ? await _api.sendMultipart(
+            'POST',
+            '/api/v1/workspaces/$wsId/time-tracking/requests',
+            fields: {
+              'title': title,
+              if (description != null) 'description': description,
+              if (categoryId != null) 'categoryId': categoryId,
+              if (startTime != null) 'startTime': startTime.toIso8601String(),
+              if (endTime != null) 'endTime': endTime.toIso8601String(),
+            },
+            files: uploadImagePaths
+                .asMap()
+                .entries
+                .map(
+                  (entry) => ApiMultipartFile(
+                    field: 'image_${entry.key}',
+                    filePath: entry.value,
+                    contentType: _getImageMimeType(entry.value),
+                  ),
+                )
+                .toList(),
+          )
+        : await _api.postJson(
+            '/api/v1/workspaces/$wsId/time-tracking/requests',
+            {
+              'title': title,
+              if (description != null) 'description': description,
+              if (categoryId != null) 'categoryId': categoryId,
+              if (startTime != null) 'startTime': startTime.toIso8601String(),
+              if (endTime != null) 'endTime': endTime.toIso8601String(),
+            },
+          );
 
     return TimeTrackingRequest.fromJson(
       data['request'] as Map<String, dynamic>,
     );
+  }
+
+  @override
+  Future<WorkspaceSettings?> getWorkspaceSettings(String wsId) async {
+    final data = await _api.getJson('/api/v1/workspaces/$wsId/settings');
+    if (data.isEmpty) {
+      return null;
+    }
+    return WorkspaceSettings.fromJson(data);
   }
 
   @override

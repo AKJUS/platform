@@ -625,6 +625,32 @@ class AppLocalizationsEn extends AppLocalizations {
   String get timerWorkSession => 'Work session';
 
   @override
+  String get timerSubmitForApproval => 'Submit for approval';
+
+  @override
+  String get timerSessionExceeded => 'Session exceeds threshold';
+
+  @override
+  String get timerSessionExceededDescription => 'This session is older than your workspace threshold. You can discard it or submit it as a request for approval.';
+
+  @override
+  String get timerDiscardSession => 'Discard session';
+
+  @override
+  String get timerSubmitAsRequest => 'Submit as request';
+
+  @override
+  String get timerThresholdWarningAll => 'All missed entries in this workspace require approval. Add at least one proof image before submitting.';
+
+  @override
+  String timerThresholdWarning(int days) {
+    return 'Entries older than $days day(s) require approval. Add at least one proof image before submitting.';
+  }
+
+  @override
+  String get timerProofOfWorkRequired => 'At least one proof image is required.';
+
+  @override
   String get timerAutoStartBreaks => 'Auto-start breaks';
 
   @override
