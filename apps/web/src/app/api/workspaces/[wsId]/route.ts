@@ -3,6 +3,7 @@ import { createClient } from '@tuturuuu/supabase/next/server';
 import { MAX_WORKSPACE_NAME_LENGTH } from '@tuturuuu/utils/constants';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import { normalizeWorkspaceId } from '@/lib/workspace-helper';
 
 const UpdateWorkspaceSchema = z.object({
   name: z.string().min(1).max(MAX_WORKSPACE_NAME_LENGTH),
@@ -17,6 +18,7 @@ interface Params {
 export async function GET(_: Request, { params }: Params) {
   const supabase = await createClient();
   const { wsId: id } = await params;
+  const wsId = await normalizeWorkspaceId(id);
 
   const {
     data: { user },
@@ -32,7 +34,7 @@ export async function GET(_: Request, { params }: Params) {
   const { data, error } = await supabase
     .from('workspaces')
     .select('id, name, created_at, workspace_members!inner(user_id)')
-    .eq('id', id)
+    .eq('id', wsId)
     .eq('workspace_members.user_id', user.id)
     .single();
 
@@ -48,6 +50,7 @@ export async function GET(_: Request, { params }: Params) {
 export async function PUT(req: Request, { params }: Params) {
   const supabase = await createClient();
   const { wsId: id } = await params;
+  const wsId = await normalizeWorkspaceId(id);
 
   try {
     const body = await req.json();
@@ -58,7 +61,7 @@ export async function PUT(req: Request, { params }: Params) {
       .update({
         name,
       })
-      .eq('id', id);
+      .eq('id', wsId);
 
     if (error)
       return NextResponse.json(
@@ -85,12 +88,13 @@ export async function PUT(req: Request, { params }: Params) {
 export async function DELETE(_: Request, { params }: Params) {
   const supabase = await createClient();
   const { wsId: id } = await params;
+  const wsId = await normalizeWorkspaceId(id);
 
   // Block deletion of personal workspaces
   const { data: wsData } = await supabase
     .from('workspaces')
     .select('personal')
-    .eq('id', id)
+    .eq('id', wsId)
     .single();
 
   if (wsData?.personal) {
@@ -105,7 +109,7 @@ export async function DELETE(_: Request, { params }: Params) {
     const { data: subscription, error: subError } = await supabase
       .from('workspace_subscriptions')
       .select('polar_subscription_id')
-      .eq('ws_id', id)
+      .eq('ws_id', wsId)
       .neq('status', 'canceled')
       .maybeSingle();
 
@@ -117,7 +121,7 @@ export async function DELETE(_: Request, { params }: Params) {
         id: subscription.polar_subscription_id,
       });
       console.log(
-        `Revoked Polar subscription ${subscription.polar_subscription_id} for workspace ${id}`
+        `Revoked Polar subscription ${subscription.polar_subscription_id} for workspace ${wsId}`
       );
     }
   } catch (error) {
@@ -125,7 +129,7 @@ export async function DELETE(_: Request, { params }: Params) {
     // Continue with workspace deletion even if subscription cancellation fails
   }
 
-  const { error } = await supabase.from('workspaces').delete().eq('id', id);
+  const { error } = await supabase.from('workspaces').delete().eq('id', wsId);
 
   if (error) {
     console.log(error);

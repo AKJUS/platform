@@ -2842,6 +2842,7 @@
       "tool_done": "Done",
       "tool_error": "Error",
       "tool_generating_image": "Generating image...",
+      "tool_generating_ui": "Generating interface...",
       "tool_running": "Running...",
       "using_tools": "Working on it...",
       "view_only": "View only",

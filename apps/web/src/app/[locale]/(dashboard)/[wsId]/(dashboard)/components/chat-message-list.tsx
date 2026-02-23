@@ -10,8 +10,10 @@ import {
   AlertCircle,
   Brain,
   Check,
+  CheckCircle2,
   ChevronRight,
   ClipboardCopy,
+  ClipboardList,
   Loader2,
   Sparkles,
   UserIcon,
@@ -500,10 +502,18 @@ function JsonHighlight({
 /** Extract status info from a single tool part */
 function getToolPartStatus(part: ToolPartData) {
   const state = (part as { state?: string }).state ?? '';
+  const output = (part as { output?: any }).output;
+
   const isDone = state === 'output-available';
-  const isError = state === 'output-error' || state === 'output-denied';
-  const isRunning = !isDone && !isError;
-  return { isDone, isError, isRunning };
+  const baseError = state === 'output-error' || state === 'output-denied';
+
+  // Logical error: tool executed but returned success: false or an error field
+  const logicalError = isDone && (output?.success === false || !!output?.error);
+
+  const isError = baseError || logicalError;
+  const isRunning = !isDone && !baseError;
+
+  return { isDone, isError, isRunning, logicalError };
 }
 
 function ToolCallPart({ part }: { part: ToolPartData }) {
@@ -519,7 +529,7 @@ function ToolCallPart({ part }: { part: ToolPartData }) {
   const output = (part as { output?: unknown }).output;
   const errorText = (part as { errorText?: string }).errorText;
 
-  const { isDone, isError, isRunning } = getToolPartStatus(part);
+  const { isDone, isError, isRunning, logicalError } = getToolPartStatus(part);
 
   const hasOutput = isDone || isError;
 
@@ -529,7 +539,10 @@ function ToolCallPart({ part }: { part: ToolPartData }) {
   const isImageTool = rawToolName === 'create_image';
 
   const outputText = isError
-    ? (errorText ?? 'Unknown error')
+    ? errorText ||
+      (output as any)?.error ||
+      (output as any)?.message ||
+      'Unknown error'
     : JSON.stringify(output, null, 2);
 
   const handleCopy = useCallback(() => {
@@ -546,13 +559,13 @@ function ToolCallPart({ part }: { part: ToolPartData }) {
   // Apply theme change when set_theme tool completes
   const { setTheme } = useTheme();
   useEffect(() => {
-    if (rawToolName !== 'set_theme' || !isDone) return;
+    if (rawToolName !== 'set_theme' || !isDone || logicalError) return;
     const action = (output as { action?: string } | undefined)?.action;
     const theme = (output as { theme?: string } | undefined)?.theme;
     if (action === 'set_theme' && theme) {
       setTheme(theme);
     }
-  }, [rawToolName, isDone, output, setTheme]);
+  }, [rawToolName, isDone, logicalError, output, setTheme]);
 
   // Compact display for select_tools when only no_action_needed was selected
   if (rawToolName === 'select_tools') {
@@ -563,10 +576,10 @@ function ToolCallPart({ part }: { part: ToolPartData }) {
     if (isNoAction) {
       return (
         <div className="flex items-center gap-1.5 text-muted-foreground text-xs">
-          {isDone ? (
-            <Check className="h-3 w-3 text-dynamic-green" />
-          ) : isError ? (
+          {isError ? (
             <AlertCircle className="h-3 w-3 text-dynamic-red" />
+          ) : isDone ? (
+            <Check className="h-3 w-3 text-dynamic-green" />
           ) : (
             <Loader2 className="h-3 w-3 animate-spin" />
           )}
@@ -576,7 +589,6 @@ function ToolCallPart({ part }: { part: ToolPartData }) {
     }
   }
 
-  // Running state for image tool shows specific message
   if (isImageTool && isRunning) {
     return (
       <div className="flex items-start gap-2 rounded-lg border border-border/50 bg-foreground/2 px-3 py-2 text-xs">
@@ -591,14 +603,34 @@ function ToolCallPart({ part }: { part: ToolPartData }) {
     );
   }
 
+  // Running state for render_ui tool
+  if (rawToolName === 'render_ui' && isRunning) {
+    return (
+      <div className="flex items-start gap-2 rounded-lg border border-dynamic-purple/30 bg-dynamic-purple/5 px-3 py-2 text-xs">
+        <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 animate-pulse text-dynamic-purple" />
+        <span className="flex items-center gap-1.5">
+          <span className="font-medium text-dynamic-purple">{toolName}</span>
+          <span className="text-dynamic-purple/70">
+            {t('tool_generating_ui')}
+          </span>
+        </span>
+      </div>
+    );
+  }
+
   // Generative UI tool: render the output natively instead of showing JSON
   if (rawToolName === 'render_ui' && hasOutput) {
-    if (isDone && output) {
+    if (isDone && !logicalError && output) {
       // The output of render_ui is just the spec `{ spec: ... }` returned from mira-tools executor
       const spec = (output as { spec?: any })?.spec;
       if (spec) {
         return (
-          <div className="my-2 w-full max-w-full">
+          <div className="my-2 flex w-full max-w-full flex-col gap-1.5">
+            <div className="mb-1 flex items-center gap-1.5 text-xs">
+              <Check className="h-3.5 w-3.5 text-dynamic-green" />
+              <span className="font-medium">{toolName}</span>
+              <span className="text-muted-foreground">{t('tool_done')}</span>
+            </div>
             <VisibilityProvider>
               <Renderer spec={spec} registry={registry} />
             </VisibilityProvider>
@@ -609,7 +641,7 @@ function ToolCallPart({ part }: { part: ToolPartData }) {
   }
 
   // Completed image tool: render the image inline from tool output
-  if (isImageTool && isDone && output) {
+  if (isImageTool && isDone && !logicalError && output) {
     const imageUrl = (output as { imageUrl?: string }).imageUrl;
     if (imageUrl) {
       return (
@@ -677,10 +709,10 @@ function ToolCallPart({ part }: { part: ToolPartData }) {
       )}
     >
       <span className="mt-0.5 shrink-0">
-        {isDone ? (
-          <Check className="h-3.5 w-3.5 text-dynamic-green" />
-        ) : isError ? (
+        {isError ? (
           <AlertCircle className="h-3.5 w-3.5 text-dynamic-red" />
+        ) : isDone ? (
+          <Check className="h-3.5 w-3.5 text-dynamic-green" />
         ) : (
           <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
         )}
@@ -792,10 +824,10 @@ function GroupedToolCallParts({
       )}
     >
       <span className="mt-0.5 shrink-0">
-        {allDone ? (
-          <Check className="h-3.5 w-3.5 text-dynamic-green" />
-        ) : anyError ? (
+        {anyError ? (
           <AlertCircle className="h-3.5 w-3.5 text-dynamic-red" />
+        ) : allDone ? (
+          <Check className="h-3.5 w-3.5 text-dynamic-green" />
         ) : (
           <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />
         )}
@@ -860,6 +892,58 @@ function GroupedToolCallParts({
 function UserMessage({ text }: { text: string }) {
   const t = useTranslations('dashboard.mira_chat');
   const [expanded, setExpanded] = useState(false);
+
+  // Detect form submissions (they start with ###)
+  if (text.startsWith('### ')) {
+    const lines = text.split('\n');
+    const title = lines[0]?.replace('### ', '').trim();
+    const fields = lines
+      .slice(1)
+      .filter((line) => line.trim().startsWith('**'))
+      .map((line) => {
+        const parts = line.split(':');
+        const label = parts[0]?.replace(/\*\*/g, '').trim();
+        const value = parts.slice(1).join(':').trim();
+        return { label, value };
+      });
+
+    if (fields.length > 0) {
+      return (
+        <div className="flex flex-col gap-3 py-1 text-background">
+          <div className="flex items-center gap-2 border-background/20 border-b pb-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-background/10 text-background">
+              <ClipboardList className="h-4 w-4" />
+            </div>
+            <div>
+              <div className="font-bold text-sm tracking-tight">{title}</div>
+              <div className="font-medium text-background/50 text-xs uppercase tracking-wider">
+                Submission
+              </div>
+            </div>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {fields.map((field, i) => (
+              <div
+                key={`${field.label}-${i}`}
+                className="flex flex-col gap-0.5 rounded-lg border border-background/10 bg-background/5 p-2"
+              >
+                <span className="font-bold text-[10px] text-background/40 uppercase tracking-wider">
+                  {field.label}
+                </span>
+                <span className="truncate font-medium text-xs">
+                  {field.value}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-1 flex items-center justify-end gap-1.5 font-bold text-[10px] text-background/40 uppercase tracking-widest">
+            <CheckCircle2 className="h-3 w-3" />
+            Form Submitted
+          </div>
+        </div>
+      );
+    }
+  }
 
   // Consider text long if it has more than 300 characters or > 3 line breaks
   const isLong = text.length > 300 || (text.match(/\n/g) || []).length > 2;

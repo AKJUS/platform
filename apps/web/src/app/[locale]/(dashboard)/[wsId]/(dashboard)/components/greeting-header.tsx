@@ -1,7 +1,6 @@
 'use client';
 
 import { Sparkles } from '@tuturuuu/icons';
-import { Badge } from '@tuturuuu/ui/badge';
 import { AiCreditIndicator } from '@tuturuuu/ui/tu-do/my-tasks/ai-credit-indicator';
 import { useTranslations } from 'next-intl';
 import { useMemo } from 'react';
@@ -40,9 +39,9 @@ export default function GreetingHeader({
 
   const greetingKey = useMemo(() => getGreetingKey(), []);
   const userName =
-    currentUser.display_name?.split(' ')[0] ||
-    currentUser.full_name?.split(' ')[0] ||
-    currentUser.email?.split('@')[0] ||
+    currentUser.display_name ||
+    currentUser.full_name ||
+    currentUser.email ||
     '';
 
   return (
@@ -63,12 +62,6 @@ export default function GreetingHeader({
 
       <div className="flex shrink-0 items-center gap-3">
         <AiCreditIndicator wsId={wsId} />
-        <Badge
-          variant="outline"
-          className="border-dynamic-purple/20 text-dynamic-purple"
-        >
-          AI
-        </Badge>
       </div>
     </div>
   );

@@ -10,6 +10,7 @@ import {
   executeGetUpcomingEvents,
   executeUpdateEvent,
 } from './executors/calendar';
+import { executeSetImmersiveMode } from './executors/chat';
 import {
   executeCreateTransactionCategory,
   executeCreateTransactionTag,
@@ -71,6 +72,7 @@ import {
 } from './executors/tasks';
 import { executeSetTheme } from './executors/theme';
 import { executeStartTimer, executeStopTimer } from './executors/timer';
+import { executeUpdateUserName } from './executors/user';
 import { executeListWorkspaceMembers } from './executors/workspace';
 // ── Executor imports ──
 import { dashboardCatalog } from './json-render-catalog';
@@ -148,6 +150,10 @@ export const MIRA_TOOL_DIRECTORY: Record<string, string> = {
     'Generate an interactive, actionable UI component or widget instead of plain text when it significantly improves user experience (e.g. for forms, dashboards, or data visualization).',
   // Workspace
   list_workspace_members: 'List all members of the workspace',
+  // User
+  update_user_name: "Update the user's display name or full name",
+  // Chat
+  set_immersive_mode: 'Enter or exit immersive fullscreen mode for the chat',
   // Meta (always active)
   no_action_needed: 'Conversational message — no tool action required',
 };
@@ -194,12 +200,12 @@ export const miraToolDefinitions = {
       name: z.string().describe('Task title'),
       description: z
         .string()
-        .nullable()
-        .describe('Task description (plain text), or null'),
+        .nullish()
+        .describe('Task description (plain text), or null/omit'),
       priority: z
         .enum(['low', 'normal', 'high', 'critical'])
-        .nullable()
-        .describe('Task priority level, or null for no priority'),
+        .nullish()
+        .describe('Task priority level, or null/omit for no priority'),
       assignToSelf: z
         .boolean()
         .optional()
@@ -431,12 +437,13 @@ export const miraToolDefinitions = {
     description:
       'Get upcoming calendar events for the next N days. Events are automatically decrypted if E2EE is enabled.',
     inputSchema: z.object({
-      num_days: z
+      days: z
         .number()
         .int()
         .min(1)
         .max(30)
-        .describe('Number of days to look ahead'),
+        .optional()
+        .describe('Number of days to look ahead (default: 7)'),
     }),
   }),
 
@@ -447,8 +454,11 @@ export const miraToolDefinitions = {
       title: z.string().describe('Event title'),
       startAt: z.string().describe('Start time ISO 8601'),
       endAt: z.string().describe('End time ISO 8601'),
-      description: z.string().nullable().describe('Event description, or null'),
-      location: z.string().nullable().describe('Event location, or null'),
+      description: z
+        .string()
+        .nullish()
+        .describe('Event description, or null/omit'),
+      location: z.string().nullish().describe('Event location, or null/omit'),
     }),
   }),
 
@@ -470,10 +480,10 @@ export const miraToolDefinitions = {
       'Log a financial transaction. Positive amount = income, negative = expense.',
     inputSchema: z.object({
       amount: z.number().describe('Amount (positive=income, negative=expense)'),
-      description: z.string().nullable().describe('What was this for?'),
+      description: z.string().nullish().describe('What was this for?'),
       walletId: z
         .string()
-        .nullable()
+        .nullish()
         .describe('Wallet UUID. If null, uses the first wallet.'),
     }),
   }),
@@ -486,7 +496,8 @@ export const miraToolDefinitions = {
         .int()
         .min(1)
         .max(365)
-        .describe('Number of past days to summarize'),
+        .optional()
+        .describe('Number of past days to summarize (default: 30)'),
     }),
   }),
 
@@ -633,8 +644,8 @@ export const miraToolDefinitions = {
       title: z.string().describe('What are you working on?'),
       description: z
         .string()
-        .nullable()
-        .describe('Additional details, or null'),
+        .nullish()
+        .describe('Additional details, or null/omit'),
     }),
   }),
 
@@ -643,8 +654,8 @@ export const miraToolDefinitions = {
     inputSchema: z.object({
       sessionId: z
         .string()
-        .nullable()
-        .describe('Session UUID, or null for active session'),
+        .nullish()
+        .describe('Session UUID, or null/omit for active session'),
     }),
   }),
 
@@ -673,14 +684,17 @@ export const miraToolDefinitions = {
         .describe('Search keywords, or null/omit for all'),
       category: z
         .enum(['preference', 'fact', 'conversation_topic', 'event', 'person'])
-        .nullable()
-        .describe('Filter by category, or null'),
+        .nullish()
+        .describe('Filter by category, or null/omit'),
       maxResults: z
         .number()
         .int()
         .min(1)
         .max(50)
-        .describe('Max results (20-50 for broad queries, 5-10 for specific)'),
+        .optional()
+        .describe(
+          'Max results (default: 10, use 20-50 for broad queries, 5-10 for specific)'
+        ),
     }),
   }),
 
@@ -807,7 +821,7 @@ export const miraToolDefinitions = {
   // ── Generative UI (json-render) ──
   render_ui: tool({
     description:
-      'Generate an interactive, actionable UI component or widget using json-render instead of plain text. Use this when the user asks for a dashboard, a form, or when it would significantly improve the user experience. You MUST output a JSON object matching the schema exactly.',
+      'Generate an interactive, actionable UI component or widget using json-render instead of plain text. Use this when the user asks for a dashboard, a form, or whenever a beautifully rendered visual response would complement and significantly improve the user experience (e.g. for status summaries, lists, or visualizations). You MUST output a JSON object matching the schema exactly.',
     inputSchema: dashboardCatalog.zodSchema(),
   }),
 
@@ -815,6 +829,24 @@ export const miraToolDefinitions = {
   list_workspace_members: tool({
     description: 'List all members of the current workspace with their roles.',
     inputSchema: z.object({}),
+  }),
+
+  // ── User ──
+  update_user_name: tool({
+    description: "Update the user's display name or full name.",
+    inputSchema: z.object({
+      displayName: z.string().nullish().describe('New display name'),
+      fullName: z.string().nullish().describe('New full name'),
+    }),
+  }),
+
+  // ── Chat ──
+  set_immersive_mode: tool({
+    description:
+      'Enter or exit immersive fullscreen mode for the current chat.',
+    inputSchema: z.object({
+      enabled: z.boolean().describe('Whether to enable immersive mode'),
+    }),
   }),
 
   // ── Escape-hatch ──
@@ -1017,6 +1049,14 @@ export async function executeMiraTool(
     // Workspace
     case 'list_workspace_members':
       return executeListWorkspaceMembers(args, ctx);
+
+    // User
+    case 'update_user_name':
+      return executeUpdateUserName(args, ctx);
+
+    // Chat
+    case 'set_immersive_mode':
+      return executeSetImmersiveMode(args, ctx);
 
     default:
       return { error: `Unknown tool: ${toolName}` };

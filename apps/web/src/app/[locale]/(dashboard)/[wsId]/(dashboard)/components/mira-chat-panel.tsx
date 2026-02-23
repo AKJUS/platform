@@ -1,5 +1,6 @@
 'use client';
 
+import { setByPath } from '@json-render/core';
 import { ActionProvider, StateProvider } from '@json-render/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { DefaultChatTransport } from '@tuturuuu/ai/core';
@@ -71,14 +72,38 @@ export default function MiraChatPanel({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const scrollEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Lift state for Generative UI so action handlers can access it
+  const [generativeState, setGenerativeState] = useState<Record<string, any>>(
+    {}
+  );
+  const generativeStateRef = useRef(generativeState);
+  generativeStateRef.current = generativeState;
+
+  const sendMessageRef = useRef<typeof sendMessage>(null!);
+
   // json-render action handlers factory expecting state accessors
   const actionHandlers = useMemo(
     () =>
       jsonRenderHandlers(
-        () => () => {},
-        () => ({})
+        () => (updater: any) => {
+          // Provide a setState implementation that updates our lifted state
+          setGenerativeState((prev) => {
+            if (typeof updater === 'function') {
+              return updater(prev);
+            }
+            if (updater && typeof updater === 'object') {
+              return { ...prev, ...updater };
+            }
+            return prev;
+          });
+        },
+        () => ({
+          // Provide the current state plus extra context
+          ...generativeStateRef.current,
+          sendMessage: sendMessageRef.current,
+        })
       ),
-    []
+    [] // Stable handlers
   );
 
   // Bottom bar (suggested prompts + input) visibility: hide while scrolling, show after scroll stops
@@ -90,9 +115,6 @@ export default function MiraChatPanel({
   const messageQueueRef = useRef<string[]>([]);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [queuedText, setQueuedText] = useState<string | null>(null);
-
-  // Ref to always hold the latest sendMessage (avoids stale closures in callbacks)
-  const sendMessageRef = useRef<typeof sendMessage>(null!);
 
   // Generate a stable chat ID so useChat's internal Chat instance is never
   // recreated due to id: undefined → auto-generated UUID mismatch.
@@ -199,28 +221,36 @@ export default function MiraChatPanel({
 
   // Invalidate the mira-soul query when Mira updates its own settings via tool.
   // This ensures the UI (name in header, placeholder, etc.) refreshes immediately.
-  const lastSettingsInvalidation = useRef<string | null>(null);
+  const lastToolHandled = useRef<string | null>(null);
   useEffect(() => {
     for (const msg of messages) {
       if (msg.role !== 'assistant') continue;
       for (const part of msg.parts ?? []) {
-        if (
-          isToolUIPart(part) &&
-          getToolName(part as never) === 'update_my_settings' &&
-          (part as { state?: string }).state === 'output-available'
-        ) {
-          // Deduplicate: only invalidate once per unique tool result
-          const key = `${msg.id}-update_my_settings`;
-          if (lastSettingsInvalidation.current !== key) {
-            lastSettingsInvalidation.current = key;
-            queryClient.invalidateQueries({
-              queryKey: ['mira-soul', 'detail'],
-            });
+        if (!isToolUIPart(part)) continue;
+        const toolName = getToolName(part as never);
+        const state = (part as { state?: string }).state;
+
+        if (state !== 'output-available') continue;
+
+        const key = `${msg.id}-${toolName}`;
+        if (lastToolHandled.current === key) continue;
+
+        if (toolName === 'update_my_settings') {
+          lastToolHandled.current = key;
+          queryClient.invalidateQueries({
+            queryKey: ['mira-soul', 'detail'],
+          });
+        } else if (toolName === 'set_immersive_mode') {
+          lastToolHandled.current = key;
+          const output = (part as { output?: unknown }).output;
+          const enabled = (output as { enabled?: boolean })?.enabled;
+          if (typeof enabled === 'boolean' && enabled !== isFullscreen) {
+            onToggleFullscreen?.();
           }
         }
       }
     }
-  }, [messages, queryClient]);
+  }, [messages, queryClient, isFullscreen, onToggleFullscreen]);
 
   // Load existing chat from localStorage on mount
   useEffect(() => {
@@ -598,7 +628,16 @@ export default function MiraChatPanel({
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {hasMessages ? (
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-            <StateProvider>
+            <StateProvider
+              initialState={generativeState}
+              onStateChange={(path, value) => {
+                setGenerativeState((prev) => {
+                  const next = { ...prev };
+                  setByPath(next, path, value);
+                  return next;
+                });
+              }}
+            >
               <ActionProvider handlers={actionHandlers}>
                 <ChatMessageList
                   messages={
@@ -683,7 +722,6 @@ export default function MiraChatPanel({
             />
           </div>
         </div>
-        ;
       </div>
     </div>
   );

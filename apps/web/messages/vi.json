@@ -2842,6 +2842,7 @@
       "tool_done": "Hoàn tất",
       "tool_error": "Lỗi",
       "tool_generating_image": "Đang tạo hình ảnh...",
+      "tool_generating_ui": "Đang tạo giao diện...",
       "tool_running": "Đang chạy...",
       "using_tools": "Đang xử lý...",
       "view_only": "Chỉ xem",
