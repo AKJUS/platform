@@ -683,7 +683,6 @@ export default function MiraChatPanel({
             />
           </div>
         </div>
-        ;
       </div>
     </div>
   );

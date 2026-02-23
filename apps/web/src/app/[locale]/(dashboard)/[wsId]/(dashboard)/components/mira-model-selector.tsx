@@ -7,6 +7,7 @@ import {
   models as staticModels,
 } from '@tuturuuu/ai/models';
 import {
+  ArrowBigUpDash,
   Check,
   ChevronDown,
   Loader2,
@@ -35,6 +36,7 @@ import {
   TooltipTrigger,
 } from '@tuturuuu/ui/tooltip';
 import { cn } from '@tuturuuu/utils/format';
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useCallback, useDeferredValue, useMemo, useState } from 'react';
 import { ProviderLogo } from './provider-logo';
@@ -144,7 +146,7 @@ export default function MiraModelSelector({
   const [open, setOpen] = useState(false);
   const [hideLockedModels, setHideLockedModels] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
-  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [favoritesOnly, setFavoritesOnly] = useState(true);
   const [search, setSearch] = useState('');
   const deferredOpen = useDeferredValue(open);
 
@@ -204,6 +206,7 @@ export default function MiraModelSelector({
   }, [gatewayModels]);
 
   const { data: credits } = useAiCredits(wsId);
+  const showUpgradeCta = credits?.tier === 'FREE';
 
   const allowedModelIds = useMemo(() => {
     if (!credits?.allowedModels?.length) return null;
@@ -374,13 +377,40 @@ export default function MiraModelSelector({
         sideOffset={4}
       >
         <TooltipProvider delayDuration={200}>
+          {showUpgradeCta && (
+            <div className="m-2 mb-0 rounded-xl border border-dynamic-primary/25 bg-linear-to-r from-dynamic-primary/20 via-dynamic-secondary/15 to-dynamic-purple/20 p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-medium text-sm text-foreground">
+                    {t('model_unlock_more_title')}
+                  </p>
+                  <p className="mt-0.5 line-clamp-2 text-muted-foreground text-xs">
+                    {t('model_unlock_more_description')}
+                  </p>
+                </div>
+                <Link
+                  href={`/${wsId}/billing`}
+                  className={cn(
+                    'group flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg transition-all duration-200',
+                    'border border-dynamic-purple/20 bg-linear-to-r from-dynamic-purple/10 to-dynamic-indigo/8',
+                    'text-dynamic-purple hover:border-dynamic-purple/35',
+                    'hover:[box-shadow:0_0_20px_-5px_oklch(var(--dynamic-purple)/0.3)]',
+                    'px-3 font-medium text-sm'
+                  )}
+                >
+                  <ArrowBigUpDash className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:scale-110" />
+                  {t('model_upgrade_cta')}
+                </Link>
+              </div>
+            </div>
+          )}
           <div className="flex shrink-0 items-center gap-2 border-b px-3 py-2">
             <Search className="h-4 w-4 shrink-0 text-muted-foreground" />
             <Input
               placeholder={t('model_selector_search')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="h-9 flex-1 border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
+              className="w-full bg-transparent py-1.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus-visible:ring-0"
             />
           </div>
 
@@ -396,7 +426,10 @@ export default function MiraModelSelector({
                         'mx-1 h-8 w-8',
                         favoritesOnly && 'bg-muted'
                       )}
-                      onClick={() => setFavoritesOnly((v) => !v)}
+                      onClick={() => {
+                        setFavoritesOnly((v) => !v);
+                        setSelectedProvider(null);
+                      }}
                       aria-label={t('model_show_favorites')}
                     >
                       <Star
@@ -421,11 +454,12 @@ export default function MiraModelSelector({
                           'mx-1 h-8 w-8',
                           selectedProvider === provider && 'bg-muted'
                         )}
-                        onClick={() =>
-                          setSelectedProvider((p) =>
-                            p === provider ? null : provider
-                          )
-                        }
+                        onClick={() => {
+                          const next =
+                            selectedProvider === provider ? null : provider;
+                          setSelectedProvider(next);
+                          if (next) setFavoritesOnly(false);
+                        }}
                         aria-label={formatProvider(provider)}
                       >
                         <ProviderLogo provider={provider} size={18} />
