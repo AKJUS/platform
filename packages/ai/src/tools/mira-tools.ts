@@ -431,7 +431,7 @@ export const miraToolDefinitions = {
     description:
       'Get upcoming calendar events for the next N days. Events are automatically decrypted if E2EE is enabled.',
     inputSchema: z.object({
-      days: z
+      num_days: z
         .number()
         .int()
         .min(1)

@@ -1,7 +1,5 @@
 'use client';
 
-import { handlers as jsonRenderHandlers } from '@/components/json-render/dashboard-registry';
-import { resolveTimezone } from '@/lib/calendar-settings-resolver';
 import { ActionProvider, StateProvider } from '@json-render/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { DefaultChatTransport } from '@tuturuuu/ai/core';
@@ -27,9 +25,11 @@ import { toast } from '@tuturuuu/ui/sonner';
 import { cn } from '@tuturuuu/utils/format';
 import { generateRandomUUID } from '@tuturuuu/utils/uuid-helper';
 import { getToolName, isToolUIPart } from 'ai';
-import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { handlers as jsonRenderHandlers } from '@/components/json-render/dashboard-registry';
+import { resolveTimezone } from '@/lib/calendar-settings-resolver';
 import ChatInputBar from './chat-input-bar';
 import ChatMessageList from './chat-message-list';
 import MiraCreditBar from './mira-credit-bar';
@@ -486,6 +486,23 @@ export default function MiraChatPanel({
     if (!el) return;
 
     const onScroll = () => {
+      if (!el) return;
+
+      // Calculate how far we are from the bottom
+      const isNearBottom =
+        el.scrollHeight - el.scrollTop - el.clientHeight < 50;
+
+      // If we are artificially scrolling down (e.g. streaming snap), or user is at bottom, keep visible.
+      // Only hide if the user specifically scrolls way up into history.
+      if (isNearBottom) {
+        setBottomBarVisible(true);
+        if (scrollEndTimerRef.current) {
+          clearTimeout(scrollEndTimerRef.current);
+          scrollEndTimerRef.current = null;
+        }
+        return;
+      }
+
       setBottomBarVisible(false);
       if (scrollEndTimerRef.current) clearTimeout(scrollEndTimerRef.current);
       scrollEndTimerRef.current = setTimeout(() => {
@@ -644,8 +661,7 @@ export default function MiraChatPanel({
         {/* Floating bottom bar: suggested prompts + input (overlays content) */}
         <div
           className={cn(
-            'absolute right-0 bottom-0 left-0 z-10 flex min-w-0 max-w-full flex-col gap-2 p-3 pt-8 transition-transform duration-300 ease-out sm:p-4 sm:pt-12',
-            'bg-linear-to-t from-background via-background/95 to-transparent',
+            'absolute right-0 bottom-0 left-0 z-10 flex min-w-0 max-w-full flex-col gap-2 p-3 transition-transform duration-300 ease-out sm:p-4',
             (!bottomBarVisible || viewOnly) &&
               'pointer-events-none translate-y-full'
           )}

@@ -15,7 +15,7 @@ export async function executeGetUpcomingEvents(
   args: Record<string, unknown>,
   ctx: MiraToolContext
 ) {
-  const days = (args.days as number) || 7;
+  const days = (args.num_days as number) || (args.days as number) || 7;
   const tz = ctx.timezone;
 
   // Build the query window in the user's timezone so "today" means their
