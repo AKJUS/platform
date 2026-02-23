@@ -68,6 +68,14 @@ class _ShellPageState extends State<ShellPage> {
     );
   }
 
+  Widget _buildNormalizedChild() {
+    return MediaQuery.removePadding(
+      context: context,
+      removeTop: true,
+      child: widget.child,
+    );
+  }
+
   /// Compact: bottom NavigationBar inside Scaffold footers.
   Widget _buildCompactLayout(BuildContext context, AppTabState state) {
     final l10n = context.l10n;
@@ -105,7 +113,7 @@ class _ShellPageState extends State<ShellPage> {
           ),
         ),
       ],
-      child: widget.child,
+      child: _buildNormalizedChild(),
     );
   }
 
@@ -146,7 +154,7 @@ class _ShellPageState extends State<ShellPage> {
       child: Row(
         children: [
           sideNav,
-          Expanded(child: widget.child),
+          Expanded(child: _buildNormalizedChild()),
         ],
       ),
     );
