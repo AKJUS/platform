@@ -155,6 +155,11 @@ export default function MiraChatPanel({
   const [chat, setChat] = useState<Partial<AIChat> | undefined>();
   const [model, setModel] = useState<Model>(INITIAL_MODEL);
   const [input, setInput] = useState('');
+
+  const supportsFileInput = useMemo(() => {
+    const tags = (model as any).tags as string[] | undefined;
+    return Array.isArray(tags) && tags.includes('file-input');
+  }, [model]);
   const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
   const [initialMessages, setInitialMessages] = useState<UIMessage[]>([]);
   const [initialLoaded, setInitialLoaded] = useState(false);
@@ -1081,8 +1086,11 @@ export default function MiraChatPanel({
               onVoiceToggle={onVoiceToggle}
               inputRef={inputRef}
               files={attachedFiles}
-              onFilesSelected={handleFilesSelected}
+              onFilesSelected={
+                supportsFileInput ? handleFilesSelected : undefined
+              }
               onFileRemove={handleFileRemove}
+              canUploadFiles={supportsFileInput}
             />
           </div>
         </div>

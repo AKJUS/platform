@@ -70,6 +70,8 @@ interface ChatInputBarProps {
   onFilesSelected?: (files: File[]) => void;
   /** Callback to remove an attached file by id */
   onFileRemove?: (id: string) => void;
+  /** Whether file uploads are permitted for the current model */
+  canUploadFiles?: boolean;
 }
 
 export default function ChatInputBar({
@@ -84,6 +86,7 @@ export default function ChatInputBar({
   files = [],
   onFilesSelected,
   onFileRemove,
+  canUploadFiles = true,
 }: ChatInputBarProps) {
   const t = useTranslations('dashboard.mira_chat');
   const internalRef = useRef<HTMLTextAreaElement>(null);
@@ -94,9 +97,11 @@ export default function ChatInputBar({
   const hasFiles = files.length > 0;
   const isUploading = files.some((f) => f.status === 'uploading');
   const canSubmit = (input.trim() || hasFiles) && !isStreaming && !isUploading;
+  const fileUploadsEnabled = !!onFilesSelected && canUploadFiles;
 
   const handleFileInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
+      if (!fileUploadsEnabled) return;
       const selectedFiles = e.target.files;
       if (!selectedFiles || selectedFiles.length === 0) return;
 
@@ -109,12 +114,12 @@ export default function ChatInputBar({
       // Reset input so the same file can be re-selected
       e.target.value = '';
     },
-    [files.length, onFilesSelected]
+    [files.length, onFilesSelected, fileUploadsEnabled]
   );
 
   const handlePaste = useCallback(
     (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-      if (!onFilesSelected) return;
+      if (!onFilesSelected || !fileUploadsEnabled) return;
 
       const clipboardData = e.clipboardData;
       if (!clipboardData) return;
@@ -149,7 +154,7 @@ export default function ChatInputBar({
         e.preventDefault();
       }
     },
-    [files.length, onFilesSelected]
+    [files.length, onFilesSelected, fileUploadsEnabled]
   );
 
   const handleAttachClick = useCallback(() => {
@@ -202,7 +207,7 @@ export default function ChatInputBar({
 
         <div className="flex items-center gap-1">
           {/* Attach files button */}
-          {onFilesSelected && (
+          {fileUploadsEnabled && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
