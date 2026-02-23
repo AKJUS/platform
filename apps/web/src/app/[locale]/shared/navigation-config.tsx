@@ -57,6 +57,11 @@ export const useNavigation = (t: any): { categories: NavCategory[] } => {
       description: '',
     },
     {
+      href: '/models',
+      label: t('marketing.models.title'),
+      description: '',
+    },
+    {
       href: '/?hash-nav=1#pricing',
       label: t('common.pricing'),
       description: '',

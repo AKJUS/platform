@@ -442,6 +442,7 @@ export type Database = {
           name: string;
           output_price_per_token: number;
           output_tiers: Json | null;
+          pricing_raw: Json | null;
           provider: string;
           released_at: string | null;
           synced_at: string;
@@ -464,6 +465,7 @@ export type Database = {
           name: string;
           output_price_per_token?: number;
           output_tiers?: Json | null;
+          pricing_raw?: Json | null;
           provider: string;
           released_at?: string | null;
           synced_at?: string;
@@ -486,6 +488,7 @@ export type Database = {
           name?: string;
           output_price_per_token?: number;
           output_tiers?: Json | null;
+          pricing_raw?: Json | null;
           provider?: string;
           released_at?: string | null;
           synced_at?: string;

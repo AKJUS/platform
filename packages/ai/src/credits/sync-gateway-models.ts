@@ -1,5 +1,18 @@
 import type { SupabaseClient } from '@tuturuuu/supabase';
 
+interface GatewayPricingTier {
+  cost: string;
+  min: number;
+  max?: number;
+}
+
+interface GatewayVideoDurationPricing {
+  resolution?: string;
+  cost_per_second: string;
+  audio?: boolean;
+  mode?: string;
+}
+
 interface GatewayModelPricing {
   // Vercel AI Gateway uses these field names (values are strings)
   input?: string;
@@ -8,25 +21,31 @@ interface GatewayModelPricing {
   input_cache_write?: string;
   web_search?: string;
   image?: string;
-  input_tiers?: Array<{ cost: string; min: number; max?: number }>;
-  output_tiers?: Array<{ cost: string; min: number; max?: number }>;
+  input_tiers?: GatewayPricingTier[];
+  output_tiers?: GatewayPricingTier[];
+  input_cache_read_tiers?: GatewayPricingTier[];
+  input_cache_write_tiers?: GatewayPricingTier[];
+  video_duration_pricing?: GatewayVideoDurationPricing[];
 }
 
 interface GatewayModel {
   id: string;
+  object: string;
+  created: number;
+  released?: number;
+  owned_by: string;
   name: string;
-  // Gateway uses 'created' not 'provider' at top level
-  created?: number;
   description?: string;
-  // Gateway uses 'architecture.modality' not 'type'
-  architecture?: {
-    modality?: string;
-    input_modalities?: string[];
-    output_modalities?: string[];
-  };
-  context_length?: number;
-  top_provider?: { max_completion_tokens?: number; context_length?: number };
+  context_window?: number;
+  max_tokens?: number;
+  type: 'language' | 'embedding' | 'image' | 'video' | string;
+  tags?: string[];
   pricing?: GatewayModelPricing;
+}
+
+interface GatewayModelsResponse {
+  object: string;
+  data: GatewayModel[];
 }
 
 interface SyncResult {
@@ -60,10 +79,11 @@ export async function syncGatewayModels(
     );
   }
 
-  const data = await response.json();
-  const models: GatewayModel[] = Array.isArray(data)
-    ? data
-    : (data?.data ?? data?.models ?? []);
+  const json = (await response.json()) as unknown;
+
+  const models: GatewayModel[] = Array.isArray(json)
+    ? (json as GatewayModel[])
+    : ((json as GatewayModelsResponse | undefined)?.data ?? []);
 
   if (models.length === 0) {
     result.errors.push('No models returned from gateway');
@@ -79,7 +99,7 @@ export async function syncGatewayModels(
   );
 
   const rows = models.map((m) => {
-    const provider = m.id.split('/')[0] || 'unknown';
+    const provider = m.owned_by || m.id.split('/')[0] || 'unknown';
     const modelName = m.id.split('/').slice(1).join('/') || m.id;
 
     return {
@@ -87,11 +107,10 @@ export async function syncGatewayModels(
       name: m.name || modelName,
       provider,
       description: m.description || null,
-      type: m.architecture?.modality || 'language',
-      context_window:
-        m.context_length ?? m.top_provider?.context_length ?? null,
-      max_tokens: m.top_provider?.max_completion_tokens ?? null,
-      tags: [],
+      type: m.type || 'language',
+      context_window: m.context_window ?? null,
+      max_tokens: m.max_tokens ?? null,
+      tags: m.tags ?? [],
       input_price_per_token: parseFloat(m.pricing?.input ?? '0'),
       output_price_per_token: parseFloat(m.pricing?.output ?? '0'),
       input_tiers: m.pricing?.input_tiers ?? null,
@@ -111,7 +130,10 @@ export async function syncGatewayModels(
         : isImageGenModelId(m.id)
           ? 0.0001
           : null,
-      released_at: m.created ? new Date(m.created * 1000).toISOString() : null,
+      released_at: m.released
+        ? new Date(m.released * 1000).toISOString()
+        : null,
+      pricing_raw: m.pricing ?? null,
       synced_at: new Date().toISOString(),
     };
   });

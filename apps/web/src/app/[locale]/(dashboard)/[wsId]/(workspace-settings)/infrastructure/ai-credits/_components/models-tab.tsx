@@ -1,9 +1,11 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { LayoutGrid, LayoutList, Search } from '@tuturuuu/icons';
 import { Badge } from '@tuturuuu/ui/badge';
 import { Button } from '@tuturuuu/ui/button';
-import { Card, CardContent } from '@tuturuuu/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@tuturuuu/ui/card';
+import { Input } from '@tuturuuu/ui/input';
 import {
   Select,
   SelectContent,
@@ -13,17 +15,30 @@ import {
 } from '@tuturuuu/ui/select';
 import { toast } from '@tuturuuu/ui/sonner';
 import { Switch } from '@tuturuuu/ui/switch';
+import { ToggleGroup, ToggleGroupItem } from '@tuturuuu/ui/toggle-group';
 import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
+import { ProviderLogo } from '../../../../(dashboard)/components/provider-logo';
 
 interface GatewayModel {
   id: string;
   name: string;
   provider: string;
   type: string;
-  is_enabled: boolean;
+  description: string | null;
+  context_window: number | null;
+  max_tokens: number | null;
+  tags: string[] | null;
   input_price_per_token: number;
   output_price_per_token: number;
+  input_tiers: any | null;
+  output_tiers: any | null;
+  cache_read_price_per_token: number | null;
+  cache_write_price_per_token: number | null;
+  web_search_price: number | null;
+  image_gen_price: number | null;
+  released_at: string | null;
+  is_enabled: boolean;
   synced_at: string;
 }
 
@@ -36,6 +51,10 @@ export default function ModelsTab() {
   const t = useTranslations('ai-credits-admin');
   const queryClient = useQueryClient();
   const [providerFilter, setProviderFilter] = useState('all');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [tagFilter, setTagFilter] = useState('all');
+  const [viewMode, setViewMode] = useState<'list' | 'grid'>('list');
+  const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
 
   const { data, isLoading } = useQuery<ModelsResponse>({
@@ -105,10 +124,35 @@ export default function ModelsTab() {
     return Array.from(set).sort();
   }, [allModels]);
 
-  const filteredModels =
-    providerFilter === 'all'
-      ? allModels
-      : allModels.filter((m) => m.provider === providerFilter);
+  const types = useMemo(() => {
+    const set = new Set(allModels.map((m) => m.type));
+    return Array.from(set).sort();
+  }, [allModels]);
+
+  const tags = useMemo(() => {
+    const set = new Set<string>();
+    for (const model of allModels) {
+      for (const tag of model.tags ?? []) {
+        set.add(tag);
+      }
+    }
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [allModels]);
+
+  const filteredModels = useMemo(() => {
+    return allModels.filter((m) => {
+      const matchesSearch =
+        m.name.toLowerCase().includes(search.toLowerCase()) ||
+        m.id.toLowerCase().includes(search.toLowerCase());
+      const matchesProvider =
+        providerFilter === 'all' || m.provider === providerFilter;
+      const matchesType = typeFilter === 'all' || m.type === typeFilter;
+      const matchesTag =
+        tagFilter === 'all' || (m.tags ?? []).some((tag) => tag === tagFilter);
+
+      return matchesSearch && matchesProvider && matchesType && matchesTag;
+    });
+  }, [allModels, search, providerFilter, typeFilter, tagFilter]);
 
   const itemsPerPage = 50;
   const totalPages = Math.ceil(filteredModels.length / itemsPerPage);
@@ -119,30 +163,109 @@ export default function ModelsTab() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3">
-          <Select
-            value={providerFilter}
-            onValueChange={(v) => {
-              setProviderFilter(v);
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="relative">
+          <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder={t('search_models')}
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
               setPage(1);
             }}
-          >
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder={t('filter_by_provider')} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">{t('all_providers')}</SelectItem>
-              {providers.map((p) => (
-                <SelectItem key={p} value={p}>
-                  {p}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Badge variant="outline">
+            className="w-64 pl-9"
+          />
+        </div>
+        <Select
+          value={providerFilter}
+          onValueChange={(v) => {
+            setProviderFilter(v);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder={t('filter_by_provider')} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t('all_providers')}</SelectItem>
+            {providers.map((p) => (
+              <SelectItem key={p} value={p} className="capitalize">
+                {p}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={typeFilter}
+          onValueChange={(v) => {
+            setTypeFilter(v);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder={t('all_types')} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t('all_types')}</SelectItem>
+            {types.map((type) => (
+              <SelectItem key={type} value={type} className="capitalize">
+                {type}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={tagFilter}
+          onValueChange={(v) => {
+            setTagFilter(v);
+            setPage(1);
+          }}
+        >
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder={t('filter_by_tag')} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">{t('all_tags')}</SelectItem>
+            {tags.map((tag) => (
+              <SelectItem key={tag} value={tag}>
+                {tag}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <p className="text-muted-foreground text-sm">
             {filteredModels.length} {t('results')}
-          </Badge>
+          </p>
+          <ToggleGroup
+            type="single"
+            value={viewMode}
+            onValueChange={(value) => {
+              if (value === 'list' || value === 'grid') setViewMode(value);
+            }}
+            className="inline-flex gap-0.5 rounded-lg border bg-muted/40 p-0.5"
+            aria-label={t('view_mode')}
+          >
+            <ToggleGroupItem
+              value="list"
+              aria-label={t('view_list')}
+              className="h-8 rounded-md px-2.5 data-[state=on]:bg-background data-[state=on]:shadow-sm"
+            >
+              <LayoutList className="h-4 w-4" />
+            </ToggleGroupItem>
+            <ToggleGroupItem
+              value="grid"
+              aria-label={t('view_grid')}
+              className="h-8 rounded-md px-2.5 data-[state=on]:bg-background data-[state=on]:shadow-sm"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </ToggleGroupItem>
+          </ToggleGroup>
         </div>
         <Button
           onClick={() => syncMutation.mutate()}
@@ -161,41 +284,106 @@ export default function ModelsTab() {
         </div>
       ) : (
         <>
-          <Card>
-            <CardContent className="pt-6">
-              <div className="space-y-1">
-                {pagedModels.length === 0 ? (
-                  <p className="py-8 text-center text-muted-foreground">
-                    {t('no_models')}
-                  </p>
-                ) : (
-                  pagedModels.map((model) => (
+          {pagedModels.length === 0 ? (
+            <Card>
+              <CardContent className="py-8">
+                <p className="text-center text-muted-foreground">
+                  {t('no_models')}
+                </p>
+              </CardContent>
+            </Card>
+          ) : viewMode === 'list' ? (
+            <Card>
+              <CardContent className="pt-6">
+                <div className="space-y-1">
+                  {pagedModels.map((model) => (
                     <div
                       key={model.id}
-                      className="flex items-center justify-between rounded-lg px-3 py-2 hover:bg-muted/50"
+                      className="flex flex-col gap-2 rounded-lg px-3 py-3 hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between"
                     >
                       <div className="min-w-0 flex-1">
-                        <div className="font-mono text-sm">{model.id}</div>
-                        <div className="text-muted-foreground text-xs">
-                          {model.provider} &middot; {model.type}
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium font-mono text-sm">
+                            {model.id}
+                          </span>
+                          {model.tags?.map((tag) => (
+                            <Badge
+                              key={tag}
+                              variant="secondary"
+                              className="text-[10px]"
+                            >
+                              {tag}
+                            </Badge>
+                          ))}
                         </div>
+                        <div className="mt-1 flex items-center gap-2 text-muted-foreground text-xs">
+                          <span className="flex items-center gap-1.5 font-medium capitalize">
+                            <ProviderLogo
+                              provider={model.provider}
+                              size={12}
+                              className="opacity-70"
+                            />
+                            {model.provider}
+                          </span>
+                          <span>&middot;</span>
+                          <span className="capitalize">{model.type}</span>
+                          {model.context_window && (
+                            <>
+                              <span>&middot;</span>
+                              <span>
+                                {model.context_window >= 1000000
+                                  ? `${(model.context_window / 1000000).toFixed(0)}M`
+                                  : `${(model.context_window / 1000).toFixed(0)}K`}{' '}
+                                ctx
+                              </span>
+                            </>
+                          )}
+                          {model.max_tokens && (
+                            <>
+                              <span>&middot;</span>
+                              <span>
+                                {model.max_tokens >= 1000000
+                                  ? `${(model.max_tokens / 1000000).toFixed(0)}M`
+                                  : `${(model.max_tokens / 1000).toFixed(0)}K`}{' '}
+                                max
+                              </span>
+                            </>
+                          )}
+                        </div>
+                        {model.description && (
+                          <p className="mt-1.5 line-clamp-2 text-muted-foreground text-xs leading-relaxed">
+                            {model.description}
+                          </p>
+                        )}
                       </div>
-                      <div className="flex items-center gap-4">
+                      <div className="mt-3 flex items-center gap-4 sm:mt-0 sm:shrink-0">
                         <div className="text-right text-xs">
-                          <div>
-                            In: $
-                            {(
-                              Number(model.input_price_per_token) * 1_000_000
-                            ).toFixed(3)}
-                            /M
-                          </div>
-                          <div>
-                            Out: $
-                            {(
-                              Number(model.output_price_per_token) * 1_000_000
-                            ).toFixed(3)}
-                            /M
-                          </div>
+                          {model.type === 'image' &&
+                          model.image_gen_price !== null ? (
+                            <div>
+                              Image: ${Number(model.image_gen_price).toFixed(3)}
+                              /img
+                            </div>
+                          ) : (
+                            <>
+                              <div className="group relative">
+                                In: $
+                                {(
+                                  Number(model.input_price_per_token) *
+                                  1_000_000
+                                ).toFixed(3)}
+                                /M
+                              </div>
+                              <div className="group relative">
+                                Out: $
+                                {(
+                                  Number(model.output_price_per_token) *
+                                  1_000_000
+                                ).toFixed(3)}
+                                /M
+                              </div>
+                            </>
+                          )}
                         </div>
                         <Switch
                           checked={model.is_enabled}
@@ -208,11 +396,116 @@ export default function ModelsTab() {
                         />
                       </div>
                     </div>
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2">
+              {pagedModels.map((model) => (
+                <Card key={model.id} className="flex h-full flex-col">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <CardTitle className="flex items-center gap-2 text-sm">
+                          <span className="truncate font-mono">{model.id}</span>
+                        </CardTitle>
+                        <div className="mt-1 flex flex-wrap items-center gap-2 text-muted-foreground text-xs">
+                          <span className="flex items-center gap-1.5 font-medium capitalize">
+                            <ProviderLogo
+                              provider={model.provider}
+                              size={12}
+                              className="opacity-70"
+                            />
+                            {model.provider}
+                          </span>
+                          <span>&middot;</span>
+                          <span className="capitalize">{model.type}</span>
+                          {model.context_window && (
+                            <>
+                              <span>&middot;</span>
+                              <span>
+                                {model.context_window >= 1000000
+                                  ? `${(model.context_window / 1000000).toFixed(0)}M`
+                                  : `${(model.context_window / 1000).toFixed(0)}K`}{' '}
+                                ctx
+                              </span>
+                            </>
+                          )}
+                          {model.max_tokens && (
+                            <>
+                              <span>&middot;</span>
+                              <span>
+                                {model.max_tokens >= 1000000
+                                  ? `${(model.max_tokens / 1000000).toFixed(0)}M`
+                                  : `${(model.max_tokens / 1000).toFixed(0)}K`}{' '}
+                                max
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <Switch
+                        checked={model.is_enabled}
+                        onCheckedChange={(checked) =>
+                          toggleMutation.mutate({
+                            id: model.id,
+                            is_enabled: checked,
+                          })
+                        }
+                      />
+                    </div>
+                    {model.tags && model.tags.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {model.tags.map((tag) => (
+                          <Badge
+                            key={tag}
+                            variant="secondary"
+                            className="text-[10px]"
+                          >
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </CardHeader>
+                  <CardContent className="mt-auto space-y-2 pt-0 pb-4 text-xs">
+                    {model.description && (
+                      <p className="line-clamp-2 text-muted-foreground">
+                        {model.description}
+                      </p>
+                    )}
+                    <div className="mt-1 flex flex-wrap gap-4 text-muted-foreground">
+                      {model.type === 'image' &&
+                      model.image_gen_price !== null ? (
+                        <span>
+                          Image:{' '}
+                          {`$${Number(model.image_gen_price).toFixed(3)}/img`}
+                        </span>
+                      ) : (
+                        <>
+                          <span>
+                            In: $
+                            {(
+                              Number(model.input_price_per_token) * 1_000_000
+                            ).toFixed(3)}
+                            /M
+                          </span>
+                          <span>
+                            Out: $
+                            {(
+                              Number(model.output_price_per_token) * 1_000_000
+                            ).toFixed(3)}
+                            /M
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
 
           {totalPages > 1 && (
             <div className="flex items-center justify-center gap-2">

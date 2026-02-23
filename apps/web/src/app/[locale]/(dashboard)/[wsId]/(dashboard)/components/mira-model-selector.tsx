@@ -100,21 +100,43 @@ async function fetchGatewayModels(): Promise<Model[]> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from('ai_gateway_models')
-    .select('id, name, provider, description, context_window, type, is_enabled')
+    .select(
+      'id, name, provider, description, context_window, max_tokens, type, tags, is_enabled, input_price_per_token, output_price_per_token'
+    )
     .eq('type', 'language')
     .order('provider')
     .order('name');
 
   if (error || !data?.length) return [];
 
-  return data.map((m) => ({
-    value: m.id,
-    label: m.name,
-    provider: m.provider,
-    description: m.description ?? undefined,
-    context: m.context_window ?? undefined,
-    disabled: !m.is_enabled,
-  }));
+  return data.map((m) => {
+    const inputPricePerToken = Number(m.input_price_per_token ?? 0);
+    const outputPricePerToken = Number(m.output_price_per_token ?? 0);
+
+    return {
+      value: m.id,
+      label: m.name,
+      provider: m.provider,
+      description: m.description ?? undefined,
+      context: m.context_window ?? undefined,
+      maxTokens: m.max_tokens ?? undefined,
+      tags: m.tags ?? undefined,
+      disabled: !m.is_enabled,
+      inputPricePerToken:
+        Number.isFinite(inputPricePerToken) && inputPricePerToken > 0
+          ? inputPricePerToken
+          : undefined,
+      outputPricePerToken:
+        Number.isFinite(outputPricePerToken) && outputPricePerToken > 0
+          ? outputPricePerToken
+          : undefined,
+    } as Model & {
+      maxTokens?: number;
+      tags?: string[];
+      inputPricePerToken?: number;
+      outputPricePerToken?: number;
+    };
+  });
 }
 
 async function fetchFavorites(wsId: string): Promise<Set<string>> {
@@ -532,14 +554,24 @@ export default function MiraModelSelector({
               </div>
             </div>
           )}
-          <div className="shrink-0 border-b p-2">
-            <div className="relative">
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b px-3 py-2">
+            <div className="relative min-w-0 flex-1 sm:max-w-[240px]">
               <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground/70" />
               <Input
                 placeholder={t('model_selector_search')}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="w-full bg-background/50 py-1.5 pr-3 pl-9 text-foreground text-sm placeholder:text-muted-foreground/50 focus-visible:ring-1 focus-visible:ring-primary/20"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="whitespace-nowrap text-muted-foreground text-xs">
+                {t('model_hide_locked')}
+              </span>
+              <Switch
+                checked={hideLockedModels}
+                onCheckedChange={setHideLockedModels}
+                aria-label={t('model_hide_locked')}
               />
             </div>
           </div>
@@ -634,17 +666,6 @@ export default function MiraModelSelector({
             </ScrollArea>
 
             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-              <div className="flex shrink-0 items-center justify-between border-b px-3 py-2">
-                <span className="text-muted-foreground text-xs">
-                  {t('model_hide_locked')}
-                </span>
-                <Switch
-                  checked={hideLockedModels}
-                  onCheckedChange={setHideLockedModels}
-                  aria-label={t('model_hide_locked')}
-                />
-              </div>
-
               <ScrollArea className="min-h-0 flex-1">
                 {!deferredOpen || modelsLoading ? (
                   <div className="flex items-center justify-center py-12">
@@ -720,14 +741,14 @@ export default function MiraModelSelector({
                                           className="mt-0.5 shrink-0"
                                         />
                                         <div className="min-w-0 flex-1">
-                                          <div className="flex items-center gap-1.5">
+                                          <div className="flex items-start justify-start gap-1.5">
                                             {allowed ? (
                                               <Check
                                                 className={cn(
                                                   'h-3.5 w-3.5 shrink-0',
                                                   model.value === m.value
                                                     ? 'opacity-100'
-                                                    : 'opacity-0'
+                                                    : 'hidden'
                                                 )}
                                               />
                                             ) : (
@@ -770,19 +791,70 @@ export default function MiraModelSelector({
                                               />
                                             </button>
                                           </div>
+                                          {(m as any).tags?.length > 0 && (
+                                            <div className="flex flex-wrap items-center gap-1 opacity-60">
+                                              {(m as any).tags.map(
+                                                (tag: string) => (
+                                                  <span
+                                                    key={tag}
+                                                    className="shrink-0 rounded bg-muted px-1.5 py-0.5 text-[8px] uppercase leading-none"
+                                                  >
+                                                    {tag}
+                                                  </span>
+                                                )
+                                              )}
+                                            </div>
+                                          )}
                                           {m.description && (
-                                            <p className="mt-0.5 line-clamp-2 text-[10px] text-muted-foreground">
+                                            <p className="mt-0.5 line-clamp-2 pr-4 text-[10px] text-muted-foreground">
                                               {m.description}
                                             </p>
                                           )}
                                         </div>
-                                        {m.context && (
-                                          <span className="shrink-0 text-[10px] text-muted-foreground">
-                                            {m.context >= 1000000
-                                              ? `${(m.context / 1000000).toFixed(0)}M`
-                                              : `${(m.context / 1000).toFixed(0)}K`}
-                                          </span>
-                                        )}
+                                        {/* {(m.context ||
+                                          (m as any).maxTokens ||
+                                          (m as any).inputPricePerToken ||
+                                          (m as any).outputPricePerToken) && (
+                                          <div className="flex shrink-0 flex-col items-end gap-0.5 pt-0.5 text-[9px] text-muted-foreground/80 leading-tight">
+                                            {m.context && (
+                                              <span>
+                                                {t('model_ctx_label')}:{' '}
+                                                {m.context >= 1_000_000
+                                                  ? `${(m.context / 1_000_000).toFixed(0)}M`
+                                                  : `${(m.context / 1_000).toFixed(0)}K`}
+                                              </span>
+                                            )}
+                                            {(m as any).maxTokens && (
+                                              <span>
+                                                {t('model_max_out_label')}:{' '}
+                                                {(m as any).maxTokens >=
+                                                1_000_000
+                                                  ? `${((m as any).maxTokens / 1_000_000).toFixed(0)}M`
+                                                  : `${((m as any).maxTokens / 1_000).toFixed(0)}K`}
+                                              </span>
+                                            )}
+                                            {(m as any).inputPricePerToken && (
+                                              <span>
+                                                {t('model_in_price_label')}:{' '}
+                                                {`$${(
+                                                  ((m as any)
+                                                    .inputPricePerToken as number) *
+                                                    1_000_000
+                                                ).toFixed(3)}/M`}
+                                              </span>
+                                            )}
+                                            {(m as any).outputPricePerToken && (
+                                              <span>
+                                                {t('model_out_price_label')}:{' '}
+                                                {`$${(
+                                                  ((m as any)
+                                                    .outputPricePerToken as number) *
+                                                    1_000_000
+                                                ).toFixed(3)}/M`}
+                                              </span>
+                                            )}
+                                          </div>
+                                        )} */}
                                       </CommandItem>
                                     );
 
