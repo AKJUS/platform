@@ -3,14 +3,16 @@ import 'dart:developer' as developer;
 
 import 'package:bloc/bloc.dart';
 import 'package:mobile/data/models/time_tracking/break_record.dart';
-import 'package:mobile/data/models/time_tracking/category.dart';
+import 'package:mobile/data/models/time_tracking/period_stats.dart';
 import 'package:mobile/data/models/time_tracking/pomodoro_settings.dart';
 import 'package:mobile/data/models/time_tracking/session.dart';
+import 'package:mobile/data/models/time_tracking/session_page.dart';
 import 'package:mobile/data/models/time_tracking/stats.dart';
 import 'package:mobile/data/models/workspace_settings.dart';
 import 'package:mobile/data/repositories/time_tracker_repository.dart';
 import 'package:mobile/features/time_tracker/cubit/time_tracker_state.dart';
 import 'package:mobile/features/time_tracker/utils/threshold.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class TimeTrackerCubit extends Cubit<TimeTrackerState> {
   TimeTrackerCubit({required ITimeTrackerRepository repository})
@@ -19,26 +21,48 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
 
   final ITimeTrackerRepository _repo;
   Timer? _ticker;
+  static const _historyStatsAccordionPrefsKey =
+      'time_tracker_history_stats_open';
+  bool _historyPreferencesLoaded = false;
 
   Future<void> loadData(String wsId, String userId) async {
     emit(state.copyWith(status: TimeTrackerStatus.loading, clearError: true));
 
     try {
-      final results = await Future.wait([
-        _repo.getRunningSession(wsId),
-        _repo.getCategories(wsId),
-        _repo.getSessions(wsId, limit: 5),
-        _repo.getStats(wsId, userId),
-        _repo.loadPomodoroSettings(),
-        _safeGetWorkspaceSettings(wsId),
-      ]);
+      await _ensureHistoryPreferencesLoaded();
+      final anchorDate = state.historyAnchorDate ?? DateTime.now();
+      final periodRange = _historyPeriodRange(
+        state.historyViewMode,
+        anchorDate,
+      );
+      final normalizedUserId = _normalizeUserId(userId);
+      final runningSessionFuture = _repo.getRunningSession(wsId);
+      final categoriesFuture = _repo.getCategories(wsId);
+      final recentSessionsFuture = _repo.getSessions(wsId, limit: 5);
+      final statsFuture = _repo.getStats(wsId, userId);
+      final historyPageFuture = _repo.getHistorySessions(
+        wsId,
+        dateFrom: periodRange.start,
+        dateTo: periodRange.end,
+        userId: normalizedUserId,
+      );
+      final historyPeriodStatsFuture = _repo.getPeriodStats(
+        wsId,
+        dateFrom: periodRange.start,
+        dateTo: periodRange.end,
+        userId: normalizedUserId,
+      );
+      final pomodoroSettingsFuture = _repo.loadPomodoroSettings();
+      final workspaceSettingsFuture = _safeGetWorkspaceSettings(wsId);
 
-      final runningSession = results[0] as TimeTrackingSession?;
-      final categories = results[1]! as List<TimeTrackingCategory>;
-      final recentSessions = results[2]! as List<TimeTrackingSession>;
-      final stats = results[3]! as TimeTrackerStats;
-      final pomodoroSettings = results[4]! as PomodoroSettings;
-      final workspaceSettings = results[5] as WorkspaceSettings?;
+      final runningSession = await runningSessionFuture;
+      final categories = await categoriesFuture;
+      final recentSessions = await recentSessionsFuture;
+      final stats = await statsFuture;
+      final historyPage = await historyPageFuture;
+      final historyPeriodStats = await historyPeriodStatsFuture;
+      final pomodoroSettings = await pomodoroSettingsFuture;
+      final workspaceSettings = await workspaceSettingsFuture;
 
       TimeTrackingBreak? activeBreak;
       if (runningSession != null) {
@@ -60,6 +84,13 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
           activeBreak: activeBreak,
           elapsed: elapsed,
           recentSessions: recentSessions,
+          historyAnchorDate: anchorDate,
+          historySessions: historyPage.sessions,
+          historyPeriodStats: historyPeriodStats,
+          historyHasMore: historyPage.hasMore,
+          historyNextCursor: historyPage.nextCursor,
+          isHistoryLoading: false,
+          isHistoryLoadingMore: false,
           categories: categories,
           stats: stats,
           pomodoroSettings: pomodoroSettings,
@@ -122,23 +153,20 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
 
       await _repo.stopSession(wsId, state.runningSession!.id);
 
-      // Refresh data
-      final results = await Future.wait([
-        _repo.getSessions(wsId, limit: 5),
-        _repo.getStats(wsId, userId),
-      ]);
+      final (recentSessions, stats) = await _loadRecentAndSummary(wsId, userId);
 
       emit(
         state.copyWith(
           elapsed: Duration.zero,
-          recentSessions: results[0] as List<TimeTrackingSession>,
-          stats: results[1] as TimeTrackerStats,
+          recentSessions: recentSessions,
+          stats: stats,
           isPaused: false,
           clearRunningSession: true,
           clearActiveBreak: true,
           clearError: true,
         ),
       );
+      await loadHistoryInitial(wsId, userId);
     } on Exception catch (e) {
       emit(state.copyWith(error: e.toString()));
     }
@@ -213,9 +241,158 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
     emit(state.copyWith(sessionTitle: title));
   }
 
+  Future<void> setHistoryViewMode(
+    String wsId,
+    String userId,
+    HistoryViewMode viewMode,
+  ) async {
+    if (state.historyViewMode == viewMode) return;
+    emit(
+      state.copyWith(
+        historyViewMode: viewMode,
+        historyAnchorDate: state.historyAnchorDate ?? DateTime.now(),
+      ),
+    );
+    await loadHistoryInitial(wsId, userId);
+  }
+
+  Future<void> goToPreviousPeriod(String wsId, String userId) async {
+    final nextAnchor = _moveHistoryAnchor(-1);
+    emit(state.copyWith(historyAnchorDate: nextAnchor));
+    await loadHistoryInitial(wsId, userId);
+  }
+
+  Future<void> goToNextPeriod(String wsId, String userId) async {
+    final nextAnchor = _moveHistoryAnchor(1);
+    emit(state.copyWith(historyAnchorDate: nextAnchor));
+    await loadHistoryInitial(wsId, userId);
+  }
+
+  Future<void> goToCurrentPeriod(String wsId, String userId) async {
+    emit(state.copyWith(historyAnchorDate: DateTime.now()));
+    await loadHistoryInitial(wsId, userId);
+  }
+
+  Future<void> refreshHistory(String wsId, String userId) async {
+    await loadHistoryInitial(wsId, userId);
+  }
+
+  Future<void> loadHistoryInitial(String wsId, String userId) async {
+    if (wsId.isEmpty) return;
+    await _ensureHistoryPreferencesLoaded();
+    final anchorDate = state.historyAnchorDate ?? DateTime.now();
+    final periodRange = _historyPeriodRange(state.historyViewMode, anchorDate);
+    final normalizedUserId = _normalizeUserId(userId);
+
+    emit(
+      state.copyWith(
+        historyAnchorDate: anchorDate,
+        isHistoryLoading: true,
+        isHistoryLoadingMore: false,
+        historySessions: const [],
+        historyHasMore: false,
+        clearHistoryNextCursor: true,
+        clearHistoryPeriodStats: true,
+        clearError: true,
+      ),
+    );
+
+    try {
+      final results = await Future.wait([
+        _repo.getHistorySessions(
+          wsId,
+          dateFrom: periodRange.start,
+          dateTo: periodRange.end,
+          userId: normalizedUserId,
+        ),
+        _repo.getPeriodStats(
+          wsId,
+          dateFrom: periodRange.start,
+          dateTo: periodRange.end,
+          userId: normalizedUserId,
+        ),
+      ]);
+      final page = results[0] as TimeTrackingSessionPage;
+      final periodStats = results[1] as TimeTrackingPeriodStats;
+
+      emit(
+        state.copyWith(
+          historySessions: page.sessions,
+          historyHasMore: page.hasMore,
+          historyNextCursor: page.nextCursor,
+          historyPeriodStats: periodStats,
+          isHistoryLoading: false,
+          isHistoryLoadingMore: false,
+          clearError: true,
+        ),
+      );
+    } on Exception catch (e) {
+      emit(
+        state.copyWith(
+          isHistoryLoading: false,
+          isHistoryLoadingMore: false,
+          error: e.toString(),
+        ),
+      );
+    }
+  }
+
+  Future<void> loadHistoryMore(String wsId, String userId) async {
+    if (wsId.isEmpty ||
+        !state.historyHasMore ||
+        state.historyNextCursor == null ||
+        state.isHistoryLoadingMore ||
+        state.isHistoryLoading) {
+      return;
+    }
+
+    final anchorDate = state.historyAnchorDate ?? DateTime.now();
+    final periodRange = _historyPeriodRange(state.historyViewMode, anchorDate);
+    final normalizedUserId = _normalizeUserId(userId);
+
+    emit(state.copyWith(isHistoryLoadingMore: true, clearError: true));
+    try {
+      final page = await _repo.getHistorySessions(
+        wsId,
+        dateFrom: periodRange.start,
+        dateTo: periodRange.end,
+        cursor: state.historyNextCursor,
+        userId: normalizedUserId,
+      );
+      emit(
+        state.copyWith(
+          historySessions: [...state.historySessions, ...page.sessions],
+          historyHasMore: page.hasMore,
+          historyNextCursor: page.nextCursor,
+          isHistoryLoadingMore: false,
+          clearError: true,
+        ),
+      );
+    } on Exception catch (e) {
+      emit(state.copyWith(isHistoryLoadingMore: false, error: e.toString()));
+    }
+  }
+
+  Future<void> toggleHistoryStatsAccordion() async {
+    final nextValue = !state.isHistoryStatsAccordionOpen;
+    emit(state.copyWith(isHistoryStatsAccordionOpen: nextValue));
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_historyStatsAccordionPrefsKey, nextValue);
+    } on Exception catch (error, stackTrace) {
+      developer.log(
+        'Failed to persist history accordion state',
+        name: 'TimeTrackerCubit',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
   Future<void> editSession(
     String sessionId,
     String wsId, {
+    String? userId,
     String? title,
     String? description,
     String? categoryId,
@@ -233,8 +410,9 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
         endTime: endTime,
       );
 
-      final sessions = await _repo.getSessions(wsId, limit: 5);
-      emit(state.copyWith(recentSessions: sessions));
+      final (recentSessions, stats) = await _loadRecentAndSummary(wsId, userId);
+      emit(state.copyWith(recentSessions: recentSessions, stats: stats));
+      await loadHistoryInitial(wsId, userId ?? '');
     } on Exception catch (e) {
       emit(state.copyWith(error: e.toString()));
     }
@@ -248,17 +426,15 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
     try {
       await _repo.deleteSession(wsId, sessionId);
 
-      final results = await Future.wait([
-        _repo.getSessions(wsId, limit: 5),
-        _repo.getStats(wsId, userId),
-      ]);
+      final (recentSessions, stats) = await _loadRecentAndSummary(wsId, userId);
 
       emit(
         state.copyWith(
-          recentSessions: results[0] as List<TimeTrackingSession>,
-          stats: results[1] as TimeTrackerStats,
+          recentSessions: recentSessions,
+          stats: stats,
         ),
       );
+      await loadHistoryInitial(wsId, userId);
     } on Exception catch (e) {
       emit(state.copyWith(error: e.toString()));
     }
@@ -284,17 +460,15 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
         description: description,
       );
 
-      final results = await Future.wait([
-        _repo.getSessions(wsId, limit: 5),
-        _repo.getStats(wsId, userId),
-      ]);
+      final (recentSessions, stats) = await _loadRecentAndSummary(wsId, userId);
 
       emit(
         state.copyWith(
-          recentSessions: results[0] as List<TimeTrackingSession>,
-          stats: results[1] as TimeTrackerStats,
+          recentSessions: recentSessions,
+          stats: stats,
         ),
       );
+      await loadHistoryInitial(wsId, userId);
     } on Exception catch (e) {
       emit(state.copyWith(error: e.toString()));
       if (throwOnError) {
@@ -325,18 +499,16 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
         imagePaths: imagePaths,
       );
 
-      final results = await Future.wait([
-        _repo.getSessions(wsId, limit: 5),
-        _repo.getStats(wsId, userId),
-      ]);
+      final (recentSessions, stats) = await _loadRecentAndSummary(wsId, userId);
 
       emit(
         state.copyWith(
-          recentSessions: results[0] as List<TimeTrackingSession>,
-          stats: results[1] as TimeTrackerStats,
+          recentSessions: recentSessions,
+          stats: stats,
           clearError: true,
         ),
       );
+      await loadHistoryInitial(wsId, userId);
     } on Exception catch (e) {
       emit(state.copyWith(error: e.toString()));
       if (throwOnError) {
@@ -358,22 +530,20 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
       _stopTick();
       await _repo.deleteSession(wsId, state.runningSession!.id);
 
-      final results = await Future.wait([
-        _repo.getSessions(wsId, limit: 5),
-        _repo.getStats(wsId, userId),
-      ]);
+      final (recentSessions, stats) = await _loadRecentAndSummary(wsId, userId);
 
       emit(
         state.copyWith(
           elapsed: Duration.zero,
-          recentSessions: results[0] as List<TimeTrackingSession>,
-          stats: results[1] as TimeTrackerStats,
+          recentSessions: recentSessions,
+          stats: stats,
           isPaused: false,
           clearRunningSession: true,
           clearActiveBreak: true,
           clearError: true,
         ),
       );
+      await loadHistoryInitial(wsId, userId);
     } on Exception catch (e) {
       emit(state.copyWith(error: e.toString()));
       if (throwOnError) {
@@ -480,6 +650,106 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
       developer.log('Workspace settings load failed for wsId=$wsId');
       return null;
     }
+  }
+
+  Future<void> _ensureHistoryPreferencesLoaded() async {
+    if (_historyPreferencesLoaded) return;
+    _historyPreferencesLoaded = true;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final isOpen = prefs.getBool(_historyStatsAccordionPrefsKey) ?? false;
+      if (isOpen != state.isHistoryStatsAccordionOpen) {
+        emit(state.copyWith(isHistoryStatsAccordionOpen: isOpen));
+      }
+    } on Exception catch (error, stackTrace) {
+      developer.log(
+        'Failed to load history accordion preference',
+        name: 'TimeTrackerCubit',
+        error: error,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  DateTime _moveHistoryAnchor(int delta) {
+    final current = state.historyAnchorDate ?? DateTime.now();
+    return switch (state.historyViewMode) {
+      HistoryViewMode.day => current.add(Duration(days: delta)),
+      HistoryViewMode.week => current.add(Duration(days: delta * 7)),
+      HistoryViewMode.month => DateTime(
+        current.year,
+        current.month + delta,
+        current.day,
+        current.hour,
+        current.minute,
+        current.second,
+        current.millisecond,
+        current.microsecond,
+      ),
+    };
+  }
+
+  ({DateTime start, DateTime end}) _historyPeriodRange(
+    HistoryViewMode mode,
+    DateTime anchor,
+  ) {
+    final localAnchor = DateTime(
+      anchor.year,
+      anchor.month,
+      anchor.day,
+      anchor.hour,
+      anchor.minute,
+      anchor.second,
+      anchor.millisecond,
+      anchor.microsecond,
+    );
+    switch (mode) {
+      case HistoryViewMode.day:
+        final start = DateTime(
+          localAnchor.year,
+          localAnchor.month,
+          localAnchor.day,
+        );
+        final end = start
+            .add(const Duration(days: 1))
+            .subtract(
+              const Duration(microseconds: 1),
+            );
+        return (start: start, end: end);
+      case HistoryViewMode.week:
+        final start = DateTime(
+          localAnchor.year,
+          localAnchor.month,
+          localAnchor.day,
+        ).subtract(Duration(days: localAnchor.weekday - DateTime.monday));
+        final end = start
+            .add(const Duration(days: 7))
+            .subtract(const Duration(microseconds: 1));
+        return (start: start, end: end);
+      case HistoryViewMode.month:
+        final start = DateTime(localAnchor.year, localAnchor.month);
+        final end = DateTime(localAnchor.year, localAnchor.month + 1).subtract(
+          const Duration(microseconds: 1),
+        );
+        return (start: start, end: end);
+    }
+  }
+
+  String? _normalizeUserId(String? userId) {
+    if (userId == null || userId.isEmpty) return null;
+    return userId;
+  }
+
+  Future<(List<TimeTrackingSession>, TimeTrackerStats)> _loadRecentAndSummary(
+    String wsId,
+    String? userId,
+  ) async {
+    final recentSessions = await _repo.getSessions(wsId, limit: 5);
+    if (userId == null || userId.isEmpty) {
+      return (recentSessions, state.stats ?? const TimeTrackerStats());
+    }
+    final stats = await _repo.getStats(wsId, userId);
+    return (recentSessions, stats);
   }
 
   @override

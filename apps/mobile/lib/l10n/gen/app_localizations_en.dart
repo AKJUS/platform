@@ -417,6 +417,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get timerNoSessions => 'No sessions yet';
 
   @override
+  String get timerHistoryNoSessionsForPeriod => 'No sessions for this period';
+
+  @override
+  String get timerHistoryOverview => 'Period overview';
+
+  @override
+  String get timerHistoryTotalTime => 'Total time';
+
+  @override
+  String get timerHistoryLoadMore => 'Load more';
+
+  @override
+  String get timerHistoryEndOfList => 'You reached the end of the list';
+
+  @override
   String get timerToday => 'Today';
 
   @override

@@ -417,6 +417,21 @@ class AppLocalizationsVi extends AppLocalizations {
   String get timerNoSessions => 'Chưa có phiên nào';
 
   @override
+  String get timerHistoryNoSessionsForPeriod => 'Không có phiên nào trong khoảng thời gian này';
+
+  @override
+  String get timerHistoryOverview => 'Tổng quan theo kỳ';
+
+  @override
+  String get timerHistoryTotalTime => 'Tổng thời gian';
+
+  @override
+  String get timerHistoryLoadMore => 'Tải thêm';
+
+  @override
+  String get timerHistoryEndOfList => 'Bạn đã xem hết danh sách';
+
+  @override
   String get timerToday => 'Hôm nay';
 
   @override

@@ -895,6 +895,36 @@ abstract class AppLocalizations {
   /// **'No sessions yet'**
   String get timerNoSessions;
 
+  /// No description provided for @timerHistoryNoSessionsForPeriod.
+  ///
+  /// In en, this message translates to:
+  /// **'No sessions for this period'**
+  String get timerHistoryNoSessionsForPeriod;
+
+  /// No description provided for @timerHistoryOverview.
+  ///
+  /// In en, this message translates to:
+  /// **'Period overview'**
+  String get timerHistoryOverview;
+
+  /// No description provided for @timerHistoryTotalTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Total time'**
+  String get timerHistoryTotalTime;
+
+  /// No description provided for @timerHistoryLoadMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Load more'**
+  String get timerHistoryLoadMore;
+
+  /// No description provided for @timerHistoryEndOfList.
+  ///
+  /// In en, this message translates to:
+  /// **'You reached the end of the list'**
+  String get timerHistoryEndOfList;
+
   /// No description provided for @timerToday.
   ///
   /// In en, this message translates to:
