@@ -143,6 +143,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get navApps => 'Apps';
 
   @override
+  String get navAssistant => 'Assistant';
+
+  @override
   String get appsHubSearchHint => 'Search apps';
 
   @override
@@ -153,6 +156,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get appsHubEmpty => 'No apps found';
+
+  @override
+  String get assistantComingSoon => 'Coming Soon';
 
   @override
   String get dashboardGreeting => 'Welcome back!';
@@ -625,6 +631,56 @@ class AppLocalizationsEn extends AppLocalizations {
   String get timerWorkSession => 'Work session';
 
   @override
+  String get timerSubmitForApproval => 'Submit for approval';
+
+  @override
+  String get timerSessionExceeded => 'Session exceeds threshold';
+
+  @override
+  String get timerSessionExceededDescription => 'This session is older than your workspace threshold. You can discard it or submit it as a request for approval.';
+
+  @override
+  String get timerDiscardSession => 'Discard session';
+
+  @override
+  String get timerSubmitAsRequest => 'Submit as request';
+
+  @override
+  String get timerThresholdWarningAll => 'All missed entries in this workspace require approval. Add at least one proof image before submitting.';
+
+  @override
+  String timerThresholdWarning(int days) {
+    return 'Entries older than $days day(s) require approval. Add at least one proof image before submitting.';
+  }
+
+  @override
+  String get timerProofOfWorkRequired => 'At least one proof image is required.';
+
+  @override
+  String get timerRequestsThresholdTitle => 'Request threshold settings';
+
+  @override
+  String get timerRequestsThresholdDescription => 'Choose when missed entries should require approval.';
+
+  @override
+  String get timerRequestsThresholdNoApproval => 'No approval needed';
+
+  @override
+  String get timerRequestsThresholdNoApprovalHint => 'Missed entries can be added directly without sending a request.';
+
+  @override
+  String get timerRequestsThresholdLabel => 'Threshold (days)';
+
+  @override
+  String get timerRequestsThresholdHelp => 'Entries older than this number of days must be submitted for approval.';
+
+  @override
+  String get timerRequestsThresholdInvalid => 'Enter a whole number greater than or equal to 0.';
+
+  @override
+  String get timerRequestsThresholdUpdated => 'Request threshold updated.';
+
+  @override
   String get timerAutoStartBreaks => 'Auto-start breaks';
 
   @override
@@ -724,6 +780,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get profileAccountStatus => 'Account status';
+
+  @override
+  String get profileStatus => 'Status';
+
+  @override
+  String get profileVerification => 'Verification';
 
   @override
   String get profileActive => 'Active';

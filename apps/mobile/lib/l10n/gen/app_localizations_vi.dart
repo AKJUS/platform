@@ -143,6 +143,9 @@ class AppLocalizationsVi extends AppLocalizations {
   String get navApps => 'Ứng dụng';
 
   @override
+  String get navAssistant => 'Trợ lý';
+
+  @override
   String get appsHubSearchHint => 'Tìm kiếm ứng dụng';
 
   @override
@@ -153,6 +156,9 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get appsHubEmpty => 'Không tìm thấy ứng dụng';
+
+  @override
+  String get assistantComingSoon => 'Sắp ra mắt';
 
   @override
   String get dashboardGreeting => 'Chào mừng trở lại!';
@@ -625,6 +631,56 @@ class AppLocalizationsVi extends AppLocalizations {
   String get timerWorkSession => 'Phiên làm việc';
 
   @override
+  String get timerSubmitForApproval => 'Gửi duyệt';
+
+  @override
+  String get timerSessionExceeded => 'Phiên vượt ngưỡng';
+
+  @override
+  String get timerSessionExceededDescription => 'Phiên này đã vượt quá ngưỡng thời gian của không gian làm việc. Bạn có thể hủy phiên hoặc gửi yêu cầu để được duyệt.';
+
+  @override
+  String get timerDiscardSession => 'Hủy phiên';
+
+  @override
+  String get timerSubmitAsRequest => 'Gửi yêu cầu';
+
+  @override
+  String get timerThresholdWarningAll => 'Mọi mục bổ sung trong không gian làm việc này đều cần được duyệt. Vui lòng thêm ít nhất một ảnh minh chứng trước khi gửi.';
+
+  @override
+  String timerThresholdWarning(int days) {
+    return 'Các mục cũ hơn $days ngày cần được duyệt. Vui lòng thêm ít nhất một ảnh minh chứng trước khi gửi.';
+  }
+
+  @override
+  String get timerProofOfWorkRequired => 'Cần ít nhất một ảnh minh chứng.';
+
+  @override
+  String get timerRequestsThresholdTitle => 'Cài đặt ngưỡng yêu cầu';
+
+  @override
+  String get timerRequestsThresholdDescription => 'Chọn thời điểm mục bị thiếu cần gửi yêu cầu duyệt.';
+
+  @override
+  String get timerRequestsThresholdNoApproval => 'Không cần duyệt';
+
+  @override
+  String get timerRequestsThresholdNoApprovalHint => 'Có thể thêm mục bị thiếu trực tiếp mà không cần gửi yêu cầu.';
+
+  @override
+  String get timerRequestsThresholdLabel => 'Ngưỡng (ngày)';
+
+  @override
+  String get timerRequestsThresholdHelp => 'Các mục cũ hơn số ngày này phải gửi yêu cầu để được duyệt.';
+
+  @override
+  String get timerRequestsThresholdInvalid => 'Nhập số nguyên lớn hơn hoặc bằng 0.';
+
+  @override
+  String get timerRequestsThresholdUpdated => 'Đã cập nhật ngưỡng yêu cầu.';
+
+  @override
   String get timerAutoStartBreaks => 'Tự động bắt đầu nghỉ';
 
   @override
@@ -724,6 +780,12 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get profileAccountStatus => 'Trạng thái tài khoản';
+
+  @override
+  String get profileStatus => 'Trạng thái';
+
+  @override
+  String get profileVerification => 'Xác minh';
 
   @override
   String get profileActive => 'Hoạt động';

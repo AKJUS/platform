@@ -35,6 +35,7 @@ class ShellPage extends StatefulWidget {
 class _ShellPageState extends State<ShellPage> {
   static const ValueKey<String> _homeKey = ValueKey('home');
   static const ValueKey<String> _appsKey = ValueKey('apps');
+  static const ValueKey<String> _assistantKey = ValueKey('assistant');
 
   final Stopwatch _tapStopwatch = Stopwatch();
   int? _lastTabIndex;
@@ -67,10 +68,20 @@ class _ShellPageState extends State<ShellPage> {
     );
   }
 
+  Widget _buildNormalizedChild() {
+    return MediaQuery.removePadding(
+      context: context,
+      removeTop: true,
+      child: widget.child,
+    );
+  }
+
   /// Compact: bottom NavigationBar inside Scaffold footers.
   Widget _buildCompactLayout(BuildContext context, AppTabState state) {
     final l10n = context.l10n;
     final items = _buildNavItems(context, state, l10n);
+    final selectedIndex = _calculateSelectedIndex(context);
+    final selectedKey = _keyForIndex(selectedIndex);
 
     return shad.Scaffold(
       headers: [
@@ -79,20 +90,30 @@ class _ShellPageState extends State<ShellPage> {
       footers: [
         SafeArea(
           top: false,
-          child: Listener(
-            behavior: HitTestBehavior.translucent,
-            onPointerDown: _startLongPressTimer,
-            onPointerUp: _stopLongPressTimer,
-            onPointerCancel: _stopLongPressTimer,
-            child: shad.NavigationBar(
-              onSelected: (key) =>
-                  _onItemTapped(_indexForKey(key), context, state),
-              children: items,
+          child: SizedBox(
+            width: double.infinity,
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 560),
+                child: Listener(
+                  behavior: HitTestBehavior.translucent,
+                  onPointerDown: _startLongPressTimer,
+                  onPointerUp: _stopLongPressTimer,
+                  onPointerCancel: _stopLongPressTimer,
+                  child: shad.NavigationBar(
+                    selectedKey: selectedKey,
+                    alignment: shad.NavigationBarAlignment.spaceEvenly,
+                    onSelected: (key) =>
+                        _onItemTapped(_indexForKey(key), context, state),
+                    children: items,
+                  ),
+                ),
+              ),
             ),
           ),
         ),
       ],
-      child: widget.child,
+      child: _buildNormalizedChild(),
     );
   }
 
@@ -133,7 +154,7 @@ class _ShellPageState extends State<ShellPage> {
       child: Row(
         children: [
           sideNav,
-          Expanded(child: widget.child),
+          Expanded(child: _buildNormalizedChild()),
         ],
       ),
     );
@@ -213,6 +234,16 @@ class _ShellPageState extends State<ShellPage> {
         ),
         child: Icon(appsIcon),
       ),
+      shad.NavigationItem(
+        key: _assistantKey,
+        label: Text(
+          l10n.navAssistant,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: labelStyle,
+        ),
+        child: const Icon(Icons.auto_awesome_outlined),
+      ),
     ];
   }
 
@@ -253,6 +284,7 @@ class _ShellPageState extends State<ShellPage> {
         : null;
     final route = switch (index) {
       1 => appRoute ?? Routes.apps,
+      2 => Routes.assistant,
       _ => Routes.home,
     };
     if (context.mounted) context.go(route);
@@ -279,11 +311,13 @@ class _ShellPageState extends State<ShellPage> {
 
   Key _keyForIndex(int index) => switch (index) {
     1 => _appsTabKey,
+    2 => _assistantKey,
     _ => _homeKey,
   };
 
   static int _indexForKey(Key? key) {
     if (key == _appsKey || key is GlobalKey) return 1;
+    if (key == _assistantKey) return 2;
     return 0;
   }
 
@@ -292,6 +326,7 @@ class _ShellPageState extends State<ShellPage> {
 
     if (location.startsWith(Routes.apps)) return 1;
     if (AppRegistry.moduleFromLocation(location) != null) return 1;
+    if (location.startsWith(Routes.assistant)) return 2;
     return 0; // home
   }
 }

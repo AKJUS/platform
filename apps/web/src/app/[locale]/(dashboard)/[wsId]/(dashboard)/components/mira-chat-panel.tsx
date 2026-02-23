@@ -1,5 +1,6 @@
 'use client';
 
+import { ActionProvider, StateProvider } from '@json-render/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { DefaultChatTransport } from '@tuturuuu/ai/core';
 import {
@@ -27,6 +28,7 @@ import { getToolName, isToolUIPart } from 'ai';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { handlers as jsonRenderHandlers } from '@/components/json-render/dashboard-registry';
 import { resolveTimezone } from '@/lib/calendar-settings-resolver';
 import ChatInputBar from './chat-input-bar';
 import ChatMessageList from './chat-message-list';
@@ -68,6 +70,16 @@ export default function MiraChatPanel({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const scrollEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // json-render action handlers factory expecting state accessors
+  const actionHandlers = useMemo(
+    () =>
+      jsonRenderHandlers(
+        () => () => {},
+        () => ({})
+      ),
+    []
+  );
 
   // Bottom bar (suggested prompts + input) visibility: hide while scrolling, show after scroll stops
   const [bottomBarVisible, setBottomBarVisible] = useState(true);
@@ -474,6 +486,23 @@ export default function MiraChatPanel({
     if (!el) return;
 
     const onScroll = () => {
+      if (!el) return;
+
+      // Calculate how far we are from the bottom
+      const isNearBottom =
+        el.scrollHeight - el.scrollTop - el.clientHeight < 50;
+
+      // If we are artificially scrolling down (e.g. streaming snap), or user is at bottom, keep visible.
+      // Only hide if the user specifically scrolls way up into history.
+      if (isNearBottom) {
+        setBottomBarVisible(true);
+        if (scrollEndTimerRef.current) {
+          clearTimeout(scrollEndTimerRef.current);
+          scrollEndTimerRef.current = null;
+        }
+        return;
+      }
+
       setBottomBarVisible(false);
       if (scrollEndTimerRef.current) clearTimeout(scrollEndTimerRef.current);
       scrollEndTimerRef.current = setTimeout(() => {
@@ -569,49 +598,58 @@ export default function MiraChatPanel({
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {hasMessages ? (
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-            <ChatMessageList
-              messages={
-                pendingDisplay && messages.length === 0
-                  ? [
-                      {
-                        id: 'pending',
-                        role: 'user' as const,
-                        parts: [
-                          { type: 'text' as const, text: pendingDisplay },
-                        ],
-                      },
-                    ]
-                  : queuedText
-                    ? [
-                        ...messages,
-                        {
-                          id: 'queued',
-                          role: 'user' as const,
-                          parts: [{ type: 'text' as const, text: queuedText }],
-                        },
-                      ]
-                    : messages
-              }
-              isStreaming={isBusy || !!pendingPrompt}
-              assistantName={assistantName}
-              userAvatarUrl={userAvatarUrl}
-              scrollContainerRef={scrollContainerRef}
-            />
+            <StateProvider>
+              <ActionProvider handlers={actionHandlers}>
+                <ChatMessageList
+                  messages={
+                    pendingDisplay && messages.length === 0
+                      ? [
+                          {
+                            id: 'pending',
+                            role: 'user' as const,
+                            parts: [
+                              { type: 'text' as const, text: pendingDisplay },
+                            ],
+                          },
+                        ]
+                      : queuedText
+                        ? [
+                            ...messages,
+                            {
+                              id: 'queued',
+                              role: 'user' as const,
+                              parts: [
+                                { type: 'text' as const, text: queuedText },
+                              ],
+                            },
+                          ]
+                        : messages
+                  }
+                  isStreaming={isBusy || !!pendingPrompt}
+                  assistantName={assistantName}
+                  userAvatarUrl={userAvatarUrl}
+                  scrollContainerRef={scrollContainerRef}
+                />
+              </ActionProvider>
+            </StateProvider>
           </div>
         ) : (
-          <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-8 overflow-auto px-4 py-10">
-            <div className="flex w-full max-w-full flex-col items-center gap-4">
-              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-dynamic-purple/15">
-                <Sparkles className="h-8 w-8 text-dynamic-purple" />
+          <div className="m-auto flex w-full max-w-2xl flex-col items-center justify-center gap-8 px-4 py-12 sm:px-8 sm:py-16">
+            <div className="flex w-full flex-col items-center gap-5 text-center">
+              <div className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-linear-to-br from-dynamic-purple/20 to-dynamic-purple/5 shadow-dynamic-purple/10 shadow-lg ring-1 ring-dynamic-purple/20">
+                <div className="absolute inset-0 rounded-2xl bg-dynamic-purple/10 blur-xl" />
+                <Sparkles className="relative z-10 h-8 w-8 animate-pulse text-dynamic-purple duration-2000" />
               </div>
-              <div className="min-w-0 max-w-full text-center">
-                <p className="font-medium text-base">{assistantName}</p>
-                <p className="mt-1.5 max-w-sm text-muted-foreground text-sm">
+              <div className="max-w-lg space-y-1.5">
+                <h2 className="bg-linear-to-br from-foreground to-foreground/70 bg-clip-text font-bold text-2xl text-transparent tracking-tight sm:text-3xl">
+                  {assistantName}
+                </h2>
+                <p className="font-medium text-muted-foreground text-sm sm:text-base">
                   {t('empty_state', { name: assistantName })}
                 </p>
               </div>
             </div>
-            <div className="w-full min-w-0 max-w-full flex justify-center">
+            <div className="flex w-full justify-center">
               <QuickActionChips
                 onSend={handleSubmit}
                 disabled={isBusy}
@@ -620,11 +658,10 @@ export default function MiraChatPanel({
             </div>
           </div>
         )}
-
         {/* Floating bottom bar: suggested prompts + input (overlays content) */}
         <div
           className={cn(
-            'absolute right-0 bottom-0 left-0 z-10 flex min-w-0 max-w-full flex-col gap-2 p-3 pt-6 transition-transform duration-300 ease-out sm:p-4 sm:pt-8',
+            'absolute right-0 bottom-0 left-0 z-10 flex min-w-0 max-w-full flex-col gap-2 p-3 transition-transform duration-300 ease-out sm:p-4',
             (!bottomBarVisible || viewOnly) &&
               'pointer-events-none translate-y-full'
           )}
@@ -646,6 +683,7 @@ export default function MiraChatPanel({
             />
           </div>
         </div>
+        ;
       </div>
     </div>
   );

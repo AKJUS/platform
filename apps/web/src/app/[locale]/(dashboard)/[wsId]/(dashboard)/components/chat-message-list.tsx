@@ -1,5 +1,6 @@
 'use client';
 
+import { Renderer, VisibilityProvider } from '@json-render/react';
 import { cjk } from '@streamdown/cjk';
 import { code } from '@streamdown/code';
 import { math } from '@streamdown/math';
@@ -19,6 +20,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@tuturuuu/ui/avatar';
 import { Dialog, DialogContent, DialogTitle } from '@tuturuuu/ui/dialog';
 import { cn } from '@tuturuuu/utils/format';
 import { getToolName, isToolUIPart } from 'ai';
+import { registry } from '@/components/json-render/dashboard-registry';
+import 'katex/dist/katex.min.css';
 import { useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
 import {
@@ -27,11 +30,11 @@ import {
   type ReactNode,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react';
 import { Streamdown } from 'streamdown';
-import 'katex/dist/katex.min.css';
 
 interface ChatMessageListProps {
   messages: UIMessage[];
@@ -95,8 +98,8 @@ type ToolPartData = { type: string; [key: string]: unknown };
  * Text parts remain individual; adjacent tool parts of the same name collapse.
  */
 type RenderGroup =
-  | { kind: 'text'; text: string; index: number }
-  | { kind: 'reasoning'; text: string; index: number }
+  | { kind: 'text'; text: string | any; index: number }
+  | { kind: 'reasoning'; text: string | any; index: number }
   | {
       kind: 'tool';
       toolName: string;
@@ -139,7 +142,12 @@ function groupMessageParts(parts: UIMessage['parts']): RenderGroup[] {
         groups.push({ kind: 'tool', ...currentToolGroup });
         currentToolGroup = null;
       }
-      if (part.type === 'text' && (part as { text: string }).text.trim()) {
+      if (
+        part.type === 'text' &&
+        (typeof (part as { text: string }).text === 'string'
+          ? (part as { text: string }).text.trim()
+          : true)
+      ) {
         groups.push({
           kind: 'text',
           text: (part as { text: string }).text,
@@ -147,7 +155,9 @@ function groupMessageParts(parts: UIMessage['parts']): RenderGroup[] {
         });
       } else if (
         part.type === 'reasoning' &&
-        (part as { text: string }).text.trim()
+        (typeof (part as { text: string }).text === 'string'
+          ? (part as { text: string }).text.trim()
+          : true)
       ) {
         groups.push({
           kind: 'reasoning',
@@ -220,6 +230,42 @@ function AssistantMarkdown({
   );
 }
 
+function getLatestReasoningHeader(text: string): string | null {
+  if (!text) return null;
+  const headers = [...text.matchAll(/^#+\s+(.+)$/gm)];
+  if (headers.length > 0) {
+    const last = headers[headers.length - 1];
+    if (last?.[1]) return last[1].trim();
+  }
+  const bolds = [...text.matchAll(/^\*\*([^*]+)\*\*$/gm)];
+  if (bolds.length > 0) {
+    const last = bolds[bolds.length - 1];
+    if (last?.[1]) return last[1].trim();
+  }
+  const blocks = text
+    .split(/\n\s*\n/)
+    .map((b) => b.trim())
+    .filter(Boolean);
+  for (let i = blocks.length - 1; i >= 0; i--) {
+    const block = blocks[i];
+    if (!block) continue;
+    const blockLines = block
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean);
+    const firstLine = blockLines[0];
+    if (
+      blockLines.length === 1 &&
+      firstLine &&
+      firstLine.length < 65 &&
+      !/[.!?:]$/.test(firstLine)
+    ) {
+      return firstLine;
+    }
+  }
+  return null;
+}
+
 function ReasoningPart({
   text,
   isAnimating,
@@ -229,6 +275,7 @@ function ReasoningPart({
 }) {
   const t = useTranslations('dashboard.mira_chat');
   const [expanded, setExpanded] = useState(false);
+  const latestHeader = useMemo(() => getLatestReasoningHeader(text), [text]);
 
   return (
     <div className="flex flex-col gap-1">
@@ -245,9 +292,17 @@ function ReasoningPart({
         <span className="font-medium">
           {isAnimating ? t('reasoning') : t('reasoned')}
         </span>
+        {latestHeader && (
+          <>
+            <span className="text-muted-foreground/40">•</span>
+            <span className="max-w-50 truncate text-muted-foreground/80 sm:max-w-75">
+              {latestHeader}
+            </span>
+          </>
+        )}
         <ChevronRight
           className={cn(
-            'h-3 w-3 transition-transform',
+            'ml-1 h-3 w-3 transition-transform',
             expanded && 'rotate-90'
           )}
         />
@@ -536,6 +591,23 @@ function ToolCallPart({ part }: { part: ToolPartData }) {
     );
   }
 
+  // Generative UI tool: render the output natively instead of showing JSON
+  if (rawToolName === 'render_ui' && hasOutput) {
+    if (isDone && output) {
+      // The output of render_ui is just the spec `{ spec: ... }` returned from mira-tools executor
+      const spec = (output as { spec?: any })?.spec;
+      if (spec) {
+        return (
+          <div className="my-2 w-full max-w-full">
+            <VisibilityProvider>
+              <Renderer spec={spec} registry={registry} />
+            </VisibilityProvider>
+          </div>
+        );
+      }
+    }
+  }
+
   // Completed image tool: render the image inline from tool output
   if (isImageTool && isDone && output) {
     const imageUrl = (output as { imageUrl?: string }).imageUrl;
@@ -785,6 +857,38 @@ function GroupedToolCallParts({
   );
 }
 
+function UserMessage({ text }: { text: string }) {
+  const t = useTranslations('dashboard.mira_chat');
+  const [expanded, setExpanded] = useState(false);
+
+  // Consider text long if it has more than 300 characters or > 3 line breaks
+  const isLong = text.length > 300 || (text.match(/\n/g) || []).length > 2;
+
+  if (!isLong) {
+    return <p className="wrap-break-word whitespace-pre-wrap">{text}</p>;
+  }
+
+  return (
+    <div className="flex flex-col items-start gap-1">
+      <div
+        className={cn(
+          'wrap-break-word whitespace-pre-wrap transition-all',
+          !expanded && 'line-clamp-3 text-ellipsis'
+        )}
+      >
+        {text}
+      </div>
+      <button
+        type="button"
+        onClick={() => setExpanded(!expanded)}
+        className="mt-1 font-medium text-[10px] text-background/80 transition-colors hover:text-background"
+      >
+        {expanded ? t('show_less') : t('show_more')}
+      </button>
+    </div>
+  );
+}
+
 export default function ChatMessageList({
   messages,
   isStreaming,
@@ -809,14 +913,14 @@ export default function ChatMessageList({
     [scrollContainerRef]
   );
 
-  // Auto-scroll to bottom when messages change or while streaming.
-  // Uses scrollTop instead of scrollIntoView to avoid stealing focus from the input.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: messages.length and isStreaming are intentional scroll triggers
+  // Auto-scroll to bottom only when a new message is added (e.g. user sends prompt)
+  // using scrollTop instead of scrollIntoView to avoid stealing focus from the input.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: messages.length is intentional scroll trigger
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
     el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
-  }, [messages.length, isStreaming]);
+  }, [messages.length]);
 
   if (messages.length === 0) return null;
 
@@ -832,7 +936,7 @@ export default function ChatMessageList({
       ref={setScrollContainerRef}
       className={cn(
         'scrollbar-none flex min-w-0 flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden px-1 py-3',
-        scrollContainerRef && 'pb-48'
+        scrollContainerRef && 'pb-[60vh]'
       )}
     >
       {messages.map((message, index) => {
@@ -926,9 +1030,7 @@ export default function ChatMessageList({
                   )}
                 >
                   {isUser ? (
-                    <p className="wrap-break-word whitespace-pre-wrap">
-                      {messageText}
-                    </p>
+                    <UserMessage text={messageText} />
                   ) : (
                     <div className="flex min-w-0 max-w-full flex-col gap-2 overflow-hidden *:min-w-0 *:max-w-full">
                       {(() => {
@@ -948,7 +1050,11 @@ export default function ChatMessageList({
                             return (
                               <ReasoningPart
                                 key={`reasoning-${group.index}`}
-                                text={group.text}
+                                text={
+                                  typeof group.text === 'string'
+                                    ? group.text
+                                    : JSON.stringify(group.text)
+                                }
                                 isAnimating={isReasoningInProgress}
                               />
                             );
@@ -957,7 +1063,11 @@ export default function ChatMessageList({
                             return (
                               <AssistantMarkdown
                                 key={`text-${group.index}`}
-                                text={group.text}
+                                text={
+                                  typeof group.text === 'string'
+                                    ? group.text
+                                    : JSON.stringify(group.text)
+                                }
                                 isAnimating={isStreaming && isLastAssistant}
                               />
                             );

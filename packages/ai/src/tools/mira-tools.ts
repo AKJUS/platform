@@ -2,9 +2,6 @@ import type { SupabaseClient } from '@tuturuuu/supabase';
 import type { Tool, ToolSet } from 'ai';
 import { z } from 'zod';
 import { tool } from './core';
-
-// ── Executor imports ──
-
 import {
   executeCheckE2EEStatus,
   executeCreateEvent,
@@ -75,6 +72,8 @@ import {
 import { executeSetTheme } from './executors/theme';
 import { executeStartTimer, executeStopTimer } from './executors/timer';
 import { executeListWorkspaceMembers } from './executors/workspace';
+// ── Executor imports ──
+import { dashboardCatalog } from './json-render-catalog';
 
 // ── Tool Directory (name → one-line description for system prompt) ──
 
@@ -144,6 +143,9 @@ export const MIRA_TOOL_DIRECTORY: Record<string, string> = {
   update_my_settings: "Update the assistant's personality settings",
   // Appearance
   set_theme: 'Switch dark mode, light mode, or system theme',
+  // Generative UI
+  render_ui:
+    'Generate an interactive, actionable UI component or widget instead of plain text when it significantly improves user experience (e.g. for forms, dashboards, or data visualization).',
   // Workspace
   list_workspace_members: 'List all members of the workspace',
   // Meta (always active)
@@ -429,7 +431,7 @@ export const miraToolDefinitions = {
     description:
       'Get upcoming calendar events for the next N days. Events are automatically decrypted if E2EE is enabled.',
     inputSchema: z.object({
-      days: z
+      num_days: z
         .number()
         .int()
         .min(1)
@@ -802,6 +804,13 @@ export const miraToolDefinitions = {
     }),
   }),
 
+  // ── Generative UI (json-render) ──
+  render_ui: tool({
+    description:
+      'Generate an interactive, actionable UI component or widget using json-render instead of plain text. Use this when the user asks for a dashboard, a form, or when it would significantly improve the user experience. You MUST output a JSON object matching the schema exactly.',
+    inputSchema: dashboardCatalog.zodSchema(),
+  }),
+
   // ── Workspace ──
   list_workspace_members: tool({
     description: 'List all members of the current workspace with their roles.',
@@ -998,6 +1007,12 @@ export async function executeMiraTool(
     // Appearance
     case 'set_theme':
       return executeSetTheme(args, ctx);
+
+    // Generative UI
+    case 'render_ui':
+      // The model generates the UI spec according to the json-render catalog.
+      // We return it as is, so the client can render it natively.
+      return { spec: args };
 
     // Workspace
     case 'list_workspace_members':
