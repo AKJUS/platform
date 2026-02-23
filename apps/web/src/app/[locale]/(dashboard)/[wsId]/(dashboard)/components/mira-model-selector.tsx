@@ -198,6 +198,7 @@ export default function MiraModelSelector({
   const [favoritesOnly, setFavoritesOnly] = useState(false);
   const [pendingModelId, setPendingModelId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [accordionValue, setAccordionValue] = useState<string[]>([]);
   const deferredOpen = useDeferredValue(open);
   const hasAppliedInitialFavoritesView = useRef(false);
 
@@ -461,6 +462,29 @@ export default function MiraModelSelector({
     isFavorited,
   ]);
 
+  useEffect(() => {
+    if (!deferredOpen || modelsToRender.length === 0) {
+      setAccordionValue([]);
+      return;
+    }
+
+    // When there is only a single section (e.g. Favorites, a single provider),
+    // automatically expand that section.
+    if (modelsToRender.length === 1) {
+      const onlyProvider = modelsToRender[0]?.provider;
+      if (onlyProvider) {
+        setAccordionValue([onlyProvider]);
+        return;
+      }
+    }
+
+    // Preserve previous behavior of initially expanding all sections when the
+    // list first becomes available and the user hasn't interacted yet.
+    if (accordionValue.length === 0) {
+      setAccordionValue(modelsToRender.map((g) => g.provider));
+    }
+  }, [deferredOpen, modelsToRender, accordionValue.length]);
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -635,7 +659,12 @@ export default function MiraModelSelector({
                     <CommandList className="max-h-none border-0">
                       <Accordion
                         type="multiple"
-                        defaultValue={modelsToRender.map((g) => g.provider)}
+                        value={accordionValue}
+                        onValueChange={(val) =>
+                          setAccordionValue(
+                            Array.isArray(val) ? val : val ? [val] : []
+                          )
+                        }
                         className="w-full"
                       >
                         {modelsToRender.map(

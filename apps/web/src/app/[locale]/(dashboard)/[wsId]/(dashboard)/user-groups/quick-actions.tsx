@@ -14,7 +14,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getTranslations } from 'next-intl/server';
 
-const FORCE_SHOW_IN_DEV = true;
+const FORCE_SHOW_IN_DEV = false;
 
 interface UserGroupQuickActionsProps {
   wsId: string;
