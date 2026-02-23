@@ -155,14 +155,16 @@ class _TimeTrackerViewState extends State<_TimeTrackerView> {
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: shad.Tabs(
-                  index: _index,
-                  onChanged: (index) => setState(() => _index = index),
-                  children: [
-                    shad.TabItem(child: Text(l10n.navTimer)),
-                    shad.TabItem(child: Text(l10n.timerHistory)),
-                    shad.TabItem(child: Text(l10n.timerStatsTitle)),
-                  ],
+                child: Center(
+                  child: shad.Tabs(
+                    index: _index,
+                    onChanged: (index) => setState(() => _index = index),
+                    children: [
+                      shad.TabItem(child: Text(l10n.navTimer)),
+                      shad.TabItem(child: Text(l10n.timerHistory)),
+                      shad.TabItem(child: Text(l10n.timerStatsTitle)),
+                    ],
+                  ),
                 ),
               ),
             ],

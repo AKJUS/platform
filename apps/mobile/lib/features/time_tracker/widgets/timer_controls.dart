@@ -93,7 +93,7 @@ class TimerControls extends StatelessWidget {
         ),
         if (!isRunning && !isPaused) ...[
           const shad.Gap(16),
-          shad.GhostButton(
+          shad.OutlineButton(
             onPressed: onAddMissedEntry,
             child: Row(
               mainAxisSize: MainAxisSize.min,
