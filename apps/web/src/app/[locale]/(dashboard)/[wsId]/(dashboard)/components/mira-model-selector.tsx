@@ -38,7 +38,14 @@ import {
 import { cn } from '@tuturuuu/utils/format';
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { useCallback, useDeferredValue, useMemo, useState } from 'react';
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { ProviderLogo } from './provider-logo';
 
 const EMPTY_FAVORITES = new Set<string>();
@@ -100,21 +107,31 @@ async function toggleFavorite(
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return;
+  if (!user) {
+    throw new Error('Authentication required');
+  }
 
   if (isFavorited) {
-    await supabase
+    const { error } = await supabase
       .from('ai_model_favorites')
       .delete()
       .eq('ws_id', wsId)
       .eq('user_id', user.id)
       .eq('model_id', modelId);
+
+    if (error) {
+      throw new Error(error.message || 'Failed to update favorites');
+    }
   } else {
-    await supabase.from('ai_model_favorites').insert({
+    const { error } = await supabase.from('ai_model_favorites').insert({
       ws_id: wsId,
       user_id: user.id,
       model_id: modelId,
     });
+
+    if (error) {
+      throw new Error(error.message || 'Failed to update favorites');
+    }
   }
 }
 
@@ -148,9 +165,11 @@ export default function MiraModelSelector({
   const [open, setOpen] = useState(false);
   const [hideLockedModels, setHideLockedModels] = useState(false);
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
-  const [favoritesOnly, setFavoritesOnly] = useState(true);
+  const [favoritesOnly, setFavoritesOnly] = useState(false);
+  const [pendingModelId, setPendingModelId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const deferredOpen = useDeferredValue(open);
+  const hasAppliedInitialFavoritesView = useRef(false);
 
   const { data: gatewayModels, isLoading: modelsLoading } = useQuery({
     queryKey: ['ai-gateway-models', 'enabled'],
@@ -158,12 +177,27 @@ export default function MiraModelSelector({
     staleTime: 5 * 60 * 1000,
   });
 
-  const { data: favoriteIds } = useQuery({
+  const { data: favoriteIds, isLoading: favoritesLoading } = useQuery({
     queryKey: ['ai-model-favorites', wsId],
     queryFn: () => fetchFavorites(wsId),
     enabled: !!wsId,
     staleTime: 60 * 1000,
   });
+
+  const hasFavorites =
+    !favoritesLoading && !!favoriteIds && favoriteIds.size > 0;
+
+  useEffect(() => {
+    if (!deferredOpen) {
+      hasAppliedInitialFavoritesView.current = false;
+      return;
+    }
+    if (hasAppliedInitialFavoritesView.current) return;
+    if (favoritesLoading) return;
+
+    setFavoritesOnly(hasFavorites);
+    hasAppliedInitialFavoritesView.current = true;
+  }, [deferredOpen, favoritesLoading, hasFavorites]);
 
   const toggleFavoriteMutation = useMutation({
     mutationFn: ({
@@ -181,6 +215,13 @@ export default function MiraModelSelector({
         : t('model_added_to_favorites', { model: modelLabel });
       toast.success(message);
     },
+    onError: (error, { modelId, modelLabel, isFavorited }) => {
+      queryClient.invalidateQueries({ queryKey: ['ai-model-favorites', wsId] });
+      const action = isFavorited ? t('model_unfavorite') : t('model_favorite');
+      const fallbackMessage = `${t('error')} (${action}: ${modelLabel} - ${modelId})`;
+      const details = error instanceof Error ? error.message : '';
+      toast.error(details ? `${fallbackMessage}: ${details}` : fallbackMessage);
+    },
   });
 
   const isFavorited = useCallback(
@@ -192,11 +233,18 @@ export default function MiraModelSelector({
     (e: React.MouseEvent, modelId: string, modelLabel: string) => {
       e.stopPropagation();
       const favorited = isFavorited(modelId);
-      toggleFavoriteMutation.mutate({
-        modelId,
-        modelLabel,
-        isFavorited: favorited,
-      });
+      setPendingModelId(modelId);
+      toggleFavoriteMutation.mutate(
+        {
+          modelId,
+          modelLabel,
+          isFavorited: favorited,
+        },
+        {
+          onSuccess: () => setPendingModelId(null),
+          onError: () => setPendingModelId(null),
+        }
+      );
     },
     [isFavorited, toggleFavoriteMutation]
   );
@@ -303,11 +351,9 @@ export default function MiraModelSelector({
 
     if (favoritesOnly) {
       // Favorites: show ALL favorited models across all providers in one group
-      let models: Model[] = [];
-      for (const provider of Object.keys(groupedModels)) {
-        models = models.concat(groupedModels[provider] ?? []);
-      }
-      models = models.filter((m) => isFavorited(m.value));
+      let models = Object.keys(groupedModels)
+        .flatMap((key) => groupedModels[key] ?? [])
+        .filter((m) => isFavorited(m.value));
 
       if (hideLockedModels) {
         models = models.filter((m) => isModelAllowed(m.value));
@@ -559,9 +605,7 @@ export default function MiraModelSelector({
                                             m.label
                                           )
                                         }
-                                        disabled={
-                                          toggleFavoriteMutation.isPending
-                                        }
+                                        disabled={pendingModelId === m.value}
                                         aria-label={
                                           favorited
                                             ? t('model_unfavorite')
