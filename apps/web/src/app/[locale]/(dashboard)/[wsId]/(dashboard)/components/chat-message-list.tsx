@@ -15,6 +15,7 @@ import {
   ClipboardCopy,
   ClipboardList,
   Loader2,
+  Paperclip,
   Sparkles,
   UserIcon,
 } from '@tuturuuu/icons';
@@ -23,6 +24,8 @@ import { Dialog, DialogContent, DialogTitle } from '@tuturuuu/ui/dialog';
 import { cn } from '@tuturuuu/utils/format';
 import { getToolName, isToolUIPart } from 'ai';
 import { registry } from '@/components/json-render/dashboard-registry';
+import type { MessageFileAttachment } from './file-preview-chips';
+import { MessageFileAttachments } from './file-preview-chips';
 import 'katex/dist/katex.min.css';
 import { useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
@@ -45,6 +48,8 @@ interface ChatMessageListProps {
   userAvatarUrl?: string | null;
   /** Optional ref for the scrollable container (e.g. for scroll-based UI) */
   scrollContainerRef?: React.RefObject<HTMLDivElement | null>;
+  /** File attachment metadata keyed by message ID, rendered inline in user bubbles. */
+  messageAttachments?: Map<string, MessageFileAttachment[]>;
 }
 
 const plugins = { code, mermaid, math, cjk };
@@ -91,6 +96,22 @@ function getMessageText(message: UIMessage): string {
       .map((p) => p.text)
       .join('') || ''
   );
+}
+
+/** Auto-generated placeholder texts inserted for file-only messages so the AI
+ *  route still triggers. These should be hidden in the UI when attachments are
+ *  present, since they carry no user-authored content. */
+const FILE_ONLY_PLACEHOLDERS = new Set([
+  'Please analyze the attached file(s).',
+  'Please analyze the attached file(s)',
+]);
+
+/** Like `getMessageText`, but strips auto-generated placeholder text that was
+ *  injected for file-only messages. Use this for user-facing display. */
+function getDisplayText(message: UIMessage): string {
+  const raw = getMessageText(message);
+  if (FILE_ONLY_PLACEHOLDERS.has(raw.trim())) return '';
+  return raw;
 }
 
 type ToolPartData = { type: string; [key: string]: unknown };
@@ -973,12 +994,59 @@ function UserMessage({ text }: { text: string }) {
   );
 }
 
+/** Renders a user message with media attachments (images, videos, PDFs, files)
+ *  above the text. MessageFileAttachments handles internal categorisation and
+ *  renders each type with the appropriate component (gallery, player, card, chip).
+ *  File-only messages (no real text) get a compact visual treatment. */
+function UserMessageContent({
+  message,
+  attachments,
+}: {
+  message: UIMessage;
+  attachments?: MessageFileAttachment[];
+}) {
+  const displayText = getDisplayText(message);
+  const hasDisplayText = displayText.trim().length > 0;
+  const hasAttachments = (attachments?.length ?? 0) > 0;
+
+  // File-only message (no text): show attachments + a compact indicator
+  if (!hasDisplayText && hasAttachments) {
+    return (
+      <>
+        <MessageFileAttachments attachments={attachments!} invertColors />
+        <div className="flex items-center gap-1.5 px-0.5 text-background/60">
+          <Paperclip className="h-3 w-3" />
+          <span className="text-[11px]">
+            {attachments!.length} file{attachments!.length > 1 ? 's' : ''}{' '}
+            attached
+          </span>
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <>
+      {/* All attachments — images, videos, PDFs, other files */}
+      {hasAttachments && (
+        <div className="mb-1.5">
+          <MessageFileAttachments attachments={attachments!} invertColors />
+        </div>
+      )}
+
+      {/* Text content */}
+      {hasDisplayText && <UserMessage text={displayText} />}
+    </>
+  );
+}
+
 export default function ChatMessageList({
   messages,
   isStreaming,
   assistantName,
   userAvatarUrl,
   scrollContainerRef,
+  messageAttachments,
 }: ChatMessageListProps) {
   const t = useTranslations('dashboard.mira_chat');
 
@@ -1026,10 +1094,14 @@ export default function ChatMessageList({
       {messages.map((message, index) => {
         const isUser = message.role === 'user';
         const hasText = hasTextContent(message);
+        const displayText = isUser ? getDisplayText(message) : '';
+        const hasDisplayText = isUser ? displayText.trim().length > 0 : hasText;
         const hasTools = !isUser && hasToolParts(message);
+        const hasAttachments =
+          isUser && (messageAttachments?.get(message.id)?.length ?? 0) > 0;
 
         // Skip messages with no renderable content
-        if (!hasText && !hasTools) return null;
+        if (!hasDisplayText && !hasTools && !hasAttachments) return null;
 
         const isLastAssistant = index === lastAssistantIndex;
 
@@ -1037,7 +1109,9 @@ export default function ChatMessageList({
         const prevMessage = messages[index - 1];
         const isContinuation = prevMessage?.role === message.role;
 
-        const messageText = getMessageText(message);
+        const messageText = isUser
+          ? getDisplayText(message)
+          : getMessageText(message);
 
         return (
           <div
@@ -1114,7 +1188,10 @@ export default function ChatMessageList({
                   )}
                 >
                   {isUser ? (
-                    <UserMessage text={messageText} />
+                    <UserMessageContent
+                      message={message}
+                      attachments={messageAttachments?.get(message.id)}
+                    />
                   ) : (
                     <div className="flex min-w-0 max-w-full flex-col gap-2 overflow-hidden *:min-w-0 *:max-w-full">
                       {(() => {
@@ -1180,8 +1257,8 @@ export default function ChatMessageList({
                   )}
                 </div>
 
-                {/* Copy button — appears on hover */}
-                {hasText && messageText.trim() && (
+                {/* Copy button — appears on hover (hide for file-only messages) */}
+                {hasDisplayText && messageText.trim() && (
                   <CopyButton text={messageText} />
                 )}
               </div>
