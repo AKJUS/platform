@@ -315,6 +315,8 @@
     "profileRemoveAvatar": "Remove avatar",
     "profileRemoveConfirm": "Remove avatar?",
     "profileAccountStatus": "Account status",
+    "profileStatus": "Status",
+    "profileVerification": "Verification",
     "profileActive": "Active",
     "profileVerified": "Verified",
     "profileMemberSince": "Member since",

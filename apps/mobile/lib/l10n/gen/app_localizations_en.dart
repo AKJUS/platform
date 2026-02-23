@@ -782,6 +782,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profileAccountStatus => 'Account status';
 
   @override
+  String get profileStatus => 'Status';
+
+  @override
+  String get profileVerification => 'Verification';
+
+  @override
   String get profileActive => 'Active';
 
   @override

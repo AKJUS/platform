@@ -315,6 +315,8 @@
     "profileRemoveAvatar": "Xóa ảnh đại diện",
     "profileRemoveConfirm": "Xóa ảnh đại diện?",
     "profileAccountStatus": "Trạng thái tài khoản",
+    "profileStatus": "Trạng thái",
+    "profileVerification": "Xác minh",
     "profileActive": "Hoạt động",
     "profileVerified": "Đã xác thực",
     "profileMemberSince": "Thành viên từ",

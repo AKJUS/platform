@@ -782,6 +782,12 @@ class AppLocalizationsVi extends AppLocalizations {
   String get profileAccountStatus => 'Trạng thái tài khoản';
 
   @override
+  String get profileStatus => 'Trạng thái';
+
+  @override
+  String get profileVerification => 'Xác minh';
+
+  @override
   String get profileActive => 'Hoạt động';
 
   @override

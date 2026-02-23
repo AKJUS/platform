@@ -163,10 +163,11 @@ class _AvatarSection extends StatelessWidget {
                     opacity: state.isLoading ? 0.5 : 1.0,
                     child: CircleAvatar(
                       radius: 48,
-                      backgroundImage: avatarUrl != null
+                      backgroundImage:
+                          (avatarUrl != null && avatarUrl!.isNotEmpty)
                           ? NetworkImage(avatarUrl!)
                           : null,
-                      child: avatarUrl == null
+                      child: (avatarUrl ?? '').isEmpty
                           ? Text(
                               _getInitials(),
                               style: theme.typography.h2,
@@ -367,7 +368,7 @@ class _AccountStatusCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Status',
+                      l10n.profileStatus,
                       style: theme.typography.textMuted,
                     ),
                     Text(
@@ -382,7 +383,7 @@ class _AccountStatusCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Verification',
+                      l10n.profileVerification,
                       style: theme.typography.textMuted,
                     ),
                     Text(

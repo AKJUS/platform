@@ -1609,6 +1609,18 @@ abstract class AppLocalizations {
   /// **'Account status'**
   String get profileAccountStatus;
 
+  /// No description provided for @profileStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get profileStatus;
+
+  /// No description provided for @profileVerification.
+  ///
+  /// In en, this message translates to:
+  /// **'Verification'**
+  String get profileVerification;
+
   /// No description provided for @profileActive.
   ///
   /// In en, this message translates to:

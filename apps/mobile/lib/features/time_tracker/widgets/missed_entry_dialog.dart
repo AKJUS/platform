@@ -444,6 +444,7 @@ class _MissedEntryDialogState extends State<MissedEntryDialog> {
         source: ImageSource.camera,
         imageQuality: 85,
       );
+      if (!mounted) return;
       if (image != null && _images.length < _maxImages) {
         setState(() {
           _images.add(image);
@@ -453,6 +454,7 @@ class _MissedEntryDialogState extends State<MissedEntryDialog> {
     }
 
     final images = await _picker.pickMultiImage();
+    if (!mounted) return;
     if (images.isEmpty) {
       return;
     }
