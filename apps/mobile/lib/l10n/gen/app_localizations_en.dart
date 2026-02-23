@@ -651,6 +651,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String get timerProofOfWorkRequired => 'At least one proof image is required.';
 
   @override
+  String get timerRequestsThresholdTitle => 'Request threshold settings';
+
+  @override
+  String get timerRequestsThresholdDescription => 'Choose when missed entries should require approval.';
+
+  @override
+  String get timerRequestsThresholdNoApproval => 'No approval needed';
+
+  @override
+  String get timerRequestsThresholdNoApprovalHint => 'Missed entries can be added directly without sending a request.';
+
+  @override
+  String get timerRequestsThresholdLabel => 'Threshold (days)';
+
+  @override
+  String get timerRequestsThresholdHelp => 'Entries older than this number of days must be submitted for approval.';
+
+  @override
+  String get timerRequestsThresholdInvalid => 'Enter a whole number greater than or equal to 0.';
+
+  @override
+  String get timerRequestsThresholdUpdated => 'Request threshold updated.';
+
+  @override
   String get timerAutoStartBreaks => 'Auto-start breaks';
 
   @override

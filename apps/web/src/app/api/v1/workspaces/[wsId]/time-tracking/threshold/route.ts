@@ -25,7 +25,7 @@ const UpdateThresholdSchema = z.object({
 export async function PUT(req: NextRequest, { params }: Params) {
   try {
     const { wsId } = await params;
-    const supabase = await createClient();
+    const supabase = await createClient(req);
 
     // Get authenticated user
     const {
@@ -51,7 +51,9 @@ export async function PUT(req: NextRequest, { params }: Params) {
       );
     }
 
+    console.log(wsId)
     const permissions = await getPermissions({ wsId });
+    console.log('User permissions for workspace:', permissions);
     if (!permissions) {
       return Response.json({ error: 'Not found' }, { status: 404 });
     }

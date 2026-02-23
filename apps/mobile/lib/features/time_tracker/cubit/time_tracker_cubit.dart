@@ -284,6 +284,7 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
     required DateTime endTime,
     String? categoryId,
     String? description,
+    bool throwOnError = false,
   }) async {
     try {
       await _repo.createMissedEntry(
@@ -308,6 +309,9 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
       );
     } on Exception catch (e) {
       emit(state.copyWith(error: e.toString()));
+      if (throwOnError) {
+        rethrow;
+      }
     }
   }
 
@@ -320,6 +324,7 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
     String? categoryId,
     String? description,
     List<String>? imagePaths,
+    bool throwOnError = false,
   }) async {
     try {
       await _repo.createRequest(
@@ -346,10 +351,17 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
       );
     } on Exception catch (e) {
       emit(state.copyWith(error: e.toString()));
+      if (throwOnError) {
+        rethrow;
+      }
     }
   }
 
-  Future<void> discardRunningSession(String wsId, String userId) async {
+  Future<void> discardRunningSession(
+    String wsId,
+    String userId, {
+    bool throwOnError = false,
+  }) async {
     if (state.runningSession == null) {
       return;
     }
@@ -376,6 +388,9 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
       );
     } on Exception catch (e) {
       emit(state.copyWith(error: e.toString()));
+      if (throwOnError) {
+        rethrow;
+      }
     }
   }
 

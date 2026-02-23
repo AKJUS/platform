@@ -1351,6 +1351,54 @@ abstract class AppLocalizations {
   /// **'At least one proof image is required.'**
   String get timerProofOfWorkRequired;
 
+  /// No description provided for @timerRequestsThresholdTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Request threshold settings'**
+  String get timerRequestsThresholdTitle;
+
+  /// No description provided for @timerRequestsThresholdDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose when missed entries should require approval.'**
+  String get timerRequestsThresholdDescription;
+
+  /// No description provided for @timerRequestsThresholdNoApproval.
+  ///
+  /// In en, this message translates to:
+  /// **'No approval needed'**
+  String get timerRequestsThresholdNoApproval;
+
+  /// No description provided for @timerRequestsThresholdNoApprovalHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Missed entries can be added directly without sending a request.'**
+  String get timerRequestsThresholdNoApprovalHint;
+
+  /// No description provided for @timerRequestsThresholdLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Threshold (days)'**
+  String get timerRequestsThresholdLabel;
+
+  /// No description provided for @timerRequestsThresholdHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Entries older than this number of days must be submitted for approval.'**
+  String get timerRequestsThresholdHelp;
+
+  /// No description provided for @timerRequestsThresholdInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a whole number greater than or equal to 0.'**
+  String get timerRequestsThresholdInvalid;
+
+  /// No description provided for @timerRequestsThresholdUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Request threshold updated.'**
+  String get timerRequestsThresholdUpdated;
+
   /// No description provided for @timerAutoStartBreaks.
   ///
   /// In en, this message translates to:

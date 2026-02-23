@@ -104,6 +104,8 @@ abstract class ITimeTrackerRepository {
 
   Future<WorkspaceSettings?> getWorkspaceSettings(String wsId);
 
+  Future<void> updateMissedEntryDateThreshold(String wsId, int? threshold);
+
   Future<TimeTrackingRequest> updateRequestStatus(
     String wsId,
     String requestId, {
@@ -203,6 +205,8 @@ class TimeTrackerRepository implements ITimeTrackerRepository {
     if (parts.length != 2) return null;
     return MediaType(parts[0], parts[1]);
   }
+
+  String _toApiIso(DateTime value) => value.toUtc().toIso8601String();
 
   @override
   Future<List<TimeTrackingSession>> getSessions(
@@ -325,8 +329,8 @@ class TimeTrackerRepository implements ITimeTrackerRepository {
     if (description != null) body['description'] = description;
     if (categoryId != null) body['categoryId'] = categoryId;
     if (taskId != null) body['taskId'] = taskId;
-    if (startTime != null) body['startTime'] = startTime.toIso8601String();
-    if (endTime != null) body['endTime'] = endTime.toIso8601String();
+    if (startTime != null) body['startTime'] = _toApiIso(startTime);
+    if (endTime != null) body['endTime'] = _toApiIso(endTime);
 
     final data = await _api.patchJson(
       '/api/v1/workspaces/$wsId/time-tracking/sessions/$sessionId',
@@ -358,8 +362,8 @@ class TimeTrackerRepository implements ITimeTrackerRepository {
       '/api/v1/workspaces/$wsId/time-tracking/sessions',
       {
         'title': title,
-        'startTime': startTime.toIso8601String(),
-        'endTime': endTime.toIso8601String(),
+        'startTime': _toApiIso(startTime),
+        'endTime': _toApiIso(endTime),
         if (categoryId != null) 'categoryId': categoryId,
         if (description != null) 'description': description,
       },
@@ -482,8 +486,8 @@ class TimeTrackerRepository implements ITimeTrackerRepository {
               'title': title,
               if (description != null) 'description': description,
               if (categoryId != null) 'categoryId': categoryId,
-              if (startTime != null) 'startTime': startTime.toIso8601String(),
-              if (endTime != null) 'endTime': endTime.toIso8601String(),
+              if (startTime != null) 'startTime': _toApiIso(startTime),
+              if (endTime != null) 'endTime': _toApiIso(endTime),
             },
             files: uploadImagePaths
                 .asMap()
@@ -503,8 +507,8 @@ class TimeTrackerRepository implements ITimeTrackerRepository {
               'title': title,
               if (description != null) 'description': description,
               if (categoryId != null) 'categoryId': categoryId,
-              if (startTime != null) 'startTime': startTime.toIso8601String(),
-              if (endTime != null) 'endTime': endTime.toIso8601String(),
+              if (startTime != null) 'startTime': _toApiIso(startTime),
+              if (endTime != null) 'endTime': _toApiIso(endTime),
             },
           );
 
@@ -520,6 +524,16 @@ class TimeTrackerRepository implements ITimeTrackerRepository {
       return null;
     }
     return WorkspaceSettings.fromJson(data);
+  }
+
+  @override
+  Future<void> updateMissedEntryDateThreshold(
+    String wsId,
+    int? threshold,
+  ) async {
+    await _api.putJson('/api/v1/workspaces/$wsId/time-tracking/threshold', {
+      'threshold': threshold,
+    });
   }
 
   @override
@@ -602,8 +616,8 @@ class TimeTrackerRepository implements ITimeTrackerRepository {
   }) async {
     final fields = <String, String>{
       'title': title,
-      'startTime': startTime.toIso8601String(),
-      'endTime': endTime.toIso8601String(),
+      'startTime': _toApiIso(startTime),
+      'endTime': _toApiIso(endTime),
       if (description != null) 'description': description,
       if (removedImages != null && removedImages.isNotEmpty)
         'removedImages': jsonEncode(removedImages),

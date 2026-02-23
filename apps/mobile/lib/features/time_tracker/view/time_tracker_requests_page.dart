@@ -14,6 +14,7 @@ import 'package:mobile/features/auth/cubit/auth_cubit.dart';
 import 'package:mobile/features/time_tracker/cubit/time_tracker_requests_cubit.dart';
 import 'package:mobile/features/time_tracker/cubit/time_tracker_requests_state.dart';
 import 'package:mobile/features/time_tracker/widgets/request_detail_sheet.dart';
+import 'package:mobile/features/time_tracker/widgets/threshold_settings_dialog.dart';
 import 'package:mobile/features/workspace/cubit/workspace_cubit.dart';
 import 'package:mobile/l10n/l10n.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
@@ -61,6 +62,9 @@ class _RequestsViewState extends State<_RequestsView> {
       WorkspacePermissionsRepository();
   String? _permissionsWorkspaceId;
   bool _canManageRequests = false;
+  bool _canManageThresholdSettings = false;
+  int? _missedEntryDateThreshold;
+  bool _isThresholdLoading = false;
 
   @override
   void didChangeDependencies() {
@@ -72,7 +76,7 @@ class _RequestsViewState extends State<_RequestsView> {
     }
 
     _permissionsWorkspaceId = wsId;
-    unawaited(_loadManageRequestsPermission());
+    unawaited(_loadPermissionsAndThreshold());
   }
 
   @override
@@ -92,6 +96,21 @@ class _RequestsViewState extends State<_RequestsView> {
             ),
           ],
           title: Text(l10n.timerRequestsTitle),
+          trailing: [
+            if (_canManageThresholdSettings)
+              shad.IconButton.ghost(
+                onPressed: _isThresholdLoading
+                    ? null
+                    : () => unawaited(_showThresholdSettingsDialog()),
+                icon: _isThresholdLoading
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: shad.CircularProgressIndicator(),
+                      )
+                    : const Icon(Icons.settings_outlined),
+              ),
+          ],
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 4),
@@ -224,28 +243,95 @@ class _RequestsViewState extends State<_RequestsView> {
     );
   }
 
-  Future<void> _loadManageRequestsPermission() async {
-    final wsId = context.read<WorkspaceCubit>().state.currentWorkspace?.id;
+  Future<void> _loadPermissionsAndThreshold() async {
+    final workspace = context.read<WorkspaceCubit>().state.currentWorkspace;
+    final wsId = workspace?.id;
     final currentUserId = context.read<AuthCubit>().state.user?.id;
 
     if (wsId == null || wsId.isEmpty || currentUserId == null) {
       if (!mounted) {
         return;
       }
-      setState(() => _canManageRequests = false);
+      setState(() {
+        _canManageRequests = false;
+        _canManageThresholdSettings = false;
+        _missedEntryDateThreshold = null;
+        _isThresholdLoading = false;
+      });
       return;
     }
+
+    if (mounted) {
+      setState(() => _isThresholdLoading = true);
+    }
+
+    final repository = context.read<ITimeTrackerRepository>();
 
     final workspacePermissions = await _workspacePermissionsRepository
         .getPermissions(wsId: wsId, userId: currentUserId);
     final canManageRequests = workspacePermissions.containsPermission(
       manageTimeTrackingRequestsPermission,
     );
+    final canManageWorkspaceSettings = workspacePermissions.containsPermission(
+      manageWorkspaceSettingsPermission,
+    );
+    final canManageThresholdSettings =
+        !workspace!.personal && canManageRequests && canManageWorkspaceSettings;
+
+    int? threshold;
+    if (canManageThresholdSettings) {
+      try {
+        final settings = await repository.getWorkspaceSettings(wsId);
+        threshold = settings?.missedEntryDateThreshold;
+      } on Exception {
+        threshold = null;
+      }
+    }
 
     if (!mounted) {
       return;
     }
-    setState(() => _canManageRequests = canManageRequests);
+    setState(() {
+      _canManageRequests = canManageRequests;
+      _canManageThresholdSettings = canManageThresholdSettings;
+      _missedEntryDateThreshold = threshold;
+      _isThresholdLoading = false;
+    });
+  }
+
+  Future<void> _showThresholdSettingsDialog() async {
+    final wsId = _permissionsWorkspaceId;
+    if (wsId == null || wsId.isEmpty || !mounted) {
+      return;
+    }
+
+    await shad.showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return ThresholdSettingsDialog(
+          currentThreshold: _missedEntryDateThreshold,
+          onSave: (threshold) async {
+            await context
+                .read<ITimeTrackerRepository>()
+                .updateMissedEntryDateThreshold(
+                  wsId,
+                  threshold,
+                );
+
+            if (!mounted) {
+              return;
+            }
+
+            setState(() => _missedEntryDateThreshold = threshold);
+            ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+              SnackBar(
+                content: Text(context.l10n.timerRequestsThresholdUpdated),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   void _showRequestDetail(BuildContext context, TimeTrackingRequest request) {

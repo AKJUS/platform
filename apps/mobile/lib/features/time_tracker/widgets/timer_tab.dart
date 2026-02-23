@@ -270,31 +270,9 @@ class TimerTab extends StatelessWidget {
               required imagePaths,
               categoryId,
               description,
-            }) {
+            }) async {
               if (shouldSubmitAsRequest) {
-                unawaited(
-                  cubit
-                      .createMissedEntryAsRequest(
-                        wsId,
-                        userId,
-                        title: title,
-                        categoryId: categoryId,
-                        startTime: startTime,
-                        endTime: endTime,
-                        description: description,
-                        imagePaths: imagePaths,
-                      )
-                      .then((_) async {
-                        if (discardRunningSessionOnSave) {
-                          await cubit.discardRunningSession(wsId, userId);
-                        }
-                      }),
-                );
-                return;
-              }
-
-              unawaited(
-                cubit.createMissedEntry(
+                await cubit.createMissedEntryAsRequest(
                   wsId,
                   userId,
                   title: title,
@@ -302,7 +280,30 @@ class TimerTab extends StatelessWidget {
                   startTime: startTime,
                   endTime: endTime,
                   description: description,
-                ),
+                  imagePaths: imagePaths,
+                  throwOnError: true,
+                );
+
+                if (discardRunningSessionOnSave) {
+                  await cubit.discardRunningSession(
+                    wsId,
+                    userId,
+                    throwOnError: true,
+                  );
+                }
+
+                return;
+              }
+
+              await cubit.createMissedEntry(
+                wsId,
+                userId,
+                title: title,
+                categoryId: categoryId,
+                startTime: startTime,
+                endTime: endTime,
+                description: description,
+                throwOnError: true,
               );
             },
       ),

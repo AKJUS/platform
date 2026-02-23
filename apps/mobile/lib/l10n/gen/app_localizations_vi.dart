@@ -651,6 +651,30 @@ class AppLocalizationsVi extends AppLocalizations {
   String get timerProofOfWorkRequired => 'Cần ít nhất một ảnh minh chứng.';
 
   @override
+  String get timerRequestsThresholdTitle => 'Cài đặt ngưỡng yêu cầu';
+
+  @override
+  String get timerRequestsThresholdDescription => 'Chọn thời điểm mục bị thiếu cần gửi yêu cầu duyệt.';
+
+  @override
+  String get timerRequestsThresholdNoApproval => 'Không cần duyệt';
+
+  @override
+  String get timerRequestsThresholdNoApprovalHint => 'Có thể thêm mục bị thiếu trực tiếp mà không cần gửi yêu cầu.';
+
+  @override
+  String get timerRequestsThresholdLabel => 'Ngưỡng (ngày)';
+
+  @override
+  String get timerRequestsThresholdHelp => 'Các mục cũ hơn số ngày này phải gửi yêu cầu để được duyệt.';
+
+  @override
+  String get timerRequestsThresholdInvalid => 'Nhập số nguyên lớn hơn hoặc bằng 0.';
+
+  @override
+  String get timerRequestsThresholdUpdated => 'Đã cập nhật ngưỡng yêu cầu.';
+
+  @override
   String get timerAutoStartBreaks => 'Tự động bắt đầu nghỉ';
 
   @override
