@@ -1354,7 +1354,7 @@ abstract class AppLocalizations {
   /// No description provided for @timerThresholdWarning.
   ///
   /// In en, this message translates to:
-  /// **'Entries older than {days} day(s) require approval. Add at least one proof image before submitting.'**
+  /// **'Entries older than {days, plural, =1{1 day} other{{days} days}} require approval. Add at least one proof image before submitting.'**
   String timerThresholdWarning(int days);
 
   /// No description provided for @timerProofOfWorkRequired.
@@ -1651,6 +1651,12 @@ abstract class AppLocalizations {
   /// **'Your display name'**
   String get profileDisplayNameHint;
 
+  /// No description provided for @profileDisplayNameRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Display name cannot be empty'**
+  String get profileDisplayNameRequired;
+
   /// No description provided for @profileFullName.
   ///
   /// In en, this message translates to:
@@ -1663,6 +1669,12 @@ abstract class AppLocalizations {
   /// **'Your full name'**
   String get profileFullNameHint;
 
+  /// No description provided for @profileFullNameRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Full name cannot be empty'**
+  String get profileFullNameRequired;
+
   /// No description provided for @profileEmail.
   ///
   /// In en, this message translates to:
@@ -1674,6 +1686,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'example@tuturuuu.com'**
   String get profileEmailHint;
+
+  /// No description provided for @profileInvalidEmail.
+  ///
+  /// In en, this message translates to:
+  /// **'Please enter a valid email address'**
+  String get profileInvalidEmail;
 
   /// No description provided for @profileCurrentEmail.
   ///

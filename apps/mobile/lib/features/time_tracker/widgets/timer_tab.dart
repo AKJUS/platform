@@ -137,32 +137,24 @@ class TimerTab extends StatelessWidget {
     String wsId,
     String userId,
   ) async {
-    final runningSession = cubit.state.runningSession;
-    if (runningSession != null &&
-        cubit.sessionExceedsThreshold(runningSession)) {
-      final action = await _showExceededSessionActionDialog(context);
-      if (!context.mounted || action == null) {
-        return;
-      }
-
-      if (action == _ExceededSessionAction.discard) {
-        await cubit.discardRunningSession(wsId, userId);
-        return;
-      }
-
-      _showMissedEntryDialog(
-        context,
-        initialStartTime: runningSession.startTime,
-        initialEndTime: DateTime.now(),
-        initialTitle: runningSession.title,
-        initialDescription: runningSession.description,
-        initialCategoryId: runningSession.categoryId,
-        discardRunningSessionOnSave: true,
-      );
+    final shouldContinue = await _handleThresholdAndMaybeShowMissedEntry(
+      context,
+      cubit,
+      wsId,
+      userId,
+    );
+    if (!shouldContinue) {
       return;
     }
 
-    await cubit.stopSession(wsId, userId);
+    try {
+      await cubit.stopSession(wsId, userId);
+    } on Exception catch (error) {
+      if (!context.mounted) {
+        return;
+      }
+      _showActionError(context, error);
+    }
   }
 
   Future<void> _handlePause(
@@ -171,32 +163,75 @@ class TimerTab extends StatelessWidget {
     String wsId,
     String userId,
   ) async {
-    final runningSession = cubit.state.runningSession;
-    if (runningSession != null &&
-        cubit.sessionExceedsThreshold(runningSession)) {
-      final action = await _showExceededSessionActionDialog(context);
-      if (!context.mounted || action == null) {
-        return;
-      }
-
-      if (action == _ExceededSessionAction.discard) {
-        await cubit.discardRunningSession(wsId, userId);
-        return;
-      }
-
-      _showMissedEntryDialog(
-        context,
-        initialStartTime: runningSession.startTime,
-        initialEndTime: DateTime.now(),
-        initialTitle: runningSession.title,
-        initialDescription: runningSession.description,
-        initialCategoryId: runningSession.categoryId,
-        discardRunningSessionOnSave: true,
-      );
+    final shouldContinue = await _handleThresholdAndMaybeShowMissedEntry(
+      context,
+      cubit,
+      wsId,
+      userId,
+    );
+    if (!shouldContinue) {
       return;
     }
 
-    await cubit.pauseSession();
+    try {
+      await cubit.pauseSession();
+    } on Exception catch (error) {
+      if (!context.mounted) {
+        return;
+      }
+      _showActionError(context, error);
+    }
+  }
+
+  Future<bool> _handleThresholdAndMaybeShowMissedEntry(
+    BuildContext context,
+    TimeTrackerCubit cubit,
+    String wsId,
+    String userId,
+  ) async {
+    final runningSession = cubit.state.runningSession;
+    if (runningSession == null ||
+        !cubit.sessionExceedsThreshold(runningSession)) {
+      return true;
+    }
+
+    final action = await _showExceededSessionActionDialog(context);
+    if (!context.mounted || action == null) {
+      return false;
+    }
+
+    if (action == _ExceededSessionAction.discard) {
+      try {
+        await cubit.discardRunningSession(wsId, userId, throwOnError: true);
+      } on Exception catch (error) {
+        if (!context.mounted) {
+          return false;
+        }
+        _showActionError(context, error);
+      }
+      return false;
+    }
+
+    _showMissedEntryDialog(
+      context,
+      initialStartTime: runningSession.startTime,
+      initialEndTime: DateTime.now(),
+      initialTitle: runningSession.title,
+      initialDescription: runningSession.description,
+      initialCategoryId: runningSession.categoryId,
+      discardRunningSessionOnSave: true,
+    );
+    return false;
+  }
+
+  void _showActionError(BuildContext context, Object error) {
+    shad.showToast(
+      context: context,
+      builder: (context, overlay) => shad.Alert.destructive(
+        title: Text(context.l10n.commonSomethingWentWrong),
+        content: Text(error.toString()),
+      ),
+    );
   }
 
   Future<_ExceededSessionAction?> _showExceededSessionActionDialog(

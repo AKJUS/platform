@@ -6,6 +6,7 @@ import 'package:flutter/material.dart'
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import 'package:mobile/data/repositories/profile_repository.dart';
 import 'package:mobile/features/profile/cubit/profile_cubit.dart';
 import 'package:mobile/features/profile/cubit/profile_state.dart';
@@ -245,6 +246,7 @@ class _AvatarSection extends StatelessWidget {
       ),
     );
 
+    if (!context.mounted) return;
     if (source == null) return;
 
     final pickedFile = await picker.pickImage(
@@ -254,6 +256,7 @@ class _AvatarSection extends StatelessWidget {
       imageQuality: 85,
     );
 
+    if (!context.mounted) return;
     if (pickedFile == null) return;
 
     final croppedFile = await ImageCropper().cropImage(
@@ -275,9 +278,20 @@ class _AvatarSection extends StatelessWidget {
       ],
     );
 
+    if (!context.mounted) return;
     if (croppedFile == null) return;
 
-    await cubit.uploadAvatar(File(croppedFile.path));
+    try {
+      await cubit.uploadAvatar(File(croppedFile.path));
+    } on Exception {
+      if (!context.mounted) return;
+      shad.showToast(
+        context: context,
+        builder: (context, overlay) => shad.Alert.destructive(
+          title: Text(context.l10n.profileAvatarUpdateError),
+        ),
+      );
+    }
   }
 
   Future<void> _showAvatarOptions(BuildContext context) async {
@@ -298,8 +312,20 @@ class _AvatarSection extends StatelessWidget {
                 if (avatarUrl != null) ...[
                   shad.GhostButton(
                     onPressed: () async {
-                      Navigator.pop(dialogContext);
-                      await cubit.removeAvatar();
+                      try {
+                        await cubit.removeAvatar();
+                        if (dialogContext.mounted) {
+                          Navigator.pop(dialogContext);
+                        }
+                      } on Exception {
+                        if (!dialogContext.mounted) return;
+                        shad.showToast(
+                          context: dialogContext,
+                          builder: (context, overlay) => shad.Alert.destructive(
+                            title: Text(context.l10n.profileAvatarRemoveError),
+                          ),
+                        );
+                      }
                     },
                     child: Row(
                       children: [
@@ -402,17 +428,15 @@ class _AccountStatusCard extends StatelessWidget {
               style: theme.typography.textMuted,
             ),
             Text(
-              _formatDate(createdAt!),
+              DateFormat.yMMMd(
+                Localizations.localeOf(context).toString(),
+              ).format(createdAt!),
               style: theme.typography.semiBold,
             ),
           ],
         ],
       ),
     );
-  }
-
-  String _formatDate(DateTime date) {
-    return '${date.day}/${date.month}/${date.year}';
   }
 }
 
@@ -458,6 +482,17 @@ class _EditableTextFieldState extends State<_EditableTextField> {
     super.dispose();
   }
 
+  @override
+  void didUpdateWidget(covariant _EditableTextField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.defaultValue != oldWidget.defaultValue) {
+      setState(() {
+        _controller.text = widget.defaultValue ?? '';
+        _hasChanges = false;
+      });
+    }
+  }
+
   void _onTextChanged() {
     setState(() {
       _hasChanges = _controller.text != (widget.defaultValue ?? '');
@@ -480,7 +515,22 @@ class _EditableTextFieldState extends State<_EditableTextField> {
       }
     }
 
-    final success = await widget.onSave(value);
+    bool success;
+    try {
+      success = await widget.onSave(value);
+    } on Exception catch (error) {
+      if (!context.mounted) {
+        return;
+      }
+      shad.showToast(
+        context: context,
+        builder: (context, overlay) => shad.Alert.destructive(
+          title: Text(context.l10n.profileUpdateError),
+          content: Text(error.toString()),
+        ),
+      );
+      return;
+    }
 
     if (success && context.mounted) {
       setState(() {
@@ -528,7 +578,11 @@ class _EditableTextFieldState extends State<_EditableTextField> {
                 if (_hasChanges) ...[
                   const shad.Gap(8),
                   shad.PrimaryButton(
-                    onPressed: state.isLoading ? null : () => _save(context),
+                    onPressed: state.isLoading
+                        ? null
+                        : () async {
+                            await _save(context);
+                          },
                     density: shad.ButtonDensity.icon,
                     child: state.isLoading
                         ? const shad.CircularProgressIndicator(size: 16)
@@ -557,7 +611,7 @@ class _DisplayNameField extends StatelessWidget {
       label: l10n.profileDisplayName,
       hint: l10n.profileDisplayNameHint,
       defaultValue: defaultValue,
-      emptyMessage: 'Display name cannot be empty',
+      emptyMessage: l10n.profileDisplayNameRequired,
       onSave: (value) => context.read<ProfileCubit>().updateDisplayName(value),
     );
   }
@@ -576,7 +630,7 @@ class _FullNameField extends StatelessWidget {
       label: l10n.profileFullName,
       hint: l10n.profileFullNameHint,
       defaultValue: defaultValue,
-      emptyMessage: 'Full name cannot be empty',
+      emptyMessage: l10n.profileFullNameRequired,
       onSave: (value) => context.read<ProfileCubit>().updateFullName(value),
     );
   }
@@ -602,11 +656,11 @@ class _EmailField extends StatelessWidget {
               : l10n.profileEmail,
           hint: l10n.profileEmailHint,
           defaultValue: email,
-          emptyMessage: 'Please enter a valid email address',
+          emptyMessage: l10n.profileInvalidEmail,
           keyboardType: TextInputType.emailAddress,
           validator: (value) {
             if (!value.contains('@')) {
-              return 'Please enter a valid email address';
+              return l10n.profileInvalidEmail;
             }
             return null;
           },

@@ -650,7 +650,13 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String timerThresholdWarning(int days) {
-    return 'Entries older than $days day(s) require approval. Add at least one proof image before submitting.';
+    String _temp0 = intl.Intl.pluralLogic(
+      days,
+      locale: localeName,
+      other: '$days days',
+      one: '1 day',
+    );
+    return 'Entries older than $_temp0 require approval. Add at least one proof image before submitting.';
   }
 
   @override
@@ -803,16 +809,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get profileDisplayNameHint => 'Your display name';
 
   @override
+  String get profileDisplayNameRequired => 'Display name cannot be empty';
+
+  @override
   String get profileFullName => 'Full name';
 
   @override
   String get profileFullNameHint => 'Your full name';
 
   @override
+  String get profileFullNameRequired => 'Full name cannot be empty';
+
+  @override
   String get profileEmail => 'Email';
 
   @override
   String get profileEmailHint => 'example@tuturuuu.com';
+
+  @override
+  String get profileInvalidEmail => 'Please enter a valid email address';
 
   @override
   String get profileCurrentEmail => 'Current email';

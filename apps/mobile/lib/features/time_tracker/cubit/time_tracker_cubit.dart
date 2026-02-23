@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 
 import 'package:bloc/bloc.dart';
 import 'package:mobile/data/models/time_tracking/break_record.dart';
@@ -9,6 +10,7 @@ import 'package:mobile/data/models/time_tracking/stats.dart';
 import 'package:mobile/data/models/workspace_settings.dart';
 import 'package:mobile/data/repositories/time_tracker_repository.dart';
 import 'package:mobile/features/time_tracker/cubit/time_tracker_state.dart';
+import 'package:mobile/features/time_tracker/utils/threshold.dart';
 
 class TimeTrackerCubit extends Cubit<TimeTrackerState> {
   TimeTrackerCubit({required ITimeTrackerRepository repository})
@@ -109,21 +111,7 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
   }
 
   bool sessionExceedsThreshold(TimeTrackingSession session) {
-    if (session.startTime == null) {
-      return false;
-    }
-
-    final thresholdDays = state.thresholdDays;
-    if (thresholdDays == null) {
-      return false;
-    }
-
-    if (thresholdDays == 0) {
-      return true;
-    }
-
-    final thresholdAgo = DateTime.now().subtract(Duration(days: thresholdDays));
-    return session.startTime!.isBefore(thresholdAgo);
+    return exceedsThreshold(session.startTime, state.thresholdDays);
   }
 
   Future<void> stopSession(String wsId, String userId) async {
@@ -482,7 +470,14 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
   Future<WorkspaceSettings?> _safeGetWorkspaceSettings(String wsId) async {
     try {
       return await _repo.getWorkspaceSettings(wsId);
-    } on Exception {
+    } on Exception catch (error, stackTrace) {
+      developer.log(
+        'Failed to load workspace settings',
+        name: 'TimeTrackerCubit',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      developer.log('Workspace settings load failed for wsId=$wsId');
       return null;
     }
   }

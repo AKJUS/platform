@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:mobile/data/models/time_tracking/category.dart';
 import 'package:mobile/features/time_tracker/utils/category_color.dart';
+import 'package:mobile/features/time_tracker/utils/threshold.dart';
 import 'package:mobile/l10n/l10n.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
@@ -307,7 +308,7 @@ class _MissedEntryDialogState extends State<MissedEntryDialog> {
                             : _titleCtrl.text;
                         final successTitle = showThresholdWarning
                             ? l10n.timerRequestsTitle
-                            : l10n.timerSave;
+                            : l10n.timerAddMissedEntry;
                         final successContent = showThresholdWarning
                             ? l10n.timerSubmitForApproval
                             : l10n.timerSave;
@@ -381,17 +382,7 @@ class _MissedEntryDialogState extends State<MissedEntryDialog> {
   }
 
   bool get _isOlderThanThreshold {
-    final thresholdDays = widget.thresholdDays;
-    if (thresholdDays == null) {
-      return false;
-    }
-
-    if (thresholdDays == 0) {
-      return true;
-    }
-
-    final thresholdAgo = DateTime.now().subtract(Duration(days: thresholdDays));
-    return _startTime.isBefore(thresholdAgo);
+    return exceedsThreshold(_startTime, widget.thresholdDays);
   }
 
   bool get _isValid {
@@ -581,7 +572,7 @@ class _MissedEntryDialogState extends State<MissedEntryDialog> {
 
 enum _ImageSourceSelection { camera, gallery }
 
-class _DateTimePicker extends StatelessWidget {
+class _DateTimePicker extends StatefulWidget {
   const _DateTimePicker({
     required this.label,
     required this.value,
@@ -597,12 +588,17 @@ class _DateTimePicker extends StatelessWidget {
   final ValueChanged<DateTime> onChanged;
 
   @override
+  State<_DateTimePicker> createState() => _DateTimePickerState();
+}
+
+class _DateTimePickerState extends State<_DateTimePicker> {
+  @override
   Widget build(BuildContext context) {
     final theme = shad.Theme.of(context);
     return Row(
       children: [
         Text(
-          label,
+          widget.label,
           style: theme.typography.small,
         ),
         const Spacer(),
@@ -610,43 +606,49 @@ class _DateTimePicker extends StatelessWidget {
           onPressed: () async {
             final date = await showDatePicker(
               context: context,
-              initialDate: value,
+              initialDate: widget.value,
               firstDate: DateTime(2020),
               lastDate: DateTime.now(),
             );
+            if (!mounted) {
+              return;
+            }
             if (date != null) {
-              onChanged(
+              widget.onChanged(
                 DateTime(
                   date.year,
                   date.month,
                   date.day,
-                  value.hour,
-                  value.minute,
+                  widget.value.hour,
+                  widget.value.minute,
                 ),
               );
             }
           },
-          child: Text(dateFmt.format(value.toLocal())),
+          child: Text(widget.dateFmt.format(widget.value.toLocal())),
         ),
         shad.GhostButton(
           onPressed: () async {
             final time = await showTimePicker(
               context: context,
-              initialTime: TimeOfDay.fromDateTime(value.toLocal()),
+              initialTime: TimeOfDay.fromDateTime(widget.value.toLocal()),
             );
+            if (!mounted) {
+              return;
+            }
             if (time != null) {
-              onChanged(
+              widget.onChanged(
                 DateTime(
-                  value.year,
-                  value.month,
-                  value.day,
+                  widget.value.year,
+                  widget.value.month,
+                  widget.value.day,
                   time.hour,
                   time.minute,
                 ),
               );
             }
           },
-          child: Text(timeFmt.format(value.toLocal())),
+          child: Text(widget.timeFmt.format(widget.value.toLocal())),
         ),
       ],
     );

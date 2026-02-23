@@ -477,18 +477,19 @@ class TimeTrackerRepository implements ITimeTrackerRepository {
   }) async {
     final uploadImagePaths = imagePaths ?? const <String>[];
     final hasImages = uploadImagePaths.isNotEmpty;
+    final fields = <String, dynamic>{
+      'title': title,
+      if (description != null) 'description': description,
+      if (categoryId != null) 'categoryId': categoryId,
+      if (startTime != null) 'startTime': _toApiIso(startTime),
+      if (endTime != null) 'endTime': _toApiIso(endTime),
+    };
 
     final data = hasImages
         ? await _api.sendMultipart(
             'POST',
             '/api/v1/workspaces/$wsId/time-tracking/requests',
-            fields: {
-              'title': title,
-              if (description != null) 'description': description,
-              if (categoryId != null) 'categoryId': categoryId,
-              if (startTime != null) 'startTime': _toApiIso(startTime),
-              if (endTime != null) 'endTime': _toApiIso(endTime),
-            },
+            fields: fields.map((key, value) => MapEntry(key, '$value')),
             files: uploadImagePaths
                 .asMap()
                 .entries
@@ -503,13 +504,7 @@ class TimeTrackerRepository implements ITimeTrackerRepository {
           )
         : await _api.postJson(
             '/api/v1/workspaces/$wsId/time-tracking/requests',
-            {
-              'title': title,
-              if (description != null) 'description': description,
-              if (categoryId != null) 'categoryId': categoryId,
-              if (startTime != null) 'startTime': _toApiIso(startTime),
-              if (endTime != null) 'endTime': _toApiIso(endTime),
-            },
+            fields,
           );
 
     return TimeTrackingRequest.fromJson(
@@ -712,8 +707,8 @@ class TimeTrackerRepository implements ITimeTrackerRepository {
         'type': 'history',
         'limit': '$limit',
         if (search != null && search.isNotEmpty) 'searchQuery': search,
-        if (dateFrom != null) 'dateFrom': dateFrom.toIso8601String(),
-        if (dateTo != null) 'dateTo': dateTo.toIso8601String(),
+        if (dateFrom != null) 'dateFrom': _toApiIso(dateFrom),
+        if (dateTo != null) 'dateTo': _toApiIso(dateTo),
       }),
     );
 

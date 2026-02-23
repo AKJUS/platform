@@ -154,7 +154,7 @@ class _ThresholdSettingsDialogState extends State<ThresholdSettingsDialog> {
     try {
       await widget.onSave(_noApprovalNeeded ? null : threshold);
       shouldCloseDialog = true;
-    } on Object catch (error) {
+    } on Exception catch (error) {
       if (!mounted) {
         return;
       }

@@ -256,7 +256,7 @@
     "timerDiscardSession": "Discard session",
     "timerSubmitAsRequest": "Submit as request",
     "timerThresholdWarningAll": "All missed entries in this workspace require approval. Add at least one proof image before submitting.",
-    "timerThresholdWarning": "Entries older than {days} day(s) require approval. Add at least one proof image before submitting.",
+    "timerThresholdWarning": "Entries older than {days, plural, =1{1 day} other{{days} days}} require approval. Add at least one proof image before submitting.",
     "@timerThresholdWarning": {
         "placeholders": {
             "days": {
@@ -322,10 +322,13 @@
     "profileMemberSince": "Member since",
     "profileDisplayName": "Display name",
     "profileDisplayNameHint": "Your display name",
+    "profileDisplayNameRequired": "Display name cannot be empty",
     "profileFullName": "Full name",
     "profileFullNameHint": "Your full name",
+    "profileFullNameRequired": "Full name cannot be empty",
     "profileEmail": "Email",
     "profileEmailHint": "example@tuturuuu.com",
+    "profileInvalidEmail": "Please enter a valid email address",
     "profileCurrentEmail": "Current email",
     "profileNewEmail": "New email",
     "profileEmailUpdateNote": "Confirmation emails will be sent to both addresses",

@@ -1,3 +1,4 @@
+import type { TypedSupabaseClient } from '@tuturuuu/supabase/next/client';
 import {
   createAdminClient,
   createClient,
@@ -8,7 +9,6 @@ import type {
   WorkspaceProductTier,
 } from '@tuturuuu/types';
 import type { WorkspaceSecret } from '@tuturuuu/types/primitives/WorkspaceSecret';
-
 import {
   PERSONAL_WORKSPACE_SLUG,
   ROOT_WORKSPACE_ID,
@@ -491,13 +491,20 @@ export async function getGuestGroup({ groupId }: { groupId: string }) {
 
   return data;
 }
+
+export interface PermissionsResult {
+  permissions: PermissionId[];
+  containsPermission(permission: PermissionId): boolean;
+  withoutPermission(permission: PermissionId): boolean;
+}
+
 export async function getPermissions({
   wsId,
   request,
 }: {
   wsId: string;
   request?: Request;
-}) {
+}): Promise<PermissionsResult | null> {
   const supabase = await createClient(request);
 
   const {
@@ -749,18 +756,21 @@ export async function isPersonalWorkspace(
   return data?.personal === true;
 }
 
-export async function normalizeWorkspaceId(wsId: string): Promise<string> {
+export async function normalizeWorkspaceId(
+  wsId: string,
+  supabase?: TypedSupabaseClient
+): Promise<string> {
+  const sb = supabase ?? (await createClient());
   if (wsId.toLowerCase() === PERSONAL_WORKSPACE_SLUG) {
-    const supabase = await createClient();
     const {
       data: { user },
-    } = await supabase.auth.getUser();
+    } = await sb.auth.getUser();
 
     if (!user) {
       throw new Error('User not authenticated');
     }
 
-    const { data: workspace, error } = await supabase
+    const { data: workspace, error } = await sb
       .from('workspaces')
       .select('id, workspace_members!inner(user_id)')
       .eq('personal', true)

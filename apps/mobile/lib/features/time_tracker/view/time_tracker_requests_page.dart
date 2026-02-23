@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart' hide AppBar, Scaffold;
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -267,25 +268,49 @@ class _RequestsViewState extends State<_RequestsView> {
 
     final repository = context.read<ITimeTrackerRepository>();
 
-    final workspacePermissions = await _workspacePermissionsRepository
-        .getPermissions(wsId: wsId, userId: currentUserId);
-    final canManageRequests = workspacePermissions.containsPermission(
-      manageTimeTrackingRequestsPermission,
-    );
-    final canManageWorkspaceSettings = workspacePermissions.containsPermission(
-      manageWorkspaceSettingsPermission,
-    );
-    final canManageThresholdSettings =
-        !workspace!.personal && canManageRequests && canManageWorkspaceSettings;
-
+    bool canManageRequests;
+    bool canManageThresholdSettings;
     int? threshold;
-    if (canManageThresholdSettings) {
-      try {
-        final settings = await repository.getWorkspaceSettings(wsId);
-        threshold = settings?.missedEntryDateThreshold;
-      } on Exception {
-        threshold = null;
+    try {
+      final workspacePermissions = await _workspacePermissionsRepository
+          .getPermissions(wsId: wsId, userId: currentUserId);
+      canManageRequests = workspacePermissions.containsPermission(
+        manageTimeTrackingRequestsPermission,
+      );
+      final canManageWorkspaceSettings = workspacePermissions
+          .containsPermission(
+            manageWorkspaceSettingsPermission,
+          );
+      canManageThresholdSettings =
+          !workspace!.personal &&
+          canManageRequests &&
+          canManageWorkspaceSettings;
+
+      if (canManageThresholdSettings) {
+        try {
+          final settings = await repository.getWorkspaceSettings(wsId);
+          threshold = settings?.missedEntryDateThreshold;
+        } on Exception {
+          threshold = null;
+        }
       }
+    } on Exception catch (error, stackTrace) {
+      developer.log(
+        'Failed to load workspace permissions for threshold settings',
+        name: 'TimeTrackerRequestsPage',
+        error: error,
+        stackTrace: stackTrace,
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _canManageRequests = false;
+        _canManageThresholdSettings = false;
+        _missedEntryDateThreshold = null;
+        _isThresholdLoading = false;
+      });
+      return;
     }
 
     if (!mounted) {
@@ -304,6 +329,7 @@ class _RequestsViewState extends State<_RequestsView> {
     if (wsId == null || wsId.isEmpty || !mounted) {
       return;
     }
+    final repo = context.read<ITimeTrackerRepository>();
 
     await shad.showDialog<void>(
       context: context,
@@ -311,24 +337,35 @@ class _RequestsViewState extends State<_RequestsView> {
         return ThresholdSettingsDialog(
           currentThreshold: _missedEntryDateThreshold,
           onSave: (threshold) async {
-            await context
-                .read<ITimeTrackerRepository>()
-                .updateMissedEntryDateThreshold(
-                  wsId,
-                  threshold,
-                );
+            try {
+              await repo.updateMissedEntryDateThreshold(
+                wsId,
+                threshold,
+              );
 
-            if (!mounted) {
-              return;
+              if (!mounted) {
+                return;
+              }
+
+              setState(() => _missedEntryDateThreshold = threshold);
+              shad.showToast(
+                context: context,
+                builder: (context, overlay) => shad.Alert(
+                  content: Text(context.l10n.timerRequestsThresholdUpdated),
+                ),
+              );
+            } on Object catch (error) {
+              if (!mounted) {
+                return;
+              }
+              shad.showToast(
+                context: context,
+                builder: (context, overlay) => shad.Alert.destructive(
+                  title: Text(context.l10n.commonSomethingWentWrong),
+                  content: Text(error.toString()),
+                ),
+              );
             }
-
-            setState(() => _missedEntryDateThreshold = threshold);
-            shad.showToast(
-              context: context,
-              builder: (context, overlay) => shad.Alert(
-                content: Text(context.l10n.timerRequestsThresholdUpdated),
-              ),
-            );
           },
         );
       },
