@@ -71,7 +71,10 @@ export async function PUT(
       request: req,
     });
     if (!permissions) {
-      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Failed to resolve permissions' },
+        { status: 500 }
+      );
     }
     const { withoutPermission } = permissions;
 
