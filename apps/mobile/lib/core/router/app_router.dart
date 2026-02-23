@@ -6,6 +6,7 @@ import 'package:mobile/core/router/routes.dart';
 import 'package:mobile/features/apps/cubit/app_tab_cubit.dart';
 import 'package:mobile/features/apps/registry/app_registry.dart';
 import 'package:mobile/features/apps/view/apps_hub_page.dart';
+import 'package:mobile/features/assistant/view/assistant_page.dart';
 import 'package:mobile/features/auth/cubit/auth_cubit.dart';
 import 'package:mobile/features/auth/cubit/auth_state.dart';
 import 'package:mobile/features/auth/view/forgot_password_page.dart';
@@ -176,6 +177,10 @@ GoRouter createAppRouter(
           GoRoute(
             path: Routes.apps,
             builder: (context, state) => const AppsHubPage(),
+          ),
+          GoRoute(
+            path: Routes.assistant,
+            builder: (context, state) => const AssistantPage(),
           ),
           for (final module in AppRegistry.allModules)
             GoRoute(

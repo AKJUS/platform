@@ -58,10 +58,12 @@
     "navTimer": "Bấm giờ",
     "navSettings": "Cài đặt",
     "navApps": "Ứng dụng",
+    "navAssistant": "Trợ lý",
     "appsHubSearchHint": "Tìm kiếm ứng dụng",
     "appsHubQuickAccess": "Truy cập nhanh",
     "appsHubAllApps": "Tất cả ứng dụng",
     "appsHubEmpty": "Không tìm thấy ứng dụng",
+    "assistantComingSoon": "Sắp ra mắt",
 
     "dashboardGreeting": "Chào mừng trở lại!",
     "dashboardQuickActions": "Thao tác nhanh",
@@ -248,6 +250,29 @@
     "timerSearchSessions": "Tìm kiếm phiên...",
     "timerDescription": "Mô tả",
     "timerWorkSession": "Phiên làm việc",
+    "timerSubmitForApproval": "Gửi duyệt",
+    "timerSessionExceeded": "Phiên vượt ngưỡng",
+    "timerSessionExceededDescription": "Phiên này đã vượt quá ngưỡng thời gian của không gian làm việc. Bạn có thể hủy phiên hoặc gửi yêu cầu để được duyệt.",
+    "timerDiscardSession": "Hủy phiên",
+    "timerSubmitAsRequest": "Gửi yêu cầu",
+    "timerThresholdWarningAll": "Mọi mục bổ sung trong không gian làm việc này đều cần được duyệt. Vui lòng thêm ít nhất một ảnh minh chứng trước khi gửi.",
+    "timerThresholdWarning": "Các mục cũ hơn {days} ngày cần được duyệt. Vui lòng thêm ít nhất một ảnh minh chứng trước khi gửi.",
+    "@timerThresholdWarning": {
+        "placeholders": {
+            "days": {
+                "type": "int"
+            }
+        }
+    },
+    "timerProofOfWorkRequired": "Cần ít nhất một ảnh minh chứng.",
+    "timerRequestsThresholdTitle": "Cài đặt ngưỡng yêu cầu",
+    "timerRequestsThresholdDescription": "Chọn thời điểm mục bị thiếu cần gửi yêu cầu duyệt.",
+    "timerRequestsThresholdNoApproval": "Không cần duyệt",
+    "timerRequestsThresholdNoApprovalHint": "Có thể thêm mục bị thiếu trực tiếp mà không cần gửi yêu cầu.",
+    "timerRequestsThresholdLabel": "Ngưỡng (ngày)",
+    "timerRequestsThresholdHelp": "Các mục cũ hơn số ngày này phải gửi yêu cầu để được duyệt.",
+    "timerRequestsThresholdInvalid": "Nhập số nguyên lớn hơn hoặc bằng 0.",
+    "timerRequestsThresholdUpdated": "Đã cập nhật ngưỡng yêu cầu.",
     "timerAutoStartBreaks": "Tự động bắt đầu nghỉ",
     "timerAutoStartFocus": "Tự động bắt đầu tập trung",
     "commonCancel": "Hủy",
@@ -290,6 +315,8 @@
     "profileRemoveAvatar": "Xóa ảnh đại diện",
     "profileRemoveConfirm": "Xóa ảnh đại diện?",
     "profileAccountStatus": "Trạng thái tài khoản",
+    "profileStatus": "Trạng thái",
+    "profileVerification": "Xác minh",
     "profileActive": "Hoạt động",
     "profileVerified": "Đã xác thực",
     "profileMemberSince": "Thành viên từ",

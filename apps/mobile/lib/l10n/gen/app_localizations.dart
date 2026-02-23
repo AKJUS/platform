@@ -355,6 +355,12 @@ abstract class AppLocalizations {
   /// **'Apps'**
   String get navApps;
 
+  /// No description provided for @navAssistant.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistant'**
+  String get navAssistant;
+
   /// No description provided for @appsHubSearchHint.
   ///
   /// In en, this message translates to:
@@ -378,6 +384,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No apps found'**
   String get appsHubEmpty;
+
+  /// No description provided for @assistantComingSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Coming Soon'**
+  String get assistantComingSoon;
 
   /// No description provided for @dashboardGreeting.
   ///
@@ -1303,6 +1315,102 @@ abstract class AppLocalizations {
   /// **'Work session'**
   String get timerWorkSession;
 
+  /// No description provided for @timerSubmitForApproval.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit for approval'**
+  String get timerSubmitForApproval;
+
+  /// No description provided for @timerSessionExceeded.
+  ///
+  /// In en, this message translates to:
+  /// **'Session exceeds threshold'**
+  String get timerSessionExceeded;
+
+  /// No description provided for @timerSessionExceededDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'This session is older than your workspace threshold. You can discard it or submit it as a request for approval.'**
+  String get timerSessionExceededDescription;
+
+  /// No description provided for @timerDiscardSession.
+  ///
+  /// In en, this message translates to:
+  /// **'Discard session'**
+  String get timerDiscardSession;
+
+  /// No description provided for @timerSubmitAsRequest.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit as request'**
+  String get timerSubmitAsRequest;
+
+  /// No description provided for @timerThresholdWarningAll.
+  ///
+  /// In en, this message translates to:
+  /// **'All missed entries in this workspace require approval. Add at least one proof image before submitting.'**
+  String get timerThresholdWarningAll;
+
+  /// No description provided for @timerThresholdWarning.
+  ///
+  /// In en, this message translates to:
+  /// **'Entries older than {days} day(s) require approval. Add at least one proof image before submitting.'**
+  String timerThresholdWarning(int days);
+
+  /// No description provided for @timerProofOfWorkRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'At least one proof image is required.'**
+  String get timerProofOfWorkRequired;
+
+  /// No description provided for @timerRequestsThresholdTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Request threshold settings'**
+  String get timerRequestsThresholdTitle;
+
+  /// No description provided for @timerRequestsThresholdDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose when missed entries should require approval.'**
+  String get timerRequestsThresholdDescription;
+
+  /// No description provided for @timerRequestsThresholdNoApproval.
+  ///
+  /// In en, this message translates to:
+  /// **'No approval needed'**
+  String get timerRequestsThresholdNoApproval;
+
+  /// No description provided for @timerRequestsThresholdNoApprovalHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Missed entries can be added directly without sending a request.'**
+  String get timerRequestsThresholdNoApprovalHint;
+
+  /// No description provided for @timerRequestsThresholdLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Threshold (days)'**
+  String get timerRequestsThresholdLabel;
+
+  /// No description provided for @timerRequestsThresholdHelp.
+  ///
+  /// In en, this message translates to:
+  /// **'Entries older than this number of days must be submitted for approval.'**
+  String get timerRequestsThresholdHelp;
+
+  /// No description provided for @timerRequestsThresholdInvalid.
+  ///
+  /// In en, this message translates to:
+  /// **'Enter a whole number greater than or equal to 0.'**
+  String get timerRequestsThresholdInvalid;
+
+  /// No description provided for @timerRequestsThresholdUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Request threshold updated.'**
+  String get timerRequestsThresholdUpdated;
+
   /// No description provided for @timerAutoStartBreaks.
   ///
   /// In en, this message translates to:
@@ -1500,6 +1608,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Account status'**
   String get profileAccountStatus;
+
+  /// No description provided for @profileStatus.
+  ///
+  /// In en, this message translates to:
+  /// **'Status'**
+  String get profileStatus;
+
+  /// No description provided for @profileVerification.
+  ///
+  /// In en, this message translates to:
+  /// **'Verification'**
+  String get profileVerification;
 
   /// No description provided for @profileActive.
   ///

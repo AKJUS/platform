@@ -20,6 +20,7 @@ class TimeTrackerState extends Equatable {
     this.stats,
     this.selectedCategoryId,
     this.sessionTitle,
+    this.thresholdDays,
     this.pomodoroSettings = const PomodoroSettings(),
     this.pomodoroPhase = PomodoroPhase.idle,
     this.pomodoroSessionCount = 0,
@@ -36,6 +37,7 @@ class TimeTrackerState extends Equatable {
   final TimeTrackerStats? stats;
   final String? selectedCategoryId;
   final String? sessionTitle;
+  final int? thresholdDays;
   final PomodoroSettings pomodoroSettings;
   final PomodoroPhase pomodoroPhase;
   final int pomodoroSessionCount;
@@ -54,6 +56,7 @@ class TimeTrackerState extends Equatable {
     TimeTrackerStats? stats,
     String? selectedCategoryId,
     String? sessionTitle,
+    Object? thresholdDays = _sentinel,
     PomodoroSettings? pomodoroSettings,
     PomodoroPhase? pomodoroPhase,
     int? pomodoroSessionCount,
@@ -62,6 +65,7 @@ class TimeTrackerState extends Equatable {
     bool clearRunningSession = false,
     bool clearActiveBreak = false,
     bool clearSelectedCategory = false,
+    bool clearThresholdDays = false,
     bool clearError = false,
   }) => TimeTrackerState(
     status: status ?? this.status,
@@ -77,6 +81,11 @@ class TimeTrackerState extends Equatable {
         ? null
         : (selectedCategoryId ?? this.selectedCategoryId),
     sessionTitle: sessionTitle ?? this.sessionTitle,
+    thresholdDays: clearThresholdDays
+        ? null
+        : (thresholdDays == _sentinel
+              ? this.thresholdDays
+              : thresholdDays as int?),
     pomodoroSettings: pomodoroSettings ?? this.pomodoroSettings,
     pomodoroPhase: pomodoroPhase ?? this.pomodoroPhase,
     pomodoroSessionCount: pomodoroSessionCount ?? this.pomodoroSessionCount,
@@ -95,6 +104,7 @@ class TimeTrackerState extends Equatable {
     stats,
     selectedCategoryId,
     sessionTitle,
+    thresholdDays,
     pomodoroSettings,
     pomodoroPhase,
     pomodoroSessionCount,
@@ -102,3 +112,5 @@ class TimeTrackerState extends Equatable {
     error,
   ];
 }
+
+const _sentinel = Object();

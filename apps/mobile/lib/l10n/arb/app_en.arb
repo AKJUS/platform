@@ -58,10 +58,12 @@
     "navTimer": "Timer",
     "navSettings": "Settings",
     "navApps": "Apps",
+    "navAssistant": "Assistant",
     "appsHubSearchHint": "Search apps",
     "appsHubQuickAccess": "Quick access",
     "appsHubAllApps": "All apps",
     "appsHubEmpty": "No apps found",
+    "assistantComingSoon": "Coming Soon",
 
     "dashboardGreeting": "Welcome back!",
     "dashboardQuickActions": "Quick actions",
@@ -248,6 +250,29 @@
     "timerSearchSessions": "Search sessions...",
     "timerDescription": "Description",
     "timerWorkSession": "Work session",
+    "timerSubmitForApproval": "Submit for approval",
+    "timerSessionExceeded": "Session exceeds threshold",
+    "timerSessionExceededDescription": "This session is older than your workspace threshold. You can discard it or submit it as a request for approval.",
+    "timerDiscardSession": "Discard session",
+    "timerSubmitAsRequest": "Submit as request",
+    "timerThresholdWarningAll": "All missed entries in this workspace require approval. Add at least one proof image before submitting.",
+    "timerThresholdWarning": "Entries older than {days} day(s) require approval. Add at least one proof image before submitting.",
+    "@timerThresholdWarning": {
+        "placeholders": {
+            "days": {
+                "type": "int"
+            }
+        }
+    },
+    "timerProofOfWorkRequired": "At least one proof image is required.",
+    "timerRequestsThresholdTitle": "Request threshold settings",
+    "timerRequestsThresholdDescription": "Choose when missed entries should require approval.",
+    "timerRequestsThresholdNoApproval": "No approval needed",
+    "timerRequestsThresholdNoApprovalHint": "Missed entries can be added directly without sending a request.",
+    "timerRequestsThresholdLabel": "Threshold (days)",
+    "timerRequestsThresholdHelp": "Entries older than this number of days must be submitted for approval.",
+    "timerRequestsThresholdInvalid": "Enter a whole number greater than or equal to 0.",
+    "timerRequestsThresholdUpdated": "Request threshold updated.",
     "timerAutoStartBreaks": "Auto-start breaks",
     "timerAutoStartFocus": "Auto-start focus",
     "commonCancel": "Cancel",
@@ -290,6 +315,8 @@
     "profileRemoveAvatar": "Remove avatar",
     "profileRemoveConfirm": "Remove avatar?",
     "profileAccountStatus": "Account status",
+    "profileStatus": "Status",
+    "profileVerification": "Verification",
     "profileActive": "Active",
     "profileVerified": "Verified",
     "profileMemberSince": "Member since",

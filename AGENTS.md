@@ -1684,6 +1684,7 @@ When consolidating duplicated Flutter form fields into a shared editable widget,
 - Use `on Exception catch (e)` (or a specific exception type) instead of untyped `catch` to satisfy `avoid_catches_without_on_clauses`.
 - Avoid catching `Error` subclasses like `TypeError`; let them surface or convert upstream to `Exception`-based flows.
 - After `await`, check `context.mounted` before using `BuildContext` to satisfy `use_build_context_synchronously`.
+- In async methods, capture dependencies from `context` (e.g., `context.read<T>()`) before the first `await`; do not call `context.read` after an async gap.
 - Avoid `return` in `finally` blocks; gate cleanup with `if (context.mounted)` or `if (mounted)` instead.
 
 ### 15.8 Flutter Widget Test Theme Context
