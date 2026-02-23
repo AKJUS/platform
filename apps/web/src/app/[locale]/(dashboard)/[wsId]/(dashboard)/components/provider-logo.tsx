@@ -1,8 +1,8 @@
 'use client';
 
 import { Sparkles } from '@tuturuuu/icons';
-import Image from 'next/image';
 import { cn } from '@tuturuuu/utils/format';
+import Image from 'next/image';
 import { useState } from 'react';
 
 const LOGOS_BASE = 'https://models.dev/logos';
@@ -23,7 +23,11 @@ interface ProviderLogoProps {
 }
 
 /** Renders provider logo from models.dev. Falls back to Sparkles icon on error. */
-export function ProviderLogo({ provider, size = 16, className }: ProviderLogoProps) {
+export function ProviderLogo({
+  provider,
+  size = 16,
+  className,
+}: ProviderLogoProps) {
   const [error, setError] = useState(false);
   const providerId = toProviderId(provider);
   const src = `${LOGOS_BASE}/${providerId}.svg`;

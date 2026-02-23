@@ -23,11 +23,11 @@ import {
   CommandItem,
   CommandList,
 } from '@tuturuuu/ui/command';
-import { Input } from '@tuturuuu/ui/input';
 import { useAiCredits } from '@tuturuuu/ui/hooks/use-ai-credits';
+import { Input } from '@tuturuuu/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@tuturuuu/ui/popover';
-import { toast } from '@tuturuuu/ui/sonner';
 import { ScrollArea } from '@tuturuuu/ui/scroll-area';
+import { toast } from '@tuturuuu/ui/sonner';
 import { Switch } from '@tuturuuu/ui/switch';
 import {
   Tooltip,
@@ -95,7 +95,9 @@ async function toggleFavorite(
   isFavorited: boolean
 ): Promise<void> {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) return;
 
   if (isFavorited) {
@@ -106,13 +108,11 @@ async function toggleFavorite(
       .eq('user_id', user.id)
       .eq('model_id', modelId);
   } else {
-    await supabase
-      .from('ai_model_favorites')
-      .insert({
-        ws_id: wsId,
-        user_id: user.id,
-        model_id: modelId,
-      });
+    await supabase.from('ai_model_favorites').insert({
+      ws_id: wsId,
+      user_id: user.id,
+      model_id: modelId,
+    });
   }
 }
 
@@ -166,7 +166,6 @@ export default function MiraModelSelector({
   const toggleFavoriteMutation = useMutation({
     mutationFn: ({
       modelId,
-      modelLabel,
       isFavorited,
     }: {
       modelId: string;
@@ -298,7 +297,11 @@ export default function MiraModelSelector({
   const modelsToRender = useMemo(() => {
     if (!deferredOpen) return EMPTY_RENDERED_GROUPS;
 
-    const result: { provider: string; models: Model[]; isFavoritesGroup?: boolean }[] = [];
+    const result: {
+      provider: string;
+      models: Model[];
+      isFavoritesGroup?: boolean;
+    }[] = [];
 
     if (favoritesOnly) {
       // Favorites: show ALL favorited models across all providers in one group
@@ -381,7 +384,7 @@ export default function MiraModelSelector({
             <div className="m-2 mb-0 rounded-xl border border-dynamic-primary/25 bg-linear-to-r from-dynamic-primary/20 via-dynamic-secondary/15 to-dynamic-purple/20 p-3">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="font-medium text-sm text-foreground">
+                  <p className="font-medium text-foreground text-sm">
                     {t('model_unlock_more_title')}
                   </p>
                   <p className="mt-0.5 line-clamp-2 text-muted-foreground text-xs">
@@ -410,7 +413,7 @@ export default function MiraModelSelector({
               placeholder={t('model_selector_search')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-transparent py-1.5 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus-visible:ring-0"
+              className="w-full bg-transparent py-1.5 text-foreground text-sm placeholder:text-muted-foreground/50 focus:outline-none focus-visible:ring-0"
             />
           </div>
 
@@ -497,120 +500,125 @@ export default function MiraModelSelector({
                 ) : (
                   <Command shouldFilter={false}>
                     <CommandList className="max-h-none border-0">
-                      {modelsToRender.map(({ provider, models, isFavoritesGroup }) => (
-                        <CommandGroup
-                          key={provider}
-                          heading={
-                            isFavoritesGroup ? t('model_favorites_heading') : formatProvider(provider)
-                          }
-                          className="capitalize"
-                        >
-                          {models.map((m) => {
-                            const allowed = isModelAllowed(m.value);
-                            const favorited = isFavorited(m.value);
-                            const item = (
-                              <CommandItem
-                                key={m.value}
-                                value={`${m.provider} ${m.label} ${m.value} ${m.description ?? ''}`}
-                                onSelect={() => {
-                                  if (!allowed) return;
-                                  onChange(m);
-                                  setOpen(false);
-                                }}
-                                className={cn(
-                                  'flex items-start gap-2 py-2',
-                                  !allowed &&
-                                    'cursor-not-allowed opacity-50'
-                                )}
-                                aria-disabled={!allowed}
-                              >
-                                <ProviderLogo
-                                  provider={m.provider}
-                                  size={18}
-                                  className="mt-0.5 shrink-0"
-                                />
-                                <div className="min-w-0 flex-1">
-                                  <div className="flex items-center gap-1.5">
-                                    {allowed ? (
-                                      <Check
-                                        className={cn(
-                                          'h-3.5 w-3.5 shrink-0',
-                                          model.value === m.value
-                                            ? 'opacity-100'
-                                            : 'opacity-0'
-                                        )}
-                                      />
-                                    ) : (
-                                      <Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                                    )}
-                                    <span className="font-mono text-xs font-medium">
-                                      {m.label}
-                                    </span>
-                                    <button
-                                      type="button"
-                                      className="group ml-auto flex shrink-0 rounded p-0.5 hover:bg-muted"
-                                      onClick={(e) =>
-                                        handleToggleFavorite(
-                                          e,
-                                          m.value,
-                                          m.label
-                                        )
-                                      }
-                                      disabled={
-                                        toggleFavoriteMutation.isPending
-                                      }
-                                      aria-label={
-                                        favorited
-                                          ? t('model_unfavorite')
-                                          : t('model_favorite')
-                                      }
-                                      title={
-                                        favorited
-                                          ? t('model_unfavorite')
-                                          : t('model_favorite')
-                                      }
-                                    >
-                                      <Star
-                                        className={cn(
-                                          'h-3.5 w-3.5 transition-[fill]',
-                                          favorited && 'fill-current',
-                                          !favorited &&
-                                            'fill-transparent group-hover:fill-current'
-                                        )}
-                                      />
-                                    </button>
-                                  </div>
-                                  {m.description && (
-                                    <p className="mt-0.5 line-clamp-2 text-[10px] text-muted-foreground">
-                                      {m.description}
-                                    </p>
+                      {modelsToRender.map(
+                        ({ provider, models, isFavoritesGroup }) => (
+                          <CommandGroup
+                            key={provider}
+                            heading={
+                              isFavoritesGroup
+                                ? t('model_favorites_heading')
+                                : formatProvider(provider)
+                            }
+                            className="capitalize"
+                          >
+                            {models.map((m) => {
+                              const allowed = isModelAllowed(m.value);
+                              const favorited = isFavorited(m.value);
+                              const item = (
+                                <CommandItem
+                                  key={m.value}
+                                  value={`${m.provider} ${m.label} ${m.value} ${m.description ?? ''}`}
+                                  onSelect={() => {
+                                    if (!allowed) return;
+                                    onChange(m);
+                                    setOpen(false);
+                                  }}
+                                  className={cn(
+                                    'flex items-start gap-2 py-2',
+                                    !allowed && 'cursor-not-allowed opacity-50'
                                   )}
-                                </div>
-                                {m.context && (
-                                  <span className="shrink-0 text-[10px] text-muted-foreground">
-                                    {m.context >= 1000000
-                                      ? `${(m.context / 1000000).toFixed(0)}M`
-                                      : `${(m.context / 1000).toFixed(0)}K`}
-                                  </span>
-                                )}
-                              </CommandItem>
-                            );
+                                  aria-disabled={!allowed}
+                                >
+                                  <ProviderLogo
+                                    provider={m.provider}
+                                    size={18}
+                                    className="mt-0.5 shrink-0"
+                                  />
+                                  <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-1.5">
+                                      {allowed ? (
+                                        <Check
+                                          className={cn(
+                                            'h-3.5 w-3.5 shrink-0',
+                                            model.value === m.value
+                                              ? 'opacity-100'
+                                              : 'opacity-0'
+                                          )}
+                                        />
+                                      ) : (
+                                        <Lock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                      )}
+                                      <span className="font-medium font-mono text-xs">
+                                        {m.label}
+                                      </span>
+                                      <button
+                                        type="button"
+                                        className="group ml-auto flex shrink-0 rounded p-0.5 hover:bg-muted"
+                                        onClick={(e) =>
+                                          handleToggleFavorite(
+                                            e,
+                                            m.value,
+                                            m.label
+                                          )
+                                        }
+                                        disabled={
+                                          toggleFavoriteMutation.isPending
+                                        }
+                                        aria-label={
+                                          favorited
+                                            ? t('model_unfavorite')
+                                            : t('model_favorite')
+                                        }
+                                        title={
+                                          favorited
+                                            ? t('model_unfavorite')
+                                            : t('model_favorite')
+                                        }
+                                      >
+                                        <Star
+                                          className={cn(
+                                            'h-3.5 w-3.5 transition-[fill]',
+                                            favorited && 'fill-current',
+                                            !favorited &&
+                                              'fill-transparent group-hover:fill-current'
+                                          )}
+                                        />
+                                      </button>
+                                    </div>
+                                    {m.description && (
+                                      <p className="mt-0.5 line-clamp-2 text-[10px] text-muted-foreground">
+                                        {m.description}
+                                      </p>
+                                    )}
+                                  </div>
+                                  {m.context && (
+                                    <span className="shrink-0 text-[10px] text-muted-foreground">
+                                      {m.context >= 1000000
+                                        ? `${(m.context / 1000000).toFixed(0)}M`
+                                        : `${(m.context / 1000).toFixed(0)}K`}
+                                    </span>
+                                  )}
+                                </CommandItem>
+                              );
 
-                            if (allowed) return item;
+                              if (allowed) return item;
 
-                            return (
-                              <Tooltip key={m.value}>
-                                <TooltipTrigger asChild>{item}</TooltipTrigger>
-                                <TooltipContent side="right">
-                                  <p className="text-xs">
-                                    {t('model_upgrade_required')}
-                                  </p>
-                                </TooltipContent>
-                              </Tooltip>
-                            );
-                          })}
-                        </CommandGroup>
-                      ))}
+                              return (
+                                <Tooltip key={m.value}>
+                                  <TooltipTrigger asChild>
+                                    {item}
+                                  </TooltipTrigger>
+                                  <TooltipContent side="right">
+                                    <p className="text-xs">
+                                      {t('model_upgrade_required')}
+                                    </p>
+                                  </TooltipContent>
+                                </Tooltip>
+                              );
+                            })}
+                          </CommandGroup>
+                        )
+                      )}
                     </CommandList>
                   </Command>
                 )}

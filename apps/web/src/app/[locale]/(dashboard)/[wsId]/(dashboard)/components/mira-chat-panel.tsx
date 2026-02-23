@@ -553,15 +553,15 @@ export default function MiraChatPanel({
         <div className="hidden flex-1 sm:block" />
         <div className="flex shrink-0 items-center gap-0.5">
           {hasMessages && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={handleNewConversation}
-            title={t('new_conversation')}
-          >
-            <MessageSquarePlus className="h-4 w-4" />
-          </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={handleNewConversation}
+              title={t('new_conversation')}
+            >
+              <MessageSquarePlus className="h-4 w-4" />
+            </Button>
           )}
           <Button
             variant="ghost"

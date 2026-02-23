@@ -80,8 +80,8 @@ export default function ChatInputBar({
         <Button
           type="submit"
           size="icon"
-            className={cn(
-              'h-9 w-9 shrink-0 transition-all',
+          className={cn(
+            'h-9 w-9 shrink-0 transition-all',
             input.trim()
               ? 'bg-dynamic-purple text-white hover:bg-dynamic-purple/90'
               : 'bg-muted text-muted-foreground'
