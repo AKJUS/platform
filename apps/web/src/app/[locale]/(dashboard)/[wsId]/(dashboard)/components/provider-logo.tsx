@@ -12,8 +12,7 @@ function toProviderId(provider: string): string {
   return provider
     .toLowerCase()
     .replace(/\s+/g, '-')
-    .replace('google-vertex', 'vertex')
-    .replace('google vertex', 'vertex');
+    .replace('google-vertex', 'vertex');
 }
 
 interface ProviderLogoProps {

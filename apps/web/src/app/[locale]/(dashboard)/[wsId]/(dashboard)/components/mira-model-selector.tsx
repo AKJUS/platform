@@ -43,11 +43,13 @@ import { ProviderLogo } from './provider-logo';
 
 const EMPTY_FAVORITES = new Set<string>();
 const EMPTY_GROUPED_MODELS: Record<string, Model[]> = {};
-const EMPTY_RENDERED_GROUPS: {
+interface RenderedGroup {
   provider: string;
   models: Model[];
   isFavoritesGroup?: boolean;
-}[] = [];
+}
+
+const EMPTY_RENDERED_GROUPS: RenderedGroup[] = [];
 
 interface MiraModelSelectorProps {
   wsId: string;
@@ -297,11 +299,7 @@ export default function MiraModelSelector({
   const modelsToRender = useMemo(() => {
     if (!deferredOpen) return EMPTY_RENDERED_GROUPS;
 
-    const result: {
-      provider: string;
-      models: Model[];
-      isFavoritesGroup?: boolean;
-    }[] = [];
+    const result: RenderedGroup[] = [];
 
     if (favoritesOnly) {
       // Favorites: show ALL favorited models across all providers in one group
