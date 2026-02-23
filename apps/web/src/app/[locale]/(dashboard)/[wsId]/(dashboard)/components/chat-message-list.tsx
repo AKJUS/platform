@@ -1,5 +1,7 @@
 'use client';
 
+import { registry } from '@/components/json-render/dashboard-registry';
+import { Renderer } from '@json-render/react';
 import { cjk } from '@streamdown/cjk';
 import { code } from '@streamdown/code';
 import { math } from '@streamdown/math';
@@ -19,6 +21,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@tuturuuu/ui/avatar';
 import { Dialog, DialogContent, DialogTitle } from '@tuturuuu/ui/dialog';
 import { cn } from '@tuturuuu/utils/format';
 import { getToolName, isToolUIPart } from 'ai';
+import 'katex/dist/katex.min.css';
 import { useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
 import {
@@ -27,11 +30,11 @@ import {
   type ReactNode,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react';
 import { Streamdown } from 'streamdown';
-import 'katex/dist/katex.min.css';
 
 interface ChatMessageListProps {
   messages: UIMessage[];
@@ -220,6 +223,32 @@ function AssistantMarkdown({
   );
 }
 
+function getLatestReasoningHeader(text: string): string | null {
+  if (!text) return null;
+  const headers = [...text.matchAll(/^#+\s+(.+)$/gm)];
+  if (headers.length > 0) return headers[headers.length - 1][1]?.trim() || null;
+  const bolds = [...text.matchAll(/^\*\*([^*]+)\*\*$/gm)];
+  if (bolds.length > 0) return bolds[bolds.length - 1][1]?.trim() || null;
+  const blocks = text
+    .split(/\n\s*\n/)
+    .map((b) => b.trim())
+    .filter(Boolean);
+  for (let i = blocks.length - 1; i >= 0; i--) {
+    const blockLines = blocks[i]
+      .split('\n')
+      .map((l) => l.trim())
+      .filter(Boolean);
+    if (
+      blockLines.length === 1 &&
+      blockLines[0].length < 65 &&
+      !/[.!?:]$/.test(blockLines[0])
+    ) {
+      return blockLines[0];
+    }
+  }
+  return null;
+}
+
 function ReasoningPart({
   text,
   isAnimating,
@@ -229,6 +258,7 @@ function ReasoningPart({
 }) {
   const t = useTranslations('dashboard.mira_chat');
   const [expanded, setExpanded] = useState(false);
+  const latestHeader = useMemo(() => getLatestReasoningHeader(text), [text]);
 
   return (
     <div className="flex flex-col gap-1">
@@ -245,9 +275,17 @@ function ReasoningPart({
         <span className="font-medium">
           {isAnimating ? t('reasoning') : t('reasoned')}
         </span>
+        {latestHeader && (
+          <>
+            <span className="text-muted-foreground/40">•</span>
+            <span className="max-w-50 truncate text-muted-foreground/80 sm:max-w-75">
+              {latestHeader}
+            </span>
+          </>
+        )}
         <ChevronRight
           className={cn(
-            'h-3 w-3 transition-transform',
+            'ml-1 h-3 w-3 transition-transform',
             expanded && 'rotate-90'
           )}
         />
@@ -534,6 +572,21 @@ function ToolCallPart({ part }: { part: ToolPartData }) {
         </span>
       </div>
     );
+  }
+
+  // Generative UI tool: render the output natively instead of showing JSON
+  if (rawToolName === 'render_ui' && hasOutput) {
+    if (isDone && output) {
+      // The output of render_ui is just the spec `{ spec: ... }` returned from mira-tools executor
+      const spec = (output as { spec?: any })?.spec;
+      if (spec) {
+        return (
+          <div className="my-2 w-full max-w-full">
+            <Renderer spec={spec} registry={registry} />
+          </div>
+        );
+      }
+    }
   }
 
   // Completed image tool: render the image inline from tool output

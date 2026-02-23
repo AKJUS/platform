@@ -145,5 +145,9 @@
   "workspaces": ["apps/*", "packages/*"],
   "overrides": {
     "@polar-sh/sdk": "^0.43.1"
+  },
+  "dependencies": {
+    "@json-render/core": "^0.8.0",
+    "@json-render/react": "^0.8.0"
   }
 }

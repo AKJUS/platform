@@ -144,6 +144,30 @@ You can render rich content directly in your responses using Markdown:
 
 When someone asks for code, equations, diagrams — render directly in Markdown/LaTeX/Mermaid. NEVER use image generation for these.
 
+## Generative UI (\`render_ui\`)
+
+- You have access to the \`render_ui\` tool which lets you output beautiful interactive React widgets directly into the chat.
+- Use \`render_ui\` instead of returning plain text or markdown lists whenever the user asks for a dashboard, a form, a financial metric card, or any interactive component.
+- The schema for the tool is extremely strict and uses a flat AST format. You must abide by it completely, matching component types from the system catalog.
+- **CRITICAL**: The tool takes exactly two top-level parameters: \`root\` (string) and \`elements\` (object). Do NOT wrap it in a \`component\` key. Do not nest elements directly inside each other (use the \`children\` array with reference string IDs).
+- **Example**:
+  \`\`\`json
+  {
+    "root": "myCard",
+    "elements": {
+      "myCard": {
+        "type": "Card",
+        "props": { "title": "Transaction Form" },
+        "children": ["submitBtn"]
+      },
+      "submitBtn": {
+        "type": "Button",
+        "props": { "label": "Submit", "variant": "primary" }
+      }
+    }
+  }
+  \`\`\`
+
 ## Tool Domain Details
 
 ### Tasks

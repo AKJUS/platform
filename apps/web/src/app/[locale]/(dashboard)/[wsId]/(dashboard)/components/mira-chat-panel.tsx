@@ -1,5 +1,6 @@
 'use client';
 
+import { ActionProvider, StateProvider } from '@json-render/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { DefaultChatTransport } from '@tuturuuu/ai/core';
 import {
@@ -27,6 +28,7 @@ import { getToolName, isToolUIPart } from 'ai';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { handlers as jsonRenderHandlers } from '@/components/json-render/dashboard-registry';
 import { resolveTimezone } from '@/lib/calendar-settings-resolver';
 import ChatInputBar from './chat-input-bar';
 import ChatMessageList from './chat-message-list';
@@ -68,6 +70,16 @@ export default function MiraChatPanel({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const scrollEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // json-render action handlers factory expecting state accessors
+  const actionHandlers = useMemo(
+    () =>
+      jsonRenderHandlers(
+        () => () => {},
+        () => ({})
+      ),
+    []
+  );
 
   // Bottom bar (suggested prompts + input) visibility: hide while scrolling, show after scroll stops
   const [bottomBarVisible, setBottomBarVisible] = useState(true);
@@ -569,34 +581,40 @@ export default function MiraChatPanel({
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {hasMessages ? (
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-            <ChatMessageList
-              messages={
-                pendingDisplay && messages.length === 0
-                  ? [
-                      {
-                        id: 'pending',
-                        role: 'user' as const,
-                        parts: [
-                          { type: 'text' as const, text: pendingDisplay },
-                        ],
-                      },
-                    ]
-                  : queuedText
-                    ? [
-                        ...messages,
-                        {
-                          id: 'queued',
-                          role: 'user' as const,
-                          parts: [{ type: 'text' as const, text: queuedText }],
-                        },
-                      ]
-                    : messages
-              }
-              isStreaming={isBusy || !!pendingPrompt}
-              assistantName={assistantName}
-              userAvatarUrl={userAvatarUrl}
-              scrollContainerRef={scrollContainerRef}
-            />
+            <StateProvider>
+              <ActionProvider handlers={actionHandlers}>
+                <ChatMessageList
+                  messages={
+                    pendingDisplay && messages.length === 0
+                      ? [
+                          {
+                            id: 'pending',
+                            role: 'user' as const,
+                            parts: [
+                              { type: 'text' as const, text: pendingDisplay },
+                            ],
+                          },
+                        ]
+                      : queuedText
+                        ? [
+                            ...messages,
+                            {
+                              id: 'queued',
+                              role: 'user' as const,
+                              parts: [
+                                { type: 'text' as const, text: queuedText },
+                              ],
+                            },
+                          ]
+                        : messages
+                  }
+                  isStreaming={isBusy || !!pendingPrompt}
+                  assistantName={assistantName}
+                  userAvatarUrl={userAvatarUrl}
+                  scrollContainerRef={scrollContainerRef}
+                />
+              </ActionProvider>
+            </StateProvider>
           </div>
         ) : (
           <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-6 overflow-auto px-2 py-8">
