@@ -176,6 +176,7 @@
     "timerStatsTitle": "Thống kê",
     "timerActivityHeatmap": "Hoạt động",
     "timerEditSession": "Sửa phiên",
+    "timerSessionUpdated": "Đã cập nhật phiên",
     "timerDeleteSession": "Xóa phiên",
     "timerDeleteConfirm": "Xóa phiên này?",
     "timerAddMissedEntry": "Thêm mục bị thiếu",
@@ -258,6 +259,15 @@
     "timerSubmitForApproval": "Gửi duyệt",
     "timerSessionExceeded": "Phiên vượt ngưỡng",
     "timerSessionExceededDescription": "Phiên này đã vượt quá ngưỡng thời gian của không gian làm việc. Bạn có thể hủy phiên hoặc gửi yêu cầu để được duyệt.",
+    "timerTimeEditingRestricted": "Chỉnh Sửa Thời Gian Bị Hạn Chế",
+    "timerAllEditsRequireApproval": "Tất cả các chỉnh sửa thời gian phải được gửi dưới dạng yêu cầu phê duyệt. Phiên này từ {date}.",
+    "@timerAllEditsRequireApproval": {
+        "placeholders": {
+            "date": {
+                "type": "String"
+            }
+        }
+    },
     "timerDiscardSession": "Hủy phiên",
     "timerSubmitAsRequest": "Gửi yêu cầu",
     "timerThresholdWarningAll": "Mọi mục bổ sung trong không gian làm việc này đều cần được duyệt. Vui lòng thêm ít nhất một ảnh minh chứng trước khi gửi.",

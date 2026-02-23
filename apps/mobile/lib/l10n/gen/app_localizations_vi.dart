@@ -655,6 +655,14 @@ class AppLocalizationsVi extends AppLocalizations {
   String get timerSessionExceededDescription => 'Phiên này đã vượt quá ngưỡng thời gian của không gian làm việc. Bạn có thể hủy phiên hoặc gửi yêu cầu để được duyệt.';
 
   @override
+  String get timerTimeEditingRestricted => 'Chỉnh Sửa Thời Gian Bị Hạn Chế';
+
+  @override
+  String timerAllEditsRequireApproval(String date) {
+    return 'Tất cả các chỉnh sửa thời gian phải được gửi dưới dạng yêu cầu phê duyệt. Phiên này từ $date.';
+  }
+
+  @override
   String get timerDiscardSession => 'Hủy phiên';
 
   @override

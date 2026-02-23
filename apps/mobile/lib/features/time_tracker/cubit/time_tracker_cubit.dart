@@ -398,6 +398,7 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
     String? categoryId,
     DateTime? startTime,
     DateTime? endTime,
+    bool throwOnError = false,
   }) async {
     try {
       await _repo.editSession(
@@ -415,6 +416,9 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
       await loadHistoryInitial(wsId, userId ?? '');
     } on Exception catch (e) {
       emit(state.copyWith(error: e.toString()));
+      if (throwOnError) {
+        rethrow;
+      }
     }
   }
 

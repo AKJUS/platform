@@ -219,6 +219,7 @@ class _HistoryTabState extends State<HistoryTab> {
         builder: (_) => EditSessionDialog(
           session: session,
           categories: cubit.state.categories,
+          thresholdDays: cubit.state.thresholdDays,
           onSave:
               ({
                 title,
@@ -226,18 +227,17 @@ class _HistoryTabState extends State<HistoryTab> {
                 categoryId,
                 startTime,
                 endTime,
-              }) {
-                unawaited(
-                  cubit.editSession(
-                    session.id,
-                    wsId,
-                    userId: supabase.auth.currentUser?.id,
-                    title: title,
-                    description: description,
-                    categoryId: categoryId,
-                    startTime: startTime,
-                    endTime: endTime,
-                  ),
+              }) async {
+                await cubit.editSession(
+                  session.id,
+                  wsId,
+                  userId: supabase.auth.currentUser?.id,
+                  title: title,
+                  description: description,
+                  categoryId: categoryId,
+                  startTime: startTime,
+                  endTime: endTime,
+                  throwOnError: true,
                 );
               },
         ),

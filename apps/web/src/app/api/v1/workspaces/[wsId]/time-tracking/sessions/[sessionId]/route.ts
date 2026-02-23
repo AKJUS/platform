@@ -3,7 +3,7 @@ import {
   createClient,
 } from '@tuturuuu/supabase/next/server';
 import type { Json } from '@tuturuuu/types';
-import { getPermissions } from '@tuturuuu/utils/workspace-helper';
+import { getPermissions,normalizeWorkspaceId } from '@tuturuuu/utils/workspace-helper';
 import dayjs from 'dayjs';
 import { type NextRequest, NextResponse } from 'next/server';
 
@@ -207,7 +207,14 @@ export async function PATCH(
 ) {
   try {
     const { wsId, sessionId } = await params;
-    const supabase = await createClient();
+    const supabase = await createClient(request);
+
+    let normalizedWsId: string;
+    try {
+      normalizedWsId = await normalizeWorkspaceId(wsId, supabase);
+    } catch {
+      return NextResponse.json({ error: 'Workspace not found' }, { status: 404 });
+    }
 
     // Get authenticated user
     const {
@@ -222,7 +229,7 @@ export async function PATCH(
     const { data: memberCheck } = await supabase
       .from('workspace_members')
       .select('id:user_id')
-      .eq('ws_id', wsId)
+      .eq('ws_id', normalizedWsId)
       .eq('user_id', user.id)
       .single();
 
@@ -252,7 +259,7 @@ export async function PATCH(
     const sbAdmin = await createAdminClient();
 
     // Check if user has permission to bypass approval for time tracking
-    const permissions = await getPermissions({ wsId });
+    const permissions = await getPermissions({ wsId: normalizedWsId, request });
     if (!permissions) {
       return Response.json({ error: 'Not found' }, { status: 404 });
     }
@@ -272,7 +279,7 @@ export async function PATCH(
       // OR if user has bypass_time_tracking_request_approval permission
       if (!hasPendingApproval && !canBypass) {
         const thresholdCheck = await checkSessionThreshold(
-          wsId,
+          normalizedWsId,
           session.start_time,
           {
             sessionId: sessionId,
@@ -387,7 +394,7 @@ export async function PATCH(
         // Validate threshold before pausing - checks ENTIRE CHAIN from root
         // This ensures pause doesn't bypass approval requirements when they are strict
         const thresholdCheck = await checkSessionThreshold(
-          wsId,
+          normalizedWsId,
           session.start_time,
           {
             sessionId: sessionId,
@@ -429,7 +436,7 @@ export async function PATCH(
           const { data: defaultBreakType } = await sbAdmin
             .from('workspace_break_types')
             .select('*')
-            .eq('ws_id', wsId)
+            .eq('ws_id', normalizedWsId)
             .eq('is_default', true)
             .maybeSingle();
 
@@ -557,7 +564,7 @@ export async function PATCH(
       const { data, error } = await sbAdmin
         .from('time_tracking_sessions')
         .insert({
-          ws_id: wsId,
+          ws_id: normalizedWsId,
           user_id: user.id,
           title: session.title,
           description: session.description,
@@ -657,7 +664,7 @@ export async function PATCH(
           const { data: workspaceSettings } = await sbAdmin
             .from('workspace_settings')
             .select('missed_entry_date_threshold')
-            .eq('ws_id', wsId)
+            .eq('ws_id', normalizedWsId)
             .maybeSingle();
 
           // null/undefined means no approval needed - skip all threshold checks
@@ -818,12 +825,18 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ wsId: string; sessionId: string }> }
 ) {
   try {
     const { wsId, sessionId } = await params;
-    const supabase = await createClient();
+    const supabase = await createClient(request);
+    let normalizedWsId: string;
+    try {
+      normalizedWsId = await normalizeWorkspaceId(wsId, supabase);
+    } catch {
+      return NextResponse.json({ error: 'Workspace not found' }, { status: 404 });
+    }
 
     // Get authenticated user
     const {
@@ -838,7 +851,7 @@ export async function DELETE(
     const { data: memberCheck } = await supabase
       .from('workspace_members')
       .select('id:user_id')
-      .eq('ws_id', wsId)
+      .eq('ws_id', normalizedWsId)
       .eq('user_id', user.id)
       .single();
 
@@ -854,7 +867,7 @@ export async function DELETE(
       .from('time_tracking_sessions')
       .select('id')
       .eq('id', sessionId)
-      .eq('ws_id', wsId)
+      .eq('ws_id', normalizedWsId)
       .eq('user_id', user.id)
       .single();
 

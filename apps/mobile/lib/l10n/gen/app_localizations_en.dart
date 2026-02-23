@@ -655,6 +655,14 @@ class AppLocalizationsEn extends AppLocalizations {
   String get timerSessionExceededDescription => 'This session is older than your workspace threshold. You can discard it or submit it as a request for approval.';
 
   @override
+  String get timerTimeEditingRestricted => 'Time Editing Restricted';
+
+  @override
+  String timerAllEditsRequireApproval(String date) {
+    return 'All time edits must be submitted as requests for approval. This session is from $date.';
+  }
+
+  @override
   String get timerDiscardSession => 'Discard session';
 
   @override

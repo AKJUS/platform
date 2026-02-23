@@ -1363,6 +1363,18 @@ abstract class AppLocalizations {
   /// **'This session is older than your workspace threshold. You can discard it or submit it as a request for approval.'**
   String get timerSessionExceededDescription;
 
+  /// No description provided for @timerTimeEditingRestricted.
+  ///
+  /// In en, this message translates to:
+  /// **'Time Editing Restricted'**
+  String get timerTimeEditingRestricted;
+
+  /// No description provided for @timerAllEditsRequireApproval.
+  ///
+  /// In en, this message translates to:
+  /// **'All time edits must be submitted as requests for approval. This session is from {date}.'**
+  String timerAllEditsRequireApproval(String date);
+
   /// No description provided for @timerDiscardSession.
   ///
   /// In en, this message translates to:
