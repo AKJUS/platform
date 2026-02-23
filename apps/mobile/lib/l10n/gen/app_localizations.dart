@@ -355,6 +355,12 @@ abstract class AppLocalizations {
   /// **'Apps'**
   String get navApps;
 
+  /// No description provided for @navAssistant.
+  ///
+  /// In en, this message translates to:
+  /// **'Assistant'**
+  String get navAssistant;
+
   /// No description provided for @appsHubSearchHint.
   ///
   /// In en, this message translates to:
@@ -378,6 +384,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No apps found'**
   String get appsHubEmpty;
+
+  /// No description provided for @assistantComingSoon.
+  ///
+  /// In en, this message translates to:
+  /// **'Coming Soon'**
+  String get assistantComingSoon;
 
   /// No description provided for @dashboardGreeting.
   ///

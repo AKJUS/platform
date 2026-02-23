@@ -58,10 +58,12 @@
     "navTimer": "Timer",
     "navSettings": "Settings",
     "navApps": "Apps",
+    "navAssistant": "Assistant",
     "appsHubSearchHint": "Search apps",
     "appsHubQuickAccess": "Quick access",
     "appsHubAllApps": "All apps",
     "appsHubEmpty": "No apps found",
+    "assistantComingSoon": "Coming Soon",
 
     "dashboardGreeting": "Welcome back!",
     "dashboardQuickActions": "Quick actions",

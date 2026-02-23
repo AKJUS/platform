@@ -13,6 +13,7 @@ abstract final class Routes {
   // Dashboard (shell)
   static const home = '/';
   static const apps = '/apps';
+  static const assistant = '/assistant';
   static const profileRoot = '/profile';
   static const tasks = '/tasks';
   static const calendar = '/calendar';

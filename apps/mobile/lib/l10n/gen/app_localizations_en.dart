@@ -143,6 +143,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get navApps => 'Apps';
 
   @override
+  String get navAssistant => 'Assistant';
+
+  @override
   String get appsHubSearchHint => 'Search apps';
 
   @override
@@ -153,6 +156,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get appsHubEmpty => 'No apps found';
+
+  @override
+  String get assistantComingSoon => 'Coming Soon';
 
   @override
   String get dashboardGreeting => 'Welcome back!';

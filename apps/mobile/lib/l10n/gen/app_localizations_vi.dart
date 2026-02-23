@@ -143,6 +143,9 @@ class AppLocalizationsVi extends AppLocalizations {
   String get navApps => 'Ứng dụng';
 
   @override
+  String get navAssistant => 'Trợ lý';
+
+  @override
   String get appsHubSearchHint => 'Tìm kiếm ứng dụng';
 
   @override
@@ -153,6 +156,9 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get appsHubEmpty => 'Không tìm thấy ứng dụng';
+
+  @override
+  String get assistantComingSoon => 'Sắp ra mắt';
 
   @override
   String get dashboardGreeting => 'Chào mừng trở lại!';
