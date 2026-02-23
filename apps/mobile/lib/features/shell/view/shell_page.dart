@@ -264,14 +264,21 @@ class _ShellPageState extends State<ShellPage> {
     BuildContext context,
     AppTabState state,
   ) async {
+    final appTabCubit = context.read<AppTabCubit>();
+    final appRoute = state.hasSelection
+        ? AppRegistry.moduleById(state.selectedId)?.route
+        : null;
     final isDoubleTap =
         _lastTabIndex == index &&
         _tapStopwatch.isRunning &&
         _tapStopwatch.elapsed < const Duration(milliseconds: 300);
 
     if (index == 1 && isDoubleTap) {
-      await context.read<AppTabCubit>().clearSelection();
-      if (context.mounted) context.go(Routes.apps);
+      await appTabCubit.clearSelection();
+      if (!context.mounted) {
+        return;
+      }
+      context.go(Routes.apps);
       _lastTabIndex = index;
       _tapStopwatch
         ..reset()
@@ -279,16 +286,19 @@ class _ShellPageState extends State<ShellPage> {
       return;
     }
 
-    final appRoute = state.hasSelection
-        ? AppRegistry.moduleById(state.selectedId)?.route
-        : null;
     final route = switch (index) {
       1 => appRoute ?? Routes.apps,
       2 => Routes.assistant,
       _ => Routes.home,
     };
-    if (context.mounted) context.go(route);
-    await context.read<AppTabCubit>().setLastTabRoute(route);
+    if (!context.mounted) {
+      return;
+    }
+    context.go(route);
+    await appTabCubit.setLastTabRoute(route);
+    if (!context.mounted) {
+      return;
+    }
     _lastTabIndex = index;
     _tapStopwatch
       ..reset()

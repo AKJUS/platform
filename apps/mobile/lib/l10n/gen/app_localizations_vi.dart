@@ -803,16 +803,25 @@ class AppLocalizationsVi extends AppLocalizations {
   String get profileDisplayNameHint => 'Tên hiển thị của bạn';
 
   @override
+  String get profileDisplayNameRequired => 'Tên hiển thị không được để trống';
+
+  @override
   String get profileFullName => 'Tên đầy đủ';
 
   @override
   String get profileFullNameHint => 'Tên đầy đủ của bạn';
 
   @override
+  String get profileFullNameRequired => 'Tên đầy đủ không được để trống';
+
+  @override
   String get profileEmail => 'Email';
 
   @override
   String get profileEmailHint => 'example@tuturuuu.com';
+
+  @override
+  String get profileInvalidEmail => 'Vui lòng nhập địa chỉ email hợp lệ';
 
   @override
   String get profileCurrentEmail => 'Email hiện tại';

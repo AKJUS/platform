@@ -1,5 +1,8 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
-import { getPermissions } from '@tuturuuu/utils/workspace-helper';
+import {
+  getPermissions,
+  normalizeWorkspaceId,
+} from '@tuturuuu/utils/workspace-helper';
 import { type NextRequest, NextResponse } from 'next/server';
 import * as z from 'zod';
 
@@ -22,10 +25,22 @@ const UpdateThresholdSchema = z.object({
   ),
 });
 
-export async function PUT(req: NextRequest, { params }: Params) {
+export async function PUT(
+  req: NextRequest,
+  { params }: Params
+): Promise<NextResponse> {
   try {
     const { wsId } = await params;
     const supabase = await createClient(req);
+    let normalizedWsId: string;
+    try {
+      normalizedWsId = await normalizeWorkspaceId(wsId, supabase);
+    } catch {
+      return NextResponse.json(
+        { error: 'Workspace not found' },
+        { status: 404 }
+      );
+    }
 
     // Get authenticated user
     const {
@@ -40,7 +55,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     const { data: memberCheck } = await supabase
       .from('workspace_members')
       .select('id:user_id')
-      .eq('ws_id', wsId)
+      .eq('ws_id', normalizedWsId)
       .eq('user_id', user.id)
       .single();
 
@@ -51,9 +66,12 @@ export async function PUT(req: NextRequest, { params }: Params) {
       );
     }
 
-    const permissions = await getPermissions({ wsId, request: req });
+    const permissions = await getPermissions({
+      wsId: normalizedWsId,
+      request: req,
+    });
     if (!permissions) {
-      return Response.json({ error: 'Not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
     const { withoutPermission } = permissions;
 
@@ -71,7 +89,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
     const { data: workspace } = await supabase
       .from('workspaces')
       .select('personal')
-      .eq('id', wsId)
+      .eq('id', normalizedWsId)
       .maybeSingle();
 
     if (workspace?.personal) {
@@ -106,7 +124,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
       .from('workspace_settings')
       .upsert(
         {
-          ws_id: wsId,
+          ws_id: normalizedWsId,
           missed_entry_date_threshold: threshold,
           updated_at: new Date().toISOString(),
         },

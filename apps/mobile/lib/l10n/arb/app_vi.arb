@@ -256,6 +256,9 @@
     "timerDiscardSession": "Hủy phiên",
     "timerSubmitAsRequest": "Gửi yêu cầu",
     "timerThresholdWarningAll": "Mọi mục bổ sung trong không gian làm việc này đều cần được duyệt. Vui lòng thêm ít nhất một ảnh minh chứng trước khi gửi.",
+    "@timerThresholdWarningAll": {
+        "description": "Warning shown when workspace requires approval for all missed entries."
+    },
     "timerThresholdWarning": "Các mục cũ hơn {days} ngày cần được duyệt. Vui lòng thêm ít nhất một ảnh minh chứng trước khi gửi.",
     "@timerThresholdWarning": {
         "placeholders": {
@@ -322,10 +325,13 @@
     "profileMemberSince": "Thành viên từ",
     "profileDisplayName": "Tên hiển thị",
     "profileDisplayNameHint": "Tên hiển thị của bạn",
+    "profileDisplayNameRequired": "Tên hiển thị không được để trống",
     "profileFullName": "Tên đầy đủ",
     "profileFullNameHint": "Tên đầy đủ của bạn",
+    "profileFullNameRequired": "Tên đầy đủ không được để trống",
     "profileEmail": "Email",
     "profileEmailHint": "example@tuturuuu.com",
+    "profileInvalidEmail": "Vui lòng nhập địa chỉ email hợp lệ",
     "profileCurrentEmail": "Email hiện tại",
     "profileNewEmail": "Email mới",
     "profileEmailUpdateNote": "Email xác nhận sẽ được gửi đến cả hai địa chỉ",
