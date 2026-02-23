@@ -72,6 +72,8 @@ class _ShellPageState extends State<ShellPage> {
   Widget _buildCompactLayout(BuildContext context, AppTabState state) {
     final l10n = context.l10n;
     final items = _buildNavItems(context, state, l10n);
+    final selectedIndex = _calculateSelectedIndex(context);
+    final selectedKey = _keyForIndex(selectedIndex);
 
     return shad.Scaffold(
       headers: [
@@ -80,18 +82,23 @@ class _ShellPageState extends State<ShellPage> {
       footers: [
         SafeArea(
           top: false,
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 560),
-              child: Listener(
-                behavior: HitTestBehavior.translucent,
-                onPointerDown: _startLongPressTimer,
-                onPointerUp: _stopLongPressTimer,
-                onPointerCancel: _stopLongPressTimer,
-                child: shad.NavigationBar(
-                  onSelected: (key) =>
-                      _onItemTapped(_indexForKey(key), context, state),
-                  children: items,
+          child: SizedBox(
+            width: double.infinity,
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 560),
+                child: Listener(
+                  behavior: HitTestBehavior.translucent,
+                  onPointerDown: _startLongPressTimer,
+                  onPointerUp: _stopLongPressTimer,
+                  onPointerCancel: _stopLongPressTimer,
+                  child: shad.NavigationBar(
+                    selectedKey: selectedKey,
+                    alignment: shad.NavigationBarAlignment.spaceEvenly,
+                    onSelected: (key) =>
+                        _onItemTapped(_indexForKey(key), context, state),
+                    children: items,
+                  ),
                 ),
               ),
             ),
