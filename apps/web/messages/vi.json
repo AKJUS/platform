@@ -2827,6 +2827,7 @@
       "model_removed_from_favorites": "Đã bỏ {model} khỏi mục yêu thích",
       "model_selector_empty": "Không tìm thấy mô hình.",
       "model_selector_search": "Tìm mô hình...",
+      "model_show_all": "Hiển thị tất cả mô hình",
       "model_show_favorites": "Chỉ hiển thị mục yêu thích",
       "model_unfavorite": "Bỏ khỏi mục yêu thích",
       "model_unlock_more_description": "Nâng cấp gói workspace để truy cập thêm các mô hình AI nâng cao.",

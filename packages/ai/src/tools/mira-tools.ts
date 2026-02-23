@@ -158,6 +158,79 @@ export const MIRA_TOOL_DIRECTORY: Record<string, string> = {
   no_action_needed: 'Conversational message — no tool action required',
 };
 
+import type { PermissionId } from '@tuturuuu/types';
+
+export const MIRA_TOOL_PERMISSIONS: Partial<
+  Record<string, PermissionId | PermissionId[]>
+> = {
+  // Tasks
+  get_my_tasks: [],
+  create_task: 'manage_projects',
+  complete_task: 'manage_projects',
+  update_task: 'manage_projects',
+  delete_task: 'manage_projects',
+  list_boards: [],
+  create_board: 'manage_projects',
+  update_board: 'manage_projects',
+  delete_board: 'manage_projects',
+  list_task_lists: [],
+  create_task_list: 'manage_projects',
+  update_task_list: 'manage_projects',
+  delete_task_list: 'manage_projects',
+  list_task_labels: [],
+  create_task_label: 'manage_projects',
+  update_task_label: 'manage_projects',
+  delete_task_label: 'manage_projects',
+  add_task_labels: 'manage_projects',
+  remove_task_labels: 'manage_projects',
+  list_projects: [],
+  create_project: 'manage_projects',
+  update_project: 'manage_projects',
+  delete_project: 'manage_projects',
+  add_task_to_project: 'manage_projects',
+  remove_task_from_project: 'manage_projects',
+  add_task_assignee: 'manage_projects',
+  remove_task_assignee: 'manage_projects',
+
+  // Calendar
+  get_upcoming_events: 'manage_calendar',
+  create_event: 'manage_calendar',
+  check_e2ee_status: 'manage_calendar',
+  enable_e2ee: 'manage_calendar',
+
+  // Finance
+  log_transaction: 'manage_finance',
+  get_spending_summary: 'manage_finance',
+  list_wallets: 'manage_finance',
+  create_wallet: 'manage_finance',
+  update_wallet: 'manage_finance',
+  delete_wallet: 'manage_finance',
+  list_transactions: 'manage_finance',
+  get_transaction: 'manage_finance',
+  update_transaction: 'manage_finance',
+  delete_transaction: 'manage_finance',
+  list_transaction_categories: 'manage_finance',
+  create_transaction_category: 'manage_finance',
+  update_transaction_category: 'manage_finance',
+  delete_transaction_category: 'manage_finance',
+  list_transaction_tags: 'manage_finance',
+  create_transaction_tag: 'manage_finance',
+  update_transaction_tag: 'manage_finance',
+  delete_transaction_tag: 'manage_finance',
+  set_default_currency: 'manage_finance',
+
+  // Time Tracking
+  // (Available to everyone internally or those who have tracking access, skipping strict perm here for now unless needed)
+
+  // Memory
+  // Memories are personal to the user mostly, skip strict perm
+
+  // Generative UI & Metadata
+  render_ui: [],
+  select_tools: [],
+  no_action_needed: [],
+};
+
 // ── Tool Definitions (schemas only, passed to streamText) ──
 
 export const miraToolDefinitions = {
@@ -872,14 +945,47 @@ export type MiraToolName = keyof typeof miraToolDefinitions;
 
 // ── Stream Tools Factory ──
 
-export function createMiraStreamTools(ctx: MiraToolContext): ToolSet {
+export function createMiraStreamTools(
+  ctx: MiraToolContext,
+  withoutPermission?: (p: PermissionId) => boolean
+): ToolSet {
   const tools: ToolSet = {};
   for (const [name, def] of Object.entries(miraToolDefinitions)) {
-    tools[name] = {
-      ...def,
-      execute: async (args: Record<string, unknown>) =>
-        executeMiraTool(name, args, ctx),
-    } as Tool;
+    // Check permissions
+    const requiredPerm = MIRA_TOOL_PERMISSIONS[name];
+    let isMissingPermission = false;
+    let missingPermissionsStr = '';
+
+    if (requiredPerm && withoutPermission) {
+      if (Array.isArray(requiredPerm)) {
+        const missing = requiredPerm.filter((p) => withoutPermission(p));
+        if (missing.length > 0) {
+          isMissingPermission = true;
+          missingPermissionsStr = missing.join(', ');
+        }
+      } else {
+        if (withoutPermission(requiredPerm)) {
+          isMissingPermission = true;
+          missingPermissionsStr = requiredPerm;
+        }
+      }
+    }
+
+    if (isMissingPermission) {
+      tools[name] = {
+        ...def,
+        execute: async () => ({
+          ok: false,
+          error: `You do not have the required permissions to use this tool. Missing permission(s): ${missingPermissionsStr}. Please inform the user.`,
+        }),
+      } as Tool;
+    } else {
+      tools[name] = {
+        ...def,
+        execute: async (args: Record<string, unknown>) =>
+          executeMiraTool(name, args, ctx),
+      } as Tool;
+    }
   }
   return tools;
 }

@@ -8,7 +8,7 @@ import { useState } from 'react';
 const LOGOS_BASE = 'https://models.dev/logos';
 
 /** Normalize provider name to Provider ID used by models.dev */
-function toProviderId(provider: string): string {
+export function toProviderId(provider: string): string {
   return provider
     .toLowerCase()
     .replace(/\s+/g, '-')

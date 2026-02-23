@@ -6,7 +6,11 @@
  * falls back to sensible defaults.
  */
 
-import { MIRA_TOOL_DIRECTORY } from '../tools/mira-tools';
+import type { PermissionId } from '@tuturuuu/types';
+import {
+  MIRA_TOOL_DIRECTORY,
+  MIRA_TOOL_PERMISSIONS,
+} from '../tools/mira-tools';
 
 export type MiraSoulConfig = {
   name?: string;
@@ -20,10 +24,12 @@ export type MiraSoulConfig = {
 export function buildMiraSystemInstruction(opts?: {
   soul?: MiraSoulConfig | null;
   isFirstInteraction?: boolean;
+  withoutPermission?: (p: PermissionId) => boolean;
 }): string {
   const soul = opts?.soul;
   const name = soul?.name || 'Mira';
   const isFirst = opts?.isFirstInteraction ?? false;
+  const withoutPermission = opts?.withoutPermission;
 
   // ── Identity ──
   let identitySection = `You are ${name}, an AI personal assistant powered by Tuturuuu.`;
@@ -91,7 +97,38 @@ export function buildMiraSystemInstruction(opts?: {
 
   // ── Tool directory (lightweight listing for select_tools step) ──
   const toolDirectoryLines = Object.entries(MIRA_TOOL_DIRECTORY)
-    .map(([toolName, desc]) => `- ${toolName}: ${desc}`)
+    .map(([toolName, desc]) => {
+      let statusStr = '';
+      const requiredPerm = MIRA_TOOL_PERMISSIONS[toolName];
+
+      if (requiredPerm && withoutPermission) {
+        let isMissing = false;
+        let missingStr = '';
+
+        if (Array.isArray(requiredPerm)) {
+          const missing = requiredPerm.filter((p) => withoutPermission(p));
+          if (missing.length > 0) {
+            isMissing = true;
+            missingStr = missing.join(', ');
+          }
+        } else {
+          if (withoutPermission(requiredPerm as PermissionId)) {
+            isMissing = true;
+            missingStr = requiredPerm as PermissionId;
+          }
+        }
+
+        if (isMissing) {
+          statusStr = ` (DISABLED: User lacks required permission(s) - ${missingStr})`;
+        } else {
+          statusStr = ` (Requires: ${Array.isArray(requiredPerm) ? requiredPerm.join(', ') : requiredPerm})`;
+        }
+      } else if (requiredPerm && !withoutPermission) {
+        statusStr = ` (Requires: ${Array.isArray(requiredPerm) ? requiredPerm.join(', ') : requiredPerm})`;
+      }
+
+      return `- ${toolName}: ${desc}${statusStr}`;
+    })
     .join('\n');
 
   return `## ABSOLUTE RULE — Tool Selection and Caching
