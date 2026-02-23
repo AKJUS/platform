@@ -586,38 +586,38 @@ export default function MiraChatPanel({
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7"
+              className="h-8 w-8"
               onClick={handleNewConversation}
               title={t('new_conversation')}
             >
-              <MessageSquarePlus className="h-3.5 w-3.5" />
+              <MessageSquarePlus className="h-4 w-4" />
             </Button>
           )}
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7"
+            className="h-8 w-8"
             onClick={() => setViewOnly((v) => !v)}
             title={viewOnlyButtonTitle}
           >
             {viewOnly ? (
-              <PanelBottomOpen className="h-3.5 w-3.5" />
+              <PanelBottomOpen className="h-4 w-4" />
             ) : (
-              <Eye className="h-3.5 w-3.5" />
+              <Eye className="h-4 w-4" />
             )}
           </Button>
           {onToggleFullscreen && (
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7"
+              className="h-8 w-8"
               onClick={onToggleFullscreen}
               title={isFullscreen ? t('exit_fullscreen') : t('fullscreen')}
             >
               {isFullscreen ? (
-                <Minimize2 className="h-3.5 w-3.5" />
+                <Minimize2 className="h-4 w-4" />
               ) : (
-                <Maximize2 className="h-3.5 w-3.5" />
+                <Maximize2 className="h-4 w-4" />
               )}
             </Button>
           )}

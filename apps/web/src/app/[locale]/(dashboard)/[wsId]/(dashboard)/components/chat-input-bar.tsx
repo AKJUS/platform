@@ -45,7 +45,7 @@ export default function ChatInputBar({
         setInput('');
       }}
       className={cn(
-        'flex min-w-0 items-end gap-2 rounded-xl border border-border/50 bg-background/80 p-2 backdrop-blur-sm',
+        'flex min-w-0 items-end gap-2.5 rounded-xl border border-border/50 bg-background/80 p-2.5 backdrop-blur-sm',
         'transition-colors focus-within:border-dynamic-purple/30'
       )}
     >
@@ -60,7 +60,7 @@ export default function ChatInputBar({
         placeholder={t('placeholder', { name: assistantName })}
         spellCheck={false}
         disabled={disabled || isStreaming}
-        className="scrollbar-none min-h-[36px] min-w-0 flex-1 resize-none bg-transparent px-2 py-1.5 text-sm placeholder-muted-foreground focus:outline-none"
+        className="scrollbar-none min-h-[42px] min-w-0 flex-1 resize-none bg-transparent px-2.5 py-2 text-sm placeholder-muted-foreground focus:outline-none"
       />
 
       <div className="flex items-center gap-1">
@@ -69,11 +69,11 @@ export default function ChatInputBar({
             type="button"
             variant="ghost"
             size="icon"
-            className="h-8 w-8 shrink-0"
+            className="h-9 w-9 shrink-0"
             onClick={onVoiceToggle}
             disabled={disabled}
           >
-            <Mic className="h-4 w-4" />
+            <Mic className="h-4.5 w-4.5" />
           </Button>
         )}
 
@@ -81,14 +81,14 @@ export default function ChatInputBar({
           type="submit"
           size="icon"
           className={cn(
-            'h-8 w-8 shrink-0 transition-all',
+            'h-9 w-9 shrink-0 transition-all',
             input.trim()
               ? 'bg-dynamic-purple text-white hover:bg-dynamic-purple/90'
               : 'bg-muted text-muted-foreground'
           )}
           disabled={!input.trim() || isStreaming || disabled}
         >
-          <Send className="h-4 w-4" />
+          <Send className="h-4.5 w-4.5" />
         </Button>
       </div>
     </form>
