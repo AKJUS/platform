@@ -329,6 +329,7 @@ class _RequestsViewState extends State<_RequestsView> {
     if (wsId == null || wsId.isEmpty || !mounted) {
       return;
     }
+    final repo = context.read<ITimeTrackerRepository>();
 
     await shad.showDialog<void>(
       context: context,
@@ -337,12 +338,10 @@ class _RequestsViewState extends State<_RequestsView> {
           currentThreshold: _missedEntryDateThreshold,
           onSave: (threshold) async {
             try {
-              await context
-                  .read<ITimeTrackerRepository>()
-                  .updateMissedEntryDateThreshold(
-                    wsId,
-                    threshold,
-                  );
+              await repo.updateMissedEntryDateThreshold(
+                wsId,
+                threshold,
+              );
 
               if (!mounted) {
                 return;
@@ -355,7 +354,7 @@ class _RequestsViewState extends State<_RequestsView> {
                   content: Text(context.l10n.timerRequestsThresholdUpdated),
                 ),
               );
-            } on Exception catch (error) {
+            } on Object catch (error) {
               if (!mounted) {
                 return;
               }
