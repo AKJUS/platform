@@ -51,9 +51,7 @@ export async function PUT(req: NextRequest, { params }: Params) {
       );
     }
 
-    console.log(wsId)
-    const permissions = await getPermissions({ wsId });
-    console.log('User permissions for workspace:', permissions);
+    const permissions = await getPermissions({ wsId, request: req });
     if (!permissions) {
       return Response.json({ error: 'Not found' }, { status: 404 });
     }

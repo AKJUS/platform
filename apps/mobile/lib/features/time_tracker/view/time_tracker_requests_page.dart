@@ -323,8 +323,9 @@ class _RequestsViewState extends State<_RequestsView> {
             }
 
             setState(() => _missedEntryDateThreshold = threshold);
-            ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-              SnackBar(
+            shad.showToast(
+              context: context,
+              builder: (context, overlay) => shad.Alert(
                 content: Text(context.l10n.timerRequestsThresholdUpdated),
               ),
             );

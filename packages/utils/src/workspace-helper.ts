@@ -491,8 +491,14 @@ export async function getGuestGroup({ groupId }: { groupId: string }) {
 
   return data;
 }
-export async function getPermissions({ wsId }: { wsId: string }) {
-  const supabase = await createClient();
+export async function getPermissions({
+  wsId,
+  request,
+}: {
+  wsId: string;
+  request?: Request;
+}) {
+  const supabase = await createClient(request);
 
   const {
     data: { user },

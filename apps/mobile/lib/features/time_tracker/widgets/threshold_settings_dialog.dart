@@ -28,9 +28,9 @@ class _ThresholdSettingsDialogState extends State<ThresholdSettingsDialog> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final theme = shad.Theme.of(context);
-      final barrierColor = Theme.of(
-          context,
-        ).colorScheme.scrim.withValues(alpha: 0.55);
+    final barrierColor = Theme.of(
+      context,
+    ).colorScheme.scrim.withValues(alpha: 0.55);
     return shad.AlertDialog(
       barrierColor: barrierColor,
       title: Text(l10n.timerRequestsThresholdTitle),
@@ -149,25 +149,34 @@ class _ThresholdSettingsDialogState extends State<ThresholdSettingsDialog> {
       _error = null;
     });
 
+    var shouldCloseDialog = false;
+
     try {
       await widget.onSave(_noApprovalNeeded ? null : threshold);
-      if (!mounted) {
-        return;
-      }
-      Navigator.of(context).pop();
-    } on Exception catch (error) {
+      shouldCloseDialog = true;
+    } on Object catch (error) {
       if (!mounted) {
         return;
       }
 
       final message = error.toString().trim();
       setState(() {
-        _isSaving = false;
         _error = message.isNotEmpty
             ? message
             : context.l10n.commonSomethingWentWrong;
       });
+      return;
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
+      }
     }
+
+    if (!mounted || !shouldCloseDialog) {
+      return;
+    }
+
+    Navigator.of(context).pop();
   }
 
   int? _parseThreshold() {
