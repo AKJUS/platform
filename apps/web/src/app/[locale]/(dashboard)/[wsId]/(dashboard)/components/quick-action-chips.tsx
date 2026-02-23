@@ -27,24 +27,24 @@ export default function QuickActionChips({
 
   if (variant === 'cards') {
     return (
-      <div className="grid w-full min-w-0 max-w-sm grid-cols-2 gap-2">
+      <div className="mx-auto grid w-full min-w-0 max-w-md grid-cols-2 gap-3">
         {actions.map(({ key, descKey, icon: Icon }) => (
           <button
             key={key}
             type="button"
             className={cn(
-              'flex min-w-0 flex-col items-start gap-1.5 rounded-lg border border-border/50 p-2.5 text-left transition-colors sm:p-3',
+              'flex min-w-0 flex-col items-start gap-2 rounded-lg border border-border/50 p-3 text-left transition-colors sm:p-4',
               'hover:border-dynamic-purple/30 hover:bg-dynamic-purple/5',
               'disabled:pointer-events-none disabled:opacity-50'
             )}
             onClick={() => onSend(t(key))}
             disabled={disabled}
           >
-            <Icon className="h-4 w-4 shrink-0 text-dynamic-purple" />
-            <span className="w-full min-w-0 truncate font-medium text-xs leading-tight">
+            <Icon className="h-5 w-5 shrink-0 text-dynamic-purple" />
+            <span className="w-full min-w-0 truncate font-medium text-sm leading-tight">
               {t(key)}
             </span>
-            <span className="line-clamp-2 min-w-0 text-[10px] text-muted-foreground leading-tight">
+            <span className="line-clamp-2 min-w-0 text-xs text-muted-foreground leading-tight">
               {t(descKey)}
             </span>
           </button>
@@ -54,17 +54,17 @@ export default function QuickActionChips({
   }
 
   return (
-    <div className="flex min-w-0 flex-wrap gap-2">
+    <div className="flex min-w-0 flex-wrap justify-center gap-2">
       {actions.map(({ key, icon: Icon }) => (
         <Button
           key={key}
           variant="outline"
           size="sm"
-          className="h-8 shrink-0 gap-1.5 rounded-full border-border/50 text-xs"
+          className="h-9 shrink-0 gap-2 rounded-full border-border/50 text-sm"
           onClick={() => onSend(t(key))}
           disabled={disabled}
         >
-          <Icon className="h-3.5 w-3.5 shrink-0" />
+          <Icon className="h-4 w-4 shrink-0" />
           <span className="truncate">{t(key)}</span>
         </Button>
       ))}

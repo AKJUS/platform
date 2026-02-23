@@ -524,41 +524,41 @@ export default function MiraChatPanel({
         <div className="hidden flex-1 sm:block" />
         <div className="flex shrink-0 items-center gap-0.5">
           {hasMessages && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={handleNewConversation}
-              title={t('new_conversation')}
-            >
-              <MessageSquarePlus className="h-3.5 w-3.5" />
-            </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={handleNewConversation}
+            title={t('new_conversation')}
+          >
+            <MessageSquarePlus className="h-4 w-4" />
+          </Button>
           )}
           <Button
             variant="ghost"
             size="icon"
-            className="h-7 w-7"
+            className="h-8 w-8"
             onClick={() => setViewOnly((v) => !v)}
             title={viewOnlyButtonTitle}
           >
             {viewOnly ? (
-              <PanelBottomOpen className="h-3.5 w-3.5" />
+              <PanelBottomOpen className="h-4 w-4" />
             ) : (
-              <Eye className="h-3.5 w-3.5" />
+              <Eye className="h-4 w-4" />
             )}
           </Button>
           {onToggleFullscreen && (
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7"
+              className="h-8 w-8"
               onClick={onToggleFullscreen}
               title={isFullscreen ? t('exit_fullscreen') : t('fullscreen')}
             >
               {isFullscreen ? (
-                <Minimize2 className="h-3.5 w-3.5" />
+                <Minimize2 className="h-4 w-4" />
               ) : (
-                <Maximize2 className="h-3.5 w-3.5" />
+                <Maximize2 className="h-4 w-4" />
               )}
             </Button>
           )}
@@ -599,19 +599,19 @@ export default function MiraChatPanel({
             />
           </div>
         ) : (
-          <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-6 overflow-auto px-2 py-8">
-            <div className="flex w-full max-w-full flex-col items-center gap-3">
-              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-dynamic-purple/15">
-                <Sparkles className="h-6 w-6 text-dynamic-purple" />
+          <div className="flex min-w-0 flex-1 flex-col items-center justify-center gap-8 overflow-auto px-4 py-10">
+            <div className="flex w-full max-w-full flex-col items-center gap-4">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-dynamic-purple/15">
+                <Sparkles className="h-8 w-8 text-dynamic-purple" />
               </div>
               <div className="min-w-0 max-w-full text-center">
-                <p className="font-medium text-sm">{assistantName}</p>
-                <p className="mt-1 max-w-xs text-muted-foreground text-xs">
+                <p className="font-medium text-base">{assistantName}</p>
+                <p className="mt-1.5 max-w-sm text-muted-foreground text-sm">
                   {t('empty_state', { name: assistantName })}
                 </p>
               </div>
             </div>
-            <div className="w-full min-w-0 max-w-full">
+            <div className="w-full min-w-0 max-w-full flex justify-center">
               <QuickActionChips
                 onSend={handleSubmit}
                 disabled={isBusy}
