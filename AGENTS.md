@@ -1788,6 +1788,14 @@ instead of the `Form` component, route structured submit actions (`submit_form`,
 `submit_*`) to the `submit_form` action handler (with collected state values)
 when no direct action handler exists. Do not fall back to generic `__ui_action__`
 for submit-style actions, or form data will be lost.
+
+### 15.22 Mermaid Self-Repair Feedback Loop
+
+Mermaid parse errors in rendered assistant markdown must be treated as an
+actionable signal, not just visual output. Detect invalid Mermaid fenced blocks
+client-side after streaming completes, then auto-submit one hidden repair prompt
+containing the parser error + original diagram so the assistant can self-correct
+without waiting for user feedback. Guard with retry limits to prevent loops.
  
 ## 16. Glossary
 

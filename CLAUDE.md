@@ -781,6 +781,7 @@ If `bun check:mobile` reports a Dart format failure because it formatted files, 
 - **render_ui Single-Result Rendering:** If multiple valid non-recovered `render_ui` outputs are produced in one assistant turn, display only the latest one in chat.
 - **json-render Unbound Fields:** Never bind text controls to an empty state path. For fields without explicit `name`/binding, use local state and derive fallback field names from labels. Normalize non-string values to avoid `[object Object]` in `Input`/`Textarea`.
 - **json-render Submit Buttons:** For structured submit actions (`submit_form`, `submit_*`) on standalone button-driven forms, route to `submit_form` with current state values when no direct handler exists. Do not route those through generic `__ui_action__`.
+- **Mermaid Auto-Repair:** Mermaid parser failures should trigger a hidden automatic repair prompt (error + original diagram) after streaming completes, with bounded retries, so the assistant can self-correct without user intervention.
 
 ## Quick Reference
 

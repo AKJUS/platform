@@ -4,7 +4,7 @@ import { Renderer, VisibilityProvider } from '@json-render/react';
 import { cjk } from '@streamdown/cjk';
 import { code } from '@streamdown/code';
 import { math } from '@streamdown/math';
-import { mermaid } from '@streamdown/mermaid';
+import { mermaid as mermaidPlugin } from '@streamdown/mermaid';
 import type { UIMessage } from '@tuturuuu/ai/types';
 import {
   AlertCircle,
@@ -23,6 +23,13 @@ import { Avatar, AvatarFallback, AvatarImage } from '@tuturuuu/ui/avatar';
 import { Dialog, DialogContent, DialogTitle } from '@tuturuuu/ui/dialog';
 import { cn } from '@tuturuuu/utils/format';
 import { getToolName, isToolUIPart } from 'ai';
+import mermaidParser from 'mermaid';
+import {
+  buildMermaidAutoRepairPrompt,
+  extractMermaidBlocks,
+  isAutoMermaidRepairPrompt,
+  simpleStableHash,
+} from '@/app/[locale]/(dashboard)/[wsId]/(dashboard)/components/mermaid-auto-repair';
 import { registry } from '@/components/json-render/dashboard-registry';
 import { resolveRenderUiSpecFromOutput } from '@/components/json-render/render-ui-spec';
 import 'katex/dist/katex.min.css';
@@ -47,13 +54,36 @@ interface ChatMessageListProps {
   isStreaming: boolean;
   assistantName?: string;
   userAvatarUrl?: string | null;
+  onAutoSubmitMermaidFix?: (prompt: string) => void;
   /** Optional ref for the scrollable container (e.g. for scroll-based UI) */
   scrollContainerRef?: React.RefObject<HTMLDivElement | null>;
   /** File attachment metadata keyed by message ID, rendered inline in user bubbles. */
   messageAttachments?: Map<string, MessageFileAttachment[]>;
 }
 
-const plugins = { code, mermaid, math, cjk };
+const plugins = { code, mermaid: mermaidPlugin, math, cjk };
+const MAX_AUTO_MERMAID_REPAIR_ATTEMPTS = 2;
+let mermaidParserInitialized = false;
+
+function ensureMermaidParserInitialized(): void {
+  if (mermaidParserInitialized) return;
+  mermaidParser.initialize({
+    startOnLoad: false,
+    securityLevel: 'strict',
+    theme: 'default',
+  });
+  mermaidParserInitialized = true;
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return 'Unknown Mermaid parse error';
+  }
+}
 
 function hasTextContent(message: UIMessage): boolean {
   return (
@@ -112,6 +142,7 @@ const FILE_ONLY_PLACEHOLDERS = new Set([
 function getDisplayText(message: UIMessage): string {
   const raw = getMessageText(message);
   if (FILE_ONLY_PLACEHOLDERS.has(raw.trim())) return '';
+  if (isAutoMermaidRepairPrompt(raw)) return '';
   return raw;
 }
 
@@ -233,7 +264,7 @@ function AssistantMarkdown({
   isAnimating: boolean;
 }) {
   return (
-    <div className="wrap-break-word min-w-0 max-w-full overflow-hidden [&_code]:break-all [&_pre]:max-w-full [&_pre]:overflow-x-auto">
+    <div className="wrap-break-word [&_pre]:!overflow-x-hidden [&_pre]:!whitespace-pre-wrap [&_pre_code]:!whitespace-pre-wrap min-w-0 max-w-full overflow-hidden [&_pre]:max-w-full [&_pre]:break-words [&_pre_code]:break-words [&_pre_code]:[overflow-wrap:anywhere]">
       <MarkdownErrorBoundary
         fallback={<p className="wrap-break-word whitespace-pre-wrap">{text}</p>}
       >
@@ -332,7 +363,7 @@ function ReasoningPart({
         />
       </button>
       {expanded && (
-        <div className="border-dynamic-purple/20 border-l-2 pl-3 text-muted-foreground text-xs">
+        <div className="[&_pre]:!overflow-x-hidden [&_pre]:!whitespace-pre-wrap [&_pre_code]:!whitespace-pre-wrap border-dynamic-purple/20 border-l-2 pl-3 text-muted-foreground text-xs [&_pre]:max-w-full [&_pre]:break-words [&_pre_code]:break-words [&_pre_code]:[overflow-wrap:anywhere]">
           <MarkdownErrorBoundary
             fallback={<p className="whitespace-pre-wrap">{text}</p>}
           >
@@ -1063,6 +1094,7 @@ export default function ChatMessageList({
   isStreaming,
   assistantName,
   userAvatarUrl,
+  onAutoSubmitMermaidFix,
   scrollContainerRef,
   messageAttachments,
 }: ChatMessageListProps) {
@@ -1091,6 +1123,61 @@ export default function ChatMessageList({
     if (!el) return;
     el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
   }, [messages.length]);
+
+  const attemptedMermaidRepairsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!onAutoSubmitMermaidFix) return;
+    if (isStreaming) return;
+
+    const lastAssistantWithMermaid = [...messages]
+      .reverse()
+      .find(
+        (msg) =>
+          msg.role === 'assistant' && getMessageText(msg).includes('```mermaid')
+      );
+    if (!lastAssistantWithMermaid) return;
+
+    const fullText = getMessageText(lastAssistantWithMermaid);
+    const mermaidBlocks = extractMermaidBlocks(fullText);
+    if (mermaidBlocks.length === 0) return;
+
+    let cancelled = false;
+
+    const run = async () => {
+      ensureMermaidParserInitialized();
+      for (let i = 0; i < mermaidBlocks.length; i++) {
+        const block = mermaidBlocks[i]!;
+        const repairKey = `${lastAssistantWithMermaid.id}:${i}:${simpleStableHash(block)}`;
+        if (attemptedMermaidRepairsRef.current.has(repairKey)) continue;
+        if (
+          attemptedMermaidRepairsRef.current.size >=
+          MAX_AUTO_MERMAID_REPAIR_ATTEMPTS
+        ) {
+          break;
+        }
+
+        try {
+          await mermaidParser.parse(block);
+        } catch (error) {
+          if (cancelled) return;
+          attemptedMermaidRepairsRef.current.add(repairKey);
+          onAutoSubmitMermaidFix(
+            buildMermaidAutoRepairPrompt({
+              parseError: getErrorMessage(error),
+              originalDiagram: block,
+            })
+          );
+          break;
+        }
+      }
+    };
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [messages, isStreaming, onAutoSubmitMermaidFix]);
 
   if (messages.length === 0) return null;
 

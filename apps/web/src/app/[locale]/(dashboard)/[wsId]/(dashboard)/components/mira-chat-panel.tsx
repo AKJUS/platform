@@ -843,6 +843,13 @@ export default function MiraChatPanel({
     [flushQueue, attachedFiles, snapshotAttachmentsForMessage, status, stop]
   );
 
+  const handleAutoSubmitMermaidFix = useCallback(
+    (prompt: string) => {
+      handleSubmit(prompt);
+    },
+    [handleSubmit]
+  );
+
   // Expose the debounced submit handler to generative UI actions so that
   // render_ui forms and quick actions can trigger chat submissions with the
   // same batching and interrupt semantics as the main input bar.
@@ -1076,6 +1083,7 @@ export default function MiraChatPanel({
                   isStreaming={isBusy || !!pendingPrompt}
                   assistantName={assistantName}
                   userAvatarUrl={userAvatarUrl}
+                  onAutoSubmitMermaidFix={handleAutoSubmitMermaidFix}
                   scrollContainerRef={scrollContainerRef}
                   messageAttachments={messageAttachments}
                 />
