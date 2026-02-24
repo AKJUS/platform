@@ -505,7 +505,11 @@ export function useMissedEntryForm(
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
-        queryKey: ['time-tracking-requests', variables.effectiveWsId, 'pending'],
+        queryKey: [
+          'time-tracking-requests',
+          variables.effectiveWsId,
+          'pending',
+        ],
       });
       invalidateSessionQueries(variables.effectiveWsId);
     },
@@ -629,10 +633,7 @@ export function useMissedEntryForm(
         .tz(missedEntryStartTime, userTz)
         .utc()
         .toISOString();
-      const endTime = dayjs
-        .tz(missedEntryEndTime, userTz)
-        .utc()
-        .toISOString();
+      const endTime = dayjs.tz(missedEntryEndTime, userTz).utc().toISOString();
 
       if (isStartTimeOlderThanThreshold) {
         const requestId = crypto.randomUUID();
