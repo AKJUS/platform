@@ -2870,6 +2870,9 @@
       "tool_generating_image": "Đang tạo hình ảnh...",
       "tool_generating_ui": "Đang tạo giao diện...",
       "tool_running": "Đang chạy...",
+      "tool_search_failed": "Tìm kiếm thất bại",
+      "tool_searched_web": "Đã tìm kiếm trên web",
+      "tool_searching_web": "Đang tìm kiếm trên web...",
       "using_tools": "Đang xử lý...",
       "view_only": "Chỉ xem",
       "you": "Bạn"

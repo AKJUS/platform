@@ -45,6 +45,7 @@ import QuickActionChips from './quick-action-chips';
 interface MiraChatPanelProps {
   wsId: string;
   assistantName: string;
+  userName?: string;
   userAvatarUrl?: string | null;
   onVoiceToggle?: () => void;
   isFullscreen?: boolean;
@@ -150,6 +151,7 @@ const QUEUE_DEBOUNCE_MS = 500;
 export default function MiraChatPanel({
   wsId,
   assistantName,
+  userName,
   userAvatarUrl,
   onVoiceToggle,
   isFullscreen,
@@ -449,6 +451,25 @@ export default function MiraChatPanel({
                     input: tc.input ?? tc.args ?? {},
                     output: tr?.output ?? tr?.result ?? null,
                   });
+                }
+              }
+
+              // Reconstruct source-url parts from persisted sources
+              const sources = meta?.sources as
+                | Array<{
+                    sourceId: string;
+                    url: string;
+                    title?: string;
+                  }>
+                | undefined;
+              if (Array.isArray(sources)) {
+                for (const src of sources) {
+                  parts.push({
+                    type: 'source-url' as const,
+                    sourceId: src.sourceId,
+                    url: src.url,
+                    ...(src.title ? { title: src.title } : {}),
+                  } as UIMessage['parts'][number]);
                 }
               }
 
@@ -1082,6 +1103,7 @@ export default function MiraChatPanel({
                   }
                   isStreaming={isBusy || !!pendingPrompt}
                   assistantName={assistantName}
+                  userName={userName}
                   userAvatarUrl={userAvatarUrl}
                   onAutoSubmitMermaidFix={handleAutoSubmitMermaidFix}
                   scrollContainerRef={scrollContainerRef}

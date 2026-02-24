@@ -14,6 +14,8 @@ import {
   ChevronRight,
   ClipboardCopy,
   ClipboardList,
+  ExternalLink,
+  Globe,
   Loader2,
   Paperclip,
   Sparkles,
@@ -23,7 +25,6 @@ import { Avatar, AvatarFallback, AvatarImage } from '@tuturuuu/ui/avatar';
 import { Dialog, DialogContent, DialogTitle } from '@tuturuuu/ui/dialog';
 import { cn } from '@tuturuuu/utils/format';
 import { getToolName, isToolUIPart } from 'ai';
-import mermaidParser from 'mermaid';
 import {
   buildMermaidAutoRepairPrompt,
   extractMermaidBlocks,
@@ -33,6 +34,7 @@ import {
 import { registry } from '@/components/json-render/dashboard-registry';
 import { resolveRenderUiSpecFromOutput } from '@/components/json-render/render-ui-spec';
 import 'katex/dist/katex.min.css';
+import mermaidParser from 'mermaid';
 import { useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
 import {
@@ -53,6 +55,7 @@ interface ChatMessageListProps {
   messages: UIMessage[];
   isStreaming: boolean;
   assistantName?: string;
+  userName?: string;
   userAvatarUrl?: string | null;
   onAutoSubmitMermaidFix?: (prompt: string) => void;
   /** Optional ref for the scrollable container (e.g. for scroll-based UI) */
@@ -426,6 +429,76 @@ function CopyButton({ text, icon }: { text: string; icon?: 'copy' | 'json' }) {
   );
 }
 
+/** Compact sources section shown when Google Search grounding provides source-url parts */
+function SourcesPart({
+  parts,
+}: {
+  parts: Array<{ url: string; title?: string; sourceId: string }>;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  if (parts.length === 0) return null;
+
+  // Dedupe by url
+  const seen = new Set<string>();
+  const unique = parts.filter((p) => {
+    if (seen.has(p.url)) return false;
+    seen.add(p.url);
+    return true;
+  });
+
+  return (
+    <div className="mt-2 flex flex-col gap-1.5">
+      <button
+        type="button"
+        onClick={() => setExpanded((e) => !e)}
+        className="flex items-center gap-1.5 text-muted-foreground text-xs transition-colors hover:text-foreground"
+      >
+        <Globe className="h-3 w-3 text-dynamic-cyan" />
+        <span className="font-medium">
+          {unique.length} {unique.length === 1 ? 'source' : 'sources'}
+        </span>
+        <ChevronRight
+          className={cn(
+            'ml-0.5 h-3 w-3 transition-transform',
+            expanded && 'rotate-90'
+          )}
+        />
+      </button>
+      {expanded && (
+        <div className="flex flex-wrap gap-1.5">
+          {unique.map((src, i) => {
+            const hostname = (() => {
+              try {
+                return new URL(src.url).hostname.replace(/^www\./, '');
+              } catch {
+                return src.url;
+              }
+            })();
+            return (
+              <a
+                key={`${src.sourceId ?? i}-${i}`}
+                href={src.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 rounded-md border border-dynamic-cyan/20 bg-dynamic-cyan/5 px-2 py-1 text-[11px] text-dynamic-cyan transition-colors hover:border-dynamic-cyan/40 hover:bg-dynamic-cyan/10"
+                title={src.title || src.url}
+              >
+                <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-dynamic-cyan/15 font-bold font-mono text-[9px]">
+                  {i + 1}
+                </span>
+                <span className="max-w-32 truncate">
+                  {src.title || hostname}
+                </span>
+                <ExternalLink className="h-2.5 w-2.5 shrink-0 opacity-50" />
+              </a>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 type JsonToken =
   | { t: 'key'; v: string }
   | { t: 'string'; v: string }
@@ -644,6 +717,34 @@ function ToolCallPart({ part }: { part: ToolPartData }) {
         </div>
       );
     }
+    // Hide select_tools badge when only google_search (always-active) was selected
+    const isOnlyGoogleSearch =
+      selected?.length === 1 && selected[0] === 'google_search';
+    if (isOnlyGoogleSearch) return null;
+  }
+
+  // Google Search grounding: compact badge with search styling
+  if (rawToolName === 'google_search') {
+    return (
+      <div className="flex items-start gap-2 rounded-lg border border-dynamic-cyan/30 bg-dynamic-cyan/5 px-3 py-2 text-xs">
+        {isRunning ? (
+          <Loader2 className="mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin text-dynamic-cyan" />
+        ) : isError ? (
+          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-dynamic-red" />
+        ) : (
+          <Globe className="mt-0.5 h-3.5 w-3.5 shrink-0 text-dynamic-cyan" />
+        )}
+        <span className="flex items-center gap-1.5">
+          <span className="font-medium text-dynamic-cyan">
+            {isRunning
+              ? t('tool_searching_web')
+              : isError
+                ? t('tool_search_failed')
+                : t('tool_searched_web')}
+          </span>
+        </span>
+      </div>
+    );
   }
 
   if (isImageTool && isRunning) {
@@ -1093,6 +1194,7 @@ export default function ChatMessageList({
   messages,
   isStreaming,
   assistantName,
+  userName,
   userAvatarUrl,
   onAutoSubmitMermaidFix,
   scrollContainerRef,
@@ -1273,7 +1375,7 @@ export default function ChatMessageList({
                     isUser && 'text-right'
                   )}
                 >
-                  {isUser ? t('you') : (assistantName ?? 'Mira')}
+                  {isUser ? userName || t('you') : (assistantName ?? 'Mira')}
                 </span>
               )}
 
@@ -1434,6 +1536,22 @@ export default function ChatMessageList({
                           }
                           return null;
                         });
+                      })()}
+                      {/* Sources from Google Search grounding */}
+                      {(() => {
+                        const sourceParts = message.parts.filter(
+                          (
+                            p
+                          ): p is {
+                            type: 'source-url';
+                            url: string;
+                            title?: string;
+                            sourceId: string;
+                          } => p.type === 'source-url'
+                        );
+                        return sourceParts.length > 0 ? (
+                          <SourcesPart parts={sourceParts} />
+                        ) : null;
                       })()}
                     </div>
                   )}

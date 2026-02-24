@@ -93,6 +93,7 @@ export async function deductAiCredits(
       : {}),
     ...(params.userId ? { p_user_id: params.userId } : {}),
     ...(params.imageCount ? { p_image_count: params.imageCount } : {}),
+    ...(params.searchCount ? { p_search_count: params.searchCount } : {}),
   });
 
   if (error) {

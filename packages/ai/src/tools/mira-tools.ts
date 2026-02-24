@@ -142,6 +142,9 @@ export const MIRA_TOOL_DIRECTORY: Record<string, string> = {
   recall: 'Search saved memories',
   // Image
   create_image: 'Generate an image from a text description',
+  // Search (always active — no need to select)
+  google_search:
+    '[ALWAYS ACTIVE — do NOT select] Built-in Google web search for real-time info (news, prices, weather, facts). Called automatically when grounding is needed.',
   // Self-configuration
   update_my_settings: "Update the assistant's personality settings",
   // Appearance
