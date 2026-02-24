@@ -3,10 +3,8 @@ import 'dart:developer' as developer;
 
 import 'package:bloc/bloc.dart';
 import 'package:mobile/data/models/time_tracking/break_record.dart';
-import 'package:mobile/data/models/time_tracking/period_stats.dart';
 import 'package:mobile/data/models/time_tracking/pomodoro_settings.dart';
 import 'package:mobile/data/models/time_tracking/session.dart';
-import 'package:mobile/data/models/time_tracking/session_page.dart';
 import 'package:mobile/data/models/time_tracking/stats.dart';
 import 'package:mobile/data/models/workspace_settings.dart';
 import 'package:mobile/data/repositories/time_tracker_repository.dart';
@@ -277,7 +275,11 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
     await loadHistoryInitial(wsId, userId);
   }
 
-  Future<void> loadHistoryInitial(String wsId, String userId) async {
+  Future<void> loadHistoryInitial(
+    String wsId,
+    String userId, {
+    bool throwOnError = false,
+  }) async {
     if (wsId.isEmpty) return;
     await _ensureHistoryPreferencesLoaded();
     final anchorDate = state.historyAnchorDate ?? DateTime.now();
@@ -298,7 +300,7 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
     );
 
     try {
-      final results = await Future.wait([
+      final (page, periodStats) = await (
         _repo.getHistorySessions(
           wsId,
           dateFrom: periodRange.start,
@@ -311,9 +313,7 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
           dateTo: periodRange.end,
           userId: normalizedUserId,
         ),
-      ]);
-      final page = results[0] as TimeTrackingSessionPage;
-      final periodStats = results[1] as TimeTrackingPeriodStats;
+      ).wait;
 
       emit(
         state.copyWith(
@@ -334,6 +334,9 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
           error: e.toString(),
         ),
       );
+      if (throwOnError) {
+        rethrow;
+      }
     }
   }
 
@@ -680,16 +683,25 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
     return switch (state.historyViewMode) {
       HistoryViewMode.day => current.add(Duration(days: delta)),
       HistoryViewMode.week => current.add(Duration(days: delta * 7)),
-      HistoryViewMode.month => DateTime(
-        current.year,
-        current.month + delta,
-        current.day,
-        current.hour,
-        current.minute,
-        current.second,
-        current.millisecond,
-        current.microsecond,
-      ),
+      HistoryViewMode.month => () {
+        final targetMonthIndex = current.month + delta;
+        final targetYear = current.year + ((targetMonthIndex - 1) ~/ 12);
+        final targetMonth = ((targetMonthIndex - 1) % 12 + 12) % 12 + 1;
+        final targetMonthLastDay = DateTime(targetYear, targetMonth + 1, 0).day;
+        final clampedDay = current.day > targetMonthLastDay
+            ? targetMonthLastDay
+            : current.day;
+        return DateTime(
+          targetYear,
+          targetMonth,
+          clampedDay,
+          current.hour,
+          current.minute,
+          current.second,
+          current.millisecond,
+          current.microsecond,
+        );
+      }(),
     };
   }
 
@@ -697,16 +709,7 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
     HistoryViewMode mode,
     DateTime anchor,
   ) {
-    final localAnchor = DateTime(
-      anchor.year,
-      anchor.month,
-      anchor.day,
-      anchor.hour,
-      anchor.minute,
-      anchor.second,
-      anchor.millisecond,
-      anchor.microsecond,
-    );
+    final localAnchor = anchor.toLocal();
     switch (mode) {
       case HistoryViewMode.day:
         final start = DateTime(
@@ -748,11 +751,10 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
     String wsId,
     String? userId,
   ) async {
-    final recentSessions = await _repo.getSessions(wsId, limit: 5);
-    if (userId == null || userId.isEmpty) {
-      return (recentSessions, state.stats ?? const TimeTrackerStats());
-    }
-    final stats = await _repo.getStats(wsId, userId);
+    final (recentSessions, stats) = await (
+      _repo.getSessions(wsId, limit: 5),
+      _repo.getStats(wsId, userId),
+    ).wait;
     return (recentSessions, stats);
   }
 

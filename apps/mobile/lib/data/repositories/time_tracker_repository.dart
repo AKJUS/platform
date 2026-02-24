@@ -91,7 +91,7 @@ abstract class ITimeTrackerRepository {
 
   Future<TimeTrackerStats> getStats(
     String wsId,
-    String userId, {
+    String? userId, {
     bool isPersonal = false,
     String? timezone,
   });
@@ -463,13 +463,13 @@ class TimeTrackerRepository implements ITimeTrackerRepository {
   @override
   Future<TimeTrackerStats> getStats(
     String wsId,
-    String userId, {
+    String? userId, {
     bool isPersonal = false,
     String? timezone,
   }) async {
     final data = await _api.getJson(
       _withQuery('/api/v1/workspaces/$wsId/time-tracker/stats', {
-        'userId': userId,
+        if (userId != null && userId.isNotEmpty) 'userId': userId,
         'isPersonal': isPersonal.toString(),
         'summaryOnly': 'true',
         if (timezone != null) 'timezone': timezone,

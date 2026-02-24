@@ -72,121 +72,142 @@ class _HistoryTabState extends State<HistoryTab> {
           onRefresh: () async {
             await cubit.refreshHistory(wsId, _currentUserId());
           },
-          child: ListView(
+          child: CustomScrollView(
             controller: _scrollController,
-            padding: const EdgeInsets.only(bottom: 32),
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-                child: HistoryPeriodControls(
-                  viewMode: state.historyViewMode,
-                  anchorDate: anchorDate,
-                  onViewModeChanged: (mode) {
-                    unawaited(
-                      cubit.setHistoryViewMode(wsId, _currentUserId(), mode),
-                    );
-                  },
-                  onPrevious: () {
-                    unawaited(cubit.goToPreviousPeriod(wsId, _currentUserId()));
-                  },
-                  onNext: () {
-                    unawaited(cubit.goToNextPeriod(wsId, _currentUserId()));
-                  },
-                  onGoToCurrent: () {
-                    unawaited(cubit.goToCurrentPeriod(wsId, _currentUserId()));
-                  },
+            slivers: [
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                  child: HistoryPeriodControls(
+                    viewMode: state.historyViewMode,
+                    anchorDate: anchorDate,
+                    onViewModeChanged: (mode) {
+                      unawaited(
+                        cubit.setHistoryViewMode(wsId, _currentUserId(), mode),
+                      );
+                    },
+                    onPrevious: () {
+                      unawaited(
+                        cubit.goToPreviousPeriod(wsId, _currentUserId()),
+                      );
+                    },
+                    onNext: () {
+                      unawaited(cubit.goToNextPeriod(wsId, _currentUserId()));
+                    },
+                    onGoToCurrent: () {
+                      unawaited(
+                        cubit.goToCurrentPeriod(wsId, _currentUserId()),
+                      );
+                    },
+                  ),
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                child: HistoryStatsAccordion(
-                  isOpen: state.isHistoryStatsAccordionOpen,
-                  onToggle: () {
-                    unawaited(cubit.toggleHistoryStatsAccordion());
-                  },
-                  stats: state.historyPeriodStats,
-                  isLoading: state.isHistoryLoading,
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                  child: HistoryStatsAccordion(
+                    isOpen: state.isHistoryStatsAccordionOpen,
+                    onToggle: () {
+                      unawaited(cubit.toggleHistoryStatsAccordion());
+                    },
+                    stats: state.historyPeriodStats,
+                    isLoading: state.isHistoryLoading,
+                  ),
                 ),
               ),
               if (state.isHistoryLoading)
-                const Padding(
-                  padding: EdgeInsets.fromLTRB(16, 24, 16, 16),
-                  child: Center(child: shad.CircularProgressIndicator()),
+                const SliverToBoxAdapter(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(16, 24, 16, 16),
+                    child: Center(child: shad.CircularProgressIndicator()),
+                  ),
                 )
               else ...[
                 if (sessions.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
-                    child: Column(
-                      children: [
-                        Icon(
-                          Icons.history,
-                          size: 40,
-                          color: theme.colorScheme.mutedForeground,
-                        ),
-                        const shad.Gap(12),
-                        Text(
-                          l10n.timerHistoryNoSessionsForPeriod,
-                          style: theme.typography.textMuted,
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.history,
+                            size: 40,
+                            color: theme.colorScheme.mutedForeground,
+                          ),
+                          const shad.Gap(12),
+                          Text(
+                            l10n.timerHistoryNoSessionsForPeriod,
+                            style: theme.typography.textMuted,
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
+                      ),
                     ),
                   ),
-                ...grouped.map(
-                  (entry) => Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-                        child: Text(
-                          entry.label,
-                          style: theme.typography.small.copyWith(
-                            color: theme.colorScheme.mutedForeground,
-                            fontWeight: FontWeight.w600,
-                          ),
+                for (final entry in grouped) ...[
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+                      child: Text(
+                        entry.label,
+                        style: theme.typography.small.copyWith(
+                          color: theme.colorScheme.mutedForeground,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                      ...entry.sessions.map(
-                        (session) => SessionTile(
-                          session: session,
-                          categoryColor: categoryColorById[session.categoryId],
-                          onEdit: () => _showEditDialog(context, session),
-                          onDelete: () => _deleteSession(context, session.id),
-                        ),
-                      ),
-                    ],
+                    ),
                   ),
-                ),
+                  SliverList.builder(
+                    itemCount: entry.sessions.length,
+                    itemBuilder: (context, index) {
+                      final session = entry.sessions[index];
+                      return SessionTile(
+                        session: session,
+                        categoryColor: categoryColorById[session.categoryId],
+                        onEdit: () => _showEditDialog(context, session),
+                        onDelete: () => _deleteSession(context, session.id),
+                      );
+                    },
+                  ),
+                ],
                 if (state.isHistoryLoadingMore)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                    child: Center(child: shad.CircularProgressIndicator()),
+                  const SliverToBoxAdapter(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(vertical: 16),
+                      child: Center(child: shad.CircularProgressIndicator()),
+                    ),
                   ),
                 if (state.historyHasMore && !state.isHistoryLoadingMore)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                    child: shad.OutlineButton(
-                      onPressed: () {
-                        unawaited(
-                          cubit.loadHistoryMore(wsId, _currentUserId()),
-                        );
-                      },
-                      child: Text(l10n.timerHistoryLoadMore),
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                      child: shad.OutlineButton(
+                        onPressed: () {
+                          unawaited(
+                            cubit.loadHistoryMore(wsId, _currentUserId()),
+                          );
+                        },
+                        child: Text(l10n.timerHistoryLoadMore),
+                      ),
                     ),
                   ),
                 if (!state.historyHasMore && sessions.length > 10)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-                    child: Text(
-                      l10n.timerHistoryEndOfList,
-                      style: theme.typography.small.copyWith(
-                        color: theme.colorScheme.mutedForeground,
+                  SliverToBoxAdapter(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                      child: Text(
+                        l10n.timerHistoryEndOfList,
+                        style: theme.typography.small.copyWith(
+                          color: theme.colorScheme.mutedForeground,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
-                      textAlign: TextAlign.center,
                     ),
                   ),
               ],
+              const SliverToBoxAdapter(
+                child: SizedBox(height: 32),
+              ),
             ],
           ),
         );
@@ -199,17 +220,33 @@ class _HistoryTabState extends State<HistoryTab> {
     final groups = <String, List<TimeTrackingSession>>{};
 
     for (final session in sessions) {
-      final date = session.startTime?.toLocal() ?? DateTime.now();
+      final startTime = session.startTime;
+      if (startTime == null) {
+        groups.putIfAbsent('unknown', () => []).add(session);
+        continue;
+      }
+
+      final date = startTime.toLocal();
       final key = '${date.year}-${date.month}-${date.day}';
       groups.putIfAbsent(key, () => []).add(session);
     }
 
-    return groups.entries.map((e) {
-      final first = e.value.first;
-      final date = first.startTime?.toLocal() ?? DateTime.now();
+    return groups.entries.map((entry) {
+      if (entry.key == 'unknown') {
+        return _DayGroup(
+          label: 'Unknown date',
+          sessions: entry.value,
+        );
+      }
+
+      final firstSession = entry.value.first;
+      final firstStartTime = firstSession.startTime;
+      final label = firstStartTime == null
+          ? 'Unknown date'
+          : dateFmt.format(firstStartTime.toLocal());
       return _DayGroup(
-        label: dateFmt.format(date),
-        sessions: e.value,
+        label: label,
+        sessions: entry.value,
       );
     }).toList();
   }

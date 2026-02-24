@@ -240,28 +240,30 @@ class _EditSessionDialogState extends State<EditSessionDialog> {
                           endTime: _endTime,
                         );
 
-                        if (!mounted) {
+                        if (!context.mounted) {
                           return;
                         }
 
                         shad.showToast(
-                          context: this.context,
+                          context: context,
                           builder: (context, overlay) => shad.Alert(
                             content: Text(context.l10n.timerSessionUpdated),
                           ),
                         );
 
                         navigator.pop();
-                      } on Exception catch (error) {
-                        if (!mounted) {
+                      } on Exception {
+                        if (!context.mounted) {
                           return;
                         }
 
                         shad.showToast(
-                          context: this.context,
+                          context: context,
                           builder: (context, overlay) => shad.Alert.destructive(
                             title: Text(context.l10n.commonSomethingWentWrong),
-                            content: Text(error.toString()),
+                            content: Text(
+                              context.l10n.commonSomethingWentWrong,
+                            ),
                           ),
                         );
 
@@ -286,9 +288,12 @@ class _EditSessionDialogState extends State<EditSessionDialog> {
   bool get _isValid => _endTime.isAfter(_startTime);
 
   String _formatDuration(Duration d) {
+    if (d.isNegative) {
+      return 'Invalid';
+    }
     final h = d.inHours;
-    final m = d.inMinutes.abs() % 60;
-    final s = d.inSeconds.abs() % 60;
+    final m = d.inMinutes % 60;
+    final s = d.inSeconds % 60;
     if (h > 0) return '${h}h ${m}m';
     if (m > 0) return '${m}m ${s}s';
     return '${s}s';
@@ -331,6 +336,9 @@ class _DateTimePicker extends StatelessWidget {
                     firstDate: DateTime(2020),
                     lastDate: DateTime.now(),
                   );
+                  if (!context.mounted) {
+                    return;
+                  }
                   if (date != null) {
                     onChanged(
                       DateTime(
@@ -353,6 +361,9 @@ class _DateTimePicker extends StatelessWidget {
                     context: context,
                     initialTime: TimeOfDay.fromDateTime(value.toLocal()),
                   );
+                  if (!context.mounted) {
+                    return;
+                  }
                   if (time != null) {
                     onChanged(
                       DateTime(

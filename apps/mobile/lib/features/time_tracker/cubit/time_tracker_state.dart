@@ -83,7 +83,7 @@ class TimeTrackerState extends Equatable {
     int? pomodoroSessionCount,
     bool? isPaused,
     HistoryViewMode? historyViewMode,
-    DateTime? historyAnchorDate,
+    Object? historyAnchorDate = _sentinel,
     List<TimeTrackingSession>? historySessions,
     TimeTrackingPeriodStats? historyPeriodStats,
     Object? historyNextCursor = _sentinel,
@@ -123,7 +123,9 @@ class TimeTrackerState extends Equatable {
     pomodoroSessionCount: pomodoroSessionCount ?? this.pomodoroSessionCount,
     isPaused: isPaused ?? this.isPaused,
     historyViewMode: historyViewMode ?? this.historyViewMode,
-    historyAnchorDate: historyAnchorDate ?? this.historyAnchorDate,
+    historyAnchorDate: historyAnchorDate == _sentinel
+        ? this.historyAnchorDate
+        : historyAnchorDate as DateTime?,
     historySessions: historySessions ?? this.historySessions,
     historyPeriodStats: clearHistoryPeriodStats
         ? null

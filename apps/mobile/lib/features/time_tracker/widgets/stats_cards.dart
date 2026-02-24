@@ -103,7 +103,7 @@ class _StatCard extends StatelessWidget {
               ),
             Text(
               value,
-              style: theme.typography.small.copyWith(
+              style: theme.typography.p.copyWith(
                 fontWeight: FontWeight.w700,
               ),
               textAlign: TextAlign.center,
@@ -111,7 +111,7 @@ class _StatCard extends StatelessWidget {
             const shad.Gap(2),
             Text(
               label,
-              style: theme.typography.small.copyWith(
+              style: theme.typography.textSmall.copyWith(
                 color: theme.colorScheme.mutedForeground,
               ),
               textAlign: TextAlign.center,

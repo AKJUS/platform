@@ -125,6 +125,7 @@ void main() {
         ),
       );
 
+      expect(cubit.state.historyViewMode, isNot(HistoryViewMode.month));
       await cubit.setHistoryViewMode('ws-1', 'user-1', HistoryViewMode.month);
 
       expect(cubit.state.historyViewMode, HistoryViewMode.month);

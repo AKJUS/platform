@@ -26,12 +26,17 @@ class HistoryPeriodControls extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final theme = shad.Theme.of(context);
-    final period = _periodRange(viewMode, anchorDate);
-    final weekStartLabel = DateFormat.MMMd().format(period.start);
-    final weekEndLabel = DateFormat.MMMd().format(period.end);
+    final firstDayOfWeek = _weekdayFromMaterialLocalizations(
+      MaterialLocalizations.of(context).firstDayOfWeekIndex,
+    );
+    final period = _periodRange(viewMode, anchorDate, firstDayOfWeek);
     final periodLabel = switch (viewMode) {
       HistoryViewMode.day => DateFormat.yMMMEd().format(period.start),
-      HistoryViewMode.week => '$weekStartLabel – $weekEndLabel',
+      HistoryViewMode.week => () {
+        final weekStartLabel = DateFormat.MMMd().format(period.start);
+        final weekEndLabel = DateFormat.MMMd().format(period.end);
+        return '$weekStartLabel – $weekEndLabel';
+      }(),
       HistoryViewMode.month => DateFormat.yMMMM().format(period.start),
     };
 
@@ -119,17 +124,20 @@ class HistoryPeriodControls extends StatelessWidget {
   ({DateTime start, DateTime end}) _periodRange(
     HistoryViewMode mode,
     DateTime anchor,
+    int firstDayOfWeek,
   ) {
     switch (mode) {
       case HistoryViewMode.day:
         final start = DateTime(anchor.year, anchor.month, anchor.day);
         return (start: start, end: start);
       case HistoryViewMode.week:
-        final start = DateTime(
+        final localAnchor = DateTime(
           anchor.year,
           anchor.month,
           anchor.day,
-        ).subtract(Duration(days: anchor.weekday - DateTime.monday));
+        );
+        final offset = (localAnchor.weekday - firstDayOfWeek + 7) % 7;
+        final start = localAnchor.subtract(Duration(days: offset));
         final end = start.add(const Duration(days: 6));
         return (start: start, end: end);
       case HistoryViewMode.month:
@@ -137,6 +145,19 @@ class HistoryPeriodControls extends StatelessWidget {
         final end = DateTime(anchor.year, anchor.month + 1, 0);
         return (start: start, end: end);
     }
+  }
+
+  int _weekdayFromMaterialLocalizations(int firstDayOfWeekIndex) {
+    const weekdayByIndex = [
+      DateTime.sunday,
+      DateTime.monday,
+      DateTime.tuesday,
+      DateTime.wednesday,
+      DateTime.thursday,
+      DateTime.friday,
+      DateTime.saturday,
+    ];
+    return weekdayByIndex[firstDayOfWeekIndex % 7];
   }
 }
 
@@ -156,32 +177,43 @@ class _SegmentTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        curve: Curves.easeInOut,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-        decoration: BoxDecoration(
-          color: selected ? theme.colorScheme.background : Colors.transparent,
+    return Semantics(
+      button: true,
+      label: 'Segment: $label',
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          onTap: onTap,
           borderRadius: BorderRadius.circular(7),
-          boxShadow: selected
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
-                    blurRadius: 4,
-                    offset: const Offset(0, 1),
-                  ),
-                ]
-              : null,
-        ),
-        child: Text(
-          label,
-          style: theme.typography.small.copyWith(
-            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-            color: selected
-                ? theme.colorScheme.foreground
-                : theme.colorScheme.mutedForeground,
+          focusColor: theme.colorScheme.primary.withValues(alpha: 0.18),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            curve: Curves.easeInOut,
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+            decoration: BoxDecoration(
+              color: selected
+                  ? theme.colorScheme.background
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(7),
+              boxShadow: selected
+                  ? [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.15),
+                        blurRadius: 4,
+                        offset: const Offset(0, 1),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: Text(
+              label,
+              style: theme.typography.small.copyWith(
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                color: selected
+                    ? theme.colorScheme.foreground
+                    : theme.colorScheme.mutedForeground,
+              ),
+            ),
           ),
         ),
       ),
