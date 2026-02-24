@@ -3,7 +3,6 @@ import {
   createDynamicClient,
 } from '@tuturuuu/supabase/next/server';
 import { MAX_NAME_LENGTH } from '@tuturuuu/utils/constants';
-import { sanitizeFilename } from '@tuturuuu/utils/storage-path';
 import { type NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
@@ -12,19 +11,40 @@ import {
   normalizeWorkspaceId,
 } from '@/lib/workspace-helper';
 
-const MAX_FILE_SIZE = 1 * 1024 * 1024; // 1MB
-const ALLOWED_MIME_TYPES = [
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/gif',
-];
-
 const TimeTrackingRequestSchema = z.object({
+  requestId: z.string().uuid().optional(),
   title: z.string().max(MAX_NAME_LENGTH).min(1),
-  startTime: z.iso.datetime(),
-  endTime: z.iso.datetime(),
+  description: z.string().optional().default(''),
+  categoryId: z.string().optional().default(''),
+  taskId: z.string().optional().default(''),
+  startTime: z.string().datetime(),
+  endTime: z.string().datetime(),
+  breakTypeId: z.string().uuid().nullable().optional(),
+  breakTypeName: z.string().nullable().optional(),
+  linkedSessionId: z.string().uuid().nullable().optional(),
+  imagePaths: z.array(z.string().min(1)).max(5).optional().default([]),
 });
+
+function validateImagePaths(
+  imagePaths: string[],
+  requestId: string
+): { valid: true } | { valid: false; error: string } {
+  for (const p of imagePaths) {
+    if (!p.startsWith(`${requestId}/`)) {
+      return {
+        valid: false,
+        error: `Invalid image path: must start with request ID prefix`,
+      };
+    }
+    if (p.includes('..')) {
+      return {
+        valid: false,
+        error: `Invalid image path: path traversal not allowed`,
+      };
+    }
+  }
+  return { valid: true };
+}
 
 export async function POST(
   request: NextRequest,
@@ -34,7 +54,6 @@ export async function POST(
     const { wsId } = await params;
     const normalizedWsId = await normalizeWorkspaceId(wsId);
     const supabase = await createClient(request);
-    const storageClient = await createDynamicClient(request);
 
     // Get authenticated user
     const {
@@ -60,24 +79,20 @@ export async function POST(
       );
     }
 
-    // Parse FormData
-    const formData = await request.formData();
-    const title = formData.get('title') as string;
-    const description = formData.get('description') as string;
-    const categoryId = formData.get('categoryId') as string;
-    const taskId = formData.get('taskId') as string;
-    const startTime = formData.get('startTime') as string;
-    const endTime = formData.get('endTime') as string;
-    const breakTypeId = formData.get('breakTypeId') as string | null;
-    const breakTypeName = formData.get('breakTypeName') as string | null;
-    const linkedSessionId = formData.get('linkedSessionId') as string | null;
+    // Parse JSON body (no multipart)
+    const contentType = request.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      return NextResponse.json(
+        {
+          error:
+            'Invalid content type. Expected application/json. Images must be uploaded via signed URLs first.',
+        },
+        { status: 400 }
+      );
+    }
 
-    // Validate using Zod
-    const validationResult = TimeTrackingRequestSchema.safeParse({
-      title,
-      startTime,
-      endTime: endTime || undefined,
-    });
+    const rawBody = await request.json();
+    const validationResult = TimeTrackingRequestSchema.safeParse(rawBody);
 
     if (!validationResult.success) {
       return NextResponse.json(
@@ -86,11 +101,18 @@ export async function POST(
       );
     }
 
-    const {
-      startTime: validatedStartTime,
-      endTime: validatedEndTime,
-      title: validatedTitle,
-    } = validationResult.data;
+    const parsed = validationResult.data;
+    const requestId = parsed.requestId ?? uuidv4();
+
+    const pathValidation = validateImagePaths(parsed.imagePaths, requestId);
+    if (!pathValidation.valid) {
+      return NextResponse.json(
+        { error: pathValidation.error },
+        { status: 400 }
+      );
+    }
+
+    const storageClient = await createDynamicClient(request);
 
     const allowFutureSessions =
       (await getWorkspaceConfig(normalizedWsId, 'ALLOW_FUTURE_SESSIONS')) ===
@@ -99,7 +121,7 @@ export async function POST(
     // Prevent future sessions (unless allowed by config)
     const now = new Date();
     if (!allowFutureSessions) {
-      const start = new Date(validatedStartTime);
+      const start = new Date(parsed.startTime);
       if (start > now) {
         return NextResponse.json(
           {
@@ -111,93 +133,23 @@ export async function POST(
       }
     }
 
-    const requestId = uuidv4();
-    let uploadedImagePaths: string[] = [];
-
-    // Extract and upload images from FormData
-    const imageEntries = Array.from(formData.entries()).filter(([key]) =>
-      key.startsWith('image_')
-    );
-
-    if (imageEntries.length > 0) {
-      try {
-        uploadedImagePaths = await Promise.all(
-          imageEntries.map(async ([key, imageFile]) => {
-            if (!(imageFile instanceof File)) {
-              throw new Error(`Invalid image in field ${key}`);
-            }
-
-            // Validate file size
-            if (imageFile.size > MAX_FILE_SIZE) {
-              throw new Error(
-                `Image ${imageFile.name} exceeds the 1MB size limit`
-              );
-            }
-
-            // Validate MIME type
-            if (!ALLOWED_MIME_TYPES.includes(imageFile.type)) {
-              throw new Error(
-                `Invalid file type for ${imageFile.name}. Only JPEG, PNG, WEBP, and GIF are allowed.`
-              );
-            }
-
-            const sanitizedName = sanitizeFilename(imageFile.name) || 'image';
-            const fileName = `${requestId}/${Date.now()}_${sanitizedName}`;
-            const buffer = await imageFile.arrayBuffer();
-
-            const { data, error } = await storageClient.storage
-              .from('time_tracking_requests')
-              .upload(fileName, buffer, {
-                contentType: imageFile.type,
-              });
-
-            if (error) {
-              console.error('Storage upload error:', error);
-              throw new Error(`Failed to upload image: ${error.message}`);
-            }
-
-            return data.path;
-          })
-        );
-      } catch (uploadError) {
-        console.error('Image upload failed:', uploadError);
-        // Clean up uploaded images on error
-        if (uploadedImagePaths.length > 0) {
-          await storageClient.storage
-            .from('time_tracking_requests')
-            .remove(uploadedImagePaths);
-        }
-        return NextResponse.json(
-          {
-            error:
-              uploadError instanceof Error
-                ? uploadError.message
-                : 'Failed to upload images',
-          },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Create time tracking request
-    // linked_session_id links this request to an existing session (e.g., for break pauses)
-    // When approved, the session becomes visible; when rejected, the session is deleted
+    // Create time tracking request (images already uploaded via signed URLs)
     const { data, error } = await supabase
       .from('time_tracking_requests')
       .insert({
         id: requestId,
         workspace_id: normalizedWsId,
         user_id: user.id,
-        task_id: taskId || null,
-        category_id: categoryId || null,
-        title: validatedTitle,
-        description: description || null,
-        start_time: validatedStartTime,
-        end_time: validatedEndTime,
-        break_type_id: breakTypeId || null,
-        break_type_name: breakTypeName || null,
-        linked_session_id: linkedSessionId || null,
-        images: uploadedImagePaths.length > 0 ? uploadedImagePaths : null,
+        task_id: parsed.taskId || null,
+        category_id: parsed.categoryId || null,
+        title: parsed.title,
+        description: parsed.description || null,
+        start_time: parsed.startTime,
+        end_time: parsed.endTime,
+        break_type_id: parsed.breakTypeId || null,
+        break_type_name: parsed.breakTypeName || null,
+        linked_session_id: parsed.linkedSessionId || null,
+        images: parsed.imagePaths.length > 0 ? parsed.imagePaths : null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       })
@@ -205,10 +157,10 @@ export async function POST(
 
     if (error) {
       // Clean up uploaded images on database error
-      if (uploadedImagePaths.length > 0) {
+      if (parsed.imagePaths.length > 0) {
         await storageClient.storage
           .from('time_tracking_requests')
-          .remove(uploadedImagePaths);
+          .remove(parsed.imagePaths);
       }
       console.error('Database error:', error);
       return NextResponse.json(

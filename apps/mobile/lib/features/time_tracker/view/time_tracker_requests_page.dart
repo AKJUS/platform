@@ -403,7 +403,7 @@ class _RequestsViewState extends State<_RequestsView> {
               endTime, {
               description,
               removedImages,
-              newImagePaths,
+              newImageLocalPaths,
             }) => cubit.updateRequest(
               wsId,
               request.id,
@@ -412,7 +412,7 @@ class _RequestsViewState extends State<_RequestsView> {
               endTime,
               description: description,
               removedImages: removedImages,
-              newImagePaths: newImagePaths,
+              newImageLocalPaths: newImageLocalPaths,
             ),
       ),
     );

@@ -3,28 +3,9 @@ import {
   createDynamicClient,
 } from '@tuturuuu/supabase/next/server';
 import { MAX_SEARCH_LENGTH } from '@tuturuuu/utils/constants';
-import { sanitizeFilename } from '@tuturuuu/utils/storage-path';
 import { getPermissions } from '@tuturuuu/utils/workspace-helper';
 import { type NextRequest, NextResponse } from 'next/server';
-import { v4 as uuidv4 } from 'uuid';
 import { z } from 'zod';
-
-const MAX_FILE_SIZE = 1 * 1024 * 1024; // 1MB
-const ALLOWED_MIME_TYPES = [
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'image/gif',
-];
-
-// Map file extensions to MIME types for validation fallback
-const EXTENSION_TO_MIME_TYPE: Record<string, string> = {
-  jpg: 'image/jpeg',
-  jpeg: 'image/jpeg',
-  png: 'image/png',
-  webp: 'image/webp',
-  gif: 'image/gif',
-};
 
 const updateRequestSchema = z.discriminatedUnion('action', [
   z.object({
@@ -48,6 +29,36 @@ const updateRequestSchema = z.discriminatedUnion('action', [
     action: z.literal('resubmit'),
   }),
 ]);
+
+const editRequestSchema = z.object({
+  title: z.string().min(1, 'Title is required'),
+  description: z.string().optional().default(''),
+  startTime: z.string().datetime(),
+  endTime: z.string().datetime(),
+  removedImages: z.array(z.string().min(1)).optional().default([]),
+  newImagePaths: z.array(z.string().min(1)).optional().default([]),
+});
+
+function validateRequestImagePaths(
+  paths: string[],
+  requestId: string
+): { valid: true } | { valid: false; error: string } {
+  for (const p of paths) {
+    if (!p.startsWith(`${requestId}/`)) {
+      return {
+        valid: false,
+        error: 'Invalid image path: must start with request ID prefix',
+      };
+    }
+    if (p.includes('..')) {
+      return {
+        valid: false,
+        error: 'Invalid image path: path traversal not allowed',
+      };
+    }
+  }
+  return { valid: true };
+}
 
 export async function PATCH(
   request: NextRequest,
@@ -235,128 +246,79 @@ export async function PUT(
       );
     }
 
-    // Parse FormData
-    const formData = await request.formData();
-    const title = formData.get('title') as string;
-    const description = formData.get('description') as string | null;
-    const startTime = formData.get('startTime') as string;
-    const endTime = formData.get('endTime') as string;
-    const removedImagesJson = formData.get('removedImages') as string | null;
-
-    // Validate required fields
-    if (!title || !startTime || !endTime) {
+    // Parse JSON body (no multipart)
+    const contentType = request.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
       return NextResponse.json(
-        { error: 'Title, start time, and end time are required' },
+        {
+          error:
+            'Invalid content type. Expected application/json. Images must be uploaded via signed URLs first.',
+        },
+        { status: 400 }
+      );
+    }
+
+    const body = await request.json();
+    const validation = editRequestSchema.safeParse(body);
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: 'Invalid request body', details: validation.error.issues },
+        { status: 400 }
+      );
+    }
+
+    const {
+      title,
+      description,
+      startTime,
+      endTime,
+      removedImages,
+      newImagePaths,
+    } = validation.data;
+
+    const newPathsValidation = validateRequestImagePaths(newImagePaths, id);
+    if (!newPathsValidation.valid) {
+      return NextResponse.json(
+        { error: newPathsValidation.error },
+        { status: 400 }
+      );
+    }
+
+    const removedPathsValidation = validateRequestImagePaths(removedImages, id);
+    if (!removedPathsValidation.valid) {
+      return NextResponse.json(
+        { error: removedPathsValidation.error },
         { status: 400 }
       );
     }
 
     // Handle removed images
     let currentImages: string[] = existingRequest.images || [];
-    if (removedImagesJson) {
-      try {
-        const removedImages: string[] = JSON.parse(removedImagesJson);
-        // Remove specified images from the list
-        currentImages = currentImages.filter(
-          (img) => !removedImages.includes(img)
-        );
-        // Delete removed images from storage
-        if (removedImages.length > 0) {
-          await storageClient.storage
-            .from('time_tracking_requests')
-            .remove(removedImages);
-        }
-      } catch {
-        // Ignore JSON parse errors
-      }
-    }
+    if (removedImages.length > 0) {
+      // Remove specified images from the list
+      currentImages = currentImages.filter(
+        (img) => !removedImages.includes(img)
+      );
+      // Delete removed images from storage
+      const { error: removeError } = await storageClient.storage
+        .from('time_tracking_requests')
+        .remove(removedImages);
 
-    // Handle new image uploads
-    const imageEntries = Array.from(formData.entries()).filter(([key]) =>
-      key.startsWith('image_')
-    );
-
-    let uploadedImagePaths: string[] = [];
-    if (imageEntries.length > 0) {
-      try {
-        uploadedImagePaths = await Promise.all(
-          imageEntries.map(async ([key, imageFile]) => {
-            if (!(imageFile instanceof File)) {
-              throw new Error(`Invalid image in field ${key}`);
-            }
-
-            // Validate file size
-            if (imageFile.size > MAX_FILE_SIZE) {
-              throw new Error(
-                `Image ${imageFile.name} exceeds the ${MAX_FILE_SIZE / (1024 * 1024)}MB size limit`
-              );
-            }
-
-            // Validate MIME type (check browser-reported type first, then fallback to extension)
-            const fileExtension =
-              imageFile.name.split('.').pop()?.toLowerCase() || '';
-            const expectedMimeType = EXTENSION_TO_MIME_TYPE[fileExtension];
-
-            if (!ALLOWED_MIME_TYPES.includes(imageFile.type)) {
-              // If browser-reported type is not allowed, check if extension suggests it's valid
-              if (!expectedMimeType) {
-                throw new Error(
-                  `Invalid file type for ${imageFile.name}. Only JPEG, PNG, WEBP, and GIF are allowed.`
-                );
-              }
-              // Extension is valid, use the expected MIME type based on extension
-              console.warn(
-                `Browser reported unexpected MIME type "${imageFile.type}" for ${imageFile.name}, using "${expectedMimeType}" based on extension`
-              );
-            }
-
-            const sanitizedName = sanitizeFilename(imageFile.name) || 'image';
-            const fileName = `${id}/${uuidv4()}_${sanitizedName}`;
-            const buffer = await imageFile.arrayBuffer();
-
-            // Use validated MIME type (browser-reported or extension-based fallback)
-            const validatedMimeType = ALLOWED_MIME_TYPES.includes(
-              imageFile.type
-            )
-              ? imageFile.type
-              : expectedMimeType || 'image/jpeg';
-
-            const { data, error } = await storageClient.storage
-              .from('time_tracking_requests')
-              .upload(fileName, buffer, {
-                contentType: validatedMimeType,
-              });
-
-            if (error) {
-              console.error('Storage upload error:', error);
-              throw new Error(`Failed to upload image: ${error.message}`);
-            }
-
-            return data.path;
-          })
-        );
-      } catch (uploadError) {
-        console.error('Image upload failed:', uploadError);
-        // Clean up uploaded images on error
-        if (uploadedImagePaths.length > 0) {
-          await storageClient.storage
-            .from('time_tracking_requests')
-            .remove(uploadedImagePaths);
-        }
+      if (removeError) {
+        console.error('Failed to remove deleted images from storage:', {
+          requestId: id,
+          removedImages,
+          error: removeError,
+        });
         return NextResponse.json(
-          {
-            error:
-              uploadError instanceof Error
-                ? uploadError.message
-                : 'Failed to upload images',
-          },
-          { status: 400 }
+          { error: 'Failed to remove deleted images' },
+          { status: 500 }
         );
       }
     }
 
-    // Combine existing and new images
-    const finalImages = [...currentImages, ...uploadedImagePaths];
+    // Combine existing and newly uploaded image paths
+    const finalImages = [...currentImages, ...newImagePaths];
 
     // Update the request
     const { data: updatedRequest, error: updateError } = await supabase
@@ -375,10 +337,26 @@ export async function PUT(
 
     if (updateError) {
       // Clean up newly uploaded images on database error
-      if (uploadedImagePaths.length > 0) {
-        await storageClient.storage
+      if (newImagePaths.length > 0) {
+        const { error: cleanupError } = await storageClient.storage
           .from('time_tracking_requests')
-          .remove(uploadedImagePaths);
+          .remove(newImagePaths);
+
+        if (cleanupError) {
+          console.error('Failed to clean up newly uploaded images:', {
+            requestId: id,
+            newImagePaths,
+            updateError,
+            cleanupError,
+          });
+          return NextResponse.json(
+            {
+              error:
+                'Failed to update request and failed to clean up uploaded images',
+            },
+            { status: 500 }
+          );
+        }
       }
       console.error('Database error:', updateError);
       return NextResponse.json(

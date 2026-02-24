@@ -44,7 +44,7 @@ class RequestDetailSheet extends StatefulWidget {
     DateTime endTime, {
     String? description,
     List<String>? removedImages,
-    List<String>? newImagePaths,
+    List<String>? newImageLocalPaths,
   })?
   onEdit;
   @override
@@ -341,7 +341,7 @@ class _RequestDetailSheetState extends State<RequestDetailSheet> {
                 endTime, {
                 description,
                 removedImages,
-                newImagePaths,
+                newImageLocalPaths,
               }) async {
                 final updatedRequest = await widget.onEdit!(
                   title,
@@ -349,7 +349,7 @@ class _RequestDetailSheetState extends State<RequestDetailSheet> {
                   endTime,
                   description: description,
                   removedImages: removedImages,
-                  newImagePaths: newImagePaths,
+                  newImageLocalPaths: newImageLocalPaths,
                 );
                 if (!mounted) {
                   return updatedRequest;

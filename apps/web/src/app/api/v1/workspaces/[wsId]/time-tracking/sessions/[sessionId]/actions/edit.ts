@@ -49,15 +49,28 @@ export async function handleEditAction({
     }
   }
 
-  if (startTime !== undefined && endTime !== undefined) {
-    const start = new Date(startTime);
-    const end = new Date(endTime);
-    if (!(start.getTime() < end.getTime())) {
-      return NextResponse.json(
-        { error: 'startTime must be before endTime' },
-        { status: 400 }
-      );
-    }
+  const effectiveStart =
+    startTime !== undefined
+      ? new Date(startTime)
+      : session.start_time
+        ? new Date(session.start_time)
+        : null;
+  const effectiveEnd =
+    endTime !== undefined
+      ? new Date(endTime)
+      : session.end_time
+        ? new Date(session.end_time)
+        : null;
+
+  if (
+    effectiveStart !== null &&
+    effectiveEnd !== null &&
+    !(effectiveStart.getTime() < effectiveEnd.getTime())
+  ) {
+    return NextResponse.json(
+      { error: 'startTime must be before endTime' },
+      { status: 400 }
+    );
   }
 
   const updateData: {

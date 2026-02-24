@@ -1686,6 +1686,7 @@ When consolidating duplicated Flutter form fields into a shared editable widget,
 - After `await`, check `context.mounted` before using `BuildContext` to satisfy `use_build_context_synchronously`.
 - In async methods, capture dependencies from `context` (e.g., `context.read<T>()`) before the first `await`; do not call `context.read` after an async gap.
 - Avoid `return` in `finally` blocks; gate cleanup with `if (context.mounted)` or `if (mounted)` instead.
+- In test teardown callbacks, prefer `addTearDown(() async => tempDir.delete(...))` over `await tempDir.delete(...)` inside the closure to avoid `unnecessary_await_in_return` warnings.
 
 ### 15.8 Flutter Widget Test Theme Context
 

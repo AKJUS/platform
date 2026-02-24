@@ -7,6 +7,7 @@ export * from './hooks/use-workspace-break-types';
 export * from './hooks/use-workspace-categories';
 export * from './hooks/use-workspace-time-threshold';
 export * from './types/time-tracker';
+export * from './upload-time-tracking-images';
 export * from './utils/time-format';
 export * from './utils/time-tracker-category-colors';
 export * from './utils/time-tracker-utils';

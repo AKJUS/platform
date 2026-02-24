@@ -571,7 +571,7 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
     required DateTime endTime,
     String? categoryId,
     String? description,
-    List<String>? imagePaths,
+    List<String>? imageLocalPaths,
     bool throwOnError = false,
   }) async {
     try {
@@ -582,7 +582,7 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
         categoryId: categoryId,
         startTime: startTime,
         endTime: endTime,
-        imagePaths: imagePaths,
+        imageLocalPaths: imageLocalPaths,
       );
 
       final (recentSessions, stats) = await _loadRecentAndSummary(wsId, userId);

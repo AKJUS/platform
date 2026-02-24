@@ -30,7 +30,7 @@ class MissedEntryDialog extends StatefulWidget {
     required DateTime startTime,
     required DateTime endTime,
     required bool shouldSubmitAsRequest,
-    required List<String> imagePaths,
+    required List<String> imageLocalPaths,
     String? categoryId,
     String? description,
   })
@@ -301,17 +301,22 @@ class _MissedEntryDialogState extends State<MissedEntryDialog> {
               shad.PrimaryButton(
                 onPressed: _isValid && !_isSubmitting
                     ? () async {
+                        final navigator = Navigator.of(context);
+                        final toastContext = Navigator.of(
+                          context,
+                          rootNavigator: true,
+                        ).context;
                         setState(() => _isSubmitting = true);
 
                         final workSessionTitle = _titleCtrl.text.isEmpty
                             ? l10n.timerWorkSession
                             : _titleCtrl.text;
                         final successTitle = showThresholdWarning
-                            ? l10n.timerRequestsTitle
-                            : l10n.timerAddMissedEntry;
+                            ? l10n.timerRequestSubmittedTitle
+                            : l10n.timerMissedEntrySavedTitle;
                         final successContent = showThresholdWarning
-                            ? l10n.timerSubmitForApproval
-                            : l10n.timerSave;
+                            ? l10n.timerRequestSubmittedContent
+                            : l10n.timerMissedEntrySavedContent;
                         final errorTitle = l10n.commonSomethingWentWrong;
 
                         try {
@@ -321,7 +326,7 @@ class _MissedEntryDialogState extends State<MissedEntryDialog> {
                             startTime: _startTime,
                             endTime: _endTime,
                             shouldSubmitAsRequest: showThresholdWarning,
-                            imagePaths: _images
+                            imageLocalPaths: _images
                                 .map((file) => file.path)
                                 .toList(),
                             description: _descCtrl.text.isEmpty
@@ -329,12 +334,12 @@ class _MissedEntryDialogState extends State<MissedEntryDialog> {
                                 : _descCtrl.text,
                           );
 
-                          if (!mounted) {
+                          if (!context.mounted) {
                             return;
                           }
 
                           shad.showToast(
-                            context: this.context,
+                            context: toastContext,
                             builder: (context, overlay) => shad.Alert(
                               title: Text(successTitle),
                               content: Text(successContent),
@@ -343,14 +348,22 @@ class _MissedEntryDialogState extends State<MissedEntryDialog> {
 
                           setState(() => _isSubmitting = false);
 
-                          await _closeSelf();
+                          final dialogContext = context;
+                          await shad.closeOverlay<void>(dialogContext);
+                          if (!dialogContext.mounted) {
+                            return;
+                          }
+
+                          if (navigator.canPop()) {
+                            navigator.pop();
+                          }
                         } on Exception catch (error) {
-                          if (!mounted) {
+                          if (!context.mounted) {
                             return;
                           }
 
                           shad.showToast(
-                            context: this.context,
+                            context: toastContext,
                             builder: (context, overlay) =>
                                 shad.Alert.destructive(
                                   title: Text(errorTitle),
@@ -532,18 +545,6 @@ class _MissedEntryDialogState extends State<MissedEntryDialog> {
     setState(() {
       _categoryId = selectedCategoryId;
     });
-  }
-
-  Future<void> _closeSelf() async {
-    await shad.closeOverlay<void>(context);
-    if (!mounted) {
-      return;
-    }
-
-    final navigator = Navigator.of(context);
-    if (navigator.canPop()) {
-      navigator.pop();
-    }
   }
 
   String _toErrorMessage(Object error) {

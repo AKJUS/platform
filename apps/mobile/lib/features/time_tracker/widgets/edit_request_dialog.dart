@@ -22,7 +22,7 @@ class EditRequestDialog extends StatefulWidget {
     DateTime endTime, {
     String? description,
     List<String>? removedImages,
-    List<String>? newImagePaths,
+    List<String>? newImageLocalPaths,
   })
   onSave;
 
@@ -163,7 +163,7 @@ class _EditRequestDialogState extends State<EditRequestDialog> {
             ? null
             : _descriptionController.text.trim(),
         removedImages: _removedImages,
-        newImagePaths: _newImages.map((image) => image.path).toList(),
+        newImageLocalPaths: _newImages.map((image) => image.path).toList(),
       );
 
       if (!mounted) return;

@@ -302,7 +302,7 @@ class TimerTab extends StatelessWidget {
               required startTime,
               required endTime,
               required shouldSubmitAsRequest,
-              required imagePaths,
+              required imageLocalPaths,
               categoryId,
               description,
             }) async {
@@ -315,7 +315,7 @@ class TimerTab extends StatelessWidget {
                   startTime: startTime,
                   endTime: endTime,
                   description: description,
-                  imagePaths: imagePaths,
+                  imageLocalPaths: imageLocalPaths,
                   throwOnError: true,
                 );
 

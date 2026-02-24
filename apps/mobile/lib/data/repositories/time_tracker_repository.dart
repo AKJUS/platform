@@ -1,6 +1,7 @@
-import 'dart:convert';
+import 'dart:io';
+import 'dart:math';
 
-import 'package:http_parser/http_parser.dart';
+import 'package:http/http.dart' as http;
 import 'package:mime/mime.dart';
 import 'package:mobile/data/models/time_tracking/break_record.dart';
 import 'package:mobile/data/models/time_tracking/category.dart';
@@ -117,7 +118,7 @@ abstract class ITimeTrackerRepository {
     String? categoryId,
     DateTime? startTime,
     DateTime? endTime,
-    List<String>? imagePaths,
+    List<String>? imageLocalPaths,
   });
 
   Future<WorkspaceSettings?> getWorkspaceSettings(String wsId);
@@ -150,7 +151,7 @@ abstract class ITimeTrackerRepository {
     DateTime endTime, {
     String? description,
     List<String>? removedImages,
-    List<String>? newImagePaths,
+    List<String>? newImageLocalPaths,
   });
 
   Future<TimeTrackingRequestComment> updateRequestComment(
@@ -189,10 +190,13 @@ abstract class ITimeTrackerRepository {
 
 /// Repository for time tracking operations using API endpoints.
 class TimeTrackerRepository implements ITimeTrackerRepository {
-  TimeTrackerRepository({ApiClient? apiClient})
-    : _api = apiClient ?? ApiClient();
+  TimeTrackerRepository({ApiClient? apiClient, http.Client? httpClient})
+    : _api = apiClient ?? ApiClient(),
+      _httpClient = httpClient ?? http.Client();
 
   final ApiClient _api;
+  final http.Client _httpClient;
+  static final Random _uuidRandom = Random.secure();
 
   String _withQuery(String path, Map<String, String?> query) {
     final entries = query.entries.where((entry) {
@@ -216,15 +220,112 @@ class TimeTrackerRepository implements ITimeTrackerRepository {
     return '$path?$encoded';
   }
 
-  MediaType? _getImageMimeType(String filePath) {
-    final mimeType = lookupMimeType(filePath);
-    if (mimeType == null) return null;
-    final parts = mimeType.split('/');
-    if (parts.length != 2) return null;
-    return MediaType(parts[0], parts[1]);
+  String _toApiIso(DateTime value) => value.toUtc().toIso8601String();
+
+  String _filenameFromPath(String path) {
+    final normalized = path.replaceAll(RegExp(r'\\'), '/');
+    final slashIndex = normalized.lastIndexOf('/');
+    if (slashIndex == -1 || slashIndex == normalized.length - 1) {
+      return normalized;
+    }
+    return normalized.substring(slashIndex + 1);
   }
 
-  String _toApiIso(DateTime value) => value.toUtc().toIso8601String();
+  String _generateUuidV4() {
+    final bytes = List<int>.generate(16, (_) => _uuidRandom.nextInt(256));
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+
+    String hex(int value) => value.toRadixString(16).padLeft(2, '0');
+
+    return '${hex(bytes[0])}${hex(bytes[1])}${hex(bytes[2])}${hex(bytes[3])}-'
+        '${hex(bytes[4])}${hex(bytes[5])}-'
+        '${hex(bytes[6])}${hex(bytes[7])}-'
+        '${hex(bytes[8])}${hex(bytes[9])}-'
+        '${hex(bytes[10])}'
+        '${hex(bytes[11])}'
+        '${hex(bytes[12])}'
+        '${hex(bytes[13])}'
+        '${hex(bytes[14])}'
+        '${hex(bytes[15])}';
+  }
+
+  Future<List<String>> _uploadRequestImages(
+    String wsId,
+    String requestId,
+    List<String> localImagePaths,
+  ) async {
+    if (localImagePaths.isEmpty) {
+      return const <String>[];
+    }
+
+    final signedUploadResponse = await _api.postJson(
+      '/api/v1/workspaces/$wsId/time-tracking/requests/upload-url',
+      {
+        'requestId': requestId,
+        'files': localImagePaths
+            .map((path) => {'filename': _filenameFromPath(path)})
+            .toList(),
+      },
+    );
+
+    final uploads = signedUploadResponse['uploads'];
+    if (uploads is! List || uploads.length != localImagePaths.length) {
+      throw const ApiException(
+        message: 'Invalid upload URL response',
+        statusCode: 0,
+      );
+    }
+
+    final uploadedPaths = <String>[];
+
+    for (var i = 0; i < uploads.length; i++) {
+      final upload = uploads[i];
+      if (upload is! Map<String, dynamic>) {
+        throw const ApiException(
+          message: 'Invalid upload URL response',
+          statusCode: 0,
+        );
+      }
+
+      final signedUrl = upload['signedUrl'] as String?;
+      final token = upload['token'] as String?;
+      final storagePath = upload['path'] as String?;
+      if (signedUrl == null || token == null || storagePath == null) {
+        throw const ApiException(
+          message: 'Invalid upload URL response',
+          statusCode: 0,
+        );
+      }
+
+      final localPath = localImagePaths[i];
+      final fileBytes = await File(localPath).readAsBytes();
+      final contentType =
+          lookupMimeType(localPath) ?? 'application/octet-stream';
+
+      final uploadResponse = await _httpClient
+          .put(
+            Uri.parse(signedUrl),
+            headers: {
+              'Authorization': 'Bearer $token',
+              'Content-Type': contentType,
+            },
+            body: fileBytes,
+          )
+          .timeout(const Duration(seconds: 60));
+
+      if (uploadResponse.statusCode < 200 || uploadResponse.statusCode >= 300) {
+        throw ApiException(
+          message: 'Failed to upload image (${uploadResponse.statusCode})',
+          statusCode: uploadResponse.statusCode,
+        );
+      }
+
+      uploadedPaths.add(storagePath);
+    }
+
+    return uploadedPaths;
+  }
 
   @override
   Future<List<TimeTrackingSession>> getSessions(
@@ -530,39 +631,30 @@ class TimeTrackerRepository implements ITimeTrackerRepository {
     String? categoryId,
     DateTime? startTime,
     DateTime? endTime,
-    List<String>? imagePaths,
+    List<String>? imageLocalPaths,
   }) async {
-    final uploadImagePaths = imagePaths ?? const <String>[];
-    final hasImages = uploadImagePaths.isNotEmpty;
+    final localPaths = imageLocalPaths ?? const <String>[];
+    final requestId = _generateUuidV4();
+    final uploadedImagePaths = await _uploadRequestImages(
+      wsId,
+      requestId,
+      localPaths,
+    );
+
     final fields = <String, dynamic>{
+      'requestId': requestId,
       'title': title,
       if (description != null) 'description': description,
       if (categoryId != null) 'categoryId': categoryId,
       if (startTime != null) 'startTime': _toApiIso(startTime),
       if (endTime != null) 'endTime': _toApiIso(endTime),
+      if (uploadedImagePaths.isNotEmpty) 'imagePaths': uploadedImagePaths,
     };
 
-    final data = hasImages
-        ? await _api.sendMultipart(
-            'POST',
-            '/api/v1/workspaces/$wsId/time-tracking/requests',
-            fields: fields.map((key, value) => MapEntry(key, '$value')),
-            files: uploadImagePaths
-                .asMap()
-                .entries
-                .map(
-                  (entry) => ApiMultipartFile(
-                    field: 'image_${entry.key}',
-                    filePath: entry.value,
-                    contentType: _getImageMimeType(entry.value),
-                  ),
-                )
-                .toList(),
-          )
-        : await _api.postJson(
-            '/api/v1/workspaces/$wsId/time-tracking/requests',
-            fields,
-          );
+    final data = await _api.postJson(
+      '/api/v1/workspaces/$wsId/time-tracking/requests',
+      fields,
+    );
 
     return TimeTrackingRequest.fromJson(
       data['request'] as Map<String, dynamic>,
@@ -664,39 +756,27 @@ class TimeTrackerRepository implements ITimeTrackerRepository {
     DateTime endTime, {
     String? description,
     List<String>? removedImages,
-    List<String>? newImagePaths,
+    List<String>? newImageLocalPaths,
   }) async {
-    final fields = <String, String>{
+    final uploadedImagePaths = await _uploadRequestImages(
+      wsId,
+      requestId,
+      newImageLocalPaths ?? const <String>[],
+    );
+
+    final body = <String, dynamic>{
       'title': title,
       'startTime': _toApiIso(startTime),
       'endTime': _toApiIso(endTime),
       if (description != null) 'description': description,
       if (removedImages != null && removedImages.isNotEmpty)
-        'removedImages': jsonEncode(removedImages),
+        'removedImages': removedImages,
+      if (uploadedImagePaths.isNotEmpty) 'newImagePaths': uploadedImagePaths,
     };
 
-    final files = <ApiMultipartFile>[];
-    if (newImagePaths != null && newImagePaths.isNotEmpty) {
-      for (var i = 0; i < newImagePaths.length; i++) {
-        final imagePath = newImagePaths[i];
-        if (imagePath.isEmpty) {
-          continue;
-        }
-        files.add(
-          ApiMultipartFile(
-            field: 'image_$i',
-            filePath: imagePath,
-            contentType: _getImageMimeType(imagePath),
-          ),
-        );
-      }
-    }
-
-    final data = await _api.sendMultipart(
-      'PUT',
+    final data = await _api.putJson(
       '/api/v1/workspaces/$wsId/time-tracking/requests/$requestId',
-      fields: fields,
-      files: files,
+      body,
     );
 
     return TimeTrackingRequest.fromJson(

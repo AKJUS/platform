@@ -1,4 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { uploadTimeTrackingImages } from '@tuturuuu/hooks';
 import { toast } from '@tuturuuu/ui/sonner';
 import { useTranslations } from 'next-intl';
 
@@ -228,29 +229,29 @@ export function useUpdateRequest() {
       newImages = [],
       removedImages = [],
     }: UpdateRequestParams) => {
-      const formData = new FormData();
-      formData.append('title', title);
-      if (description) {
-        formData.append('description', description);
-      }
-      formData.append('startTime', startTime);
-      formData.append('endTime', endTime);
-
-      // Append removed images as JSON
-      if (removedImages.length > 0) {
-        formData.append('removedImages', JSON.stringify(removedImages));
-      }
-
-      // Append new image files
-      newImages.forEach((image, index) => {
-        formData.append(`image_${index}`, image);
-      });
+      const newImagePaths =
+        newImages.length > 0
+          ? await uploadTimeTrackingImages(
+              '/api/v1/workspaces',
+              wsId,
+              requestId,
+              newImages
+            )
+          : [];
 
       const response = await fetch(
         `/api/v1/workspaces/${wsId}/time-tracking/requests/${requestId}`,
         {
           method: 'PUT',
-          body: formData,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title,
+            description: description ?? '',
+            startTime,
+            endTime,
+            removedImages,
+            newImagePaths,
+          }),
         }
       );
 
