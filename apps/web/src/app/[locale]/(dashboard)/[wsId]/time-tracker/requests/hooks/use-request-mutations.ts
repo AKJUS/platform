@@ -213,6 +213,69 @@ interface UpdateRequestParams {
   removedImages?: string[];
 }
 
+async function uploadTimeTrackingImages(
+  wsId: string,
+  requestId: string,
+  files: File[]
+): Promise<string[]> {
+  const uploadUrl = `/api/v1/workspaces/${wsId}/time-tracking/requests/upload-url`;
+  const signedRes = await fetch(uploadUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      requestId,
+      files: files.map((file) => ({ filename: file.name })),
+    }),
+  });
+
+  if (!signedRes.ok) {
+    const body = await signedRes.json().catch(() => ({}));
+    const message =
+      (body as { error?: string }).error ?? 'Failed to generate upload URLs';
+    throw new Error(message);
+  }
+
+  const { uploads } = (await signedRes.json()) as {
+    uploads: Array<{
+      signedUrl: string;
+      token: string;
+      path: string;
+    }>;
+  };
+
+  if (!Array.isArray(uploads) || uploads.length !== files.length) {
+    throw new Error('Upload URL response mismatch');
+  }
+
+  const paths = await Promise.all(
+    uploads.map(async ({ signedUrl, token, path }, index) => {
+      const file = files[index];
+      if (!file) {
+        throw new Error('Upload URL response mismatch');
+      }
+      const uploadRes = await fetch(signedUrl, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': file.type || 'image/jpeg',
+        },
+        body: file,
+      });
+
+      if (!uploadRes.ok) {
+        const text = await uploadRes.text().catch(() => '');
+        throw new Error(
+          `Failed to upload image (${uploadRes.status})${text ? `: ${text}` : ''}`
+        );
+      }
+
+      return path;
+    })
+  );
+
+  return paths;
+}
+
 export function useUpdateRequest() {
   const t = useTranslations('time-tracker.requests');
   const queryClient = useQueryClient();
@@ -228,29 +291,24 @@ export function useUpdateRequest() {
       newImages = [],
       removedImages = [],
     }: UpdateRequestParams) => {
-      const formData = new FormData();
-      formData.append('title', title);
-      if (description) {
-        formData.append('description', description);
-      }
-      formData.append('startTime', startTime);
-      formData.append('endTime', endTime);
-
-      // Append removed images as JSON
-      if (removedImages.length > 0) {
-        formData.append('removedImages', JSON.stringify(removedImages));
-      }
-
-      // Append new image files
-      newImages.forEach((image, index) => {
-        formData.append(`image_${index}`, image);
-      });
+      const newImagePaths =
+        newImages.length > 0
+          ? await uploadTimeTrackingImages(wsId, requestId, newImages)
+          : [];
 
       const response = await fetch(
         `/api/v1/workspaces/${wsId}/time-tracking/requests/${requestId}`,
         {
           method: 'PUT',
-          body: formData,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title,
+            description: description ?? '',
+            startTime,
+            endTime,
+            removedImages,
+            newImagePaths,
+          }),
         }
       );
 

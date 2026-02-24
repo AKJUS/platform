@@ -5,6 +5,7 @@ import dayjs from 'dayjs';
 import timezone from 'dayjs/plugin/timezone';
 import utc from 'dayjs/plugin/utc';
 import { useEffect, useMemo, useState } from 'react';
+import { uploadTimeTrackingImages } from '../upload-time-tracking-images';
 import type { TimeValidationResult } from '../utils/time-validation';
 import { validateEndTime, validateStartTime } from '../utils/time-validation';
 import type { UseImageUploadReturn } from './use-image-upload';
@@ -434,39 +435,41 @@ export function useMissedEntryForm(
           }
         }
 
-        const formData = new FormData();
-        formData.append('title', missedEntryTitle);
-        formData.append('description', missedEntryDescription || '');
-        formData.append(
-          'categoryId',
-          missedEntryCategoryId === 'none' ? '' : missedEntryCategoryId
-        );
-        formData.append(
-          'taskId',
-          missedEntryTaskId === 'none' ? '' : missedEntryTaskId
-        );
-        formData.append(
-          'startTime',
-          dayjs.tz(missedEntryStartTime, userTz).utc().toISOString()
-        );
-        formData.append(
-          'endTime',
-          dayjs.tz(missedEntryEndTime, userTz).utc().toISOString()
-        );
+        const requestId = crypto.randomUUID();
+        let imagePaths: string[] = [];
 
-        imageUpload.images.forEach((image, index) => {
-          formData.append(`image_${index}`, image);
-        });
-
-        if (linkedSessionId) {
-          formData.append('linkedSessionId', linkedSessionId);
+        if (imageUpload.images.length > 0) {
+          imagePaths = await uploadTimeTrackingImages(
+            apiBaseUrl,
+            effectiveWsId,
+            requestId,
+            imageUpload.images
+          );
         }
+
+        const body: Record<string, unknown> = {
+          requestId,
+          title: missedEntryTitle,
+          description: missedEntryDescription || '',
+          categoryId:
+            missedEntryCategoryId === 'none' ? '' : missedEntryCategoryId,
+          taskId: missedEntryTaskId === 'none' ? '' : missedEntryTaskId,
+          startTime: dayjs.tz(missedEntryStartTime, userTz).utc().toISOString(),
+          endTime: dayjs.tz(missedEntryEndTime, userTz).utc().toISOString(),
+          imagePaths,
+        };
+        if (linkedSessionId) {
+          body.linkedSessionId = linkedSessionId;
+        }
+        if (breakTypeId) body.breakTypeId = breakTypeId;
+        if (breakTypeName) body.breakTypeName = breakTypeName;
 
         const response = await fetch(
           `${apiBaseUrl}/${effectiveWsId}/time-tracking/requests`,
           {
             method: 'POST',
-            body: formData,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
           }
         );
 
