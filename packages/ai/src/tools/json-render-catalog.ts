@@ -541,5 +541,23 @@ export const dashboardCatalog = defineCatalog(schema, {
       description:
         'Log a financial transaction directly from a generated UI form.',
     },
+    __ui_action__: {
+      params: z.object({
+        id: z
+          .string()
+          .optional()
+          .describe('Action identifier from Button/ListItem props.action'),
+        label: z
+          .string()
+          .optional()
+          .describe('Optional display label from the clicked component'),
+        source: z
+          .enum(['button', 'list-item', 'ui'])
+          .optional()
+          .describe('Origin of the action trigger'),
+      }),
+      description:
+        'Generic follow-up action emitted when a clickable generated UI element is activated.',
+    },
   },
 });

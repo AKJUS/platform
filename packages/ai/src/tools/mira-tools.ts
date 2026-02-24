@@ -76,6 +76,7 @@ import { executeUpdateUserName } from './executors/user';
 import { executeListWorkspaceMembers } from './executors/workspace';
 // ── Executor imports ──
 import { dashboardCatalog } from './json-render-catalog';
+import { normalizeRenderUiInputForTool } from './normalize-render-ui-input';
 
 // ── Tool Directory (name → one-line description for system prompt) ──
 
@@ -895,24 +896,10 @@ export const miraToolDefinitions = {
   render_ui: tool({
     description:
       'Generate an interactive, actionable UI component or widget using json-render instead of plain text. Use this when the user asks for a dashboard, a form, or whenever a beautifully rendered visual response would complement and significantly improve the user experience (e.g. for status summaries, lists, or visualizations). You MUST output a JSON object matching the schema exactly — do NOT wrap it in a "json" string.',
-    inputSchema: z.preprocess((val: unknown) => {
-      // Some models (e.g. Gemini) wrap the spec in {"json": "...string..."}.
-      // Unwrap it so Zod validation sees the actual {root, elements} object.
-      if (
-        val &&
-        typeof val === 'object' &&
-        'json' in val &&
-        typeof (val as Record<string, unknown>).json === 'string'
-      ) {
-        const jsonStr = (val as Record<string, unknown>).json as string;
-        try {
-          return JSON.parse(jsonStr);
-        } catch {
-          return val; // If JSON.parse fails, let Zod report the real error
-        }
-      }
-      return val;
-    }, dashboardCatalog.zodSchema()),
+    inputSchema: z.preprocess(
+      (val: unknown) => normalizeRenderUiInputForTool(val),
+      dashboardCatalog.zodSchema()
+    ),
   }),
 
   // ── Workspace ──
@@ -960,6 +947,142 @@ export type MiraToolContext = {
 
 export type MiraToolName = keyof typeof miraToolDefinitions;
 
+function isRenderableRenderUiSpec(
+  value: Record<string, unknown> | undefined
+): boolean {
+  if (!value) return false;
+  if (typeof value.root !== 'string' || value.root.length === 0) return false;
+  const elements = value.elements;
+  if (!elements || typeof elements !== 'object' || Array.isArray(elements)) {
+    return false;
+  }
+
+  const elementEntries = Object.entries(elements);
+  if (elementEntries.length === 0) return false;
+  if (!(value.root in elements)) return false;
+
+  const rootElement = (elements as Record<string, unknown>)[value.root];
+  return (
+    !!rootElement &&
+    typeof rootElement === 'object' &&
+    !Array.isArray(rootElement)
+  );
+}
+
+function buildRenderUiRecoverySpec(args: Record<string, unknown>) {
+  const requestedRoot =
+    typeof args.root === 'string' && args.root.trim().length > 0
+      ? args.root.trim()
+      : 'render_ui_recovery_root';
+  const textId = `${requestedRoot}__message`;
+
+  return {
+    root: requestedRoot,
+    elements: {
+      [requestedRoot]: {
+        type: 'Card',
+        props: {
+          title: 'UI Generation Recovery',
+        },
+        children: [textId],
+      },
+      [textId]: {
+        type: 'Text',
+        props: {
+          content:
+            'I had trouble generating the full UI schema in one pass. Please try again or ask me to regenerate this panel.',
+        },
+        children: [],
+      },
+    },
+  };
+}
+
+function buildRenderUiFailsafeSpec(args: Record<string, unknown>) {
+  const requestedRoot =
+    typeof args.root === 'string' && args.root.trim().length > 0
+      ? args.root.trim()
+      : 'render_ui_failsafe_root';
+
+  const stackId = `${requestedRoot}__actions`;
+  const introId = `${requestedRoot}__intro`;
+  const buttonIds = {
+    tasks: `${requestedRoot}__btn_tasks`,
+    calendar: `${requestedRoot}__btn_calendar`,
+    createTask: `${requestedRoot}__btn_create_task`,
+    logTx: `${requestedRoot}__btn_log_tx`,
+    spending: `${requestedRoot}__btn_spending`,
+    timer: `${requestedRoot}__btn_timer`,
+  } as const;
+
+  return {
+    root: requestedRoot,
+    elements: {
+      [requestedRoot]: {
+        type: 'Card',
+        props: {
+          title: 'Quick Actions',
+          description: 'Tap an action and I will continue from there.',
+        },
+        children: [introId, stackId],
+      },
+      [introId]: {
+        type: 'Text',
+        props: {
+          content:
+            'I prepared a quick-actions panel to keep things moving while the full UI is being generated.',
+        },
+        children: [],
+      },
+      [stackId]: {
+        type: 'Stack',
+        props: { gap: 8 },
+        children: [
+          buttonIds.tasks,
+          buttonIds.calendar,
+          buttonIds.createTask,
+          buttonIds.logTx,
+          buttonIds.spending,
+          buttonIds.timer,
+        ],
+      },
+      [buttonIds.tasks]: {
+        type: 'Button',
+        props: { label: 'Show My Tasks', action: 'Show my tasks for today' },
+        children: [],
+      },
+      [buttonIds.calendar]: {
+        type: 'Button',
+        props: { label: 'Check Calendar', action: 'Show my upcoming events' },
+        children: [],
+      },
+      [buttonIds.createTask]: {
+        type: 'Button',
+        props: { label: 'Create Task', action: 'Create a new task' },
+        children: [],
+      },
+      [buttonIds.logTx]: {
+        type: 'Button',
+        props: { label: 'Log Transaction', action: 'Log a new transaction' },
+        children: [],
+      },
+      [buttonIds.spending]: {
+        type: 'Button',
+        props: {
+          label: 'Spending Summary',
+          action: 'Show my spending summary for the last 7 days',
+        },
+        children: [],
+      },
+      [buttonIds.timer]: {
+        type: 'Button',
+        props: { label: 'Start Timer', action: 'Start a work timer' },
+        children: [],
+      },
+    },
+  };
+}
+
 // ── Stream Tools Factory ──
 
 export function createMiraStreamTools(
@@ -967,6 +1090,7 @@ export function createMiraStreamTools(
   withoutPermission?: (p: PermissionId) => boolean
 ): ToolSet {
   const tools: ToolSet = {};
+  let renderUiInvalidAttempts = 0;
   for (const [name, def] of Object.entries(miraToolDefinitions)) {
     // Check permissions
     const requiredPerm = MIRA_TOOL_PERMISSIONS[name];
@@ -997,6 +1121,31 @@ export function createMiraStreamTools(
         }),
       } as Tool;
     } else {
+      if (name === 'render_ui') {
+        tools[name] = {
+          ...def,
+          execute: async (args: Record<string, unknown>) => {
+            if (isRenderableRenderUiSpec(args)) {
+              renderUiInvalidAttempts = 0;
+              return { spec: args };
+            }
+
+            renderUiInvalidAttempts += 1;
+            const isRepeatedInvalidAttempt = renderUiInvalidAttempts > 1;
+            return {
+              spec: buildRenderUiFailsafeSpec(args),
+              autoRecoveredFromInvalidSpec: true,
+              ...(isRepeatedInvalidAttempt
+                ? { forcedFromRecoveryLoop: true }
+                : {}),
+              warning:
+                'Invalid render_ui spec was replaced with a failsafe quick-actions UI because elements was empty or root was missing.',
+            };
+          },
+        } as Tool;
+        continue;
+      }
+
       tools[name] = {
         ...def,
         execute: async (args: Record<string, unknown>) =>
@@ -1166,7 +1315,18 @@ export async function executeMiraTool(
     // Generative UI
     case 'render_ui':
       // The model generates the UI spec according to the json-render catalog.
-      // We return it as is, so the client can render it natively.
+      // Recover empty/no-op specs to prevent retry loops with placeholder calls
+      // such as {"root":"x","elements":{}}.
+      if (!isRenderableRenderUiSpec(args)) {
+        return {
+          spec: buildRenderUiRecoverySpec(args),
+          recoveredFromInvalidSpec: true,
+          warning:
+            'Invalid render_ui spec was auto-recovered because elements was empty or root was missing.',
+        };
+      }
+
+      // Valid spec: return as-is so the client can render it natively.
       return { spec: args };
 
     // Workspace

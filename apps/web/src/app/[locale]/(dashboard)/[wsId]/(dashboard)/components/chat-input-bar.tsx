@@ -96,7 +96,7 @@ export default function ChatInputBar({
 
   const hasFiles = files.length > 0;
   const isUploading = files.some((f) => f.status === 'uploading');
-  const canSubmit = (input.trim() || hasFiles) && !isStreaming && !isUploading;
+  const canSubmit = (input.trim() || hasFiles) && !isUploading;
   const fileUploadsEnabled = !!onFilesSelected && canUploadFiles;
 
   const handleFileInputChange = useCallback(
@@ -201,7 +201,7 @@ export default function ChatInputBar({
           onChange={(e) => setInput(e.target.value)}
           placeholder={t('placeholder', { name: assistantName })}
           spellCheck={false}
-          disabled={disabled || isStreaming}
+          disabled={disabled}
           className="scrollbar-none min-h-10.5 min-w-0 flex-1 resize-none bg-transparent px-2.5 py-2 text-sm placeholder-muted-foreground focus:outline-none"
         />
 
@@ -219,9 +219,7 @@ export default function ChatInputBar({
                     hasFiles && 'text-dynamic-purple'
                   )}
                   onClick={handleAttachClick}
-                  disabled={
-                    disabled || isStreaming || files.length >= MAX_FILE_COUNT
-                  }
+                  disabled={disabled || files.length >= MAX_FILE_COUNT}
                 >
                   <Paperclip className="h-4.5 w-4.5" />
                 </Button>

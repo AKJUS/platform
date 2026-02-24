@@ -770,6 +770,17 @@ If `bun check:mobile` reports a Dart format failure because it formatted files, 
 - **Flutter Async Actions:** For mutation-driven UI actions (approve/reject/update), use `Future<void> Function()` callbacks (not `VoidCallback`), await them before closing dialogs/sheets, and surface failures in the UI (e.g., `SnackBar`). If a Cubit catches repository errors, rethrow after emitting error state so the UI can handle failures.
 - **Flutter Widget Tests (shadcn):** Any widget test rendering `shadcn_flutter` components must wrap the widget with `shad.ShadcnApp` (and include `shad.ShadcnLocalizations.delegate`) so `shad.Theme.of(context)` is available.
 - **apply_patch Pathing (Windows):** Prefer workspace-relative paths (e.g. `apps/web/...`). Absolute Windows paths like `C:\...` can fail to resolve during patch apply.
+- **render_ui Validation Wrappers:** `render_ui` tool inputs may be wrapped as `{ json_schema: ... }` or `{ json: "..." }`, and may include structural mistakes (`props.bindings`, missing `children`/`props`). Normalize these payloads in tool preprocessors before schema validation to recover `root/elements`.
+- **json-render useActions Shape:** `useActions()` returns an action context object with a `handlers` map, not a flat action dictionary. For clickable `render_ui` elements, dispatch via `useActions().handlers[actionId]` and fallback to `handlers.__ui_action__` so unknown action ids still submit follow-up chat input.
+- **render_ui Retry Loops:** If strict `render_ui` validation is enabled, empty specs like `{ root, elements: {} }` can cause repeated retries. Add a loop breaker (or auto-recovery to a minimal valid spec) so the assistant does not get stuck issuing invalid `render_ui` calls.
+- **render_ui Recovery Visibility:** If an auto-recovery placeholder UI appears before a corrected valid `render_ui` result in the same assistant message, suppress the placeholder and render only the corrected UI to avoid noisy UX.
+- **render_ui Success Criteria:** Auto-recovery outputs (`recoveredFromInvalidSpec: true`) should NOT satisfy “render_ui completed” step policy checks. Require at least one non-recovered renderable `render_ui` output before allowing completion.
+- **render_ui Selection Persistence:** If `render_ui` was selected earlier in the same turn, do not allow later `select_tools` calls (e.g. `no_action_needed`) to bypass unresolved UI generation.
+- **render_ui Hard Failsafe:** After repeated invalid `render_ui` attempts, emit a deterministic valid failsafe UI (such as Quick Actions) to break loops instead of producing endless recovery placeholders.
+- **render_ui First-Invalid Failsafe:** To protect first-try UX, replace the first invalid `render_ui` payload with a deterministic valid failsafe UI immediately rather than showing interim recovery placeholders.
+- **render_ui Single-Result Rendering:** If multiple valid non-recovered `render_ui` outputs are produced in one assistant turn, display only the latest one in chat.
+- **json-render Unbound Fields:** Never bind text controls to an empty state path. For fields without explicit `name`/binding, use local state and derive fallback field names from labels. Normalize non-string values to avoid `[object Object]` in `Input`/`Textarea`.
+- **json-render Submit Buttons:** For structured submit actions (`submit_form`, `submit_*`) on standalone button-driven forms, route to `submit_form` with current state values when no direct handler exists. Do not route those through generic `__ui_action__`.
 
 ## Quick Reference
 

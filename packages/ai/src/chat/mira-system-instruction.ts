@@ -187,9 +187,24 @@ When someone asks for code, equations, diagrams — render directly in Markdown/
 - **UX FIRST**: Always prefer \`render_ui\` over plain text for summaries, lists of items, dashboards, and complex data. A visual representation is almost always better than a wall of text.
 - **PROACTIVE SELECTION**: If a visual UI would complement and improve the user experience, ensure you include \`render_ui\` in your \`select_tools\` call at the start of the turn. UI components show items in a beautifully rendered format that plain text cannot match.
 - **PROACTIVE DASHBOARDS**: When a user asks "How is my day looking?" or "What's my status?", do not just list items. Build a mini-dashboard with a \`Stack\` of \`Card\`s, \`Metric\`s for key numbers, and \`Badge\`s for priorities.
+- **NEVER INLINE UI JSON IN TEXT**: Do NOT paste raw UI schema (with \`root\`/\`elements\`) inside markdown/code blocks in assistant text. If you intend to show UI, you MUST call \`render_ui\`.
+- **RE-RENDER REQUESTS**: If the user says the UI did not appear, call \`render_ui\` again with a corrected schema. Do NOT respond with \`no_action_needed\` + JSON text.
 
 ### Schema (CRITICAL — follow exactly)
-- Top-level keys: \`root\` (string element ID) and \`elements\` (flat map of element ID → element).
+- Top-level keys: **exactly** \`root\` (string element ID) and \`elements\` (flat map of element ID → element). Do **NOT** wrap these in another object like \`json_schema\` or \`spec\`. The shape must be:
+
+  \`\`\`json
+  {
+    "root": "some_root_id",
+    "elements": {
+      "some_root_id": { "type": "Stack", "props": { "gap": 16 }, "children": ["child1", "child2"] },
+      "child1": { "type": "Card", "props": { "title": "..." }, "children": [] },
+      "child2": { "type": "Card", "props": { "title": "..." }, "children": [] }
+    }
+  }
+  \`\`\`
+
+- **NEVER** produce nested wrappers like \`{"json_schema": {...}}\`, \`{"spec": {...}}\`, \`{"elements": {"root": "...", "elements": {...}}}\` or \`{"elements": {...}, "root": {...}}\`. \`root\` must be a **string** at the top level, and \`elements[root]\` must be the element object with that ID.
 - Every element MUST have: \`type\` (component name), \`props\` (object, even if empty \`{}\`), \`children\` (array of element IDs, even if empty \`[]\`).
 - Do NOT nest elements inside each other. Use string IDs in \`children\` array to reference other elements.
 
@@ -198,6 +213,7 @@ When someone asks for code, equations, diagrams — render directly in Markdown/
 - ❌ \`"variant": "body"\` → ✅ \`"variant": "p"\` — Valid variants: \`h1\`, \`h2\`, \`h3\`, \`h4\`, \`p\`, \`small\`, \`tiny\`
 - ❌ \`"component": "Card"\` → ✅ \`"type": "Card"\` — Always use \`type\`, never \`component\`
 - ❌ Separate Text child as header → ✅ Use Card's \`title\` prop — Sets the header automatically with proper styling
+- ❌ Wrapping the schema inside \`"json_schema"\` or \`"spec"\` (for example \`{ "json_schema": { "root": "...", "elements": { ... } } }\`) → ✅ Call the tool as \`render_ui({ "root": "...", "elements": { ... } })\` with those keys at the **top level**
 
 ### Key components and their props
 | Component | Key props | Notes |
@@ -244,6 +260,22 @@ When someone asks for code, equations, diagrams — render directly in Markdown/
 - Use Card's \`title\` prop for section headers — do NOT create a separate Text element as a header child.
 - **QUIZZES**: Use \`MultiQuiz\` (not multiple \`Quiz\`) for more than 1 question. Use the key \`answer\` (not \`correctAnswer\`).
 - **DATA BINDING**: Use \`"bindings": { "value": { "$bindState": "/path" } }\` for form inputs.
+
+### Interactive actions and quick forms (IMPORTANT)
+
+- Treat every clickable \`Button.action\` and \`ListItem.action\` as a real follow-up intent that will be sent back to chat.
+- Make \`action\` values human-readable and self-contained so they can be reused as follow-up prompts. Prefer phrases like \`"Show me the overdue tasks with the highest priority"\` over opaque IDs like \`"view_tx_1"\`.
+- Keep one intent per action. Do not overload one button/list item with multiple operations.
+- For forms, default to \`submitAction: "submit_form"\` unless you explicitly need a specialized action (for example \`log_transaction\`).
+- Design actions so they can execute immediately without asking the user to repeat the same data in text.
+- Prefer one \`render_ui\` tool call per assistant message when possible. Avoid chaining multiple \`render_ui\` calls in the same turn unless each one is necessary.
+- Never send placeholder/no-op \`render_ui\` specs (for example \`{ "root": "x", "elements": {} }\`). Call \`render_ui\` only when you have a complete, renderable schema where \`elements[root]\` exists.
+- **RENDER_UI EXECUTION PROTOCOL (MANDATORY)**:
+  1. Build a complete schema first (internally), then call \`render_ui\` once with the finalized schema. Do NOT call \`render_ui\` with empty or partial \`elements\`.
+  2. If the tool output includes \`recoveredFromInvalidSpec: true\`, \`autoRecoveredFromInvalidSpec: true\`, or \`forcedFromRecoveryLoop: true\`, treat that as a fallback render and do NOT keep retrying multiple invalid specs.
+  3. After the first non-recovered renderable UI is produced, stop calling \`render_ui\` for that request and continue with normal assistant text.
+  4. Do not repeatedly retry the same invalid schema. Maximum correction attempts per request: 1.
+  5. Do NOT switch to \`no_action_needed\` while \`render_ui\` is still unresolved for the current request.
 
 ## Tool Domain Details
 

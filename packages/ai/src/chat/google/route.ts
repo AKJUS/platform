@@ -30,6 +30,13 @@ import {
   createMiraStreamTools,
   type MiraToolContext,
 } from '../../tools/mira-tools';
+import {
+  buildActiveToolsFromSelected,
+  extractSelectedToolsFromSteps,
+  hasRenderableRenderUiInSteps,
+  shouldForceRenderUiForLatestUserMessage,
+  wasToolEverSelectedInSteps,
+} from '../mira-render-ui-policy';
 import { buildMiraSystemInstruction } from '../mira-system-instruction';
 
 export const maxDuration = 60;
@@ -523,6 +530,8 @@ export function createPOST(
       const thinkingConfig = supportsThinking
         ? { thinkingConfig: { includeThoughts: true } }
         : {};
+      const forceRenderUi =
+        shouldForceRenderUiForLatestUserMessage(processedMessages);
 
       const result = streamText({
         abortSignal: req.signal,
@@ -539,40 +548,72 @@ export function createPOST(
               toolChoice: 'auto' as const,
               prepareStep: ({ steps }: { steps: unknown[] }) => {
                 if (steps.length === 0) {
-                  // Step 0: only select_tools + no_action_needed are active.
+                  // Step 0: ALWAYS route through select_tools first.
                   // The model reads the tool directory from the system prompt
                   // and picks which tools it needs via select_tools.
                   return {
                     toolChoice: 'required' as const,
-                    activeTools: ['select_tools', 'no_action_needed'],
+                    activeTools: ['select_tools'],
                   };
                 }
 
-                // Step 1+: use latest select_tools result as cached set; keep select_tools available to add/change tools
-                type StepLike = {
-                  toolCalls?: Array<{
-                    toolName: string;
-                    args?: Record<string, unknown>;
-                  }>;
-                };
-                let selectedTools: string[] = [];
-                for (let i = steps.length - 1; i >= 0; i--) {
-                  const step = steps[i] as StepLike | undefined;
-                  const selectCall = step?.toolCalls?.find(
-                    (tc) => tc.toolName === 'select_tools'
-                  );
-                  if (selectCall?.args?.tools) {
-                    selectedTools = selectCall.args.tools as string[];
-                    break;
-                  }
+                // Step 1+: use latest select_tools result as cached set; keep select_tools
+                // available to add/change tools.
+                const selectedTools = extractSelectedToolsFromSteps(steps);
+
+                // If the user explicitly insists on render_ui, require at least one
+                // render_ui tool call before allowing no_action_needed escape-hatch.
+                if (forceRenderUi && !hasRenderableRenderUiInSteps(steps)) {
+                  const active = [
+                    ...selectedTools.filter(
+                      (toolName) =>
+                        toolName !== 'select_tools' &&
+                        toolName !== 'no_action_needed'
+                    ),
+                    'render_ui',
+                    'select_tools',
+                  ];
+
+                  return {
+                    toolChoice: 'required' as const,
+                    activeTools: Array.from(new Set(active)),
+                  };
                 }
-                // Current cached set + select_tools so the model can reuse cache or change tools when needed
-                const active = [
-                  ...selectedTools.filter((t) => t !== 'select_tools'),
-                  'select_tools',
-                  'no_action_needed',
-                ];
-                return { activeTools: active };
+
+                // If render_ui was selected, it MUST be called at least once before
+                // the model can exit into plain text-only completion.
+                const renderUiSelectedEver =
+                  selectedTools.includes('render_ui') ||
+                  wasToolEverSelectedInSteps(steps, 'render_ui');
+                if (
+                  renderUiSelectedEver &&
+                  !hasRenderableRenderUiInSteps(steps)
+                ) {
+                  const active = buildActiveToolsFromSelected(selectedTools)
+                    .filter((toolName) => toolName !== 'no_action_needed')
+                    .concat('render_ui', 'select_tools');
+                  return {
+                    toolChoice: 'required' as const,
+                    activeTools: Array.from(new Set(active)),
+                  };
+                }
+
+                // Once a non-recovered render_ui output exists for this turn,
+                // do not allow additional render_ui calls in the same turn.
+                if (hasRenderableRenderUiInSteps(steps)) {
+                  const active = buildActiveToolsFromSelected(selectedTools)
+                    .filter((toolName) => toolName !== 'render_ui')
+                    .concat('select_tools');
+                  return {
+                    activeTools: Array.from(new Set(active)),
+                  };
+                }
+
+                // Current cached set + select_tools so the model can reuse cache or change tools when needed.
+                // no_action_needed is only active if it was selected by select_tools.
+                return {
+                  activeTools: buildActiveToolsFromSelected(selectedTools),
+                };
               },
             }
           : {}),

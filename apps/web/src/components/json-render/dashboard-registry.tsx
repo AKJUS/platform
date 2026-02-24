@@ -57,6 +57,19 @@ import { useMyTasksState } from '@tuturuuu/ui/tu-do/my-tasks/use-my-tasks-state'
 import { cn } from '@tuturuuu/utils/format';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { dispatchUiAction } from './action-dispatch';
+import {
+  isStructuredSubmitAction,
+  resolveActionHandlerMap,
+} from './action-routing';
+import {
+  buildFormSubmissionMessage,
+  buildUiActionSubmissionMessage,
+} from './action-submission';
+import {
+  deriveFormFieldName,
+  normalizeTextControlValue,
+} from './form-field-utils';
 
 const useComponentValue = <T,>(
   propValue: T | undefined,
@@ -69,16 +82,30 @@ const useComponentValue = <T,>(
   // Use absolute JSON pointer for fallback (e.g. "/amount")
   const fallbackPath = fallbackName ? `/${fallbackName}` : undefined;
   const path = bindingPath || fallbackPath;
+  const safePath = path || '/__json_render_unbound__';
+  const boundValue = useStateValue<T>(safePath);
+  const [localValue, setLocalValue] = useState<T>(
+    (propValue ?? defaultValue) as T
+  );
 
-  const boundValue = useStateValue<T>(path || '');
+  useEffect(() => {
+    if (!path) {
+      setLocalValue((propValue ?? defaultValue) as T);
+    }
+  }, [path, propValue, defaultValue]);
 
   const setValue = useCallback(
     (val: T) => {
-      if (path) set(path, val);
+      if (path) {
+        set(path, val);
+      } else {
+        setLocalValue(val);
+      }
     },
     [path, set]
   );
 
+  if (!path) return [localValue, setValue];
   return [(boundValue ?? propValue ?? defaultValue) as T, setValue];
 };
 
@@ -90,16 +117,16 @@ export const { registry, handlers, executeAction } = defineRegistry(
         const hasContent =
           children && Array.isArray(children) && children.length > 0;
         return (
-          <Card className="my-2 overflow-hidden rounded-xl border border-border/50 bg-card/80 shadow-sm backdrop-blur-sm">
+          <Card className="my-2 min-w-0 overflow-hidden rounded-xl border border-border/50 bg-card/80 shadow-sm backdrop-blur-sm">
             {(props.title || props.description) && (
               <CardHeader className="gap-1 border-border/30 border-b bg-muted/15 px-5 py-4 text-left">
                 {props.title && (
-                  <CardTitle className="font-semibold text-[15px] leading-tight">
+                  <CardTitle className="break-words font-semibold text-[15px] leading-tight">
                     {props.title}
                   </CardTitle>
                 )}
                 {props.description && (
-                  <CardDescription className="text-[13px]">
+                  <CardDescription className="break-words text-[13px]">
                     {props.description}
                   </CardDescription>
                 )}
@@ -108,7 +135,7 @@ export const { registry, handlers, executeAction } = defineRegistry(
             {hasContent && (
               <CardContent
                 className={cn(
-                  'px-5 py-4',
+                  'min-w-0 px-5 py-4',
                   !props.title && !props.description && 'pt-5'
                 )}
               >
@@ -121,7 +148,7 @@ export const { registry, handlers, executeAction } = defineRegistry(
       Stack: ({ props, children }) => (
         <div
           className={cn(
-            'flex',
+            'flex min-w-0 [&>*]:min-w-0',
             props.direction === 'horizontal' ? 'flex-row' : 'flex-col',
             props.align === 'start' && 'items-start',
             props.align === 'center' && 'items-center',
@@ -140,7 +167,7 @@ export const { registry, handlers, executeAction } = defineRegistry(
       ),
       Grid: ({ props, children }) => (
         <div
-          className="grid w-full"
+          className="grid w-full min-w-0 [&>*]:min-w-0"
           style={{
             gridTemplateColumns: `repeat(${props.cols || 1}, minmax(0, 1fr))`,
             gap: props.gap ? `${props.gap}px` : '1rem',
@@ -186,7 +213,8 @@ export const { registry, handlers, executeAction } = defineRegistry(
               props.color === 'warning' && 'text-dynamic-yellow',
               props.color === 'error' && 'text-dynamic-red',
               props.align === 'center' && 'text-center',
-              props.align === 'right' && 'text-right'
+              props.align === 'right' && 'text-right',
+              'whitespace-pre-wrap break-words'
             )}
           >
             {/* Accept both "content" (schema) and "text" (common AI mistake) */}
@@ -270,13 +298,18 @@ export const { registry, handlers, executeAction } = defineRegistry(
                 className={cn('mt-0.5 h-4 w-4 shrink-0', style.text)}
               />
             )}
-            <div className="flex-1">
+            <div className="min-w-0 flex-1">
               {props.title && (
-                <div className={cn('mb-0.5 font-semibold text-sm', style.text)}>
+                <div
+                  className={cn(
+                    'mb-0.5 break-words font-semibold text-sm',
+                    style.text
+                  )}
+                >
                   {props.title}
                 </div>
               )}
-              <div className="text-[13px] text-foreground/80 leading-relaxed">
+              <div className="whitespace-pre-wrap break-words text-[13px] text-foreground/80 leading-relaxed">
                 {props.content ?? (props as any).text}
               </div>
             </div>
@@ -284,21 +317,27 @@ export const { registry, handlers, executeAction } = defineRegistry(
         );
       },
       ListItem: ({ props }) => {
-        const actions = useActions() as any;
+        const actions = useActions();
         const IconComp = props.icon
           ? (getIconComponentByKey(props.icon) ?? (Icons as any)[props.icon])
           : null;
         return (
-          <div
+          <button
+            type="button"
             className={cn(
-              'flex items-center gap-3 rounded-lg px-1 py-1.5 transition-colors',
-              props.action && 'cursor-pointer hover:bg-muted/10'
+              'flex w-full min-w-0 items-start gap-3 rounded-lg px-1 py-1.5 text-left transition-colors',
+              props.action &&
+                'cursor-pointer hover:bg-muted/10 active:bg-muted/20'
             )}
             onClick={() => {
-              if (props.action) {
-                actions[props.action]?.();
-              }
+              if (!props.action) return;
+              dispatchUiAction(actions, props.action, {
+                id: props.action,
+                label: props.title,
+                source: 'list-item',
+              });
             }}
+            aria-label={props.title}
           >
             {IconComp && (
               <span
@@ -316,21 +355,21 @@ export const { registry, handlers, executeAction } = defineRegistry(
               </span>
             )}
             <div className="flex min-w-0 flex-1 flex-col">
-              <span className="truncate font-medium text-[14px] leading-tight">
+              <span className="whitespace-normal break-words font-medium text-[14px] leading-tight">
                 {props.title}
               </span>
               {props.subtitle && (
-                <span className="truncate text-[12px] text-muted-foreground leading-tight">
+                <span className="whitespace-normal break-words text-[12px] text-muted-foreground leading-tight">
                   {props.subtitle}
                 </span>
               )}
             </div>
             {props.trailing && (
-              <span className="shrink-0 font-medium text-[13px] text-muted-foreground">
+              <span className="max-w-[45%] whitespace-normal break-words font-medium text-[13px] text-muted-foreground leading-tight">
                 {props.trailing}
               </span>
             )}
-          </div>
+          </button>
         );
       },
       Progress: ({ props }) => {
@@ -476,7 +515,8 @@ export const { registry, handlers, executeAction } = defineRegistry(
         );
       },
       Button: ({ props }) => {
-        const actions = useActions() as any;
+        const actions = useActions();
+        const { state } = useStateStore();
         const IconComp = props.icon
           ? (getIconComponentByKey(props.icon) ?? (Icons as any)[props.icon])
           : null;
@@ -484,11 +524,36 @@ export const { registry, handlers, executeAction } = defineRegistry(
           <Button
             variant={props.variant || 'default'}
             size={props.size || 'default'}
-            className="w-full"
+            className="h-auto w-full whitespace-normal break-words"
             onClick={() => {
-              if (props.action) {
-                actions[props.action]?.();
+              if (!props.action) return;
+
+              const handlerMap = resolveActionHandlerMap(actions);
+              const directHandler = handlerMap[props.action];
+              if (typeof directHandler === 'function') {
+                void Promise.resolve(directHandler());
+                return;
               }
+
+              if (isStructuredSubmitAction(props.action)) {
+                const submitFormHandler = handlerMap.submit_form;
+                if (typeof submitFormHandler === 'function') {
+                  void Promise.resolve(
+                    submitFormHandler({
+                      title: props.label || 'Form Submission',
+                      values: state,
+                      actionId: props.action,
+                    })
+                  );
+                  return;
+                }
+              }
+
+              dispatchUiAction(actions, props.action, {
+                id: props.action,
+                label: props.label,
+                source: 'button',
+              });
             }}
           >
             {IconComp && (
@@ -505,39 +570,63 @@ export const { registry, handlers, executeAction } = defineRegistry(
         const maxValue = Math.max(
           ...(props.data?.map((d: any) => d.value) || [100])
         );
+
+        const resolveBarColor = (color?: string): string | undefined => {
+          if (!color) return undefined;
+          const normalized = String(color).toLowerCase();
+          const tokenMap: Record<string, string> = {
+            success: 'var(--color-dynamic-green)',
+            warning: 'var(--color-dynamic-yellow)',
+            error: 'var(--color-dynamic-red)',
+            'dynamic-green': 'var(--color-dynamic-green)',
+            'dynamic-yellow': 'var(--color-dynamic-yellow)',
+            'dynamic-red': 'var(--color-dynamic-red)',
+            green: 'var(--color-dynamic-green)',
+            blue: 'var(--color-dynamic-blue)',
+            orange: 'var(--color-dynamic-orange)',
+            purple: 'var(--color-dynamic-purple)',
+            cyan: 'var(--color-dynamic-cyan)',
+            pink: 'var(--color-dynamic-pink)',
+          };
+          return tokenMap[normalized] ?? color;
+        };
+
         return (
           <div className="flex w-full flex-col gap-4 py-2">
             <div
               className="flex items-end justify-between gap-2 px-1"
               style={{ height: props.height || 120 }}
             >
-              {props.data?.map((item: any, i: number) => (
-                <div
-                  key={i}
-                  className="group relative flex flex-1 flex-col items-center gap-2"
-                >
+              {props.data?.map((item: any, i: number) => {
+                const barColor = resolveBarColor(item.color);
+                return (
                   <div
-                    className={cn(
-                      'w-full rounded-t-md transition-all duration-500 group-hover:opacity-80',
-                      item.color ? '' : 'bg-primary/80'
-                    )}
-                    style={{
-                      height: `${(item.value / maxValue) * 100}%`,
-                      backgroundColor: item.color,
-                    }}
-                  />
-                  {/* Simple tooltip on hover */}
-                  <div className="absolute -top-8 left-1/2 -translate-x-1/2 scale-0 rounded bg-black/80 px-1.5 py-0.5 text-[10px] text-white transition-all group-hover:scale-100">
-                    {item.value}
+                    key={i}
+                    className="group relative flex flex-1 flex-col items-center gap-2"
+                  >
+                    <div
+                      className={cn(
+                        'w-full rounded-t-md transition-all duration-500 group-hover:opacity-80',
+                        barColor ? '' : 'bg-primary/80'
+                      )}
+                      style={{
+                        height: `${(item.value / maxValue) * 100}%`,
+                        ...(barColor ? { backgroundColor: barColor } : {}),
+                      }}
+                    />
+                    {/* Simple tooltip on hover */}
+                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 scale-0 rounded bg-black/80 px-1.5 py-0.5 text-[10px] text-white transition-all group-hover:scale-100">
+                      {item.value}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
             <div className="flex justify-between gap-1 px-1">
               {props.data?.map((item: any, i: number) => (
                 <div
                   key={i}
-                  className="flex-1 truncate text-center text-[10px] text-muted-foreground uppercase tracking-tight"
+                  className="flex-1 whitespace-normal break-words text-center text-[10px] text-muted-foreground uppercase leading-tight tracking-tight"
                 >
                   {item.label}
                 </div>
@@ -721,17 +810,19 @@ export const { registry, handlers, executeAction } = defineRegistry(
         );
       },
       Input: ({ props, bindings }) => {
-        const [value, setValue] = useComponentValue<string>(
+        const fieldName = deriveFormFieldName(props.name, props.label, 'input');
+        const [rawValue, setValue] = useComponentValue<unknown>(
           props.value,
           bindings?.value,
-          props.name,
+          fieldName,
           ''
         );
+        const value = normalizeTextControlValue(rawValue);
         return (
           <div className="relative flex flex-col gap-2">
-            <Label htmlFor={props.name}>{props.label}</Label>
+            <Label htmlFor={fieldName}>{props.label}</Label>
             <Input
-              id={props.name}
+              id={fieldName}
               type={props.type || 'text'}
               placeholder={props.placeholder}
               required={props.required}
@@ -742,20 +833,26 @@ export const { registry, handlers, executeAction } = defineRegistry(
         );
       },
       Textarea: ({ props, bindings }) => {
-        const [value, setValue] = useComponentValue<string>(
+        const fieldName = deriveFormFieldName(
+          props.name,
+          props.label,
+          'textarea'
+        );
+        const [rawValue, setValue] = useComponentValue<unknown>(
           props.value,
           bindings?.value,
-          props.name,
+          fieldName,
           ''
         );
+        const value = normalizeTextControlValue(rawValue);
         return (
           <div className="relative flex flex-col gap-2">
-            <Label htmlFor={props.name}>{props.label}</Label>
+            <Label htmlFor={fieldName}>{props.label}</Label>
             <Textarea
-              id={props.name}
+              id={fieldName}
               placeholder={props.placeholder}
               required={props.required}
-              rows={props.rows || 3}
+              rows={props.rows || ((props as any).multiline ? 4 : 3)}
               value={value}
               onChange={(e) => setValue(e.target.value)}
             />
@@ -1618,8 +1715,8 @@ export const { registry, handlers, executeAction } = defineRegistry(
     actions: {
       submit_form: async (params, setState, context) => {
         if (!params) return;
-        const { sendMessage } = (context as any) || {};
-        if (!sendMessage) {
+        const { submitText, sendMessage } = (context as any) || {};
+        if (!submitText && !sendMessage) {
           setState((prev) => ({
             ...prev,
             error: 'Internal error: sendMessage not found',
@@ -1630,27 +1727,60 @@ export const { registry, handlers, executeAction } = defineRegistry(
         setState((prev) => ({ ...prev, submitting: true, error: null }));
 
         try {
-          const values = params.values || {};
-          const title = params.title || 'Form Submission';
-
-          // Format the message for the chat
-          const formattedValues = Object.entries(values)
-            .map(([key, value]) => {
-              const label = key.charAt(0).toUpperCase() + key.slice(1);
-              const displayValue = Array.isArray(value)
-                ? value.join(', ')
-                : String(value);
-              return `**${label}**: ${displayValue}`;
-            })
-            .join('\n');
-
-          const messageText = `### ${title}\n\n${formattedValues}`;
-
-          // Send the message to the assistant
-          await sendMessage({
-            role: 'user',
-            parts: [{ type: 'text', text: messageText }],
+          const messageText = buildFormSubmissionMessage({
+            title: params.title,
+            values: params.values,
           });
+
+          // Send the message to the assistant using the same debounced submit
+          // pipeline as the main chat input when available. This ensures that
+          // render_ui forms behave like quick actions and can interrupt an
+          // ongoing response.
+          if (submitText) {
+            submitText(messageText);
+          } else {
+            await sendMessage({
+              role: 'user',
+              parts: [{ type: 'text', text: messageText }],
+            });
+          }
+
+          setState((prev) => ({
+            ...prev,
+            submitting: false,
+            success: true,
+            message: 'Form submitted successfully!',
+          }));
+        } catch (error) {
+          setState((prev) => ({
+            ...prev,
+            submitting: false,
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+          }));
+        }
+      },
+      __ui_action__: async (params, setState, context) => {
+        const { submitText, sendMessage } = (context as any) || {};
+        if (!submitText && !sendMessage) return;
+
+        setState((prev) => ({ ...prev, submitting: true, error: null }));
+
+        try {
+          const messageText = buildUiActionSubmissionMessage({
+            id: (params as any)?.id,
+            label: (params as any)?.label,
+            source: (params as any)?.source,
+          });
+
+          if (submitText) {
+            submitText(messageText);
+          } else {
+            await sendMessage({
+              role: 'user',
+              parts: [{ type: 'text', text: messageText }],
+            });
+          }
 
           setState((prev) => ({
             ...prev,
@@ -1669,7 +1799,7 @@ export const { registry, handlers, executeAction } = defineRegistry(
       },
       log_transaction: async (params, setState, context) => {
         if (!params) return;
-        const { sendMessage } = (context as any) || {};
+        const { submitText, sendMessage } = (context as any) || {};
         setState((prev) => ({ ...prev, submitting: true }));
         try {
           const res = await fetch('/api/v1/finance/transactions', {
@@ -1686,16 +1816,16 @@ export const { registry, handlers, executeAction } = defineRegistry(
             throw new Error('Failed to log transaction');
           }
 
-          if (sendMessage) {
-            await sendMessage({
-              role: 'user',
-              parts: [
-                {
-                  type: 'text',
-                  text: `### Transaction Logged\n\n**Amount**: ${params.amount}\n**Description**: ${params.description || 'N/A'}`,
-                },
-              ],
-            });
+          if (submitText || sendMessage) {
+            const messageText = `### Transaction Logged\n\n**Amount**: ${params.amount}\n**Description**: ${params.description || 'N/A'}`;
+            if (submitText) {
+              submitText(messageText);
+            } else if (sendMessage) {
+              await sendMessage({
+                role: 'user',
+                parts: [{ type: 'text', text: messageText }],
+              });
+            }
           }
 
           setState((prev) => ({

@@ -1,6 +1,5 @@
 'use client';
 
-import { autoFixSpec } from '@json-render/core';
 import { Renderer, VisibilityProvider } from '@json-render/react';
 import { cjk } from '@streamdown/cjk';
 import { code } from '@streamdown/code';
@@ -25,6 +24,7 @@ import { Dialog, DialogContent, DialogTitle } from '@tuturuuu/ui/dialog';
 import { cn } from '@tuturuuu/utils/format';
 import { getToolName, isToolUIPart } from 'ai';
 import { registry } from '@/components/json-render/dashboard-registry';
+import { resolveRenderUiSpecFromOutput } from '@/components/json-render/render-ui-spec';
 import 'katex/dist/katex.min.css';
 import { useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
@@ -647,59 +647,8 @@ function ToolCallPart({ part }: { part: ToolPartData }) {
   // Generative UI tool: render the output natively instead of showing JSON
   if (rawToolName === 'render_ui' && hasOutput) {
     if (isDone && !logicalError && output) {
-      // The output of render_ui is just the spec `{ spec: ... }` returned from mira-tools executor
-      const rawSpec = (output as { spec?: any })?.spec;
-      if (rawSpec) {
-        // Auto-fix common AI mistakes (visible/on/repeat placed inside props → top-level)
-        const { spec: fixedSpec } = autoFixSpec(rawSpec);
-
-        // Strip missing element references from children arrays so partial specs still render.
-        // This handles cases where the AI references elements it forgot to define.
-        const cleanedSpec = { ...fixedSpec };
-        if (cleanedSpec.elements && typeof cleanedSpec.elements === 'object') {
-          const elementIds = new Set(Object.keys(cleanedSpec.elements));
-          const cleaned: Record<string, any> = {};
-          for (const [id, el] of Object.entries(
-            cleanedSpec.elements as Record<string, any>
-          )) {
-            if (el && Array.isArray(el.children)) {
-              cleaned[id] = {
-                ...el,
-                children: el.children.filter(
-                  (childId: string) =>
-                    typeof childId === 'string' && elementIds.has(childId)
-                ),
-              };
-            } else {
-              cleaned[id] = el;
-            }
-          }
-          cleanedSpec.elements = cleaned;
-        }
-
-        // Only reject truly unrecoverable specs (no root or no elements at all)
-        const hasRoot =
-          cleanedSpec.root &&
-          cleanedSpec.elements &&
-          typeof cleanedSpec.elements === 'object' &&
-          cleanedSpec.root in cleanedSpec.elements;
-
-        if (!hasRoot) {
-          // Show graceful fallback for severely invalid specs
-          return (
-            <div className="my-2 flex w-full max-w-full flex-col gap-1.5">
-              <div className="mb-1 flex items-center gap-1.5 text-xs">
-                <AlertCircle className="h-3.5 w-3.5 text-dynamic-yellow" />
-                <span className="font-medium">{toolName}</span>
-                <span className="text-muted-foreground">{t('tool_done')}</span>
-              </div>
-              <div className="rounded-lg border border-dynamic-yellow/30 bg-dynamic-yellow/5 p-3 text-muted-foreground text-sm">
-                The generated UI could not be rendered. Please try again.
-              </div>
-            </div>
-          );
-        }
-
+      const cleanedSpec = resolveRenderUiSpecFromOutput(output);
+      if (cleanedSpec) {
         return (
           <div className="my-2 flex w-full max-w-full flex-col gap-1.5">
             <div className="mb-1 flex items-center gap-1.5 text-xs">
@@ -713,6 +662,20 @@ function ToolCallPart({ part }: { part: ToolPartData }) {
           </div>
         );
       }
+
+      // Show graceful fallback for severely invalid specs
+      return (
+        <div className="my-2 flex w-full max-w-full flex-col gap-1.5">
+          <div className="mb-1 flex items-center gap-1.5 text-xs">
+            <AlertCircle className="h-3.5 w-3.5 text-dynamic-yellow" />
+            <span className="font-medium">{toolName}</span>
+            <span className="text-muted-foreground">{t('tool_done')}</span>
+          </div>
+          <div className="rounded-lg border border-dynamic-yellow/30 bg-dynamic-yellow/5 p-3 text-muted-foreground text-sm">
+            The generated UI could not be rendered. Please try again.
+          </div>
+        </div>
+      );
     }
   }
 
@@ -1289,6 +1252,83 @@ export default function ChatMessageList({
                             );
                           }
                           if (group.kind === 'tool') {
+                            if (group.toolName === 'render_ui') {
+                              // Hide intermediate invalid/no-op render_ui calls
+                              // when a later valid UI spec exists in the same run.
+                              const partsWithValidity = group.parts.map(
+                                (part) => ({
+                                  part,
+                                  hasRenderableSpec:
+                                    !!resolveRenderUiSpecFromOutput(
+                                      (part as { output?: unknown }).output
+                                    ),
+                                  recoveredFromInvalidSpec: !!(
+                                    (part as { output?: unknown }).output &&
+                                    typeof (part as { output?: unknown })
+                                      .output === 'object' &&
+                                    (
+                                      part as {
+                                        output?: {
+                                          recoveredFromInvalidSpec?: boolean;
+                                        };
+                                      }
+                                    ).output?.recoveredFromInvalidSpec === true
+                                  ),
+                                })
+                              );
+                              const hasAnyRenderable = partsWithValidity.some(
+                                (entry) => entry.hasRenderableSpec
+                              );
+                              const hasRecoveredRenderable =
+                                partsWithValidity.some(
+                                  (entry) =>
+                                    entry.hasRenderableSpec &&
+                                    entry.recoveredFromInvalidSpec
+                                );
+                              const hasNonRecoveredRenderable =
+                                partsWithValidity.some(
+                                  (entry) =>
+                                    entry.hasRenderableSpec &&
+                                    !entry.recoveredFromInvalidSpec
+                                );
+                              const shouldDeferRecoveredPlaceholder =
+                                hasRecoveredRenderable &&
+                                !hasNonRecoveredRenderable &&
+                                isStreaming &&
+                                isLastAssistant;
+
+                              const visibleParts = hasNonRecoveredRenderable
+                                ? partsWithValidity
+                                    .filter(
+                                      (entry) =>
+                                        entry.hasRenderableSpec &&
+                                        !entry.recoveredFromInvalidSpec
+                                    )
+                                    .slice(-1)
+                                    .map((entry) => entry.part)
+                                : hasAnyRenderable
+                                  ? partsWithValidity
+                                      .filter(
+                                        (entry) => entry.hasRenderableSpec
+                                      )
+                                      .slice(-1)
+                                      .map((entry) => entry.part)
+                                  : group.parts;
+
+                              if (
+                                shouldDeferRecoveredPlaceholder &&
+                                visibleParts.length > 0
+                              ) {
+                                return null;
+                              }
+
+                              return visibleParts.map((part, idx) => (
+                                <ToolCallPart
+                                  key={`render-ui-${group.startIndex}-${idx}`}
+                                  part={part}
+                                />
+                              ));
+                            }
                             if (group.parts.length === 1) {
                               return (
                                 <ToolCallPart

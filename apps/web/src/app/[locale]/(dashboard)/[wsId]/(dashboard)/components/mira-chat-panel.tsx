@@ -175,6 +175,7 @@ export default function MiraChatPanel({
   const generativeUIStore = useMemo(() => createGenerativeUIAdapter(), []);
 
   const sendMessageRef = useRef<typeof sendMessage>(null!);
+  const submitTextRef = useRef<((value: string) => void) | null>(null);
 
   // json-render action handlers factory expecting state accessors
   const actionHandlers = useMemo(
@@ -190,6 +191,7 @@ export default function MiraChatPanel({
         },
         () => ({
           ...useGenerativeUIStore.getState().ui,
+          submitText: submitTextRef.current,
           sendMessage: sendMessageRef.current,
         })
       ),
@@ -293,6 +295,7 @@ export default function MiraChatPanel({
     messages,
     sendMessage,
     status,
+    stop,
   } = useChat({
     id: stableChatId,
     generateId: generateRandomUUID,
@@ -814,14 +817,36 @@ export default function MiraChatPanel({
         snapshotAttachmentsForMessage('queued');
       }
 
-      // Reset debounce timer
+      const currentlyBusy = status === 'submitted' || status === 'streaming';
+
+      // If the assistant is currently busy (submitted or streaming), stop the
+      // ongoing response and send the new message immediately instead of
+      // waiting for the debounce window.
+      if (currentlyBusy) {
+        if (debounceTimerRef.current) {
+          clearTimeout(debounceTimerRef.current);
+          debounceTimerRef.current = null;
+        }
+        if (typeof stop === 'function') {
+          stop();
+        }
+        flushQueue();
+        return;
+      }
+
+      // Otherwise, use the normal debounce window for batching
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
       debounceTimerRef.current = setTimeout(flushQueue, QUEUE_DEBOUNCE_MS);
     },
-    [flushQueue, attachedFiles, snapshotAttachmentsForMessage]
+    [flushQueue, attachedFiles, snapshotAttachmentsForMessage, status, stop]
   );
+
+  // Expose the debounced submit handler to generative UI actions so that
+  // render_ui forms and quick actions can trigger chat submissions with the
+  // same batching and interrupt semantics as the main input bar.
+  submitTextRef.current = handleSubmit;
 
   // Cleanup debounce timer on unmount
   useEffect(() => {
@@ -863,7 +888,8 @@ export default function MiraChatPanel({
   const hasMessages =
     messages.length > 0 || !!pendingDisplay || hasFileOnlyPending;
 
-  // Hide bottom bar while scrolling, show again after scroll stops
+  // Hide bottom bar while scrolling; in "view only" mode, only show the input
+  // panel when the user is scrolled to the bottom.
   const SCROLL_END_DELAY_MS = 700;
   useEffect(() => {
     if (!hasMessages) return;
@@ -877,8 +903,16 @@ export default function MiraChatPanel({
       const isNearBottom =
         el.scrollHeight - el.scrollTop - el.clientHeight < 50;
 
-      // If we are artificially scrolling down (e.g. streaming snap), or user is at bottom, keep visible.
-      // Only hide if the user specifically scrolls way up into history.
+      // In view-only mode, only surface the input bar when the user is at (or
+      // very near) the bottom of the conversation; otherwise keep it hidden.
+      if (viewOnly) {
+        setBottomBarVisible(isNearBottom);
+        return;
+      }
+
+      // Normal mode: keep existing behavior of hiding while the user scrolls
+      // far up, and re-showing shortly after scrolling stops or when near the
+      // bottom.
       if (isNearBottom) {
         setBottomBarVisible(true);
         if (scrollEndTimerRef.current) {
@@ -897,6 +931,8 @@ export default function MiraChatPanel({
     };
 
     el.addEventListener('scroll', onScroll, { passive: true });
+    // Run once on mount to initialize visibility based on initial scroll
+    onScroll();
     return () => {
       el.removeEventListener('scroll', onScroll);
       if (scrollEndTimerRef.current) {
@@ -904,6 +940,27 @@ export default function MiraChatPanel({
         scrollEndTimerRef.current = null;
       }
     };
+  }, [hasMessages, viewOnly]);
+
+  // When switching between empty/non-empty chat states, ensure the input panel
+  // behaves intuitively:
+  // - On an empty chat, always show the input (regardless of prior view-only
+  //   state) so the user can start typing immediately.
+  // - On the first real message in a new chat, also surface the input panel
+  //   even if the previous conversation ended in "view only" mode.
+  const firstMessageSeenRef = useRef(false);
+  useEffect(() => {
+    if (!hasMessages) {
+      firstMessageSeenRef.current = false;
+      setViewOnly(false);
+      setBottomBarVisible(true);
+      return;
+    }
+    if (!firstMessageSeenRef.current) {
+      firstMessageSeenRef.current = true;
+      setViewOnly(false);
+      setBottomBarVisible(true);
+    }
   }, [hasMessages]);
 
   const viewOnlyButtonTitle = viewOnly
@@ -1044,7 +1101,7 @@ export default function MiraChatPanel({
             <div className="flex w-full justify-center">
               <QuickActionChips
                 onSend={handleSubmit}
-                disabled={isBusy}
+                disabled={false}
                 variant="cards"
               />
             </div>
@@ -1054,13 +1111,12 @@ export default function MiraChatPanel({
         <div
           className={cn(
             'absolute right-0 bottom-0 left-0 z-10 flex min-w-0 max-w-full flex-col gap-2 p-3 transition-transform duration-300 ease-out sm:p-4',
-            (!bottomBarVisible || viewOnly) &&
-              'pointer-events-none translate-y-full'
+            !bottomBarVisible && 'pointer-events-none translate-y-full'
           )}
         >
           {hasMessages && !isBusy && (
             <div className="min-w-0 overflow-x-auto overflow-y-hidden">
-              <QuickActionChips onSend={handleSubmit} disabled={isBusy} />
+              <QuickActionChips onSend={handleSubmit} disabled={false} />
             </div>
           )}
           <div className="min-w-0">
