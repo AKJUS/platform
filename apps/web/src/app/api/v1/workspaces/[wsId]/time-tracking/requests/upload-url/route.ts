@@ -113,10 +113,15 @@ export const POST = withSessionAuth(
         return NextResponse.json({ uploads });
       }
 
+      const firstUpload = uploads[0];
+      if (!firstUpload) {
+        throw new Error('Failed to generate upload URL');
+      }
+
       return NextResponse.json({
-        signedUrl: uploads[0].signedUrl,
-        token: uploads[0].token,
-        path: uploads[0].path,
+        signedUrl: firstUpload.signedUrl,
+        token: firstUpload.token,
+        path: firstUpload.path,
       });
     } catch (err) {
       if (err instanceof z.ZodError) {
