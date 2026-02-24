@@ -255,6 +255,8 @@ Located at `apps/mobile/`, the Flutter app uses BLoC/Cubit state management, `go
 - **json-render Unbound Fields:** Do not bind `Input`/`Textarea` to empty state path `''`; it can resolve to root state and show `[object Object]`. Use local state for unbound fields, derive fallback names from labels, and normalize non-string values before rendering.
 - **json-render Submit Buttons:** For structured submit actions (`submit_form`, `submit_*`) on standalone generated forms, route to `submit_form` with collected state values when no direct handler exists; avoid generic `__ui_action__` fallback for submit-style actions.
 - **Mermaid Auto-Repair:** Treat Mermaid parse errors as actionable feedback: auto-detect failed Mermaid blocks after streaming, send a hidden self-repair prompt with parser error + original diagram, and cap retries to avoid infinite loops.
+- **Mira Memory Embedding Self-Heal:** When embedding dimensionality changes (e.g., 768 -> 3072), semantic recall must auto-regenerate missing/null memory embeddings and retry once, so memory search recovers without user prompting.
+- **AI Gateway Embedding Model IDs:** For embeddings that should leverage AI Gateway, use model-id strings like `'google/gemini-embedding-001'` instead of `google.embeddingModel(...)`.
 
 ### Database Schema Notes
 

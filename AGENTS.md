@@ -1796,6 +1796,21 @@ actionable signal, not just visual output. Detect invalid Mermaid fenced blocks
 client-side after streaming completes, then auto-submit one hidden repair prompt
 containing the parser error + original diagram so the assistant can self-correct
 without waiting for user feedback. Guard with retry limits to prevent loops.
+
+### 15.23 Mira Memory Embedding Self-Heal
+
+When Mira memory embedding dimensionality changes (for example 768 -> 3072),
+the assistant must self-heal missing/null memory embeddings during normal memory
+flows. In semantic recall, if initial `match_memories` returns no hits, trigger
+automatic backfill of missing embeddings and retry semantic search once instead
+of waiting for manual user intervention.
+
+### 15.24 AI Gateway Embedding Model IDs
+
+For embedding calls routed through AI Gateway, prefer gateway model-id strings
+(`'google/gemini-embedding-001'`) instead of provider constructors like
+`google.embeddingModel('gemini-embedding-001')`. This ensures embedding traffic
+consistently uses AI Gateway features and policy controls.
  
 ## 16. Glossary
 

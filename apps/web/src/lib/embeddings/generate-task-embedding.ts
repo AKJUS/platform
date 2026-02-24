@@ -1,4 +1,3 @@
-import { google } from '@ai-sdk/google';
 import type { TypedSupabaseClient } from '@tuturuuu/supabase/next/client';
 import { embed } from 'ai';
 
@@ -193,7 +192,7 @@ export async function generateTaskEmbedding({
     // Generate embedding using Google Gemini with RETRIEVAL_DOCUMENT task type
     // This optimizes the embedding for being searched against
     const { embedding } = await embed({
-      model: google.embeddingModel('gemini-embedding-001'),
+      model: 'google/gemini-embedding-001',
       value: textForEmbedding,
       providerOptions: {
         google: {

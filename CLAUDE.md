@@ -782,6 +782,8 @@ If `bun check:mobile` reports a Dart format failure because it formatted files, 
 - **json-render Unbound Fields:** Never bind text controls to an empty state path. For fields without explicit `name`/binding, use local state and derive fallback field names from labels. Normalize non-string values to avoid `[object Object]` in `Input`/`Textarea`.
 - **json-render Submit Buttons:** For structured submit actions (`submit_form`, `submit_*`) on standalone button-driven forms, route to `submit_form` with current state values when no direct handler exists. Do not route those through generic `__ui_action__`.
 - **Mermaid Auto-Repair:** Mermaid parser failures should trigger a hidden automatic repair prompt (error + original diagram) after streaming completes, with bounded retries, so the assistant can self-correct without user intervention.
+- **Mira Memory Embedding Self-Heal:** After embedding dimension upgrades (for example 768 -> 3072), semantic recall should automatically regenerate missing/null memory embeddings and retry semantic search once. Do not rely on users to manually re-save memories.
+- **AI Gateway Embedding Model IDs:** For embedding generation intended to go through AI Gateway, use gateway model-id strings (e.g., `'google/gemini-embedding-001'`) instead of provider constructors like `google.embeddingModel(...)`.
 
 ## Quick Reference
 
