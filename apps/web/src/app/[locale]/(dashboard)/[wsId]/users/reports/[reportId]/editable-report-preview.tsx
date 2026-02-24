@@ -24,6 +24,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
 import { useEffect, useMemo, useState } from 'react';
 import * as z from 'zod';
+import { useConfigMap } from '@/hooks/use-config-map';
 import { RejectDialog } from '../../approvals/components/reject-dialog';
 import UserMonthAttendance from '../../attendance/user-month-attendance';
 import UserFeedbackSection from '../../groups/[groupId]/reports/user-feedback-section';
@@ -132,17 +133,7 @@ export default function EditableReportPreview({
     canApproveReports,
   });
 
-  const configMap = useMemo(() => {
-    const map = new Map<string, string>();
-    configs.forEach((config) => {
-      if (config.id && config.value) {
-        map.set(config.id, config.value);
-      }
-    });
-    return map;
-  }, [configs]);
-
-  const getConfig = (id: string) => configMap.get(id);
+  const { getConfig } = useConfigMap(configs);
 
   const getDefaultReportTitle = () => {
     const baseTitle = getConfig('REPORT_DEFAULT_TITLE')?.trim();

@@ -15,15 +15,15 @@ import {
 import ReportPreview from '@tuturuuu/ui/custom/report-preview';
 import { Progress } from '@tuturuuu/ui/progress';
 import { useTranslations } from 'next-intl';
-import { useCallback, useMemo } from 'react';
+import { useConfigMap } from '@/hooks/use-config-map';
 import { useReportDynamicText } from '../../../../reports/[reportId]/hooks/use-report-dynamic-text';
 import { useBulkReportExport } from '../../../../reports/[reportId]/hooks/use-report-export';
 
-type BulkExportReport = WorkspaceUserReport & {
+interface BulkExportReport extends WorkspaceUserReport {
   user_name?: string | null;
   group_name?: string | null;
   creator_name?: string | null;
-};
+}
 
 interface Props {
   open: boolean;
@@ -43,17 +43,7 @@ export function BulkReportExporter({
   theme,
 }: Props) {
   const t = useTranslations();
-  const configMap = useMemo(() => {
-    const map = new Map<string, string>();
-    configs.forEach((config) => {
-      if (config.id && config.value) {
-        map.set(config.id, config.value);
-      }
-    });
-    return map;
-  }, [configs]);
-
-  const getConfig = useCallback((id: string) => configMap.get(id), [configMap]);
+  const { getConfig } = useConfigMap(configs);
 
   const { currentReport, isProcessing, completedCount, progress } =
     useBulkReportExport({
