@@ -1811,6 +1811,13 @@ For embedding calls routed through AI Gateway, prefer gateway model-id strings
 (`'google/gemini-embedding-001'`) instead of provider constructors like
 `google.embeddingModel('gemini-embedding-001')`. This ensures embedding traffic
 consistently uses AI Gateway features and policy controls.
+
+### 15.25 render_ui Fallback UX Must Stay Compact
+
+When `render_ui` auto-recovers from invalid specs, fallback output must be a
+compact status indicator (warning/error/loading style), not fabricated content
+such as "Quick Actions" panels or explanatory prose that the model did not
+intend to show.
  
 ## 16. Glossary
 

@@ -33,7 +33,7 @@ describe('mira-tools render_ui loop breaker', () => {
 
     const elements = spec.elements as Record<string, unknown>;
     expect(elements.main_stack).toBeTruthy();
-    expect(elements.main_stack__actions).toBeTruthy();
+    expect((elements.main_stack as { type?: string }).type).toBe('Callout');
   });
 
   it('marks repeated invalid render_ui attempts as forced loop recovery', async () => {

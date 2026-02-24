@@ -257,6 +257,7 @@ Located at `apps/mobile/`, the Flutter app uses BLoC/Cubit state management, `go
 - **Mermaid Auto-Repair:** Treat Mermaid parse errors as actionable feedback: auto-detect failed Mermaid blocks after streaming, send a hidden self-repair prompt with parser error + original diagram, and cap retries to avoid infinite loops.
 - **Mira Memory Embedding Self-Heal:** When embedding dimensionality changes (e.g., 768 -> 3072), semantic recall must auto-regenerate missing/null memory embeddings and retry once, so memory search recovers without user prompting.
 - **AI Gateway Embedding Model IDs:** For embeddings that should leverage AI Gateway, use model-id strings like `'google/gemini-embedding-001'` instead of `google.embeddingModel(...)`.
+- **render_ui Fallback UX:** For auto-recovered invalid `render_ui` payloads, show only compact status indicators (warning/error/loading). Do not surface fabricated quick-action panels or long placeholder copy.
 
 ### Database Schema Notes
 

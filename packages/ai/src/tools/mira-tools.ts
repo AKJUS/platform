@@ -974,23 +974,17 @@ function buildRenderUiRecoverySpec(args: Record<string, unknown>) {
     typeof args.root === 'string' && args.root.trim().length > 0
       ? args.root.trim()
       : 'render_ui_recovery_root';
-  const textId = `${requestedRoot}__message`;
 
   return {
     root: requestedRoot,
     elements: {
       [requestedRoot]: {
-        type: 'Card',
+        type: 'Callout',
         props: {
-          title: 'UI Generation Recovery',
-        },
-        children: [textId],
-      },
-      [textId]: {
-        type: 'Text',
-        props: {
+          title: 'UI unavailable',
+          variant: 'warning',
           content:
-            'I had trouble generating the full UI schema in one pass. Please try again or ask me to regenerate this panel.',
+            'Could not render the generated UI spec. Please retry this request.',
         },
         children: [],
       },
@@ -1004,79 +998,17 @@ function buildRenderUiFailsafeSpec(args: Record<string, unknown>) {
       ? args.root.trim()
       : 'render_ui_failsafe_root';
 
-  const stackId = `${requestedRoot}__actions`;
-  const introId = `${requestedRoot}__intro`;
-  const buttonIds = {
-    tasks: `${requestedRoot}__btn_tasks`,
-    calendar: `${requestedRoot}__btn_calendar`,
-    createTask: `${requestedRoot}__btn_create_task`,
-    logTx: `${requestedRoot}__btn_log_tx`,
-    spending: `${requestedRoot}__btn_spending`,
-    timer: `${requestedRoot}__btn_timer`,
-  } as const;
-
   return {
     root: requestedRoot,
     elements: {
       [requestedRoot]: {
-        type: 'Card',
+        type: 'Callout',
         props: {
-          title: 'Quick Actions',
-          description: 'Tap an action and I will continue from there.',
-        },
-        children: [introId, stackId],
-      },
-      [introId]: {
-        type: 'Text',
-        props: {
+          title: 'UI unavailable',
+          variant: 'warning',
           content:
-            'I prepared a quick-actions panel to keep things moving while the full UI is being generated.',
+            'Could not render the generated UI spec. Please retry this request.',
         },
-        children: [],
-      },
-      [stackId]: {
-        type: 'Stack',
-        props: { gap: 8 },
-        children: [
-          buttonIds.tasks,
-          buttonIds.calendar,
-          buttonIds.createTask,
-          buttonIds.logTx,
-          buttonIds.spending,
-          buttonIds.timer,
-        ],
-      },
-      [buttonIds.tasks]: {
-        type: 'Button',
-        props: { label: 'Show My Tasks', action: 'Show my tasks for today' },
-        children: [],
-      },
-      [buttonIds.calendar]: {
-        type: 'Button',
-        props: { label: 'Check Calendar', action: 'Show my upcoming events' },
-        children: [],
-      },
-      [buttonIds.createTask]: {
-        type: 'Button',
-        props: { label: 'Create Task', action: 'Create a new task' },
-        children: [],
-      },
-      [buttonIds.logTx]: {
-        type: 'Button',
-        props: { label: 'Log Transaction', action: 'Log a new transaction' },
-        children: [],
-      },
-      [buttonIds.spending]: {
-        type: 'Button',
-        props: {
-          label: 'Spending Summary',
-          action: 'Show my spending summary for the last 7 days',
-        },
-        children: [],
-      },
-      [buttonIds.timer]: {
-        type: 'Button',
-        props: { label: 'Start Timer', action: 'Start a work timer' },
         children: [],
       },
     },
@@ -1139,7 +1071,7 @@ export function createMiraStreamTools(
                 ? { forcedFromRecoveryLoop: true }
                 : {}),
               warning:
-                'Invalid render_ui spec was replaced with a failsafe quick-actions UI because elements was empty or root was missing.',
+                'Invalid render_ui spec was replaced with a compact warning indicator because elements was empty or root was missing.',
             };
           },
         } as Tool;
