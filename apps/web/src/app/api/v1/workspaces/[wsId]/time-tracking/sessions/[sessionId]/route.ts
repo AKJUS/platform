@@ -3,7 +3,10 @@ import {
   createClient,
 } from '@tuturuuu/supabase/next/server';
 import type { Json } from '@tuturuuu/types';
-import { getPermissions,normalizeWorkspaceId } from '@tuturuuu/utils/workspace-helper';
+import {
+  getPermissions,
+  normalizeWorkspaceId,
+} from '@tuturuuu/utils/workspace-helper';
 import dayjs from 'dayjs';
 import { type NextRequest, NextResponse } from 'next/server';
 
@@ -213,7 +216,10 @@ export async function PATCH(
     try {
       normalizedWsId = await normalizeWorkspaceId(wsId, supabase);
     } catch {
-      return NextResponse.json({ error: 'Workspace not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Workspace not found' },
+        { status: 404 }
+      );
     }
 
     // Get authenticated user
@@ -835,7 +841,10 @@ export async function DELETE(
     try {
       normalizedWsId = await normalizeWorkspaceId(wsId, supabase);
     } catch {
-      return NextResponse.json({ error: 'Workspace not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Workspace not found' },
+        { status: 404 }
+      );
     }
 
     // Get authenticated user
