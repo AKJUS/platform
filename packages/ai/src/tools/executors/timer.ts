@@ -18,14 +18,16 @@ function parseIsoDate(
   return { ok: true, value: parsed };
 }
 
-function normalizeCursor(cursor: unknown): {
-  ok: true;
-  lastStartTime: string;
-  lastId: string;
-} | {
-  ok: false;
-  error: string;
-} {
+function normalizeCursor(cursor: unknown):
+  | {
+      ok: true;
+      lastStartTime: string;
+      lastId: string;
+    }
+  | {
+      ok: false;
+      error: string;
+    } {
   if (typeof cursor !== 'string' || !cursor.includes('|')) {
     return { ok: false, error: 'Invalid cursor format' };
   }
@@ -211,10 +213,7 @@ export async function executeListTimeTrackingSessions(
   ctx: MiraToolContext
 ) {
   const includePending = Boolean(args.includePending);
-  const limit = Math.min(
-    Math.max(Number(args.limit) || 20, 1),
-    50
-  );
+  const limit = Math.min(Math.max(Number(args.limit) || 20, 1), 50);
   const cursor = args.cursor;
 
   let query = ctx.supabase
@@ -383,7 +382,9 @@ export async function executeCreateTimeTrackingRequest(
   }
 
   const imagePaths = Array.isArray(args.imagePaths)
-    ? args.imagePaths.filter((value): value is string => typeof value === 'string')
+    ? args.imagePaths.filter(
+        (value): value is string => typeof value === 'string'
+      )
     : [];
 
   if (imagePaths.length === 0) {
@@ -461,7 +462,8 @@ export async function executeUpdateTimeTrackingSession(
   if (!existing) return { error: 'Session not found' };
 
   const updates: Record<string, unknown> = {};
-  if (args.title !== undefined) updates.title = coerceOptionalString(args.title);
+  if (args.title !== undefined)
+    updates.title = coerceOptionalString(args.title);
   if (args.description !== undefined) {
     updates.description = coerceOptionalString(args.description);
   }

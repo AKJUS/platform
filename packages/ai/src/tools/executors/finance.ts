@@ -1,3 +1,4 @@
+import type { TablesInsert, TablesUpdate } from '@tuturuuu/types';
 import type { MiraToolContext } from '../mira-tools';
 
 // ── Workspace default currency ──
@@ -131,13 +132,13 @@ export async function executeCreateWallet(
   args: Record<string, unknown>,
   ctx: MiraToolContext
 ) {
-  const insertData: Record<string, unknown> = {
+  const insertData: TablesInsert<'workspace_wallets'> = {
     name: args.name as string,
     ws_id: ctx.wsId,
   };
-  if (args.currency) insertData.currency = args.currency;
-  if (args.balance !== undefined) insertData.balance = args.balance;
-  if (args.type) insertData.type = args.type;
+  if (args.currency) insertData.currency = args.currency as string;
+  if (args.balance !== undefined) insertData.balance = args.balance as number;
+  if (args.type) insertData.type = args.type as string;
 
   const { data, error } = await ctx.supabase
     .from('workspace_wallets')
@@ -158,11 +159,11 @@ export async function executeUpdateWallet(
   ctx: MiraToolContext
 ) {
   const walletId = args.walletId as string;
-  const updates: Record<string, unknown> = {};
+  const updates: TablesUpdate<'workspace_wallets'> = {};
 
-  if (args.name !== undefined) updates.name = args.name;
-  if (args.currency !== undefined) updates.currency = args.currency;
-  if (args.balance !== undefined) updates.balance = args.balance;
+  if (args.name !== undefined) updates.name = args.name as string;
+  if (args.currency !== undefined) updates.currency = args.currency as string;
+  if (args.balance !== undefined) updates.balance = args.balance as number;
 
   if (Object.keys(updates).length === 0) {
     return { success: true, message: 'No fields to update' };
@@ -379,12 +380,12 @@ export async function executeCreateTransactionTag(
   args: Record<string, unknown>,
   ctx: MiraToolContext
 ) {
-  const insertData: Record<string, unknown> = {
+  const insertData: TablesInsert<'transaction_tags'> = {
     name: args.name as string,
     ws_id: ctx.wsId,
   };
-  if (args.color) insertData.color = args.color;
-  if (args.description) insertData.description = args.description;
+  if (args.color) insertData.color = args.color as string;
+  if (args.description) insertData.description = args.description as string;
 
   const { data, error } = await ctx.supabase
     .from('transaction_tags')
@@ -401,11 +402,12 @@ export async function executeUpdateTransactionTag(
   ctx: MiraToolContext
 ) {
   const tagId = args.tagId as string;
-  const updates: Record<string, unknown> = {};
+  const updates: TablesUpdate<'transaction_tags'> = {};
 
-  if (args.name !== undefined) updates.name = args.name;
-  if (args.color !== undefined) updates.color = args.color;
-  if (args.description !== undefined) updates.description = args.description;
+  if (args.name !== undefined) updates.name = args.name as string;
+  if (args.color !== undefined) updates.color = args.color as string;
+  if (args.description !== undefined)
+    updates.description = args.description as string;
 
   if (Object.keys(updates).length === 0) {
     return { success: true, message: 'No fields to update' };

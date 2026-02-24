@@ -174,11 +174,15 @@ export const dashboardCatalog = defineCatalog(schema, {
         dateFrom: z
           .string()
           .optional()
-          .describe('Custom period start ISO datetime (required when period=custom).'),
+          .describe(
+            'Custom period start ISO datetime (required when period=custom).'
+          ),
         dateTo: z
           .string()
           .optional()
-          .describe('Custom period end ISO datetime (required when period=custom).'),
+          .describe(
+            'Custom period end ISO datetime (required when period=custom).'
+          ),
         showBreakdown: z
           .boolean()
           .optional()

@@ -820,10 +820,7 @@ export const miraToolDefinitions = {
         .string()
         .nullish()
         .describe('Request description, or null/omit'),
-      categoryId: z
-        .string()
-        .nullish()
-        .describe('Category UUID, or null/omit'),
+      categoryId: z.string().nullish().describe('Category UUID, or null/omit'),
       taskId: z.string().nullish().describe('Task UUID, or null/omit'),
       startTime: z.string().describe('Start time ISO 8601'),
       endTime: z.string().describe('End time ISO 8601'),

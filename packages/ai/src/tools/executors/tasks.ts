@@ -1,4 +1,5 @@
 import type { SupabaseClient } from '@tuturuuu/supabase';
+import type { Enums, TablesInsert, TablesUpdate } from '@tuturuuu/types';
 import { parseTaskDateToUTCISO } from '@tuturuuu/utils/task-date-timezone';
 import type { MiraToolContext } from '../mira-tools';
 
@@ -85,7 +86,7 @@ export async function executeCreateTask(
   const { userId, wsId, supabase } = ctx;
   const name = args.name as string;
   const description = args.description as string | null;
-  const priority = args.priority as string | null;
+  const priority = (args.priority as Enums<'task_priority'> | null) ?? null;
   const assignToSelf = (args.assignToSelf as boolean | undefined) !== false;
 
   let { data: board } = await supabase
@@ -112,7 +113,7 @@ export async function executeCreateTask(
     .from('task_lists')
     .select('id')
     .eq('board_id', board.id)
-    .eq('is_archived', false)
+    .eq('archived', false)
     .order('created_at', { ascending: true })
     .limit(1)
     .single();
@@ -209,9 +210,9 @@ export async function executeUpdateTask(
       error: `Task ID required. Use taskId or id. ${UPDATE_TASK_FIELDS_HINT}`,
     };
   }
-  const updates: Record<string, unknown> = {};
+  const updates: TablesUpdate<'tasks'> = {};
 
-  if (args.name !== undefined) updates.name = args.name;
+  if (args.name !== undefined) updates.name = args.name as string;
   if (args.description !== undefined) {
     const desc = args.description as string | null;
     updates.description = desc
@@ -223,7 +224,8 @@ export async function executeUpdateTask(
         })
       : null;
   }
-  if (args.priority !== undefined) updates.priority = args.priority;
+  if (args.priority !== undefined)
+    updates.priority = args.priority as Enums<'task_priority'>;
   if (args.startDate !== undefined) {
     const v = args.startDate as string | null;
     updates.start_date =
@@ -244,8 +246,8 @@ export async function executeUpdateTask(
           : v;
   }
   if (args.estimationPoints !== undefined)
-    updates.estimation_points = args.estimationPoints;
-  if (args.listId !== undefined) updates.list_id = args.listId;
+    updates.estimation_points = args.estimationPoints as number;
+  if (args.listId !== undefined) updates.list_id = args.listId as string;
 
   if (Object.keys(updates).length === 0) {
     return {
@@ -360,9 +362,9 @@ export async function executeListTaskLists(
 
   const { data, error } = await ctx.supabase
     .from('task_lists')
-    .select('id, name, board_id, color, position, is_archived')
+    .select('id, name, board_id, color, position, archived')
     .eq('board_id', boardId)
-    .eq('is_archived', false)
+    .eq('archived', false)
     .order('position', { ascending: true });
 
   if (error) return { error: error.message };
@@ -385,11 +387,11 @@ export async function executeCreateTaskList(
 
   if (!board) return { error: 'Board not found in this workspace' };
 
-  const insertData: Record<string, unknown> = {
+  const insertData: TablesInsert<'task_lists'> = {
     name: args.name as string,
     board_id: boardId,
   };
-  if (args.color) insertData.color = args.color;
+  if (args.color) insertData.color = args.color as string;
 
   const { data, error } = await ctx.supabase
     .from('task_lists')
@@ -406,11 +408,11 @@ export async function executeUpdateTaskList(
   ctx: MiraToolContext
 ) {
   const listId = args.listId as string;
-  const updates: Record<string, unknown> = {};
+  const updates: TablesUpdate<'task_lists'> = {};
 
-  if (args.name !== undefined) updates.name = args.name;
-  if (args.color !== undefined) updates.color = args.color;
-  if (args.position !== undefined) updates.position = args.position;
+  if (args.name !== undefined) updates.name = args.name as string;
+  if (args.color !== undefined) updates.color = args.color as string;
+  if (args.position !== undefined) updates.position = args.position as number;
 
   if (Object.keys(updates).length === 0) {
     return { success: true, message: 'No fields to update' };
@@ -457,14 +459,14 @@ export async function executeCreateTaskLabel(
   args: Record<string, unknown>,
   ctx: MiraToolContext
 ) {
-  const insertData: Record<string, unknown> = {
+  const insertData: TablesInsert<'workspace_task_labels'> = {
     name: args.name as string,
     ws_id: ctx.wsId,
+    color: (args.color as string) ?? '#3B82F6',
   };
-  if (args.color) insertData.color = args.color;
 
   const { data, error } = await ctx.supabase
-    .from('task_labels')
+    .from('workspace_task_labels')
     .insert(insertData)
     .select('id, name, color')
     .single();
@@ -482,17 +484,17 @@ export async function executeUpdateTaskLabel(
   ctx: MiraToolContext
 ) {
   const labelId = args.labelId as string;
-  const updates: Record<string, unknown> = {};
+  const updates: TablesUpdate<'workspace_task_labels'> = {};
 
-  if (args.name !== undefined) updates.name = args.name;
-  if (args.color !== undefined) updates.color = args.color;
+  if (args.name !== undefined) updates.name = args.name as string;
+  if (args.color !== undefined) updates.color = args.color as string;
 
   if (Object.keys(updates).length === 0) {
     return { success: true, message: 'No fields to update' };
   }
 
   const { error } = await ctx.supabase
-    .from('task_labels')
+    .from('workspace_task_labels')
     .update(updates)
     .eq('id', labelId)
     .eq('ws_id', ctx.wsId);
@@ -508,7 +510,7 @@ export async function executeDeleteTaskLabel(
   const labelId = args.labelId as string;
 
   const { error } = await ctx.supabase
-    .from('task_labels')
+    .from('workspace_task_labels')
     .delete()
     .eq('id', labelId)
     .eq('ws_id', ctx.wsId);
@@ -524,13 +526,13 @@ export async function executeAddTaskLabels(
   const taskId = args.taskId as string;
   const labelIds = args.labelIds as string[];
 
-  const rows = labelIds.map((labelId) => ({
+  const rows: TablesInsert<'task_labels'>[] = labelIds.map((labelId) => ({
     task_id: taskId,
     label_id: labelId,
   }));
 
   const { error } = await ctx.supabase
-    .from('task_label_assignments')
+    .from('task_labels')
     .upsert(rows, { onConflict: 'task_id,label_id' });
 
   if (error) return { error: error.message };
@@ -548,7 +550,7 @@ export async function executeRemoveTaskLabels(
   const labelIds = args.labelIds as string[];
 
   const { error } = await ctx.supabase
-    .from('task_label_assignments')
+    .from('task_labels')
     .delete()
     .eq('task_id', taskId)
     .in('label_id', labelIds);
@@ -578,11 +580,11 @@ export async function executeCreateProject(
   args: Record<string, unknown>,
   ctx: MiraToolContext
 ) {
-  const insertData: Record<string, unknown> = {
+  const insertData: TablesInsert<'task_projects'> = {
     name: args.name as string,
     ws_id: ctx.wsId,
   };
-  if (args.description) insertData.description = args.description;
+  if (args.description) insertData.description = args.description as string;
 
   const { data, error } = await ctx.supabase
     .from('task_projects')
@@ -603,10 +605,11 @@ export async function executeUpdateProject(
   ctx: MiraToolContext
 ) {
   const projectId = args.projectId as string;
-  const updates: Record<string, unknown> = {};
+  const updates: TablesUpdate<'task_projects'> = {};
 
-  if (args.name !== undefined) updates.name = args.name;
-  if (args.description !== undefined) updates.description = args.description;
+  if (args.name !== undefined) updates.name = args.name as string;
+  if (args.description !== undefined)
+    updates.description = args.description as string;
 
   if (Object.keys(updates).length === 0) {
     return { success: true, message: 'No fields to update' };
@@ -725,7 +728,7 @@ async function resolveDefaultBoardAndList(
     .from('task_lists')
     .select('id')
     .eq('board_id', board.id)
-    .eq('is_archived', false)
+    .eq('archived', false)
     .order('created_at', { ascending: true })
     .limit(1)
     .single();

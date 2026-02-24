@@ -1,6 +1,24 @@
 import { google } from '@ai-sdk/google';
+import type { Enums, TablesInsert, TablesUpdate } from '@tuturuuu/types';
 import { embed } from 'ai';
 import type { MiraToolContext } from '../mira-tools';
+
+type MiraMemoryCategory = Enums<'mira_memory_category'>;
+
+const MIRA_MEMORY_CATEGORIES: MiraMemoryCategory[] = [
+  'preference',
+  'fact',
+  'conversation_topic',
+  'event',
+  'person',
+];
+
+function toMemoryCategory(value: unknown): MiraMemoryCategory | undefined {
+  if (typeof value !== 'string') return undefined;
+  return MIRA_MEMORY_CATEGORIES.includes(value as MiraMemoryCategory)
+    ? (value as MiraMemoryCategory)
+    : undefined;
+}
 
 async function generateEmbedding(text: string) {
   try {
@@ -20,7 +38,14 @@ export async function executeRemember(
 ) {
   const key = args.key as string;
   const value = args.value as string;
-  const category = args.category as string;
+  const category = toMemoryCategory(args.category);
+
+  if (!category) {
+    return {
+      error:
+        'Invalid category. Allowed: preference, fact, conversation_topic, event, person',
+    };
+  }
 
   const { data: existing } = await ctx.supabase
     .from('mira_memories')
@@ -33,15 +58,17 @@ export async function executeRemember(
   const embedding = await generateEmbedding(combinedText);
 
   if (existing) {
+    const updatePayload: TablesUpdate<'mira_memories'> = {
+      value,
+      category,
+      embedding: embedding ? (embedding as any) : undefined,
+      updated_at: new Date().toISOString(),
+      last_referenced_at: new Date().toISOString(),
+    };
+
     const { error } = await ctx.supabase
       .from('mira_memories')
-      .update({
-        value,
-        category,
-        embedding: embedding ? (embedding as any) : undefined,
-        updated_at: new Date().toISOString(),
-        last_referenced_at: new Date().toISOString(),
-      })
+      .update(updatePayload)
       .eq('id', existing.id);
 
     if (error) return { error: error.message };
@@ -52,14 +79,18 @@ export async function executeRemember(
     };
   }
 
-  const { error } = await ctx.supabase.from('mira_memories').insert({
+  const insertPayload: TablesInsert<'mira_memories'> = {
     user_id: ctx.userId,
     key,
     value,
     category,
     embedding: embedding ? (embedding as any) : undefined,
     source: 'mira_chat',
-  });
+  };
+
+  const { error } = await ctx.supabase
+    .from('mira_memories')
+    .insert(insertPayload);
 
   if (error) return { error: error.message };
   return { success: true, message: `Remembered: "${key}"`, action: 'created' };
@@ -70,7 +101,7 @@ export async function executeRecall(
   ctx: MiraToolContext
 ) {
   const query = (args.query as string | null | undefined) ?? null;
-  const category = args.category as string | null;
+  const category = toMemoryCategory(args.category) ?? null;
   const maxResults = (args.maxResults as number) || 10;
 
   let memories: any[] = [];
@@ -84,7 +115,7 @@ export async function executeRecall(
       const { data, error } = await ctx.supabase.rpc('match_memories', {
         query_embedding: embedding as any,
         match_count: maxResults,
-        filter_category: category,
+        filter_category: category ?? undefined,
       });
 
       if (error) {
@@ -177,7 +208,7 @@ export async function executeListMemories(
   args: Record<string, unknown>,
   ctx: MiraToolContext
 ) {
-  const category = args.category as string | null;
+  const category = toMemoryCategory(args.category) ?? null;
 
   let dbQuery = ctx.supabase
     .from('mira_memories')
@@ -218,7 +249,14 @@ export async function executeMergeMemories(
   const keysToDelete = args.keysToDelete as string[];
   const newKey = args.newKey as string;
   const newValue = args.newValue as string;
-  const newCategory = args.newCategory as string;
+  const newCategory = toMemoryCategory(args.newCategory);
+
+  if (!newCategory) {
+    return {
+      error:
+        'Invalid newCategory. Allowed: preference, fact, conversation_topic, event, person',
+    };
+  }
 
   if (!keysToDelete || keysToDelete.length === 0) {
     return { error: 'No keys provided to delete' };
@@ -236,28 +274,32 @@ export async function executeMergeMemories(
     .maybeSingle();
 
   if (existing) {
+    const updatePayload: TablesUpdate<'mira_memories'> = {
+      value: newValue,
+      category: newCategory,
+      embedding: embedding ? (embedding as any) : undefined,
+      updated_at: new Date().toISOString(),
+    };
+
     const { error: updateError } = await ctx.supabase
       .from('mira_memories')
-      .update({
-        value: newValue,
-        category: newCategory,
-        embedding: embedding ? (embedding as any) : undefined,
-        updated_at: new Date().toISOString(),
-      })
+      .update(updatePayload)
       .eq('id', existing.id);
 
     if (updateError) return { error: updateError.message };
   } else {
+    const insertPayload: TablesInsert<'mira_memories'> = {
+      user_id: ctx.userId,
+      key: newKey,
+      value: newValue,
+      category: newCategory,
+      embedding: embedding ? (embedding as any) : undefined,
+      source: 'mira_chat',
+    };
+
     const { error: insertError } = await ctx.supabase
       .from('mira_memories')
-      .insert({
-        user_id: ctx.userId,
-        key: newKey,
-        value: newValue,
-        category: newCategory,
-        embedding: embedding ? (embedding as any) : undefined,
-        source: 'mira_chat',
-      });
+      .insert(insertPayload);
 
     if (insertError) return { error: insertError.message };
   }

@@ -127,7 +127,12 @@ function resolveStatsRange(
     case 'custom': {
       const parsedFrom = dateFrom ? new Date(dateFrom) : null;
       const parsedTo = dateTo ? new Date(dateTo) : null;
-      if (parsedFrom && parsedTo && !Number.isNaN(parsedFrom.getTime()) && !Number.isNaN(parsedTo.getTime())) {
+      if (
+        parsedFrom &&
+        parsedTo &&
+        !Number.isNaN(parsedFrom.getTime()) &&
+        !Number.isNaN(parsedTo.getTime())
+      ) {
         return {
           from: parsedFrom,
           to: parsedTo,
@@ -139,7 +144,6 @@ function resolveStatsRange(
       setEndOfDay(end);
       return { from: start, to: end, label: 'Last 7 days' };
     }
-    case 'last_7_days':
     default: {
       start.setDate(start.getDate() - 6);
       setStartOfDay(start);
@@ -190,7 +194,10 @@ async function uploadTimeTrackingRequestFiles(
   }
 
   const uploadData = (await uploadUrlRes.json()) as SignedUploadResponse;
-  if (!Array.isArray(uploadData.uploads) || uploadData.uploads.length !== files.length) {
+  if (
+    !Array.isArray(uploadData.uploads) ||
+    uploadData.uploads.length !== files.length
+  ) {
     throw new Error('Upload URL response is invalid');
   }
 
@@ -467,7 +474,11 @@ export const { registry, handlers, executeAction } = defineRegistry(
           enabled: !!wsId,
         });
 
-        const range = resolveStatsRange(props.period, props.dateFrom, props.dateTo);
+        const range = resolveStatsRange(
+          props.period,
+          props.dateFrom,
+          props.dateTo
+        );
 
         const { data: stats, isLoading: statsLoading } = useQuery({
           queryKey: [
@@ -514,7 +525,9 @@ export const { registry, handlers, executeAction } = defineRegistry(
             <Card className="my-2 border border-border/60 bg-card/60">
               <CardHeader>
                 <CardTitle className="text-lg">Time Tracking Stats</CardTitle>
-                <CardDescription>No stats available for this period.</CardDescription>
+                <CardDescription>
+                  No stats available for this period.
+                </CardDescription>
               </CardHeader>
             </Card>
           );
@@ -534,7 +547,8 @@ export const { registry, handlers, executeAction } = defineRegistry(
           : [];
 
         const bestTimeOfDayLabel =
-          typeof stats.bestTimeOfDay === 'string' && stats.bestTimeOfDay !== 'none'
+          typeof stats.bestTimeOfDay === 'string' &&
+          stats.bestTimeOfDay !== 'none'
             ? stats.bestTimeOfDay
             : 'N/A';
 
@@ -542,14 +556,18 @@ export const { registry, handlers, executeAction } = defineRegistry(
           <div className="flex flex-col gap-4">
             <Card className="my-2 border border-border/60 bg-card/60">
               <CardHeader>
-                <CardTitle className="text-lg">Time Tracking Overview</CardTitle>
+                <CardTitle className="text-lg">
+                  Time Tracking Overview
+                </CardTitle>
                 <CardDescription>{range.label}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                   <div className="rounded-lg border bg-surface p-4">
                     <p className="text-muted-foreground text-sm">Total Time</p>
-                    <p className="font-bold text-xl">{formatDurationLabel(totalDuration)}</p>
+                    <p className="font-bold text-xl">
+                      {formatDurationLabel(totalDuration)}
+                    </p>
                   </div>
                   <div className="rounded-lg border bg-surface p-4">
                     <p className="text-muted-foreground text-sm">Sessions</p>
@@ -557,11 +575,17 @@ export const { registry, handlers, executeAction } = defineRegistry(
                   </div>
                   <div className="rounded-lg border bg-surface p-4">
                     <p className="text-muted-foreground text-sm">Avg Session</p>
-                    <p className="font-bold text-xl">{formatDurationLabel(averageDuration)}</p>
+                    <p className="font-bold text-xl">
+                      {formatDurationLabel(averageDuration)}
+                    </p>
                   </div>
                   <div className="rounded-lg border bg-surface p-4">
-                    <p className="text-muted-foreground text-sm">Best Time of Day</p>
-                    <p className="font-bold text-xl capitalize">{bestTimeOfDayLabel}</p>
+                    <p className="text-muted-foreground text-sm">
+                      Best Time of Day
+                    </p>
+                    <p className="font-bold text-xl capitalize">
+                      {bestTimeOfDayLabel}
+                    </p>
                   </div>
                 </div>
 
@@ -569,14 +593,24 @@ export const { registry, handlers, executeAction } = defineRegistry(
                   <div className="space-y-2">
                     <p className="font-medium text-sm">Top Categories</p>
                     {topBreakdown.length === 0 && (
-                      <p className="text-muted-foreground text-sm">No category data for this period.</p>
+                      <p className="text-muted-foreground text-sm">
+                        No category data for this period.
+                      </p>
                     )}
                     {topBreakdown.map((item: any, index: number) => {
-                      const share = totalDuration > 0 ? (item.duration / totalDuration) * 100 : 0;
+                      const share =
+                        totalDuration > 0
+                          ? (item.duration / totalDuration) * 100
+                          : 0;
                       return (
-                        <div key={`${item.name}-${index}`} className="space-y-1 rounded-md border p-2">
+                        <div
+                          key={`${item.name}-${index}`}
+                          className="space-y-1 rounded-md border p-2"
+                        >
                           <div className="flex items-center justify-between gap-2 text-sm">
-                            <span className="truncate font-medium">{item.name}</span>
+                            <span className="truncate font-medium">
+                              {item.name}
+                            </span>
                             <span className="text-muted-foreground">
                               {formatDurationLabel(item.duration || 0)}
                             </span>
@@ -592,7 +626,9 @@ export const { registry, handlers, executeAction } = defineRegistry(
                   <div className="space-y-2">
                     <p className="font-medium text-sm">Daily Breakdown</p>
                     {topDaily.length === 0 && (
-                      <p className="text-muted-foreground text-sm">No daily data for this period.</p>
+                      <p className="text-muted-foreground text-sm">
+                        No daily data for this period.
+                      </p>
                     )}
                     {topDaily.map((item: any, index: number) => (
                       <div
@@ -744,7 +780,9 @@ export const { registry, handlers, executeAction } = defineRegistry(
           <div className="relative flex flex-col gap-2">
             <Label htmlFor={props.name}>{props.label}</Label>
             {props.description && (
-              <p className="text-muted-foreground text-xs">{props.description}</p>
+              <p className="text-muted-foreground text-xs">
+                {props.description}
+              </p>
             )}
             <Input
               id={props.name}
@@ -1799,7 +1837,8 @@ export const { registry, handlers, executeAction } = defineRegistry(
               : crypto.randomUUID();
 
           const rawEvidence = (params as Record<string, unknown>).evidence;
-          const rawAttachments = (params as Record<string, unknown>).attachments;
+          const rawAttachments = (params as Record<string, unknown>)
+            .attachments;
           const files = [
             ...collectFilesFromValue(rawEvidence),
             ...collectFilesFromValue(rawAttachments),
@@ -1840,8 +1879,7 @@ export const { registry, handlers, executeAction } = defineRegistry(
                   typeof params.categoryId === 'string'
                     ? params.categoryId
                     : '',
-                taskId:
-                  typeof params.taskId === 'string' ? params.taskId : '',
+                taskId: typeof params.taskId === 'string' ? params.taskId : '',
                 startTime,
                 endTime,
                 imagePaths,
