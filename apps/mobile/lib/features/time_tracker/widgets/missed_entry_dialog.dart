@@ -302,6 +302,10 @@ class _MissedEntryDialogState extends State<MissedEntryDialog> {
                 onPressed: _isValid && !_isSubmitting
                     ? () async {
                         final navigator = Navigator.of(context);
+                        final toastContext = Navigator.of(
+                          context,
+                          rootNavigator: true,
+                        ).context;
                         setState(() => _isSubmitting = true);
 
                         final workSessionTitle = _titleCtrl.text.isEmpty
@@ -334,10 +338,6 @@ class _MissedEntryDialogState extends State<MissedEntryDialog> {
                             return;
                           }
 
-                          final toastContext = Navigator.of(
-                            context,
-                            rootNavigator: true,
-                          ).context;
                           shad.showToast(
                             context: toastContext,
                             builder: (context, overlay) => shad.Alert(
@@ -362,10 +362,6 @@ class _MissedEntryDialogState extends State<MissedEntryDialog> {
                             return;
                           }
 
-                          final toastContext = Navigator.of(
-                            context,
-                            rootNavigator: true,
-                          ).context;
                           shad.showToast(
                             context: toastContext,
                             builder: (context, overlay) =>

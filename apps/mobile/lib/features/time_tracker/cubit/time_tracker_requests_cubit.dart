@@ -148,7 +148,7 @@ class TimeTrackerRequestsCubit extends Cubit<TimeTrackerRequestsState> {
       return updatedRequest;
     } on Exception catch (e) {
       emit(state.copyWith(error: e.toString()));
-      return null;
+      rethrow;
     }
   }
 }

@@ -1,11 +1,11 @@
 'use client';
 
-import { useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { uploadTimeTrackingImages } from '@tuturuuu/hooks';
 import dayjs from 'dayjs';
 import timezone from 'dayjs/plugin/timezone';
 import utc from 'dayjs/plugin/utc';
 import { useEffect, useMemo, useState } from 'react';
-import { uploadTimeTrackingImages } from '../upload-time-tracking-images';
 import type { TimeValidationResult } from '../utils/time-validation';
 import { validateEndTime, validateStartTime } from '../utils/time-validation';
 import type { UseImageUploadReturn } from './use-image-upload';
@@ -362,6 +362,235 @@ export function useMissedEntryForm(
     imageUpload.clearImages();
   };
 
+  const invalidateSessionQueries = (workspaceId: string) => {
+    queryClient.invalidateQueries({
+      queryKey: ['running-time-session', workspaceId],
+    });
+    queryClient.invalidateQueries({
+      queryKey: ['time-tracking-sessions', workspaceId],
+    });
+    queryClient.invalidateQueries({
+      predicate: (query) =>
+        Array.isArray(query.queryKey) &&
+        query.queryKey[0] === 'paused-time-session' &&
+        query.queryKey[1] === workspaceId,
+    });
+  };
+
+  const submitRequestMutation = useMutation({
+    mutationFn: async ({
+      apiBaseUrl,
+      effectiveWsId,
+      sourceWsId,
+      requestId,
+      title,
+      description,
+      categoryId,
+      taskId,
+      startTime,
+      endTime,
+      breakTypeId,
+      breakTypeName,
+      imageFiles,
+      sessionContext,
+    }: {
+      apiBaseUrl: string;
+      effectiveWsId: string;
+      sourceWsId: string;
+      requestId: string;
+      title: string;
+      description: string;
+      categoryId: string;
+      taskId: string;
+      startTime: string;
+      endTime: string;
+      breakTypeId?: string;
+      breakTypeName?: string;
+      imageFiles: File[];
+      sessionContext?: {
+        id: string;
+        shouldPause: boolean;
+      };
+    }) => {
+      let linkedSessionId: string | null = null;
+
+      if (sessionContext?.shouldPause) {
+        const pauseRes = await fetch(
+          `${apiBaseUrl}/${sourceWsId}/time-tracking/sessions/${sessionContext.id}`,
+          {
+            method: 'PATCH',
+            cache: 'no-store',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'pause',
+              breakTypeId: breakTypeId || undefined,
+              breakTypeName: breakTypeName || undefined,
+              pendingApproval: true,
+            }),
+          }
+        );
+
+        if (!pauseRes.ok) {
+          const err = await pauseRes.json().catch(() => null);
+          throw new Error(
+            err?.error ?? 'Failed to pause session before creating request'
+          );
+        }
+
+        linkedSessionId = sessionContext.id;
+      } else if (sessionContext) {
+        const deleteRes = await fetch(
+          `${apiBaseUrl}/${sourceWsId}/time-tracking/sessions/${sessionContext.id}`,
+          {
+            method: 'DELETE',
+            cache: 'no-store',
+          }
+        );
+
+        if (!deleteRes.ok) {
+          const err = await deleteRes.json().catch(() => null);
+          throw new Error(
+            err?.error ?? 'Failed to discard session before creating request'
+          );
+        }
+      }
+
+      const imagePaths =
+        imageFiles.length > 0
+          ? await uploadTimeTrackingImages(
+              apiBaseUrl,
+              effectiveWsId,
+              requestId,
+              imageFiles
+            )
+          : [];
+
+      const body: Record<string, unknown> = {
+        requestId,
+        title,
+        description,
+        categoryId,
+        taskId,
+        startTime,
+        endTime,
+        imagePaths,
+      };
+
+      if (linkedSessionId) {
+        body.linkedSessionId = linkedSessionId;
+      }
+      if (breakTypeId) {
+        body.breakTypeId = breakTypeId;
+      }
+      if (breakTypeName) {
+        body.breakTypeName = breakTypeName;
+      }
+
+      const response = await fetch(
+        `${apiBaseUrl}/${effectiveWsId}/time-tracking/requests`,
+        {
+          method: 'POST',
+          cache: 'no-store',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || 'Failed to create request');
+      }
+
+      return response.json().catch(() => null);
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: ['time-tracking-requests', variables.effectiveWsId, 'pending'],
+      });
+      invalidateSessionQueries(variables.effectiveWsId);
+    },
+  });
+
+  const createSessionMutation = useMutation({
+    mutationFn: async ({
+      apiBaseUrl,
+      effectiveWsId,
+      title,
+      description,
+      categoryId,
+      taskId,
+      startTime,
+      endTime,
+    }: {
+      apiBaseUrl: string;
+      effectiveWsId: string;
+      title: string;
+      description: string | null;
+      categoryId: string | null;
+      taskId: string | null;
+      startTime: string;
+      endTime: string;
+    }) => {
+      const response = await fetch(
+        `${apiBaseUrl}/${effectiveWsId}/time-tracking/sessions`,
+        {
+          method: 'POST',
+          cache: 'no-store',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            title,
+            description,
+            categoryId,
+            taskId,
+            startTime,
+            endTime,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || 'Failed to create session');
+      }
+
+      return response.json().catch(() => null);
+    },
+    onSuccess: (_, variables) => {
+      invalidateSessionQueries(variables.effectiveWsId);
+    },
+  });
+
+  const discardSessionMutation = useMutation({
+    mutationFn: async ({
+      apiBaseUrl,
+      workspaceId,
+      sessionId,
+    }: {
+      apiBaseUrl: string;
+      workspaceId: string;
+      sessionId: string;
+    }) => {
+      const response = await fetch(
+        `${apiBaseUrl}/${workspaceId}/time-tracking/sessions/${sessionId}`,
+        {
+          method: 'DELETE',
+          cache: 'no-store',
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to discard session');
+      }
+
+      return null;
+    },
+    onSuccess: (_, variables) => {
+      invalidateSessionQueries(variables.workspaceId);
+    },
+  });
+
   const createMissedEntry = async (
     isStartTimeOlderThanThreshold: boolean,
     thresholdDays: number | null | undefined,
@@ -396,146 +625,56 @@ export function useMissedEntryForm(
 
     try {
       const userTz = dayjs.tz.guess();
+      const startTime = dayjs
+        .tz(missedEntryStartTime, userTz)
+        .utc()
+        .toISOString();
+      const endTime = dayjs
+        .tz(missedEntryEndTime, userTz)
+        .utc()
+        .toISOString();
 
       if (isStartTimeOlderThanThreshold) {
-        const isBreakPause = !!(breakTypeId || breakTypeName);
-        let linkedSessionId: string | null = null;
-
-        if (isExceededMode && session && isBreakPause) {
-          const pauseRes = await fetch(
-            `${apiBaseUrl}/${config.wsId}/time-tracking/sessions/${session.id}`,
-            {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                action: 'pause',
-                breakTypeId: breakTypeId || undefined,
-                breakTypeName: breakTypeName || undefined,
-                pendingApproval: true,
-              }),
-            }
-          );
-          if (!pauseRes.ok) {
-            const err = await pauseRes.json().catch(() => null);
-            throw new Error(
-              err?.error ?? 'Failed to pause session before creating request'
-            );
-          }
-          linkedSessionId = session.id;
-        } else if (isExceededMode && session) {
-          const deleteRes = await fetch(
-            `${apiBaseUrl}/${config.wsId}/time-tracking/sessions/${session.id}`,
-            { method: 'DELETE' }
-          );
-          if (!deleteRes.ok) {
-            const err = await deleteRes.json().catch(() => null);
-            throw new Error(
-              err?.error ?? 'Failed to discard session before creating request'
-            );
-          }
-        }
-
         const requestId = crypto.randomUUID();
-        let imagePaths: string[] = [];
 
-        if (imageUpload.images.length > 0) {
-          imagePaths = await uploadTimeTrackingImages(
-            apiBaseUrl,
-            effectiveWsId,
-            requestId,
-            imageUpload.images
-          );
-        }
-
-        const body: Record<string, unknown> = {
+        await submitRequestMutation.mutateAsync({
+          apiBaseUrl,
+          effectiveWsId,
+          sourceWsId: config.wsId,
           requestId,
           title: missedEntryTitle,
           description: missedEntryDescription || '',
           categoryId:
             missedEntryCategoryId === 'none' ? '' : missedEntryCategoryId,
           taskId: missedEntryTaskId === 'none' ? '' : missedEntryTaskId,
-          startTime: dayjs.tz(missedEntryStartTime, userTz).utc().toISOString(),
-          endTime: dayjs.tz(missedEntryEndTime, userTz).utc().toISOString(),
-          imagePaths,
-        };
-        if (linkedSessionId) {
-          body.linkedSessionId = linkedSessionId;
-        }
-        if (breakTypeId) body.breakTypeId = breakTypeId;
-        if (breakTypeName) body.breakTypeName = breakTypeName;
-
-        const response = await fetch(
-          `${apiBaseUrl}/${effectiveWsId}/time-tracking/requests`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(body),
-          }
-        );
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to create request');
-        }
-
-        queryClient.invalidateQueries({
-          queryKey: ['time-tracking-requests', effectiveWsId, 'pending'],
-        });
-        queryClient.invalidateQueries({
-          queryKey: ['running-time-session', effectiveWsId],
-        });
-        queryClient.invalidateQueries({
-          queryKey: ['time-tracking-sessions', effectiveWsId],
-        });
-        queryClient.invalidateQueries({
-          predicate: (query) =>
-            Array.isArray(query.queryKey) &&
-            query.queryKey[0] === 'paused-time-session' &&
-            query.queryKey[1] === effectiveWsId,
+          startTime,
+          endTime,
+          breakTypeId,
+          breakTypeName,
+          imageFiles: imageUpload.images,
+          sessionContext:
+            isExceededMode && session
+              ? {
+                  id: session.id,
+                  shouldPause: !!(breakTypeId || breakTypeName),
+                }
+              : undefined,
         });
 
         refreshData?.();
         closeMissedEntryDialog();
         onSuccess?.('Request submitted successfully');
       } else {
-        const response = await fetch(
-          `${apiBaseUrl}/${effectiveWsId}/time-tracking/sessions`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              title: missedEntryTitle,
-              description: missedEntryDescription || null,
-              categoryId:
-                missedEntryCategoryId === 'none' ? null : missedEntryCategoryId,
-              taskId: missedEntryTaskId === 'none' ? null : missedEntryTaskId,
-              startTime: dayjs
-                .tz(missedEntryStartTime, userTz)
-                .utc()
-                .toISOString(),
-              endTime: dayjs.tz(missedEntryEndTime, userTz).utc().toISOString(),
-            }),
-          }
-        );
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to create session');
-        }
-
-        queryClient.invalidateQueries({
-          queryKey: ['running-time-session', effectiveWsId],
-        });
-        queryClient.invalidateQueries({
-          queryKey: ['time-tracking-sessions', effectiveWsId],
-        });
-        queryClient.invalidateQueries({
-          predicate: (query) =>
-            Array.isArray(query.queryKey) &&
-            query.queryKey[0] === 'paused-time-session' &&
-            query.queryKey[1] === effectiveWsId,
+        await createSessionMutation.mutateAsync({
+          apiBaseUrl,
+          effectiveWsId,
+          title: missedEntryTitle,
+          description: missedEntryDescription || null,
+          categoryId:
+            missedEntryCategoryId === 'none' ? null : missedEntryCategoryId,
+          taskId: missedEntryTaskId === 'none' ? null : missedEntryTaskId,
+          startTime,
+          endTime,
         });
 
         refreshData?.();
@@ -557,23 +696,12 @@ export function useMissedEntryForm(
 
     setIsDiscarding(true);
     try {
-      const response = await fetch(
-        `${apiBaseUrl}/${config.wsId}/time-tracking/sessions/${session.id}`,
-        {
-          method: 'DELETE',
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to discard session');
-      }
-
-      queryClient.invalidateQueries({
-        queryKey: ['running-time-session', config.wsId],
+      await discardSessionMutation.mutateAsync({
+        apiBaseUrl,
+        workspaceId: config.wsId,
+        sessionId: session.id,
       });
-      queryClient.invalidateQueries({
-        queryKey: ['time-tracking-sessions', config.wsId],
-      });
+
       refreshData?.();
       onSuccess?.('Session discarded');
       closeMissedEntryDialog();

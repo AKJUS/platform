@@ -16,7 +16,7 @@ import { normalizeWorkspaceId } from '@/lib/workspace-helper';
 const ALLOWED_IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'webp', 'gif']);
 
 const MAX_FILENAME_LENGTH = 255;
-const MAX_FILES_PER_REQUEST = 10;
+const MAX_FILES_PER_REQUEST = 5;
 
 const UploadUrlFileSchema = z.object({
   filename: z.string().min(1).max(MAX_FILENAME_LENGTH),

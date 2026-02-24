@@ -300,9 +300,21 @@ export async function PUT(
         (img) => !removedImages.includes(img)
       );
       // Delete removed images from storage
-      await storageClient.storage
+      const { error: removeError } = await storageClient.storage
         .from('time_tracking_requests')
         .remove(removedImages);
+
+      if (removeError) {
+        console.error('Failed to remove deleted images from storage:', {
+          requestId: id,
+          removedImages,
+          error: removeError,
+        });
+        return NextResponse.json(
+          { error: 'Failed to remove deleted images' },
+          { status: 500 }
+        );
+      }
     }
 
     // Combine existing and newly uploaded image paths
@@ -326,9 +338,25 @@ export async function PUT(
     if (updateError) {
       // Clean up newly uploaded images on database error
       if (newImagePaths.length > 0) {
-        await storageClient.storage
+        const { error: cleanupError } = await storageClient.storage
           .from('time_tracking_requests')
           .remove(newImagePaths);
+
+        if (cleanupError) {
+          console.error('Failed to clean up newly uploaded images:', {
+            requestId: id,
+            newImagePaths,
+            updateError,
+            cleanupError,
+          });
+          return NextResponse.json(
+            {
+              error:
+                'Failed to update request and failed to clean up uploaded images',
+            },
+            { status: 500 }
+          );
+        }
       }
       console.error('Database error:', updateError);
       return NextResponse.json(

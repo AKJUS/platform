@@ -17,6 +17,7 @@ export async function uploadTimeTrackingImages(
   const uploadUrl = `${baseUrl}/${wsId}/time-tracking/requests/upload-url`;
   const signedRes = await fetch(uploadUrl, {
     method: 'POST',
+    cache: 'no-store',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -53,6 +54,7 @@ export async function uploadTimeTrackingImages(
       }
       const uploadRes = await fetch(signedUrl, {
         method: 'PUT',
+        cache: 'no-store',
         headers: {
           Authorization: `Bearer ${token}`,
           'Content-Type': file.type || 'image/jpeg',
