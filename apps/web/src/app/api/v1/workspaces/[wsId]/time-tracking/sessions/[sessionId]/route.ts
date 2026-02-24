@@ -184,7 +184,10 @@ export async function DELETE(
     const sbAdmin = await createAdminClient();
     const permissions = await getPermissions({ wsId: normalizedWsId, request });
     if (!permissions) {
-      return NextResponse.json({ error: 'Permissions not found' }, { status: 403 });
+      return NextResponse.json(
+        { error: 'Permissions not found' },
+        { status: 403 }
+      );
     }
     const { error } = await sbAdmin
       .from('time_tracking_sessions')
