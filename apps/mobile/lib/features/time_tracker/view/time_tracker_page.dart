@@ -22,6 +22,22 @@ import 'package:mobile/features/workspace/cubit/workspace_state.dart';
 import 'package:mobile/l10n/l10n.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
+int _firstDayOfWeek(BuildContext context) {
+  const weekdayByIndex = [
+    DateTime.sunday,
+    DateTime.monday,
+    DateTime.tuesday,
+    DateTime.wednesday,
+    DateTime.thursday,
+    DateTime.friday,
+    DateTime.saturday,
+  ];
+  final firstDayOfWeekIndex = MaterialLocalizations.of(
+    context,
+  ).firstDayOfWeekIndex;
+  return weekdayByIndex[firstDayOfWeekIndex % 7];
+}
+
 class TimeTrackerPage extends StatelessWidget {
   const TimeTrackerPage({super.key, this.repository});
 
@@ -32,15 +48,9 @@ class TimeTrackerPage extends StatelessWidget {
     return BlocProvider(
       create: (context) {
         final repo = repository ?? TimeTrackerRepository();
-        final cubit = TimeTrackerCubit(
+        return TimeTrackerCubit(
           repository: repo,
         );
-        final ws = context.read<WorkspaceCubit>().state.currentWorkspace;
-        final userId = supabase.auth.currentUser?.id;
-        if (ws != null && userId != null) {
-          unawaited(cubit.loadData(ws.id, userId));
-        }
-        return cubit;
       },
       child: const _TimeTrackerView(),
     );
@@ -58,6 +68,27 @@ class _TimeTrackerViewState extends State<_TimeTrackerView> {
   int _index = 0;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final workspaceCubit = context.read<WorkspaceCubit>();
+      final timeTrackerCubit = context.read<TimeTrackerCubit>();
+      final wsId = workspaceCubit.state.currentWorkspace?.id;
+      final userId = supabase.auth.currentUser?.id;
+      if (wsId != null && userId != null) {
+        unawaited(
+          timeTrackerCubit.loadData(
+            wsId,
+            userId,
+            firstDayOfWeek: _firstDayOfWeek(context),
+          ),
+        );
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final isPersonal =
@@ -72,7 +103,11 @@ class _TimeTrackerViewState extends State<_TimeTrackerView> {
         final userId = supabase.auth.currentUser?.id;
         if (wsId != null && userId != null) {
           unawaited(
-            context.read<TimeTrackerCubit>().loadData(wsId, userId),
+            context.read<TimeTrackerCubit>().loadData(
+              wsId,
+              userId,
+              firstDayOfWeek: _firstDayOfWeek(context),
+            ),
           );
         }
       },
@@ -155,14 +190,16 @@ class _TimeTrackerViewState extends State<_TimeTrackerView> {
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: shad.Tabs(
-                  index: _index,
-                  onChanged: (index) => setState(() => _index = index),
-                  children: [
-                    shad.TabItem(child: Text(l10n.navTimer)),
-                    shad.TabItem(child: Text(l10n.timerHistory)),
-                    shad.TabItem(child: Text(l10n.timerStatsTitle)),
-                  ],
+                child: Center(
+                  child: shad.Tabs(
+                    index: _index,
+                    onChanged: (index) => setState(() => _index = index),
+                    children: [
+                      shad.TabItem(child: Text(l10n.navTimer)),
+                      shad.TabItem(child: Text(l10n.timerHistory)),
+                      shad.TabItem(child: Text(l10n.timerStatsTitle)),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -226,7 +263,11 @@ class _ErrorView extends StatelessWidget {
                   '';
               final userId = supabase.auth.currentUser?.id ?? '';
               unawaited(
-                context.read<TimeTrackerCubit>().loadData(wsId, userId),
+                context.read<TimeTrackerCubit>().loadData(
+                  wsId,
+                  userId,
+                  firstDayOfWeek: _firstDayOfWeek(context),
+                ),
               );
             },
             child: Text(l10n.commonRetry),

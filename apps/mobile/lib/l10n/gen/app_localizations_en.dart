@@ -417,6 +417,21 @@ class AppLocalizationsEn extends AppLocalizations {
   String get timerNoSessions => 'No sessions yet';
 
   @override
+  String get timerHistoryNoSessionsForPeriod => 'No sessions for this period';
+
+  @override
+  String get timerHistoryOverview => 'Period overview';
+
+  @override
+  String get timerHistoryTotalTime => 'Total time';
+
+  @override
+  String get timerHistoryLoadMore => 'Load more';
+
+  @override
+  String get timerHistoryEndOfList => 'You reached the end of the list';
+
+  @override
   String get timerToday => 'Today';
 
   @override
@@ -438,6 +453,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get timerEditSession => 'Edit session';
 
   @override
+  String get timerSessionUpdated => 'Session updated';
+
+  @override
   String get timerDeleteSession => 'Delete session';
 
   @override
@@ -454,6 +472,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get timerDuration => 'Duration';
+
+  @override
+  String get timerInvalidDuration => 'Invalid duration';
+
+  @override
+  String get timerUnknownDate => 'Unknown date';
 
   @override
   String get timerSave => 'Save';
@@ -638,6 +662,14 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get timerSessionExceededDescription => 'This session is older than your workspace threshold. You can discard it or submit it as a request for approval.';
+
+  @override
+  String get timerTimeEditingRestricted => 'Time Editing Restricted';
+
+  @override
+  String timerAllEditsRequireApproval(String date) {
+    return 'All time edits must be submitted as requests for approval. This session is from $date.';
+  }
 
   @override
   String get timerDiscardSession => 'Discard session';
