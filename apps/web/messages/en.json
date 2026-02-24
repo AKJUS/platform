@@ -2819,6 +2819,7 @@
       "attach_files": "Attach files",
       "copy_message": "Copy message",
       "copy_output": "Copy output",
+      "copy_raw_json": "Copy raw JSON",
       "credits_remaining": "AI credits remaining",
       "download_image": "Download image",
       "empty_state": "Ask {name} anything — tasks, schedule, expenses, or just chat.",

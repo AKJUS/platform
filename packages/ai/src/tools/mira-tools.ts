@@ -894,8 +894,25 @@ export const miraToolDefinitions = {
   // ── Generative UI (json-render) ──
   render_ui: tool({
     description:
-      'Generate an interactive, actionable UI component or widget using json-render instead of plain text. Use this when the user asks for a dashboard, a form, or whenever a beautifully rendered visual response would complement and significantly improve the user experience (e.g. for status summaries, lists, or visualizations). You MUST output a JSON object matching the schema exactly.',
-    inputSchema: dashboardCatalog.zodSchema(),
+      'Generate an interactive, actionable UI component or widget using json-render instead of plain text. Use this when the user asks for a dashboard, a form, or whenever a beautifully rendered visual response would complement and significantly improve the user experience (e.g. for status summaries, lists, or visualizations). You MUST output a JSON object matching the schema exactly — do NOT wrap it in a "json" string.',
+    inputSchema: z.preprocess((val: unknown) => {
+      // Some models (e.g. Gemini) wrap the spec in {"json": "...string..."}.
+      // Unwrap it so Zod validation sees the actual {root, elements} object.
+      if (
+        val &&
+        typeof val === 'object' &&
+        'json' in val &&
+        typeof (val as Record<string, unknown>).json === 'string'
+      ) {
+        const jsonStr = (val as Record<string, unknown>).json as string;
+        try {
+          return JSON.parse(jsonStr);
+        } catch {
+          return val; // If JSON.parse fails, let Zod report the real error
+        }
+      }
+      return val;
+    }, dashboardCatalog.zodSchema()),
   }),
 
   // ── Workspace ──

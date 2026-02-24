@@ -1,5 +1,6 @@
 'use client';
 
+import { autoFixSpec } from '@json-render/core';
 import { Renderer, VisibilityProvider } from '@json-render/react';
 import { cjk } from '@streamdown/cjk';
 import { code } from '@streamdown/code';
@@ -24,8 +25,6 @@ import { Dialog, DialogContent, DialogTitle } from '@tuturuuu/ui/dialog';
 import { cn } from '@tuturuuu/utils/format';
 import { getToolName, isToolUIPart } from 'ai';
 import { registry } from '@/components/json-render/dashboard-registry';
-import type { MessageFileAttachment } from './file-preview-chips';
-import { MessageFileAttachments } from './file-preview-chips';
 import 'katex/dist/katex.min.css';
 import { useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
@@ -40,6 +39,8 @@ import {
   useState,
 } from 'react';
 import { Streamdown } from 'streamdown';
+import type { MessageFileAttachment } from './file-preview-chips';
+import { MessageFileAttachments } from './file-preview-chips';
 
 interface ChatMessageListProps {
   messages: UIMessage[];
@@ -354,7 +355,7 @@ function ReasoningPart({
   );
 }
 
-function CopyButton({ text }: { text: string }) {
+function CopyButton({ text, icon }: { text: string; icon?: 'copy' | 'json' }) {
   const t = useTranslations('dashboard.mira_chat');
   const [copied, setCopied] = useState(false);
 
@@ -369,6 +370,8 @@ function CopyButton({ text }: { text: string }) {
     return () => clearTimeout(timer);
   }, [copied]);
 
+  const isJson = icon === 'json';
+
   return (
     <button
       type="button"
@@ -379,10 +382,12 @@ function CopyButton({ text }: { text: string }) {
         'text-muted-foreground hover:bg-foreground/10 hover:text-foreground',
         copied && 'text-dynamic-green opacity-100 hover:text-dynamic-green'
       )}
-      title={t('copy_message')}
+      title={isJson ? t('copy_raw_json') : t('copy_message')}
     >
       {copied ? (
         <Check className="h-3 w-3" />
+      ) : isJson ? (
+        <ClipboardList className="h-3 w-3" />
       ) : (
         <ClipboardCopy className="h-3 w-3" />
       )}
@@ -643,8 +648,58 @@ function ToolCallPart({ part }: { part: ToolPartData }) {
   if (rawToolName === 'render_ui' && hasOutput) {
     if (isDone && !logicalError && output) {
       // The output of render_ui is just the spec `{ spec: ... }` returned from mira-tools executor
-      const spec = (output as { spec?: any })?.spec;
-      if (spec) {
+      const rawSpec = (output as { spec?: any })?.spec;
+      if (rawSpec) {
+        // Auto-fix common AI mistakes (visible/on/repeat placed inside props → top-level)
+        const { spec: fixedSpec } = autoFixSpec(rawSpec);
+
+        // Strip missing element references from children arrays so partial specs still render.
+        // This handles cases where the AI references elements it forgot to define.
+        const cleanedSpec = { ...fixedSpec };
+        if (cleanedSpec.elements && typeof cleanedSpec.elements === 'object') {
+          const elementIds = new Set(Object.keys(cleanedSpec.elements));
+          const cleaned: Record<string, any> = {};
+          for (const [id, el] of Object.entries(
+            cleanedSpec.elements as Record<string, any>
+          )) {
+            if (el && Array.isArray(el.children)) {
+              cleaned[id] = {
+                ...el,
+                children: el.children.filter(
+                  (childId: string) =>
+                    typeof childId === 'string' && elementIds.has(childId)
+                ),
+              };
+            } else {
+              cleaned[id] = el;
+            }
+          }
+          cleanedSpec.elements = cleaned;
+        }
+
+        // Only reject truly unrecoverable specs (no root or no elements at all)
+        const hasRoot =
+          cleanedSpec.root &&
+          cleanedSpec.elements &&
+          typeof cleanedSpec.elements === 'object' &&
+          cleanedSpec.root in cleanedSpec.elements;
+
+        if (!hasRoot) {
+          // Show graceful fallback for severely invalid specs
+          return (
+            <div className="my-2 flex w-full max-w-full flex-col gap-1.5">
+              <div className="mb-1 flex items-center gap-1.5 text-xs">
+                <AlertCircle className="h-3.5 w-3.5 text-dynamic-yellow" />
+                <span className="font-medium">{toolName}</span>
+                <span className="text-muted-foreground">{t('tool_done')}</span>
+              </div>
+              <div className="rounded-lg border border-dynamic-yellow/30 bg-dynamic-yellow/5 p-3 text-muted-foreground text-sm">
+                The generated UI could not be rendered. Please try again.
+              </div>
+            </div>
+          );
+        }
+
         return (
           <div className="my-2 flex w-full max-w-full flex-col gap-1.5">
             <div className="mb-1 flex items-center gap-1.5 text-xs">
@@ -653,7 +708,7 @@ function ToolCallPart({ part }: { part: ToolPartData }) {
               <span className="text-muted-foreground">{t('tool_done')}</span>
             </div>
             <VisibilityProvider>
-              <Renderer spec={spec} registry={registry} />
+              <Renderer spec={cleanedSpec} registry={registry} />
             </VisibilityProvider>
           </div>
         );
@@ -1260,6 +1315,13 @@ export default function ChatMessageList({
                 {/* Copy button — appears on hover (hide for file-only messages) */}
                 {hasDisplayText && messageText.trim() && (
                   <CopyButton text={messageText} />
+                )}
+                {/* Copy raw JSON — appears on hover, for non-user messages only */}
+                {!isUser && (
+                  <CopyButton
+                    text={JSON.stringify(message, null, 2)}
+                    icon="json"
+                  />
                 )}
               </div>
             </div>

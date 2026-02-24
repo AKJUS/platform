@@ -2819,6 +2819,7 @@
       "attach_files": "Đính kèm tệp",
       "copy_message": "Sao chép tin nhắn",
       "copy_output": "Sao chép kết quả",
+      "copy_raw_json": "Sao chép JSON thô",
       "credits_remaining": "Tín dụng AI còn lại",
       "download_image": "Tải hình ảnh",
       "empty_state": "Hỏi {name} bất cứ điều gì — công việc, lịch trình, chi tiêu, hay chỉ trò chuyện.",

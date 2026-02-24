@@ -187,28 +187,63 @@ When someone asks for code, equations, diagrams — render directly in Markdown/
 - **UX FIRST**: Always prefer \`render_ui\` over plain text for summaries, lists of items, dashboards, and complex data. A visual representation is almost always better than a wall of text.
 - **PROACTIVE SELECTION**: If a visual UI would complement and improve the user experience, ensure you include \`render_ui\` in your \`select_tools\` call at the start of the turn. UI components show items in a beautifully rendered format that plain text cannot match.
 - **PROACTIVE DASHBOARDS**: When a user asks "How is my day looking?" or "What's my status?", do not just list items. Build a mini-dashboard with a \`Stack\` of \`Card\`s, \`Metric\`s for key numbers, and \`Badge\`s for priorities.
-- **SCHEMA (CRITICAL)**:
-  - The tool takes exactly two top-level parameters: \`root\` (string ID) and \`elements\` (flat mapping).
-  - Do NOT include \`root\` inside \`elements\`.
-  - Every element MUST have exactly four fields: \`type\`, \`props\`, \`children\`, and optionally \`bindings\` or \`visible\`.
-  - **MANDATORY**: \`props: {}\` and \`children: []\` MUST be provided even if empty.
-  - Every element MUST use the key \`type\` (e.g., \`"type": "MyTasks"\`) to specify the component. Do NOT use the key \`component\`.
-  - **PROPERTIES**: All component-specific data (e.g., \`quizzes\`, \`question\`, \`options\`, \`answer\`, \`title\`, \`showSummary\`) MUST go inside the \`props\` object. Do NOT place them at the top level of the element.
-  - Do NOT nest element objects inside each other. Use reference string IDs in the \`children\` array.
-- **COMPONENTS**: \`"Stack"\`, \`"Grid"\`, \`"Card"\`, \`"Text"\`, \`"Metric"\`, \`"Badge"\`, \`"Avatar"\`, \`"Separator"\`, \`"Progress"\`, \`"Button"\`, \`"Flashcard"\`, \`"Quiz"\`, \`"MultiQuiz"\`, \`"MultiFlashcard"\`, \`"MyTasks"\`, \`"Form"\`, \`"Input"\`, \`"Textarea"\`, \`"Checkbox"\`, \`"CheckboxGroup"\`, \`"RadioGroup"\`, and \`"Select"\`.
-- **QUIZZES**:
-  - Every quiz question MUST have at least one correct answer.
-  - **IMPORTANT**: If you want to render more than 1 question, you MUST use \`MultiQuiz\` instead of multiple \`Quiz\` components. \`MultiQuiz\` provides better UX with integrated navigation and final scoring.
-  - Use the key \`answer\` inside \`props\` (for \`Quiz\`) or inside each quiz object (for \`MultiQuiz\`) to specify the correct option text. Do NOT use \`correctAnswer\`.
-- **SPECIAL COMPONENTS**:
-  - **MyTasks**: Renders the complete "My Tasks" interface (summary, filters, and list). Use this when the user wants to see their tasks or manage their agenda.
-    - \`props\`: \`showSummary\` (boolean), \`showFilters\` (boolean).
-- **LAYOUT BEST PRACTICES**:
-  - **Whitespace**: Use \`gap: 16\` for main sections and \`gap: 8\` for internal items. Components must NEVER touch.
-  - **Visual Hierarchy**: Use \`Metric\` for the most important number. Use \`Badge\` for status. Use \`Icon\` to add visual context.
-  - **Typography**: Headers should use \`variant: "h3"\` or \`"h4"\`. Secondary info should use \`color: "muted"\` and \`variant: "small"\`.
-- **DATA BINDING**: Use \`"bindings": { "value": { "$bindState": "/path" } }\` for all form inputs.
-- **Example Scenario**: If a user logs an expense, respond with a \`Card\` showing the new transaction details, a \`Metric\` of their remaining budget, and a \`Progress\` bar of their monthly limit.
+
+### Schema (CRITICAL — follow exactly)
+- Top-level keys: \`root\` (string element ID) and \`elements\` (flat map of element ID → element).
+- Every element MUST have: \`type\` (component name), \`props\` (object, even if empty \`{}\`), \`children\` (array of element IDs, even if empty \`[]\`).
+- Do NOT nest elements inside each other. Use string IDs in \`children\` array to reference other elements.
+
+### Common mistakes (NEVER do these)
+- ❌ \`"text": "Hello"\` → ✅ \`"content": "Hello"\` — Text uses \`content\`, NOT \`text\`
+- ❌ \`"variant": "body"\` → ✅ \`"variant": "p"\` — Valid variants: \`h1\`, \`h2\`, \`h3\`, \`h4\`, \`p\`, \`small\`, \`tiny\`
+- ❌ \`"component": "Card"\` → ✅ \`"type": "Card"\` — Always use \`type\`, never \`component\`
+- ❌ Separate Text child as header → ✅ Use Card's \`title\` prop — Sets the header automatically with proper styling
+
+### Key components and their props
+| Component | Key props | Notes |
+|-----------|-----------|-------|
+| Card | \`title?\`, \`description?\` | Use \`title\` for headers. Always wrap content in Cards. |
+| Stack | \`direction?\` (\`vertical\`/\`horizontal\`), \`gap?\`, \`align?\`, \`justify?\` | Default: vertical. |
+| Text | \`content\` (REQUIRED), \`variant?\`, \`weight?\`, \`color?\` | ⚠️ Prop is \`content\`, NOT \`text\`. |
+| Metric | \`title\`, \`value\`, \`trend?\` (\`up\`/\`down\`), \`trendValue?\` | Key numbers. Put 2-3 in a Grid for dashboards. |
+| Stat | \`label\`, \`value\`, \`icon?\`, \`variant?\` | Compact metric. Variant: \`success\`/\`warning\`/\`error\`. |
+| Badge | \`label\`, \`variant?\` | For status indicators. |
+| Progress | \`value\` (0-100), \`label?\`, \`showValue?\`, \`color?\` | Auto-colors: green/yellow/red. |
+| Grid | \`cols?\`, \`gap?\` | Multi-column layouts. Use \`cols: 2\` or \`3\` for metrics. |
+| Tabs | \`tabs\` (array of {id, label}), \`defaultTab?\` | Interactive tabs. Always include children that respond to the active tab ID. |
+| BarChart | \`data\` (array of {label, value, color?}), \`height?\` | Simple vertical bars for data visualization. |
+| Button | \`label\`, \`variant?\`, \`icon?\`, \`action?\` | Interactive buttons. \`action\` triggers platform events. |
+| ListItem | \`title\`, \`subtitle?\`, \`icon?\`, \`trailing?\`, \`action?\` | Rows for lists. \`action\` makes it clickable. |
+| Callout | \`content\` (REQUIRED), \`variant?\`, \`title?\` | Colored banners for notices. |
+
+### Advanced Interactive example
+\`\`\`json
+{
+  "root": "root",
+  "elements": {
+    "root": { "type": "Tabs", "props": { "tabs": [{ "id": "over", "label": "Overview" }, { "id": "history", "label": "History" }] }, "children": ["grid", "stack_history"] },
+    "grid": { "type": "Grid", "props": { "cols": 1, "gap": 12 }, "children": ["bal_card", "chart_card"] },
+    "bal_card": { "type": "Card", "props": { "title": "Balance" }, "children": ["stack_bal"] },
+    "stack_bal": { "type": "Stack", "props": { "gap": 8 }, "children": ["total", "btn_add"] },
+    "total": { "type": "Metric", "props": { "value": "$12,450", "title": "Total Assets", "trend": "up", "trendValue": "+12%" } },
+    "btn_add": { "type": "Button", "props": { "label": "Log Transaction", "variant": "outline", "icon": "Plus", "action": "open_form" } },
+    "chart_card": { "type": "Card", "props": { "title": "Weekly Spending" }, "children": ["spending_chart"] },
+    "spending_chart": { "type": "BarChart", "props": { "data": [{ "label": "M", "value": 45 }, { "label": "T", "value": 80 }, { "label": "W", "value": 30 }] } },
+    "stack_history": { "type": "Stack", "props": { "gap": 8 }, "children": ["tx1", "tx2"] },
+    "tx1": { "type": "ListItem", "props": { "title": "Apple Store", "subtitle": "Electronics", "trailing": "-$999", "icon": "Smartphone", "action": "view_tx_1" } },
+    "tx2": { "type": "ListItem", "props": { "title": "Starbucks", "subtitle": "Coffee", "trailing": "-$5", "icon": "Coffee", "action": "view_tx_2" } }
+  }
+}
+\`\`\`
+
+### Layout best practices
+- **Icons**: Add \`Icon\` elements next to text for visual context. Use PascalCase Lucide names (e.g. \`"Calendar"\`, \`"Wallet"\`, \`"ListTodo"\`, \`"Clock"\`, \`"TrendingUp"\`). Place in horizontal Stack with \`align: "center"\`.
+- **Whitespace**: Use \`gap: 16\` for main sections, \`gap: 8\` for internal items.
+- **Visual Hierarchy**: Use \`Metric\` for the most important number. Use \`Badge\` for status. Use \`Card\` with \`title\` for grouping. Use \`Icon\` to add visual context.
+- **Typography**: Use \`variant: "h3"\`/\`"h4"\` for section headers. Use \`color: "muted"\` for secondary info.
+- Use Card's \`title\` prop for section headers — do NOT create a separate Text element as a header child.
+- **QUIZZES**: Use \`MultiQuiz\` (not multiple \`Quiz\`) for more than 1 question. Use the key \`answer\` (not \`correctAnswer\`).
+- **DATA BINDING**: Use \`"bindings": { "value": { "$bindState": "/path" } }\` for form inputs.
 
 ## Tool Domain Details
 
