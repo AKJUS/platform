@@ -49,6 +49,31 @@ export interface RateLimitResult {
 }
 
 /**
+ * Mira-specific read rate limit.
+ *
+ * This is intentionally set to 2x the standard GET limit used by
+ * `withSessionAuth` (60 req/min) to allow higher throughput for
+ * Mira read endpoints while still providing protection.
+ */
+export const MIRA_READ_RATE_LIMIT: RateLimitConfig = {
+  windowMs: 60000,
+  maxRequests: 120,
+};
+
+/**
+ * Builds a stable rate limit key for Mira read endpoints.
+ * Uses a per-endpoint, per-IP key to avoid cross-endpoint interference.
+ */
+export function buildMiraReadRateLimitKey(
+  endpoint: string,
+  ipAddress: string
+): string {
+  const safeEndpoint = endpoint || 'unknown';
+  const safeIp = ipAddress || 'unknown';
+  return `mira:read:${safeEndpoint}:${safeIp}`;
+}
+
+/**
  * Workspace-specific rate limit secret names
  */
 export const RATE_LIMIT_SECRET_NAMES = {

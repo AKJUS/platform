@@ -112,7 +112,7 @@ export const POST = withSessionAuth(
       );
     }
   },
-  { rateLimit: { windowMs: 60000, maxRequests: 30 } }
+  { rateLimit: { windowMs: 60000, maxRequests: 60 } }
 );
 
 /** Strip the leading `{timestamp}_` prefix from a storage filename. */

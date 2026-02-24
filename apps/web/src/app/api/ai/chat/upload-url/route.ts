@@ -105,6 +105,6 @@ export const POST = withSessionAuth(
       );
     }
   },
-  // Rate limit: 30 signed URLs per minute per IP
-  { rateLimit: { windowMs: 60000, maxRequests: 30 } }
+  // Rate limit: 60 signed URLs per minute per IP (2x previous)
+  { rateLimit: { windowMs: 60000, maxRequests: 60 } }
 );
