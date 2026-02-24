@@ -50,7 +50,7 @@ export async function handleResumeAction({
       {
         ws_id: normalizedWsId,
         user_id: userId,
-        title: session.title ?? 'Work session',
+        title: session.title,
         description: session.description,
         category_id: session.category_id,
         task_id: session.task_id,

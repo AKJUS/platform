@@ -21,7 +21,7 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
   Timer? _ticker;
   static const _historyStatsAccordionPrefsKey =
       'time_tracker_history_stats_open';
-  bool _historyPreferencesLoaded = false;
+  Future<void>? _historyPreferencesLoadFuture;
   int _historyFirstDayOfWeek = DateTime.monday;
 
   Future<void> loadData(
@@ -257,14 +257,18 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
     HistoryViewMode viewMode, {
     int firstDayOfWeek = DateTime.monday,
   }) async {
+    final previousFirstDayOfWeek = _historyFirstDayOfWeek;
+    final firstDayOfWeekChanged = previousFirstDayOfWeek != firstDayOfWeek;
     _historyFirstDayOfWeek = firstDayOfWeek;
-    if (state.historyViewMode == viewMode) return;
-    emit(
-      state.copyWith(
-        historyViewMode: viewMode,
-        historyAnchorDate: state.historyAnchorDate ?? DateTime.now(),
-      ),
-    );
+    if (state.historyViewMode == viewMode && !firstDayOfWeekChanged) return;
+    if (state.historyViewMode != viewMode) {
+      emit(
+        state.copyWith(
+          historyViewMode: viewMode,
+          historyAnchorDate: state.historyAnchorDate ?? DateTime.now(),
+        ),
+      );
+    }
     await loadHistoryInitial(
       wsId,
       userId,
@@ -735,21 +739,36 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
   }
 
   Future<void> _ensureHistoryPreferencesLoaded() async {
-    if (_historyPreferencesLoaded) return;
-    _historyPreferencesLoaded = true;
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final isOpen = prefs.getBool(_historyStatsAccordionPrefsKey) ?? false;
-      if (isOpen != state.isHistoryStatsAccordionOpen) {
-        emit(state.copyWith(isHistoryStatsAccordionOpen: isOpen));
+    final existingLoadFuture = _historyPreferencesLoadFuture;
+    if (existingLoadFuture != null) {
+      await existingLoadFuture;
+      return;
+    }
+
+    final loadFuture = () async {
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final isOpen = prefs.getBool(_historyStatsAccordionPrefsKey) ?? false;
+        if (isOpen != state.isHistoryStatsAccordionOpen) {
+          emit(state.copyWith(isHistoryStatsAccordionOpen: isOpen));
+        }
+      } on Exception catch (error, stackTrace) {
+        developer.log(
+          'Failed to load history accordion preference',
+          name: 'TimeTrackerCubit',
+          error: error,
+          stackTrace: stackTrace,
+        );
       }
-    } on Exception catch (error, stackTrace) {
-      developer.log(
-        'Failed to load history accordion preference',
-        name: 'TimeTrackerCubit',
-        error: error,
-        stackTrace: stackTrace,
-      );
+    }();
+
+    _historyPreferencesLoadFuture = loadFuture;
+    try {
+      await loadFuture;
+    } finally {
+      if (identical(_historyPreferencesLoadFuture, loadFuture)) {
+        _historyPreferencesLoadFuture = null;
+      }
     }
   }
 

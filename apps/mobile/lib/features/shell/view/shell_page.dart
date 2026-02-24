@@ -128,7 +128,7 @@ class _ShellPageState extends State<ShellPage> {
   ) {
     final l10n = context.l10n;
     final selectedIndex = _calculateSelectedIndex(context);
-    final selectedKey = _keyForIndex(selectedIndex);
+    final selectedKey = _keyForIndex(selectedIndex, useGlobalKey: false);
     void onSelected(Key? key) =>
         _onItemTapped(_indexForKey(key), context, state);
 
@@ -261,12 +261,13 @@ class _ShellPageState extends State<ShellPage> {
   }
 
   Future<void> _openAppsDrawerFromAppsTab() async {
-    final appTabCubit = context.read<AppTabCubit>();
+    final currentContext = context;
+    final appTabCubit = currentContext.read<AppTabCubit>();
     await appTabCubit.clearSelection();
-    if (!mounted) {
+    if (!currentContext.mounted) {
       return;
     }
-    context.go(Routes.apps);
+    currentContext.go(Routes.apps);
     _lastTabIndex = 1;
     _tapStopwatch
       ..reset()
@@ -297,12 +298,12 @@ class _ShellPageState extends State<ShellPage> {
       2 => Routes.assistant,
       _ => Routes.home,
     };
-    if (!mounted) {
+    if (!context.mounted) {
       return;
     }
     context.go(route);
     await appTabCubit.setLastTabRoute(route);
-    if (!mounted) {
+    if (!context.mounted) {
       return;
     }
     _lastTabIndex = index;
@@ -344,8 +345,8 @@ class _ShellPageState extends State<ShellPage> {
     _longPressTimer = null;
   }
 
-  Key _keyForIndex(int index) => switch (index) {
-    1 => _appsTabKey,
+  Key _keyForIndex(int index, {bool useGlobalKey = true}) => switch (index) {
+    1 => useGlobalKey ? _appsTabKey : _appsKey,
     2 => _assistantKey,
     _ => _homeKey,
   };

@@ -104,15 +104,19 @@ class _StatCard extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (icon != null)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Icon(
-                  icon,
-                  size: 18,
-                  color: theme.colorScheme.secondary,
-                ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: SizedBox(
+                height: 18,
+                child: icon == null
+                    ? const SizedBox.shrink()
+                    : Icon(
+                        icon,
+                        size: 18,
+                        color: theme.colorScheme.secondary,
+                      ),
               ),
+            ),
             Text(
               value,
               style: theme.typography.p.copyWith(

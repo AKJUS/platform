@@ -98,13 +98,25 @@ export async function PATCH(
     const sbAdmin = await createAdminClient();
     const permissions = await getPermissions({ wsId: normalizedWsId, request });
     if (!permissions) {
-      return NextResponse.json({ error: 'Not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Permissions not found' },
+        { status: 403 }
+      );
     }
     const canBypass = permissions.containsPermission(
       'bypass_time_tracking_request_approval'
     );
 
-    const sessionRecord = session as SessionRecord;
+    if (session.is_running === null) {
+      return NextResponse.json(
+        { error: 'Session running state is invalid' },
+        { status: 500 }
+      );
+    }
+    const sessionRecord: SessionRecord = {
+      ...session,
+      is_running: session.is_running,
+    };
     switch (body.action) {
       case 'stop':
         return await handleStopAction({
@@ -219,6 +231,16 @@ async function authenticateAndResolveWorkspace(
   | { error: NextResponse }
 > {
   const supabase = await createClient(request);
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+  if (authError || !user) {
+    return {
+      error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+    };
+  }
+
   let normalizedWsId: string;
   try {
     normalizedWsId = await normalizeWorkspaceId(wsId, supabase);
@@ -236,16 +258,6 @@ async function authenticateAndResolveWorkspace(
         { error: 'Workspace not found' },
         { status: 404 }
       ),
-    };
-  }
-
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
-  if (authError || !user) {
-    return {
-      error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
     };
   }
 

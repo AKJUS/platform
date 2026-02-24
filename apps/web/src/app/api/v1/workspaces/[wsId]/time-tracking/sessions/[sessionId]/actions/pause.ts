@@ -103,6 +103,7 @@ export async function handlePauseAction({
           end_time: null,
           duration_seconds: null,
           is_running: true,
+          pending_approval: session.pending_approval,
           updated_at: new Date().toISOString(),
         })
         .eq('id', sessionId);

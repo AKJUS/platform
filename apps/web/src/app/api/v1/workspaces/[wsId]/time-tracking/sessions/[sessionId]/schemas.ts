@@ -1,3 +1,4 @@
+import type { TimeTrackingSession } from '@tuturuuu/types/db';
 import { z } from 'zod';
 
 export interface ChainSummary {
@@ -54,17 +55,6 @@ export type PatchSessionBody = z.infer<typeof patchSessionBodySchema>;
 export type PauseActionBody = z.infer<typeof pauseActionSchema>;
 export type EditActionBody = z.infer<typeof editActionSchema>;
 
-export interface SessionRecord {
-  id: string;
-  ws_id: string;
-  user_id: string;
-  title: string | null;
-  description: string | null;
-  category_id: string | null;
-  task_id: string | null;
-  start_time: string;
-  end_time: string | null;
-  duration_seconds: number | null;
+export type SessionRecord = TimeTrackingSession & {
   is_running: boolean;
-  pending_approval: boolean | null;
-}
+};

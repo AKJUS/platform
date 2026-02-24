@@ -71,11 +71,14 @@ class _TimeTrackerViewState extends State<_TimeTrackerView> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final wsId = context.read<WorkspaceCubit>().state.currentWorkspace?.id;
+      if (!mounted) return;
+      final workspaceCubit = context.read<WorkspaceCubit>();
+      final timeTrackerCubit = context.read<TimeTrackerCubit>();
+      final wsId = workspaceCubit.state.currentWorkspace?.id;
       final userId = supabase.auth.currentUser?.id;
       if (wsId != null && userId != null) {
         unawaited(
-          context.read<TimeTrackerCubit>().loadData(
+          timeTrackerCubit.loadData(
             wsId,
             userId,
             firstDayOfWeek: _firstDayOfWeek(context),
