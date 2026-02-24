@@ -30,7 +30,10 @@ class StatsCards extends StatelessWidget {
               ? constraints.maxWidth
               : fallbackTotalWidth;
           final availableWidth = math.max(0, baseWidth - spacing);
-          final cardWidth = math.max(minCardWidth, availableWidth / 2);
+          final cardWidth = math.min(
+            baseWidth,
+            math.max(minCardWidth, availableWidth / 2),
+          );
 
           return Wrap(
             spacing: spacing,

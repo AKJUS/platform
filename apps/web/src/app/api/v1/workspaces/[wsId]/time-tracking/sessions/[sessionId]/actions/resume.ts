@@ -37,6 +37,10 @@ export async function handleResumeAction({
 
     if (updateError) {
       console.error('Failed to close break on resume:', updateError);
+      return NextResponse.json(
+        { error: 'Failed to close break on resume' },
+        { status: 500 }
+      );
     }
   }
 

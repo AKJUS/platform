@@ -39,8 +39,8 @@ export const editActionSchema = z.object({
   description: z.string().nullable().optional(),
   categoryId: z.string().nullable().optional(),
   taskId: z.string().nullable().optional(),
-  startTime: z.string().optional(),
-  endTime: z.string().optional(),
+  startTime: z.iso.datetime().optional(),
+  endTime: z.iso.datetime().optional(),
 });
 
 export const patchSessionBodySchema = z.discriminatedUnion('action', [

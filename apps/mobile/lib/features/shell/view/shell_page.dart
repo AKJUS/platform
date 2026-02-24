@@ -36,11 +36,14 @@ class _ShellPageState extends State<ShellPage> {
   static const ValueKey<String> _homeKey = ValueKey('home');
   static const ValueKey<String> _appsKey = ValueKey('apps');
   static const ValueKey<String> _assistantKey = ValueKey('assistant');
+  static const double _compactNavLabelWidth = 92;
+  static const double _navIconSize = 22;
 
   final Stopwatch _tapStopwatch = Stopwatch();
   int? _lastTabIndex;
   Timer? _longPressTimer;
   final GlobalKey _appsTabKey = GlobalKey();
+  DateTime? _lastAppsTabPointerUpAt;
 
   bool _isAppsTabHit(Offset position) {
     final ctx = _appsTabKey.currentContext;
@@ -98,7 +101,7 @@ class _ShellPageState extends State<ShellPage> {
                 child: Listener(
                   behavior: HitTestBehavior.translucent,
                   onPointerDown: _startLongPressTimer,
-                  onPointerUp: _stopLongPressTimer,
+                  onPointerUp: _handlePointerUp,
                   onPointerCancel: _stopLongPressTimer,
                   child: shad.NavigationBar(
                     selectedKey: selectedKey,
@@ -212,39 +215,37 @@ class _ShellPageState extends State<ShellPage> {
         : null;
     final appsLabel = selectedModule?.label(l10n) ?? l10n.navApps;
     final appsIcon = selectedModule?.icon ?? Icons.apps_outlined;
+    final compact = useGlobalKey;
 
     return [
       shad.NavigationItem(
         key: _homeKey,
-        label: Text(
-          l10n.navHome,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: labelStyle,
-        ),
-        child: const Icon(Icons.home_outlined),
+        label: _buildNavLabel(l10n.navHome, labelStyle, compact: compact),
+        child: const Icon(Icons.home_outlined, size: _navIconSize),
       ),
       shad.NavigationItem(
         key: useGlobalKey ? _appsTabKey : _appsKey,
-        label: Text(
-          appsLabel,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: labelStyle,
-        ),
-        child: Icon(appsIcon),
+        label: _buildNavLabel(appsLabel, labelStyle, compact: compact),
+        child: Icon(appsIcon, size: _navIconSize),
       ),
       shad.NavigationItem(
         key: _assistantKey,
-        label: Text(
-          l10n.navAssistant,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: labelStyle,
-        ),
-        child: const Icon(Icons.auto_awesome_outlined),
+        label: _buildNavLabel(l10n.navAssistant, labelStyle, compact: compact),
+        child: const Icon(Icons.auto_awesome_outlined, size: _navIconSize),
       ),
     ];
+  }
+
+  Widget _buildNavLabel(String text, TextStyle style, {required bool compact}) {
+    final label = Text(
+      text,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      textAlign: TextAlign.center,
+      style: style,
+    );
+    if (!compact) return label;
+    return SizedBox(width: _compactNavLabelWidth, child: label);
   }
 
   @override
@@ -254,9 +255,22 @@ class _ShellPageState extends State<ShellPage> {
   }
 
   void _handleAppsLongPress() {
-    if (!context.mounted) return;
+    if (!mounted) return;
     unawaited(context.read<AppTabCubit>().openWithSearch());
     context.go(Routes.apps);
+  }
+
+  Future<void> _openAppsDrawerFromAppsTab() async {
+    final appTabCubit = context.read<AppTabCubit>();
+    await appTabCubit.clearSelection();
+    if (!mounted) {
+      return;
+    }
+    context.go(Routes.apps);
+    _lastTabIndex = 1;
+    _tapStopwatch
+      ..reset()
+      ..start();
   }
 
   Future<void> _onItemTapped(
@@ -274,15 +288,7 @@ class _ShellPageState extends State<ShellPage> {
         _tapStopwatch.elapsed < const Duration(milliseconds: 300);
 
     if (index == 1 && isDoubleTap) {
-      await appTabCubit.clearSelection();
-      if (!context.mounted) {
-        return;
-      }
-      context.go(Routes.apps);
-      _lastTabIndex = index;
-      _tapStopwatch
-        ..reset()
-        ..start();
+      await _openAppsDrawerFromAppsTab();
       return;
     }
 
@@ -291,12 +297,12 @@ class _ShellPageState extends State<ShellPage> {
       2 => Routes.assistant,
       _ => Routes.home,
     };
-    if (!context.mounted) {
+    if (!mounted) {
       return;
     }
     context.go(route);
     await appTabCubit.setLastTabRoute(route);
-    if (!context.mounted) {
+    if (!mounted) {
       return;
     }
     _lastTabIndex = index;
@@ -312,6 +318,25 @@ class _ShellPageState extends State<ShellPage> {
       const Duration(milliseconds: 500),
       _handleAppsLongPress,
     );
+  }
+
+  void _handlePointerUp(PointerUpEvent event) {
+    _stopLongPressTimer();
+    if (!_isAppsTabHit(event.position)) {
+      return;
+    }
+
+    final now = DateTime.now();
+    final lastTap = _lastAppsTabPointerUpAt;
+    final isCompactAppsReselection = _calculateSelectedIndex(context) == 1;
+    if (isCompactAppsReselection &&
+        lastTap != null &&
+        now.difference(lastTap) < const Duration(milliseconds: 300)) {
+      _lastAppsTabPointerUpAt = null;
+      unawaited(_openAppsDrawerFromAppsTab());
+      return;
+    }
+    _lastAppsTabPointerUpAt = now;
   }
 
   void _stopLongPressTimer([PointerEvent? _]) {

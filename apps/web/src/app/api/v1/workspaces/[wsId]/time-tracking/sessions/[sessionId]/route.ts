@@ -1,7 +1,9 @@
+import type { TypedSupabaseClient } from '@tuturuuu/supabase';
 import {
   createAdminClient,
   createClient,
 } from '@tuturuuu/supabase/next/server';
+import type { SupabaseUser } from '@tuturuuu/supabase/next/user';
 import {
   getPermissions,
   normalizeWorkspaceId,
@@ -23,44 +25,11 @@ export async function GET(
 ) {
   try {
     const { wsId, sessionId } = await params;
-    const supabase = await createClient(request);
-    let normalizedWsId: string;
-    try {
-      normalizedWsId = await normalizeWorkspaceId(wsId, supabase);
-    } catch {
-      return NextResponse.json(
-        { error: 'Workspace not found' },
-        { status: 404 }
-      );
+    const authResult = await authenticateAndResolveWorkspace(request, wsId);
+    if ('error' in authResult) {
+      return authResult.error;
     }
-    if (!normalizedWsId) {
-      return NextResponse.json(
-        { error: 'Workspace not found' },
-        { status: 404 }
-      );
-    }
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { data: memberCheck } = await supabase
-      .from('workspace_members')
-      .select('id:user_id')
-      .eq('ws_id', normalizedWsId)
-      .eq('user_id', user.id)
-      .single();
-
-    if (!memberCheck) {
-      return NextResponse.json(
-        { error: 'Workspace access denied' },
-        { status: 403 }
-      );
-    }
+    const { supabase, user, normalizedWsId } = authResult;
 
     const { data, error } = await supabase
       .from('time_tracking_sessions')
@@ -96,39 +65,11 @@ export async function PATCH(
 ) {
   try {
     const { wsId, sessionId } = await params;
-    const supabase = await createClient(request);
-
-    let normalizedWsId: string;
-    try {
-      normalizedWsId = await normalizeWorkspaceId(wsId, supabase);
-    } catch {
-      return NextResponse.json(
-        { error: 'Workspace not found' },
-        { status: 404 }
-      );
+    const authResult = await authenticateAndResolveWorkspace(request, wsId);
+    if ('error' in authResult) {
+      return authResult.error;
     }
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { data: memberCheck } = await supabase
-      .from('workspace_members')
-      .select('id:user_id')
-      .eq('ws_id', normalizedWsId)
-      .eq('user_id', user.id)
-      .single();
-
-    if (!memberCheck) {
-      return NextResponse.json(
-        { error: 'Workspace access denied' },
-        { status: 403 }
-      );
-    }
+    const { supabase, user, normalizedWsId } = authResult;
 
     const bodyResult = patchSessionBodySchema.safeParse(await request.json());
     if (!bodyResult.success) {
@@ -157,7 +98,7 @@ export async function PATCH(
     const sbAdmin = await createAdminClient();
     const permissions = await getPermissions({ wsId: normalizedWsId, request });
     if (!permissions) {
-      return Response.json({ error: 'Not found' }, { status: 404 });
+      return NextResponse.json({ error: 'Not found' }, { status: 404 });
     }
     const canBypass = permissions.containsPermission(
       'bypass_time_tracking_request_approval'
@@ -222,39 +163,11 @@ export async function DELETE(
 ) {
   try {
     const { wsId, sessionId } = await params;
-    const supabase = await createClient(request);
-
-    let normalizedWsId: string;
-    try {
-      normalizedWsId = await normalizeWorkspaceId(wsId, supabase);
-    } catch {
-      return NextResponse.json(
-        { error: 'Workspace not found' },
-        { status: 404 }
-      );
+    const authResult = await authenticateAndResolveWorkspace(request, wsId);
+    if ('error' in authResult) {
+      return authResult.error;
     }
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser();
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const { data: memberCheck } = await supabase
-      .from('workspace_members')
-      .select('id:user_id')
-      .eq('ws_id', normalizedWsId)
-      .eq('user_id', user.id)
-      .single();
-
-    if (!memberCheck) {
-      return NextResponse.json(
-        { error: 'Workspace access denied' },
-        { status: 403 }
-      );
-    }
+    const { supabase, user, normalizedWsId } = authResult;
 
     const { data: session } = await supabase
       .from('time_tracking_sessions')
@@ -269,10 +182,15 @@ export async function DELETE(
     }
 
     const sbAdmin = await createAdminClient();
+    const permissions = await getPermissions({ wsId: normalizedWsId, request });
+    if (!permissions) {
+      return NextResponse.json({ error: 'Permissions not found' }, { status: 403 });
+    }
     const { error } = await sbAdmin
       .from('time_tracking_sessions')
       .delete()
-      .eq('id', sessionId);
+      .eq('id', sessionId)
+      .eq('ws_id', normalizedWsId);
 
     if (error) throw error;
 
@@ -284,4 +202,65 @@ export async function DELETE(
       { status: 500 }
     );
   }
+}
+
+async function authenticateAndResolveWorkspace(
+  request: NextRequest,
+  wsId: string
+): Promise<
+  | {
+      supabase: TypedSupabaseClient;
+      user: SupabaseUser;
+      normalizedWsId: string;
+    }
+  | { error: NextResponse }
+> {
+  const supabase = await createClient(request);
+  let normalizedWsId: string;
+  try {
+    normalizedWsId = await normalizeWorkspaceId(wsId, supabase);
+  } catch {
+    return {
+      error: NextResponse.json(
+        { error: 'Workspace not found' },
+        { status: 404 }
+      ),
+    };
+  }
+  if (!normalizedWsId) {
+    return {
+      error: NextResponse.json(
+        { error: 'Workspace not found' },
+        { status: 404 }
+      ),
+    };
+  }
+
+  const {
+    data: { user },
+    error: authError,
+  } = await supabase.auth.getUser();
+  if (authError || !user) {
+    return {
+      error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }),
+    };
+  }
+
+  const { data: memberCheck } = await supabase
+    .from('workspace_members')
+    .select('id:user_id')
+    .eq('ws_id', normalizedWsId)
+    .eq('user_id', user.id)
+    .single();
+
+  if (!memberCheck) {
+    return {
+      error: NextResponse.json(
+        { error: 'Workspace access denied' },
+        { status: 403 }
+      ),
+    };
+  }
+
+  return { supabase, user, normalizedWsId };
 }

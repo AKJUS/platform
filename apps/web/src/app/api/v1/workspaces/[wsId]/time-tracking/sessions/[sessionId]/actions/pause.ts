@@ -97,6 +97,23 @@ export async function handlePauseAction({
 
     if (breakError) {
       console.error('Failed to create break record:', breakError);
+      const { error: rollbackError } = await sbAdmin
+        .from('time_tracking_sessions')
+        .update({
+          end_time: null,
+          duration_seconds: null,
+          is_running: true,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', sessionId);
+
+      if (rollbackError) {
+        console.error('Failed to rollback session pause:', rollbackError);
+      } else {
+        console.info('Rolled back session pause after break insert failure', {
+          sessionId,
+        });
+      }
       return NextResponse.json(
         { error: 'Failed to create break record' },
         { status: 500 }

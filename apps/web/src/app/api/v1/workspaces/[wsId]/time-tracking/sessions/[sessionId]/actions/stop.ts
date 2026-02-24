@@ -68,6 +68,10 @@ export async function handleStopAction({
 
     if (updateError) {
       console.error('Failed to close active break on stop:', updateError);
+      return NextResponse.json(
+        { error: 'Failed to close active break on stop' },
+        { status: 500 }
+      );
     }
   }
 

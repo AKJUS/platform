@@ -28,6 +28,7 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
     String wsId,
     String userId, {
     int? firstDayOfWeek,
+    bool throwOnError = false,
   }) async {
     final effectiveFirstDayOfWeek = firstDayOfWeek ?? _historyFirstDayOfWeek;
     _historyFirstDayOfWeek = effectiveFirstDayOfWeek;
@@ -115,6 +116,9 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
       emit(
         state.copyWith(status: TimeTrackerStatus.error, error: e.toString()),
       );
+      if (throwOnError) {
+        rethrow;
+      }
     }
   }
 
@@ -401,6 +405,7 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
     String wsId,
     String userId, {
     int? firstDayOfWeek,
+    bool throwOnError = false,
   }) async {
     final effectiveFirstDayOfWeek = firstDayOfWeek ?? _historyFirstDayOfWeek;
     _historyFirstDayOfWeek = effectiveFirstDayOfWeek;
@@ -440,6 +445,9 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
       );
     } on Exception catch (e) {
       emit(state.copyWith(isHistoryLoadingMore: false, error: e.toString()));
+      if (throwOnError) {
+        rethrow;
+      }
     }
   }
 
