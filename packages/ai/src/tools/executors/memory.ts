@@ -11,10 +11,7 @@ type MemoryEmbeddingBackfillOptions = {
   maxRegenerations?: number;
 };
 
-async function generateEmbedding(
-  text: string,
-  taskType: EmbeddingTaskType
-) {
+async function generateEmbedding(text: string, taskType: EmbeddingTaskType) {
   try {
     const { embedding } = await embed({
       model: 'google/gemini-embedding-001',
@@ -51,11 +48,7 @@ async function regenerateMissingMemoryEmbeddings(
   ctx: MiraToolContext,
   options: MemoryEmbeddingBackfillOptions = {}
 ): Promise<number> {
-  const {
-    category = null,
-    maxCandidates = 20,
-    maxRegenerations = 8,
-  } = options;
+  const { category = null, maxCandidates = 20, maxRegenerations = 8 } = options;
 
   let missingQuery = ctx.supabase
     .from('mira_memories')
@@ -102,7 +95,10 @@ async function regenerateMissingMemoryEmbeddings(
       .eq('user_id', ctx.userId);
 
     if (updateError) {
-      console.error('Failed to update regenerated memory embedding:', updateError);
+      console.error(
+        'Failed to update regenerated memory embedding:',
+        updateError
+      );
       continue;
     }
 
@@ -193,14 +189,12 @@ export async function executeRecall(
             category,
           });
           if (regenerated > 0) {
-            const { data: retriedData, error: retryError } = await ctx.supabase.rpc(
-              'match_memories',
-              {
+            const { data: retriedData, error: retryError } =
+              await ctx.supabase.rpc('match_memories', {
                 query_embedding: embedding as any,
                 match_count: maxResults,
                 filter_category: category,
-              }
-            );
+              });
 
             if (retryError) {
               errorMsg = retryError.message;
