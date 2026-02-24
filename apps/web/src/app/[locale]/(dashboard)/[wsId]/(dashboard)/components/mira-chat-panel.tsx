@@ -1,6 +1,5 @@
 'use client';
 
-import { setByPath } from '@json-render/core';
 import { ActionProvider, StateProvider } from '@json-render/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { DefaultChatTransport } from '@tuturuuu/ai/core';
@@ -30,6 +29,11 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { handlers as jsonRenderHandlers } from '@/components/json-render/dashboard-registry';
+import {
+  createGenerativeUIAdapter,
+  resetGenerativeUIStore,
+  useGenerativeUIStore,
+} from '@/components/json-render/generative-ui-store';
 import { resolveTimezone } from '@/lib/calendar-settings-resolver';
 import ChatInputBar from './chat-input-bar';
 import ChatMessageList from './chat-message-list';
@@ -167,12 +171,8 @@ export default function MiraChatPanel({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const scrollEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Lift state for Generative UI so action handlers can access it
-  const [generativeState, setGenerativeState] = useState<Record<string, any>>(
-    {}
-  );
-  const generativeStateRef = useRef(generativeState);
-  generativeStateRef.current = generativeState;
+  // Zustand-backed store adapter — single source of truth for generative UI
+  const generativeUIStore = useMemo(() => createGenerativeUIAdapter(), []);
 
   const sendMessageRef = useRef<typeof sendMessage>(null!);
 
@@ -181,20 +181,15 @@ export default function MiraChatPanel({
     () =>
       jsonRenderHandlers(
         () => (updater: any) => {
-          // Provide a setState implementation that updates our lifted state
-          setGenerativeState((prev) => {
-            if (typeof updater === 'function') {
-              return updater(prev);
-            }
-            if (updater && typeof updater === 'object') {
-              return { ...prev, ...updater };
-            }
-            return prev;
-          });
+          const prev = useGenerativeUIStore.getState().ui;
+          if (typeof updater === 'function') {
+            useGenerativeUIStore.setState({ ui: updater(prev) });
+          } else if (updater && typeof updater === 'object') {
+            useGenerativeUIStore.setState({ ui: { ...prev, ...updater } });
+          }
         },
         () => ({
-          // Provide the current state plus extra context
-          ...generativeStateRef.current,
+          ...useGenerativeUIStore.getState().ui,
           sendMessage: sendMessageRef.current,
         })
       ),
@@ -853,6 +848,7 @@ export default function MiraChatPanel({
     setInput('');
     clearAttachedFiles();
     setMessageAttachments(new Map());
+    resetGenerativeUIStore();
     // Generate a fresh fallback ID so useChat creates a new Chat instance
     setFallbackChatId(generateRandomUUID());
   }, [wsId, clearAttachedFiles]);
@@ -987,16 +983,7 @@ export default function MiraChatPanel({
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {hasMessages ? (
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-            <StateProvider
-              initialState={generativeState}
-              onStateChange={(path, value) => {
-                setGenerativeState((prev) => {
-                  const next = { ...prev };
-                  setByPath(next, path, value);
-                  return next;
-                });
-              }}
-            >
+            <StateProvider store={generativeUIStore}>
               <ActionProvider handlers={actionHandlers}>
                 <ChatMessageList
                   messages={
