@@ -4,9 +4,32 @@ import { useLocalStorage } from '@tuturuuu/ui/hooks/use-local-storage';
 import { toast } from '@tuturuuu/ui/sonner';
 import { escape as escapeString } from 'lodash';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { buildReportPrintContent } from './report-print-template';
 
 export type ExportType = 'print' | 'image';
+
+export interface ReportExportMetadata {
+  title?: string | null;
+  userName?: string | null;
+  groupName?: string | null;
+}
+
+interface ExportReportPngOptions {
+  elementId: string;
+  isDarkPreview: boolean;
+  metadata: ReportExportMetadata;
+}
+
+interface UseBulkReportExportOptions<TReport> {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  reports: TReport[];
+  isDarkPreview: boolean;
+  getMetadata: (report: TReport) => ReportExportMetadata;
+  elementId?: string;
+  renderWaitMs?: number;
+}
 
 function sanitizeFilename(text: string): string {
   return text
@@ -14,6 +37,69 @@ function sanitizeFilename(text: string): string {
     .trim()
     .replace(/\s+/g, '_')
     .replace(/_+/g, '_');
+}
+
+function buildPngFilename({
+  title,
+  userName,
+  groupName,
+}: ReportExportMetadata): string {
+  const parts = [
+    userName && sanitizeFilename(userName),
+    groupName && sanitizeFilename(groupName),
+    title ? sanitizeFilename(title) : 'report',
+  ].filter(Boolean);
+
+  return `${parts.join('_')}.png`;
+}
+
+export async function exportReportAsPng({
+  elementId,
+  isDarkPreview,
+  metadata,
+}: ExportReportPngOptions): Promise<void> {
+  const html2canvas = (await import('html2canvas-pro')).default;
+  const printableArea = document.getElementById(elementId);
+
+  if (!printableArea) {
+    throw new Error('Preview area not found');
+  }
+
+  const canvas = await html2canvas(printableArea, {
+    scale: 2,
+    useCORS: true,
+    backgroundColor: isDarkPreview ? '#1a1a1a' : '#ffffff',
+    width: printableArea.offsetWidth,
+    height: printableArea.offsetHeight,
+  });
+
+  await new Promise<void>((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          reject(new Error('Failed to create image'));
+          return;
+        }
+
+        try {
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = buildPngFilename(metadata);
+
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+          resolve();
+        } catch (error) {
+          reject(error);
+        }
+      },
+      'image/png',
+      1.0
+    );
+  });
 }
 
 export function useReportExport({
@@ -69,102 +155,11 @@ export function useReportExport({
 
     const escapedTitle = escapeString(previewTitle || t('common.untitled'));
 
-    const printContent = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <title>${t('ws-reports.report')} - ${escapedTitle}</title>
-          <meta name="viewport" content="width=device-width, initial-scale=1">
-          ${stylesheets}
-          <style>
-            body {
-              margin: 0;
-              padding: 20px;
-              font-family: system-ui, -apple-system, sans-serif;
-              background: white;
-              color: black;
-            }
-            @media print {
-              body {
-                margin: 0;
-                padding: 0;
-              }
-              #printable-area {
-                height: auto !important;
-                width: auto !important;
-                max-width: none !important;
-                border: none !important;
-                border-radius: 0 !important;
-                box-shadow: none !important;
-                margin: 0 !important;
-                background: white !important;
-                color: black !important;
-              }
-              /* ... (keep existing styles) ... */
-              .print\\:hidden {
-                display: none !important;
-              }
-              .print\\:text-black {
-                color: black !important;
-              }
-              .print\\:bg-white {
-                background-color: white !important;
-              }
-              .print\\:border-black {
-                border-color: black !important;
-              }
-              .print\\:text-red-600 {
-                color: #dc2626 !important;
-              }
-              .print\\:border-0 {
-                border: none !important;
-              }
-              .print\\:rounded-none {
-                border-radius: 0 !important;
-              }
-              .print\\:h-auto {
-                height: auto !important;
-              }
-              .print\\:p-8 {
-                padding: 2rem !important;
-              }
-              .print\\:w-auto {
-                width: auto !important;
-              }
-              .print\\:max-w-none {
-                max-width: none !important;
-              }
-              .print\\:shadow-none {
-                box-shadow: none !important;
-              }
-              .print\\:m-0 {
-                margin: 0 !important;
-              }
-              .print\\:p-4 {
-                padding: 1rem !important;
-              }
-              .print\\:opacity-50 {
-                opacity: 0.5 !important;
-              }
-            }
-          </style>
-        </head>
-        <body>
-          ${printableArea.outerHTML}
-          <script>
-            window.onload = function() {
-              setTimeout(() => {
-                window.print();
-                window.onafterprint = function() {
-                  window.close();
-                };
-              }, 500);
-            };
-          </script>
-        </body>
-      </html>
-    `;
+    const printContent = buildReportPrintContent({
+      printableAreaHtml: printableArea.outerHTML,
+      documentTitle: `${t('ws-reports.report')} - ${escapedTitle}`,
+      stylesheets,
+    });
 
     const blob = new Blob([printContent], { type: 'text/html' });
     const url = URL.createObjectURL(blob);
@@ -187,57 +182,16 @@ export function useReportExport({
   const handlePngExport = async () => {
     setIsExporting(true);
     try {
-      const html2canvas = (await import('html2canvas-pro')).default;
-      const printableArea = document.getElementById('printable-area');
-      if (!printableArea) {
-        throw new Error(t('ws-reports.report_export_not_found'));
-      }
-
-      const canvas = await html2canvas(printableArea, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: isDarkPreview ? '#1a1a1a' : '#ffffff',
-        width: printableArea.offsetWidth,
-        height: printableArea.offsetHeight,
+      await exportReportAsPng({
+        elementId: 'printable-area',
+        isDarkPreview,
+        metadata: {
+          title: previewTitle,
+          userName,
+          groupName,
+        },
       });
-
-      await new Promise<void>((resolve, reject) => {
-        canvas.toBlob(
-          (blob) => {
-            if (!blob) {
-              reject(new Error('Failed to create image'));
-              return;
-            }
-
-            try {
-              const url = URL.createObjectURL(blob);
-              const link = document.createElement('a');
-              link.href = url;
-
-              const parts = [
-                userName && sanitizeFilename(userName),
-                groupName && sanitizeFilename(groupName),
-                previewTitle ? sanitizeFilename(previewTitle) : 'report',
-              ].filter(Boolean);
-
-              const fileName = `${parts.join('_')}.png`;
-
-              link.download = fileName;
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-              URL.revokeObjectURL(url);
-
-              toast.success(t('ws-reports.export_png_success'));
-              resolve();
-            } catch (error) {
-              reject(error);
-            }
-          },
-          'image/png',
-          1.0
-        );
-      });
+      toast.success(t('ws-reports.export_png_success'));
     } catch (error) {
       console.error('PNG export failed:', error);
       toast.error(t('ws-reports.failed_export_png'));
@@ -252,5 +206,112 @@ export function useReportExport({
     isExporting,
     defaultExportType,
     setDefaultExportType,
+  };
+}
+
+export function useBulkReportExport<TReport>({
+  open,
+  onOpenChange,
+  reports,
+  isDarkPreview,
+  getMetadata,
+  elementId = 'bulk-export-printable-area',
+  renderWaitMs = 500,
+}: UseBulkReportExportOptions<TReport>): {
+  currentReport: TReport | null;
+  isProcessing: boolean;
+  completedCount: number;
+  progress: number;
+} {
+  const t = useTranslations();
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [completedCount, setCompletedCount] = useState(0);
+  const isProcessingCurrentRef = useRef(false);
+
+  const currentReport = reports[currentIndex] ?? null;
+
+  const reset = useCallback(() => {
+    setCurrentIndex(0);
+    setCompletedCount(0);
+    setIsProcessing(false);
+    isProcessingCurrentRef.current = false;
+  }, []);
+
+  const processCurrentReport = useCallback(async () => {
+    if (
+      !open ||
+      !isProcessing ||
+      !currentReport ||
+      isProcessingCurrentRef.current
+    )
+      return;
+
+    isProcessingCurrentRef.current = true;
+    try {
+      await new Promise((resolve) => setTimeout(resolve, renderWaitMs));
+      await exportReportAsPng({
+        elementId,
+        isDarkPreview,
+        metadata: getMetadata(currentReport),
+      });
+
+      setCompletedCount((prev) => prev + 1);
+      if (currentIndex < reports.length - 1) {
+        setCurrentIndex((prev) => prev + 1);
+      } else {
+        setIsProcessing(false);
+        toast.success(t('ws-reports.export_png_success'));
+        onOpenChange(false);
+      }
+    } catch (error) {
+      console.error('Bulk PNG export failed:', error);
+      toast.error(t('ws-reports.failed_export_png'));
+      setIsProcessing(false);
+    } finally {
+      isProcessingCurrentRef.current = false;
+    }
+  }, [
+    currentIndex,
+    currentReport,
+    elementId,
+    getMetadata,
+    isDarkPreview,
+    isProcessing,
+    onOpenChange,
+    open,
+    renderWaitMs,
+    reports.length,
+    t,
+  ]);
+
+  useEffect(() => {
+    if (open && reports.length > 0 && !isProcessing && completedCount === 0) {
+      setIsProcessing(true);
+    }
+  }, [completedCount, isProcessing, open, reports.length]);
+
+  useEffect(() => {
+    if (isProcessing) {
+      void processCurrentReport();
+    }
+  }, [isProcessing, processCurrentReport]);
+
+  useEffect(() => {
+    if (!open) {
+      reset();
+    }
+  }, [open, reset]);
+
+  const progress =
+    reports.length > 0
+      ? Math.round((completedCount / reports.length) * 100)
+      : 0;
+
+  return {
+    currentReport,
+    isProcessing,
+    completedCount,
+    progress,
   };
 }

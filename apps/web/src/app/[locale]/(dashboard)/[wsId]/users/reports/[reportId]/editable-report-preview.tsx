@@ -22,9 +22,9 @@ import { Separator } from '@tuturuuu/ui/separator';
 import { Tabs, TabsList, TabsTrigger } from '@tuturuuu/ui/tabs';
 import { useLocale, useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
-import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import * as z from 'zod';
+import { useConfigMap } from '@/hooks/use-config-map';
 import { RejectDialog } from '../../approvals/components/reject-dialog';
 import UserMonthAttendance from '../../attendance/user-month-attendance';
 import UserFeedbackSection from '../../groups/[groupId]/reports/user-feedback-section';
@@ -32,6 +32,7 @@ import { DeleteReportDialog } from './components/delete-report-dialog';
 import { ReportActions } from './components/report-actions';
 import { ReportHistory } from './components/report-history';
 import UserReportForm from './form';
+import { useReportDynamicText } from './hooks/use-report-dynamic-text';
 import { useReportExport } from './hooks/use-report-export';
 import { useReportHistory } from './hooks/use-report-history';
 import {
@@ -132,17 +133,7 @@ export default function EditableReportPreview({
     canApproveReports,
   });
 
-  const configMap = useMemo(() => {
-    const map = new Map<string, string>();
-    configs.forEach((config) => {
-      if (config.id && config.value) {
-        map.set(config.id, config.value);
-      }
-    });
-    return map;
-  }, [configs]);
-
-  const getConfig = (id: string) => configMap.get(id);
+  const { getConfig } = useConfigMap(configs);
 
   const getDefaultReportTitle = () => {
     const baseTitle = getConfig('REPORT_DEFAULT_TITLE')?.trim();
@@ -206,47 +197,11 @@ export default function EditableReportPreview({
   const content = form.watch('content');
   const feedback = form.watch('feedback');
 
-  const parseDynamicText = (text?: string | null): ReactNode => {
-    if (!text) return '';
-    const segments = text.split(/({{.*?}})/g).filter(Boolean);
-    const parsedText = segments.map((segment, index) => {
-      const match = segment.match(/{{(.*?)}}/);
-      if (match) {
-        const key = match?.[1]?.trim() || '';
-        if (key === 'user_name') {
-          return (
-            <span key={key + index} className="font-semibold">
-              {report.user_name || '...'}
-            </span>
-          );
-        }
-        if (key === 'group_name') {
-          return (
-            <span key={key + index} className="font-semibold">
-              {report.group_name || '...'}
-            </span>
-          );
-        }
-        if (key === 'group_manager_name') {
-          return (
-            <span key={key + index} className="font-semibold">
-              {report.creator_name || '...'}
-            </span>
-          );
-        }
-        return (
-          <span
-            key={key + index}
-            className="rounded bg-foreground px-1 py-0.5 font-semibold text-background"
-          >
-            {key}
-          </span>
-        );
-      }
-      return segment;
-    });
-    return parsedText;
-  };
+  const parseDynamicText = useReportDynamicText({
+    userName: report.user_name,
+    groupName: report.group_name,
+    groupManagerName: selectedManagerName ?? report.creator_name,
+  });
 
   const [reportTheme, setReportTheme] = useLocalStorage<
     'auto' | 'light' | 'dark'
