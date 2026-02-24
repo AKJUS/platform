@@ -200,7 +200,7 @@ export default function EditableReportPreview({
   const parseDynamicText = useReportDynamicText({
     userName: report.user_name,
     groupName: report.group_name,
-    groupManagerName: report.creator_name,
+    groupManagerName: selectedManagerName ?? report.creator_name,
   });
 
   const [reportTheme, setReportTheme] = useLocalStorage<
