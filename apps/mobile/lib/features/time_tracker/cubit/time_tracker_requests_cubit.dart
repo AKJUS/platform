@@ -119,7 +119,7 @@ class TimeTrackerRequestsCubit extends Cubit<TimeTrackerRequestsState> {
     DateTime endTime, {
     String? description,
     List<String>? removedImages,
-    List<String>? newImagePaths,
+    List<String>? newImageLocalPaths,
   }) async {
     try {
       final updatedRequest = await _repo.updateRequest(
@@ -130,7 +130,7 @@ class TimeTrackerRequestsCubit extends Cubit<TimeTrackerRequestsState> {
         endTime,
         description: description,
         removedImages: removedImages,
-        newImagePaths: newImagePaths,
+        newImageLocalPaths: newImageLocalPaths,
       );
 
       // Update only the specific request in the list instead of full reload

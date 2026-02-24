@@ -30,7 +30,7 @@ class MissedEntryDialog extends StatefulWidget {
     required DateTime startTime,
     required DateTime endTime,
     required bool shouldSubmitAsRequest,
-    required List<String> imagePaths,
+    required List<String> imageLocalPaths,
     String? categoryId,
     String? description,
   })
@@ -321,7 +321,7 @@ class _MissedEntryDialogState extends State<MissedEntryDialog> {
                             startTime: _startTime,
                             endTime: _endTime,
                             shouldSubmitAsRequest: showThresholdWarning,
-                            imagePaths: _images
+                            imageLocalPaths: _images
                                 .map((file) => file.path)
                                 .toList(),
                             description: _descCtrl.text.isEmpty
