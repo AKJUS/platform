@@ -1009,6 +1009,18 @@ abstract class AppLocalizations {
   /// **'Duration'**
   String get timerDuration;
 
+  /// No description provided for @timerInvalidDuration.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid duration'**
+  String get timerInvalidDuration;
+
+  /// No description provided for @timerUnknownDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown date'**
+  String get timerUnknownDate;
+
   /// No description provided for @timerSave.
   ///
   /// In en, this message translates to:

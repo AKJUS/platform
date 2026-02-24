@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:mobile/core/responsive/responsive_padding.dart';
 import 'package:mobile/core/responsive/responsive_values.dart';
@@ -21,7 +23,14 @@ class StatsCards extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           const spacing = 8.0;
-          final cardWidth = (constraints.maxWidth - spacing) / 2;
+          const fallbackTotalWidth = 320.0;
+          const minCardWidth = 140.0;
+          final baseWidth =
+              constraints.hasBoundedWidth && constraints.maxWidth.isFinite
+              ? constraints.maxWidth
+              : fallbackTotalWidth;
+          final availableWidth = math.max(0, baseWidth - spacing);
+          final cardWidth = math.max(minCardWidth, availableWidth / 2);
 
           return Wrap(
             spacing: spacing,

@@ -24,6 +24,21 @@ export async function GET(
   try {
     const { wsId, sessionId } = await params;
     const supabase = await createClient(request);
+    let normalizedWsId: string;
+    try {
+      normalizedWsId = await normalizeWorkspaceId(wsId, supabase);
+    } catch {
+      return NextResponse.json(
+        { error: 'Workspace not found' },
+        { status: 404 }
+      );
+    }
+    if (!normalizedWsId) {
+      return NextResponse.json(
+        { error: 'Workspace not found' },
+        { status: 404 }
+      );
+    }
 
     const {
       data: { user },
@@ -36,7 +51,7 @@ export async function GET(
     const { data: memberCheck } = await supabase
       .from('workspace_members')
       .select('id:user_id')
-      .eq('ws_id', wsId)
+      .eq('ws_id', normalizedWsId)
       .eq('user_id', user.id)
       .single();
 
@@ -57,7 +72,7 @@ export async function GET(
       `
       )
       .eq('id', sessionId)
-      .eq('ws_id', wsId)
+      .eq('ws_id', normalizedWsId)
       .eq('user_id', user.id)
       .single();
 
@@ -186,6 +201,11 @@ export async function PATCH(
           canBypass,
           requestBody: body,
         });
+      default:
+        return NextResponse.json(
+          { error: `Unsupported action` },
+          { status: 400 }
+        );
     }
   } catch (error) {
     console.error('Error updating time tracking session:', error);

@@ -38,12 +38,34 @@ class TimeTrackerPage extends StatelessWidget {
         final ws = context.read<WorkspaceCubit>().state.currentWorkspace;
         final userId = supabase.auth.currentUser?.id;
         if (ws != null && userId != null) {
-          unawaited(cubit.loadData(ws.id, userId));
+          unawaited(
+            cubit.loadData(
+              ws.id,
+              userId,
+              firstDayOfWeek: _firstDayOfWeek(context),
+            ),
+          );
         }
         return cubit;
       },
       child: const _TimeTrackerView(),
     );
+  }
+
+  int _firstDayOfWeek(BuildContext context) {
+    const weekdayByIndex = [
+      DateTime.sunday,
+      DateTime.monday,
+      DateTime.tuesday,
+      DateTime.wednesday,
+      DateTime.thursday,
+      DateTime.friday,
+      DateTime.saturday,
+    ];
+    final firstDayOfWeekIndex = MaterialLocalizations.of(
+      context,
+    ).firstDayOfWeekIndex;
+    return weekdayByIndex[firstDayOfWeekIndex % 7];
   }
 }
 
@@ -72,7 +94,11 @@ class _TimeTrackerViewState extends State<_TimeTrackerView> {
         final userId = supabase.auth.currentUser?.id;
         if (wsId != null && userId != null) {
           unawaited(
-            context.read<TimeTrackerCubit>().loadData(wsId, userId),
+            context.read<TimeTrackerCubit>().loadData(
+              wsId,
+              userId,
+              firstDayOfWeek: _firstDayOfWeek(context),
+            ),
           );
         }
       },
@@ -195,6 +221,22 @@ class _TimeTrackerViewState extends State<_TimeTrackerView> {
       ),
     );
   }
+
+  int _firstDayOfWeek(BuildContext context) {
+    const weekdayByIndex = [
+      DateTime.sunday,
+      DateTime.monday,
+      DateTime.tuesday,
+      DateTime.wednesday,
+      DateTime.thursday,
+      DateTime.friday,
+      DateTime.saturday,
+    ];
+    final firstDayOfWeekIndex = MaterialLocalizations.of(
+      context,
+    ).firstDayOfWeekIndex;
+    return weekdayByIndex[firstDayOfWeekIndex % 7];
+  }
 }
 
 class _ErrorView extends StatelessWidget {
@@ -228,7 +270,11 @@ class _ErrorView extends StatelessWidget {
                   '';
               final userId = supabase.auth.currentUser?.id ?? '';
               unawaited(
-                context.read<TimeTrackerCubit>().loadData(wsId, userId),
+                context.read<TimeTrackerCubit>().loadData(
+                  wsId,
+                  userId,
+                  firstDayOfWeek: _firstDayOfWeek(context),
+                ),
               );
             },
             child: Text(l10n.commonRetry),
@@ -236,5 +282,21 @@ class _ErrorView extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  int _firstDayOfWeek(BuildContext context) {
+    const weekdayByIndex = [
+      DateTime.sunday,
+      DateTime.monday,
+      DateTime.tuesday,
+      DateTime.wednesday,
+      DateTime.thursday,
+      DateTime.friday,
+      DateTime.saturday,
+    ];
+    final firstDayOfWeekIndex = MaterialLocalizations.of(
+      context,
+    ).firstDayOfWeekIndex;
+    return weekdayByIndex[firstDayOfWeekIndex % 7];
   }
 }

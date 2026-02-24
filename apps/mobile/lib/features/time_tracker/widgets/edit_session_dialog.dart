@@ -72,7 +72,7 @@ class _EditSessionDialogState extends State<EditSessionDialog> {
     final sessionDateText = dateFmt.format(sessionDate.toLocal());
 
     final duration = _endTime.difference(_startTime);
-    final durationText = _formatDuration(duration);
+    final durationText = _formatDuration(duration, l10n);
 
     return Container(
       decoration: BoxDecoration(
@@ -252,7 +252,9 @@ class _EditSessionDialogState extends State<EditSessionDialog> {
                         );
 
                         navigator.pop();
-                      } on Exception {
+                      } on Exception catch (e, st) {
+                        debugPrint('EditSessionDialog save failed: $e');
+                        debugPrintStack(stackTrace: st);
                         if (!context.mounted) {
                           return;
                         }
@@ -285,11 +287,14 @@ class _EditSessionDialogState extends State<EditSessionDialog> {
     );
   }
 
-  bool get _isValid => _endTime.isAfter(_startTime);
+  bool get _canEditTimes =>
+      !exceedsThreshold(widget.session.startTime, widget.thresholdDays);
 
-  String _formatDuration(Duration d) {
+  bool get _isValid => !_canEditTimes || _endTime.isAfter(_startTime);
+
+  String _formatDuration(Duration d, AppLocalizations l10n) {
     if (d.isNegative) {
-      return 'Invalid';
+      return l10n.timerInvalidDuration;
     }
     final h = d.inHours;
     final m = d.inMinutes % 60;

@@ -474,6 +474,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get timerDuration => 'Duration';
 
   @override
+  String get timerInvalidDuration => 'Invalid duration';
+
+  @override
+  String get timerUnknownDate => 'Unknown date';
+
+  @override
   String get timerSave => 'Save';
 
   @override

@@ -22,8 +22,15 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
   static const _historyStatsAccordionPrefsKey =
       'time_tracker_history_stats_open';
   bool _historyPreferencesLoaded = false;
+  int _historyFirstDayOfWeek = DateTime.monday;
 
-  Future<void> loadData(String wsId, String userId) async {
+  Future<void> loadData(
+    String wsId,
+    String userId, {
+    int? firstDayOfWeek,
+  }) async {
+    final effectiveFirstDayOfWeek = firstDayOfWeek ?? _historyFirstDayOfWeek;
+    _historyFirstDayOfWeek = effectiveFirstDayOfWeek;
     emit(state.copyWith(status: TimeTrackerStatus.loading, clearError: true));
 
     try {
@@ -32,6 +39,7 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
       final periodRange = _historyPeriodRange(
         state.historyViewMode,
         anchorDate,
+        firstDayOfWeek: effectiveFirstDayOfWeek,
       );
       final normalizedUserId = _normalizeUserId(userId);
       final runningSessionFuture = _repo.getRunningSession(wsId);
@@ -242,8 +250,10 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
   Future<void> setHistoryViewMode(
     String wsId,
     String userId,
-    HistoryViewMode viewMode,
-  ) async {
+    HistoryViewMode viewMode, {
+    int firstDayOfWeek = DateTime.monday,
+  }) async {
+    _historyFirstDayOfWeek = firstDayOfWeek;
     if (state.historyViewMode == viewMode) return;
     emit(
       state.copyWith(
@@ -251,39 +261,86 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
         historyAnchorDate: state.historyAnchorDate ?? DateTime.now(),
       ),
     );
-    await loadHistoryInitial(wsId, userId);
+    await loadHistoryInitial(
+      wsId,
+      userId,
+      firstDayOfWeek: firstDayOfWeek,
+    );
   }
 
-  Future<void> goToPreviousPeriod(String wsId, String userId) async {
+  Future<void> goToPreviousPeriod(
+    String wsId,
+    String userId, {
+    int firstDayOfWeek = DateTime.monday,
+  }) async {
+    _historyFirstDayOfWeek = firstDayOfWeek;
     final nextAnchor = _moveHistoryAnchor(-1);
     emit(state.copyWith(historyAnchorDate: nextAnchor));
-    await loadHistoryInitial(wsId, userId);
+    await loadHistoryInitial(
+      wsId,
+      userId,
+      firstDayOfWeek: firstDayOfWeek,
+    );
   }
 
-  Future<void> goToNextPeriod(String wsId, String userId) async {
+  Future<void> goToNextPeriod(
+    String wsId,
+    String userId, {
+    int firstDayOfWeek = DateTime.monday,
+  }) async {
+    _historyFirstDayOfWeek = firstDayOfWeek;
     final nextAnchor = _moveHistoryAnchor(1);
     emit(state.copyWith(historyAnchorDate: nextAnchor));
-    await loadHistoryInitial(wsId, userId);
+    await loadHistoryInitial(
+      wsId,
+      userId,
+      firstDayOfWeek: firstDayOfWeek,
+    );
   }
 
-  Future<void> goToCurrentPeriod(String wsId, String userId) async {
+  Future<void> goToCurrentPeriod(
+    String wsId,
+    String userId, {
+    int firstDayOfWeek = DateTime.monday,
+  }) async {
+    _historyFirstDayOfWeek = firstDayOfWeek;
     emit(state.copyWith(historyAnchorDate: DateTime.now()));
-    await loadHistoryInitial(wsId, userId);
+    await loadHistoryInitial(
+      wsId,
+      userId,
+      firstDayOfWeek: firstDayOfWeek,
+    );
   }
 
-  Future<void> refreshHistory(String wsId, String userId) async {
-    await loadHistoryInitial(wsId, userId);
+  Future<void> refreshHistory(
+    String wsId,
+    String userId, {
+    int firstDayOfWeek = DateTime.monday,
+  }) async {
+    _historyFirstDayOfWeek = firstDayOfWeek;
+    await loadHistoryInitial(
+      wsId,
+      userId,
+      firstDayOfWeek: firstDayOfWeek,
+    );
   }
 
   Future<void> loadHistoryInitial(
     String wsId,
     String userId, {
     bool throwOnError = false,
+    int? firstDayOfWeek,
   }) async {
+    final effectiveFirstDayOfWeek = firstDayOfWeek ?? _historyFirstDayOfWeek;
+    _historyFirstDayOfWeek = effectiveFirstDayOfWeek;
     if (wsId.isEmpty) return;
     await _ensureHistoryPreferencesLoaded();
     final anchorDate = state.historyAnchorDate ?? DateTime.now();
-    final periodRange = _historyPeriodRange(state.historyViewMode, anchorDate);
+    final periodRange = _historyPeriodRange(
+      state.historyViewMode,
+      anchorDate,
+      firstDayOfWeek: effectiveFirstDayOfWeek,
+    );
     final normalizedUserId = _normalizeUserId(userId);
 
     emit(
@@ -340,7 +397,13 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
     }
   }
 
-  Future<void> loadHistoryMore(String wsId, String userId) async {
+  Future<void> loadHistoryMore(
+    String wsId,
+    String userId, {
+    int? firstDayOfWeek,
+  }) async {
+    final effectiveFirstDayOfWeek = firstDayOfWeek ?? _historyFirstDayOfWeek;
+    _historyFirstDayOfWeek = effectiveFirstDayOfWeek;
     if (wsId.isEmpty ||
         !state.historyHasMore ||
         state.historyNextCursor == null ||
@@ -350,7 +413,11 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
     }
 
     final anchorDate = state.historyAnchorDate ?? DateTime.now();
-    final periodRange = _historyPeriodRange(state.historyViewMode, anchorDate);
+    final periodRange = _historyPeriodRange(
+      state.historyViewMode,
+      anchorDate,
+      firstDayOfWeek: effectiveFirstDayOfWeek,
+    );
     final normalizedUserId = _normalizeUserId(userId);
 
     emit(state.copyWith(isHistoryLoadingMore: true, clearError: true));
@@ -684,16 +751,27 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
       HistoryViewMode.day => current.add(Duration(days: delta)),
       HistoryViewMode.week => current.add(Duration(days: delta * 7)),
       HistoryViewMode.month => () {
-        final targetMonthIndex = current.month + delta;
-        final targetYear = current.year + ((targetMonthIndex - 1) ~/ 12);
-        final targetMonth = ((targetMonthIndex - 1) % 12 + 12) % 12 + 1;
-        final targetMonthLastDay = DateTime(targetYear, targetMonth + 1, 0).day;
+        final normalizedMonth = DateTime(
+          current.year,
+          current.month + delta,
+          1,
+          current.hour,
+          current.minute,
+          current.second,
+          current.millisecond,
+          current.microsecond,
+        );
+        final targetMonthLastDay = DateTime(
+          normalizedMonth.year,
+          normalizedMonth.month + 1,
+          0,
+        ).day;
         final clampedDay = current.day > targetMonthLastDay
             ? targetMonthLastDay
             : current.day;
         return DateTime(
-          targetYear,
-          targetMonth,
+          normalizedMonth.year,
+          normalizedMonth.month,
           clampedDay,
           current.hour,
           current.minute,
@@ -707,8 +785,9 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
 
   ({DateTime start, DateTime end}) _historyPeriodRange(
     HistoryViewMode mode,
-    DateTime anchor,
-  ) {
+    DateTime anchor, {
+    int firstDayOfWeek = DateTime.monday,
+  }) {
     final localAnchor = anchor.toLocal();
     switch (mode) {
       case HistoryViewMode.day:
@@ -724,11 +803,13 @@ class TimeTrackerCubit extends Cubit<TimeTrackerState> {
             );
         return (start: start, end: end);
       case HistoryViewMode.week:
-        final start = DateTime(
+        final normalizedAnchor = DateTime(
           localAnchor.year,
           localAnchor.month,
           localAnchor.day,
-        ).subtract(Duration(days: localAnchor.weekday - DateTime.monday));
+        );
+        final offset = (normalizedAnchor.weekday - firstDayOfWeek + 7) % 7;
+        final start = normalizedAnchor.subtract(Duration(days: offset));
         final end = start
             .add(const Duration(days: 7))
             .subtract(const Duration(microseconds: 1));

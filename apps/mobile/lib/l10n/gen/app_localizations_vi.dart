@@ -474,6 +474,12 @@ class AppLocalizationsVi extends AppLocalizations {
   String get timerDuration => 'Thời lượng';
 
   @override
+  String get timerInvalidDuration => 'Thời lượng không hợp lệ';
+
+  @override
+  String get timerUnknownDate => 'Ngày không xác định';
+
+  @override
   String get timerSave => 'Lưu';
 
   @override

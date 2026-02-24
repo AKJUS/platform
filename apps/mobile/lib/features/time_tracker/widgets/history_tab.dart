@@ -41,14 +41,22 @@ class _HistoryTabState extends State<HistoryTab> {
   }
 
   void _handleScroll() {
+    if (!mounted || !context.mounted) return;
     if (!_scrollController.hasClients) return;
     final threshold = _scrollController.position.maxScrollExtent - 220;
     if (_scrollController.position.pixels < threshold) return;
 
+    final firstDayOfWeek = _firstDayOfWeek(context);
     final wsId =
         context.read<WorkspaceCubit>().state.currentWorkspace?.id ?? '';
     final userId = _currentUserId();
-    unawaited(context.read<TimeTrackerCubit>().loadHistoryMore(wsId, userId));
+    unawaited(
+      context.read<TimeTrackerCubit>().loadHistoryMore(
+        wsId,
+        userId,
+        firstDayOfWeek: firstDayOfWeek,
+      ),
+    );
   }
 
   @override
@@ -66,11 +74,16 @@ class _HistoryTabState extends State<HistoryTab> {
           for (final category in state.categories) category.id: category.color,
         };
 
-        final grouped = _groupByDay(sessions);
+        final grouped = _groupByDay(sessions, l10n);
+        final firstDayOfWeek = _firstDayOfWeek(context);
 
         return RefreshIndicator(
           onRefresh: () async {
-            await cubit.refreshHistory(wsId, _currentUserId());
+            await cubit.refreshHistory(
+              wsId,
+              _currentUserId(),
+              firstDayOfWeek: firstDayOfWeek,
+            );
           },
           child: CustomScrollView(
             controller: _scrollController,
@@ -83,20 +96,39 @@ class _HistoryTabState extends State<HistoryTab> {
                     anchorDate: anchorDate,
                     onViewModeChanged: (mode) {
                       unawaited(
-                        cubit.setHistoryViewMode(wsId, _currentUserId(), mode),
+                        cubit.setHistoryViewMode(
+                          wsId,
+                          _currentUserId(),
+                          mode,
+                          firstDayOfWeek: firstDayOfWeek,
+                        ),
                       );
                     },
                     onPrevious: () {
                       unawaited(
-                        cubit.goToPreviousPeriod(wsId, _currentUserId()),
+                        cubit.goToPreviousPeriod(
+                          wsId,
+                          _currentUserId(),
+                          firstDayOfWeek: firstDayOfWeek,
+                        ),
                       );
                     },
                     onNext: () {
-                      unawaited(cubit.goToNextPeriod(wsId, _currentUserId()));
+                      unawaited(
+                        cubit.goToNextPeriod(
+                          wsId,
+                          _currentUserId(),
+                          firstDayOfWeek: firstDayOfWeek,
+                        ),
+                      );
                     },
                     onGoToCurrent: () {
                       unawaited(
-                        cubit.goToCurrentPeriod(wsId, _currentUserId()),
+                        cubit.goToCurrentPeriod(
+                          wsId,
+                          _currentUserId(),
+                          firstDayOfWeek: firstDayOfWeek,
+                        ),
                       );
                     },
                   ),
@@ -184,7 +216,11 @@ class _HistoryTabState extends State<HistoryTab> {
                       child: shad.OutlineButton(
                         onPressed: () {
                           unawaited(
-                            cubit.loadHistoryMore(wsId, _currentUserId()),
+                            cubit.loadHistoryMore(
+                              wsId,
+                              _currentUserId(),
+                              firstDayOfWeek: firstDayOfWeek,
+                            ),
                           );
                         },
                         child: Text(l10n.timerHistoryLoadMore),
@@ -215,7 +251,10 @@ class _HistoryTabState extends State<HistoryTab> {
     );
   }
 
-  List<_DayGroup> _groupByDay(List<TimeTrackingSession> sessions) {
+  List<_DayGroup> _groupByDay(
+    List<TimeTrackingSession> sessions,
+    AppLocalizations l10n,
+  ) {
     final dateFmt = DateFormat.yMMMEd();
     final groups = <String, List<TimeTrackingSession>>{};
 
@@ -234,7 +273,7 @@ class _HistoryTabState extends State<HistoryTab> {
     return groups.entries.map((entry) {
       if (entry.key == 'unknown') {
         return _DayGroup(
-          label: 'Unknown date',
+          label: l10n.timerUnknownDate,
           sessions: entry.value,
         );
       }
@@ -242,7 +281,7 @@ class _HistoryTabState extends State<HistoryTab> {
       final firstSession = entry.value.first;
       final firstStartTime = firstSession.startTime;
       final label = firstStartTime == null
-          ? 'Unknown date'
+          ? l10n.timerUnknownDate
           : dateFmt.format(firstStartTime.toLocal());
       return _DayGroup(
         label: label,
@@ -298,6 +337,22 @@ class _HistoryTabState extends State<HistoryTab> {
 
   String _currentUserId() {
     return supabase.auth.currentUser?.id ?? '';
+  }
+
+  int _firstDayOfWeek(BuildContext context) {
+    const weekdayByIndex = [
+      DateTime.sunday,
+      DateTime.monday,
+      DateTime.tuesday,
+      DateTime.wednesday,
+      DateTime.thursday,
+      DateTime.friday,
+      DateTime.saturday,
+    ];
+    final firstDayOfWeekIndex = MaterialLocalizations.of(
+      context,
+    ).firstDayOfWeekIndex;
+    return weekdayByIndex[firstDayOfWeekIndex % 7];
   }
 }
 

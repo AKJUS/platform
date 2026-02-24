@@ -183,6 +183,8 @@
     "timerStartTime": "Thời gian bắt đầu",
     "timerEndTime": "Thời gian kết thúc",
     "timerDuration": "Thời lượng",
+    "timerInvalidDuration": "Thời lượng không hợp lệ",
+    "timerUnknownDate": "Ngày không xác định",
     "timerSave": "Lưu",
     "timerPomodoro": "Pomodoro",
     "timerPomodoroSettings": "Cài đặt Pomodoro",

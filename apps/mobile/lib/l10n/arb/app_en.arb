@@ -183,6 +183,8 @@
     "timerStartTime": "Start time",
     "timerEndTime": "End time",
     "timerDuration": "Duration",
+    "timerInvalidDuration": "Invalid duration",
+    "timerUnknownDate": "Unknown date",
     "timerSave": "Save",
     "timerPomodoro": "Pomodoro",
     "timerPomodoroSettings": "Pomodoro settings",
