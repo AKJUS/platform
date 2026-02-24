@@ -504,6 +504,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get timerRequestsTitle => 'Requests';
 
   @override
+  String get timerRequestSubmittedTitle => 'Request sent';
+
+  @override
+  String get timerRequestSubmittedContent => 'Your time entry has been submitted for approval.';
+
+  @override
+  String get timerMissedEntrySavedTitle => 'Entry saved';
+
+  @override
+  String get timerMissedEntrySavedContent => 'Your missed time entry was added successfully.';
+
+  @override
   String get timerRequestPending => 'Pending';
 
   @override
