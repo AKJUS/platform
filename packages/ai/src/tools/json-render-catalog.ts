@@ -158,6 +158,47 @@ export const dashboardCatalog = defineCatalog(schema, {
       hasChildren: false,
       description: "A component that renders the user's current task list.",
     },
+    TimeTrackingStats: {
+      props: z.object({
+        period: z
+          .enum([
+            'today',
+            'this_week',
+            'this_month',
+            'last_7_days',
+            'last_30_days',
+            'custom',
+          ])
+          .optional()
+          .describe('Stats period preset. Defaults to last_7_days.'),
+        dateFrom: z
+          .string()
+          .optional()
+          .describe('Custom period start ISO datetime (required when period=custom).'),
+        dateTo: z
+          .string()
+          .optional()
+          .describe('Custom period end ISO datetime (required when period=custom).'),
+        showBreakdown: z
+          .boolean()
+          .optional()
+          .describe('Show category breakdown list (default true).'),
+        showDailyBreakdown: z
+          .boolean()
+          .optional()
+          .describe('Show daily breakdown list (default true).'),
+        maxItems: z
+          .number()
+          .int()
+          .min(1)
+          .max(10)
+          .optional()
+          .describe('Maximum rows for breakdown sections (default 5).'),
+      }),
+      hasChildren: false,
+      description:
+        'A standardized time-tracking stats dashboard that fetches and displays period metrics and breakdowns.',
+    },
     Form: {
       props: z.object({
         title: z.string().describe('Form title to display'),
@@ -195,6 +236,32 @@ export const dashboardCatalog = defineCatalog(schema, {
       }),
       hasChildren: false,
       description: 'A text or number input field for a Form.',
+    },
+    FileAttachmentInput: {
+      props: z.object({
+        name: z.string().describe('Field name/ID'),
+        label: z.string().describe('Field label shown to user'),
+        description: z.string().optional().describe('Optional helper text'),
+        required: z
+          .boolean()
+          .optional()
+          .describe('Whether at least one file is required'),
+        maxFiles: z
+          .number()
+          .int()
+          .min(1)
+          .max(5)
+          .optional()
+          .describe('Maximum files allowed'),
+        accept: z
+          .string()
+          .optional()
+          .describe('Accepted mime types or extensions'),
+        value: z.any().optional().describe('Attachment value binding'),
+      }),
+      hasChildren: false,
+      description:
+        'An attachment picker for forms that need evidence images or file uploads.',
     },
     Textarea: {
       props: z.object({
@@ -420,6 +487,32 @@ export const dashboardCatalog = defineCatalog(schema, {
       }),
       description:
         'Log a financial transaction directly from a generated UI form.',
+    },
+    create_time_tracking_request: {
+      params: z.object({
+        wsId: z.string().describe('Workspace ID slug or UUID'),
+        requestId: z
+          .string()
+          .uuid()
+          .optional()
+          .describe('Request UUID used for storage prefix'),
+        title: z.string().describe('Request title'),
+        description: z.string().optional().describe('Optional request details'),
+        categoryId: z
+          .string()
+          .nullable()
+          .optional()
+          .describe('Category UUID or null'),
+        taskId: z.string().nullable().optional().describe('Task UUID or null'),
+        startTime: z.string().describe('Start time ISO 8601'),
+        endTime: z.string().describe('End time ISO 8601'),
+        imagePaths: z
+          .array(z.string())
+          .optional()
+          .describe('Optional pre-uploaded storage paths'),
+      }),
+      description:
+        'Submit a time tracking missed-entry request with optional evidence attachments.',
     },
   },
 });

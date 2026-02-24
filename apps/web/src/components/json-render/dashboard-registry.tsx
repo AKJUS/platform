@@ -78,6 +78,145 @@ const useComponentValue = <T,>(
   return [(boundValue ?? propValue ?? defaultValue) as T, setValue];
 };
 
+function formatDurationLabel(seconds: number): string {
+  const safeSeconds = Math.max(0, Math.floor(seconds));
+  const hours = Math.floor(safeSeconds / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
+
+function resolveStatsRange(
+  period?: string,
+  dateFrom?: string,
+  dateTo?: string
+): { from: Date; to: Date; label: string } {
+  const now = new Date();
+  const end = new Date(now);
+  const start = new Date(now);
+
+  const setStartOfDay = (date: Date) => date.setHours(0, 0, 0, 0);
+  const setEndOfDay = (date: Date) => date.setHours(23, 59, 59, 999);
+
+  switch (period) {
+    case 'today': {
+      setStartOfDay(start);
+      setEndOfDay(end);
+      return { from: start, to: end, label: 'Today' };
+    }
+    case 'this_week': {
+      const day = start.getDay();
+      const daysToSubtract = day === 0 ? 6 : day - 1;
+      start.setDate(start.getDate() - daysToSubtract);
+      setStartOfDay(start);
+      setEndOfDay(end);
+      return { from: start, to: end, label: 'This week' };
+    }
+    case 'this_month': {
+      start.setDate(1);
+      setStartOfDay(start);
+      setEndOfDay(end);
+      return { from: start, to: end, label: 'This month' };
+    }
+    case 'last_30_days': {
+      start.setDate(start.getDate() - 29);
+      setStartOfDay(start);
+      setEndOfDay(end);
+      return { from: start, to: end, label: 'Last 30 days' };
+    }
+    case 'custom': {
+      const parsedFrom = dateFrom ? new Date(dateFrom) : null;
+      const parsedTo = dateTo ? new Date(dateTo) : null;
+      if (parsedFrom && parsedTo && !Number.isNaN(parsedFrom.getTime()) && !Number.isNaN(parsedTo.getTime())) {
+        return {
+          from: parsedFrom,
+          to: parsedTo,
+          label: 'Custom range',
+        };
+      }
+      start.setDate(start.getDate() - 6);
+      setStartOfDay(start);
+      setEndOfDay(end);
+      return { from: start, to: end, label: 'Last 7 days' };
+    }
+    case 'last_7_days':
+    default: {
+      start.setDate(start.getDate() - 6);
+      setStartOfDay(start);
+      setEndOfDay(end);
+      return { from: start, to: end, label: 'Last 7 days' };
+    }
+  }
+}
+
+type SignedUploadResponse = {
+  uploads: Array<{
+    filename: string;
+    signedUrl: string;
+    token: string;
+    path: string;
+  }>;
+};
+
+function collectFilesFromValue(value: unknown): File[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is File => item instanceof File);
+}
+
+async function uploadTimeTrackingRequestFiles(
+  wsId: string,
+  requestId: string,
+  files: File[]
+): Promise<string[]> {
+  if (files.length === 0) return [];
+
+  const uploadUrlRes = await fetch(
+    `/api/v1/workspaces/${encodeURIComponent(wsId)}/time-tracking/requests/upload-url`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        requestId,
+        files: files.map((file) => ({ filename: file.name })),
+      }),
+    }
+  );
+
+  if (!uploadUrlRes.ok) {
+    const body = await uploadUrlRes.json().catch(() => ({}));
+    throw new Error(
+      (body as { error?: string }).error || 'Failed to prepare file upload'
+    );
+  }
+
+  const uploadData = (await uploadUrlRes.json()) as SignedUploadResponse;
+  if (!Array.isArray(uploadData.uploads) || uploadData.uploads.length !== files.length) {
+    throw new Error('Upload URL response is invalid');
+  }
+
+  await Promise.all(
+    uploadData.uploads.map(async (upload, index) => {
+      const file = files[index];
+      if (!file) return;
+
+      const fileUploadRes = await fetch(upload.signedUrl, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${upload.token}`,
+          'Content-Type': file.type || 'application/octet-stream',
+        },
+        body: file,
+      });
+
+      if (!fileUploadRes.ok) {
+        throw new Error(`Failed to upload file "${file.name}"`);
+      }
+    })
+  );
+
+  return uploadData.uploads.map((upload) => upload.path);
+}
+
 export const { registry, handlers, executeAction } = defineRegistry(
   dashboardCatalog,
   {
@@ -307,7 +446,175 @@ export const { registry, handlers, executeAction } = defineRegistry(
           </div>
         );
       },
+      TimeTrackingStats: ({ props }) => {
+        const params = useParams();
+        const wsId = params.wsId as string;
+        const maxItems = props.maxItems || 5;
+        const showBreakdown = props.showBreakdown !== false;
+        const showDailyBreakdown = props.showDailyBreakdown !== false;
+
+        const { data: user, isLoading: userLoading } = useWorkspaceUser();
+
+        const { data: workspace, isLoading: workspaceLoading } = useQuery({
+          queryKey: ['workspace', wsId, 'time-tracking-stats-widget'],
+          queryFn: async () => {
+            const res = await fetch(`/api/workspaces/${wsId}`, {
+              cache: 'no-store',
+            });
+            if (!res.ok) return null;
+            return res.json();
+          },
+          enabled: !!wsId,
+        });
+
+        const range = resolveStatsRange(props.period, props.dateFrom, props.dateTo);
+
+        const { data: stats, isLoading: statsLoading } = useQuery({
+          queryKey: [
+            'workspace',
+            wsId,
+            'time-tracking',
+            'stats',
+            'period',
+            user?.id,
+            range.from.toISOString(),
+            range.to.toISOString(),
+          ],
+          queryFn: async () => {
+            if (!user?.id) return null;
+
+            const query = new URLSearchParams({
+              dateFrom: range.from.toISOString(),
+              dateTo: range.to.toISOString(),
+              timezone: 'UTC',
+              userId: user.id,
+            });
+
+            const res = await fetch(
+              `/api/v1/workspaces/${encodeURIComponent(wsId)}/time-tracking/stats/period?${query.toString()}`,
+              { cache: 'no-store' }
+            );
+
+            if (!res.ok) return null;
+            return res.json();
+          },
+          enabled: !!wsId && !!user?.id && !!workspace,
+        });
+
+        if (userLoading || workspaceLoading || statsLoading) {
+          return (
+            <div className="flex items-center justify-center p-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          );
+        }
+
+        if (!user || !workspace || !stats) {
+          return (
+            <Card className="my-2 border border-border/60 bg-card/60">
+              <CardHeader>
+                <CardTitle className="text-lg">Time Tracking Stats</CardTitle>
+                <CardDescription>No stats available for this period.</CardDescription>
+              </CardHeader>
+            </Card>
+          );
+        }
+
+        const totalDuration = Number(stats.totalDuration) || 0;
+        const sessionCount = Number(stats.sessionCount) || 0;
+        const averageDuration =
+          sessionCount > 0 ? Math.round(totalDuration / sessionCount) : 0;
+
+        const topBreakdown = Array.isArray(stats.breakdown)
+          ? stats.breakdown.slice(0, maxItems)
+          : [];
+
+        const topDaily = Array.isArray(stats.dailyBreakdown)
+          ? stats.dailyBreakdown.slice(0, maxItems)
+          : [];
+
+        const bestTimeOfDayLabel =
+          typeof stats.bestTimeOfDay === 'string' && stats.bestTimeOfDay !== 'none'
+            ? stats.bestTimeOfDay
+            : 'N/A';
+
+        return (
+          <div className="flex flex-col gap-4">
+            <Card className="my-2 border border-border/60 bg-card/60">
+              <CardHeader>
+                <CardTitle className="text-lg">Time Tracking Overview</CardTitle>
+                <CardDescription>{range.label}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                  <div className="rounded-lg border bg-surface p-4">
+                    <p className="text-muted-foreground text-sm">Total Time</p>
+                    <p className="font-bold text-xl">{formatDurationLabel(totalDuration)}</p>
+                  </div>
+                  <div className="rounded-lg border bg-surface p-4">
+                    <p className="text-muted-foreground text-sm">Sessions</p>
+                    <p className="font-bold text-xl">{sessionCount}</p>
+                  </div>
+                  <div className="rounded-lg border bg-surface p-4">
+                    <p className="text-muted-foreground text-sm">Avg Session</p>
+                    <p className="font-bold text-xl">{formatDurationLabel(averageDuration)}</p>
+                  </div>
+                  <div className="rounded-lg border bg-surface p-4">
+                    <p className="text-muted-foreground text-sm">Best Time of Day</p>
+                    <p className="font-bold text-xl capitalize">{bestTimeOfDayLabel}</p>
+                  </div>
+                </div>
+
+                {showBreakdown && (
+                  <div className="space-y-2">
+                    <p className="font-medium text-sm">Top Categories</p>
+                    {topBreakdown.length === 0 && (
+                      <p className="text-muted-foreground text-sm">No category data for this period.</p>
+                    )}
+                    {topBreakdown.map((item: any, index: number) => {
+                      const share = totalDuration > 0 ? (item.duration / totalDuration) * 100 : 0;
+                      return (
+                        <div key={`${item.name}-${index}`} className="space-y-1 rounded-md border p-2">
+                          <div className="flex items-center justify-between gap-2 text-sm">
+                            <span className="truncate font-medium">{item.name}</span>
+                            <span className="text-muted-foreground">
+                              {formatDurationLabel(item.duration || 0)}
+                            </span>
+                          </div>
+                          <Progress value={share} className="h-2" />
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {showDailyBreakdown && (
+                  <div className="space-y-2">
+                    <p className="font-medium text-sm">Daily Breakdown</p>
+                    {topDaily.length === 0 && (
+                      <p className="text-muted-foreground text-sm">No daily data for this period.</p>
+                    )}
+                    {topDaily.map((item: any, index: number) => (
+                      <div
+                        key={`${item.date}-${index}`}
+                        className="flex items-center justify-between rounded-md border p-2 text-sm"
+                      >
+                        <span className="font-medium">{item.date}</span>
+                        <span className="text-muted-foreground">
+                          {formatDurationLabel(item.totalDuration || 0)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        );
+      },
       Form: ({ props, children, bindings }) => {
+        const params = useParams();
+        const wsId = params.wsId as string;
         const { state } = useStateStore();
         const { handlers } = useActions();
         const [isSubmitting, setIsSubmitting] = useState(false);
@@ -340,17 +647,25 @@ export const { registry, handlers, executeAction } = defineRegistry(
                 try {
                   const actionName = props.submitAction || 'submit_form';
                   const handler = (handlers as any)?.[actionName];
+                  const values = (state as Record<string, unknown>) || {};
 
                   if (handler) {
-                    await handler({
-                      title: props.title,
-                      values: state,
-                    });
+                    if (actionName === 'submit_form') {
+                      await handler({
+                        title: props.title,
+                        values,
+                      });
+                    } else {
+                      await handler({
+                        ...values,
+                        wsId,
+                      });
+                    }
                   } else if (setOnSubmit) {
                     // Fallback to binding if no action is defined
                     await setOnSubmit({
                       title: props.title,
-                      values: state,
+                      values,
                     });
                   } else {
                     throw new Error(`Action "${actionName}" not found`);
@@ -413,6 +728,56 @@ export const { registry, handlers, executeAction } = defineRegistry(
               value={value}
               onChange={(e) => setValue(e.target.value)}
             />
+          </div>
+        );
+      },
+      FileAttachmentInput: ({ props, bindings }) => {
+        const maxFiles = props.maxFiles || 5;
+        const [files, setFiles] = useComponentValue<File[]>(
+          props.value,
+          bindings?.value,
+          props.name,
+          []
+        );
+
+        return (
+          <div className="relative flex flex-col gap-2">
+            <Label htmlFor={props.name}>{props.label}</Label>
+            {props.description && (
+              <p className="text-muted-foreground text-xs">{props.description}</p>
+            )}
+            <Input
+              id={props.name}
+              type="file"
+              accept={props.accept || 'image/*'}
+              required={props.required}
+              multiple={maxFiles > 1}
+              onChange={(event) => {
+                const selected = Array.from(event.target.files || []).slice(
+                  0,
+                  maxFiles
+                );
+                setFiles(selected);
+              }}
+            />
+            {Array.isArray(files) && files.length > 0 && (
+              <div className="rounded-md border border-border/70 p-2">
+                <p className="mb-1 text-muted-foreground text-xs">
+                  Selected files ({files.length}/{maxFiles})
+                </p>
+                <div className="flex flex-col gap-1">
+                  {files.map((file, index) => (
+                    <div
+                      key={`${file.name}-${index}`}
+                      className="truncate text-xs"
+                      title={file.name}
+                    >
+                      {file.name}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         );
       },
@@ -1390,6 +1755,125 @@ export const { registry, handlers, executeAction } = defineRegistry(
             submitting: false,
             success: true,
             message: 'Transaction logged successfully!',
+          }));
+        } catch (error) {
+          setState((prev) => ({
+            ...prev,
+            submitting: false,
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+          }));
+        }
+      },
+      create_time_tracking_request: async (params, setState, context) => {
+        if (!params) return;
+        const { sendMessage } = (context as any) || {};
+        setState((prev) => ({ ...prev, submitting: true, error: null }));
+
+        try {
+          const wsId =
+            typeof params.wsId === 'string' ? params.wsId : undefined;
+          if (!wsId) {
+            throw new Error('Workspace ID is required');
+          }
+
+          const title =
+            typeof params.title === 'string' && params.title.trim()
+              ? params.title.trim()
+              : undefined;
+          if (!title) {
+            throw new Error('Title is required');
+          }
+
+          const startTime =
+            typeof params.startTime === 'string' ? params.startTime : undefined;
+          const endTime =
+            typeof params.endTime === 'string' ? params.endTime : undefined;
+          if (!startTime || !endTime) {
+            throw new Error('startTime and endTime are required');
+          }
+
+          const requestId =
+            typeof params.requestId === 'string' && params.requestId
+              ? params.requestId
+              : crypto.randomUUID();
+
+          const rawEvidence = (params as Record<string, unknown>).evidence;
+          const rawAttachments = (params as Record<string, unknown>).attachments;
+          const files = [
+            ...collectFilesFromValue(rawEvidence),
+            ...collectFilesFromValue(rawAttachments),
+          ].slice(0, 5);
+
+          const preUploadedPaths = Array.isArray(params.imagePaths)
+            ? params.imagePaths.filter(
+                (path): path is string => typeof path === 'string'
+              )
+            : [];
+
+          const uploadedPaths = await uploadTimeTrackingRequestFiles(
+            wsId,
+            requestId,
+            files
+          );
+          const imagePaths = [...preUploadedPaths, ...uploadedPaths];
+
+          if (imagePaths.length === 0) {
+            throw new Error(
+              'Please attach at least one evidence image before submitting'
+            );
+          }
+
+          const response = await fetch(
+            `/api/v1/workspaces/${encodeURIComponent(wsId)}/time-tracking/requests`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                requestId,
+                title,
+                description:
+                  typeof params.description === 'string'
+                    ? params.description
+                    : '',
+                categoryId:
+                  typeof params.categoryId === 'string'
+                    ? params.categoryId
+                    : '',
+                taskId:
+                  typeof params.taskId === 'string' ? params.taskId : '',
+                startTime,
+                endTime,
+                imagePaths,
+              }),
+            }
+          );
+
+          if (!response.ok) {
+            const body = await response.json().catch(() => ({}));
+            throw new Error(
+              (body as { error?: string }).error ||
+                'Failed to submit time tracking request'
+            );
+          }
+
+          if (sendMessage) {
+            await sendMessage({
+              role: 'user',
+              parts: [
+                {
+                  type: 'text',
+                  text: `### Time Tracking Request Submitted\n\n**Title**: ${title}\n**Evidence Files**: ${imagePaths.length}`,
+                },
+              ],
+            });
+          }
+
+          setState((prev) => ({
+            ...prev,
+            submitting: false,
+            success: true,
+            message: 'Time tracking request submitted successfully!',
           }));
         } catch (error) {
           setState((prev) => ({

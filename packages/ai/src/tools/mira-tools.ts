@@ -1,4 +1,4 @@
-import type { SupabaseClient } from '@tuturuuu/supabase';
+import type { TypedSupabaseClient } from '@tuturuuu/supabase/next/client';
 import type { Tool, ToolSet } from 'ai';
 import { z } from 'zod';
 import { tool } from './core';
@@ -71,7 +71,17 @@ import {
   executeUpdateTaskList,
 } from './executors/tasks';
 import { executeSetTheme } from './executors/theme';
-import { executeStartTimer, executeStopTimer } from './executors/timer';
+import {
+  executeCreateTimeTrackingEntry,
+  executeCreateTimeTrackingRequest,
+  executeDeleteTimeTrackingSession,
+  executeGetTimeTrackingSession,
+  executeListTimeTrackingSessions,
+  executeMoveTimeTrackingSession,
+  executeStartTimer,
+  executeStopTimer,
+  executeUpdateTimeTrackingSession,
+} from './executors/timer';
 import { executeUpdateUserName } from './executors/user';
 import { executeListWorkspaceMembers } from './executors/workspace';
 // ── Executor imports ──
@@ -136,6 +146,17 @@ export const MIRA_TOOL_DIRECTORY: Record<string, string> = {
   // Time tracking
   start_timer: 'Start a time tracking session',
   stop_timer: 'Stop the running time tracking session',
+  list_time_tracking_sessions:
+    'List your time tracking history with pagination and filters',
+  get_time_tracking_session: 'Get one time tracking session by ID',
+  create_time_tracking_entry:
+    'Create a stopped/manual time tracking history entry',
+  create_time_tracking_request:
+    'Submit a missed-entry time tracking request for approval',
+  update_time_tracking_session: 'Update a time tracking history session',
+  delete_time_tracking_session: 'Delete a time tracking history session',
+  move_time_tracking_session:
+    'Move a session to another workspace if you are a member of both',
   // Memory
   remember: 'Save a fact/preference about the user',
   recall: 'Search saved memories',
@@ -732,6 +753,149 @@ export const miraToolDefinitions = {
     }),
   }),
 
+  list_time_tracking_sessions: tool({
+    description:
+      'List your time tracking sessions with cursor pagination. By default pending approval sessions are excluded.',
+    inputSchema: z.object({
+      limit: z
+        .number()
+        .int()
+        .min(1)
+        .max(50)
+        .optional()
+        .describe('Page size (default 20, max 50)'),
+      cursor: z
+        .string()
+        .optional()
+        .describe('Pagination cursor from previous response (start_time|id)'),
+      includePending: z
+        .boolean()
+        .optional()
+        .describe('Whether to include pending approval sessions'),
+    }),
+  }),
+
+  get_time_tracking_session: tool({
+    description:
+      'Get one specific time tracking session by ID in the current workspace.',
+    inputSchema: z.object({
+      sessionId: z.string().optional().describe('Session UUID'),
+      id: z
+        .string()
+        .optional()
+        .describe('Alias for sessionId. Use either sessionId or id.'),
+    }),
+  }),
+
+  create_time_tracking_entry: tool({
+    description:
+      'Create a manual (stopped) time tracking entry. If approval is required, it will return requiresApproval=true instead of inserting.',
+    inputSchema: z.object({
+      title: z.string().describe('Entry title'),
+      description: z
+        .string()
+        .nullish()
+        .describe('Entry description, or null/omit'),
+      categoryId: z
+        .string()
+        .nullish()
+        .describe('Time tracking category UUID, or null/omit'),
+      taskId: z.string().nullish().describe('Task UUID, or null/omit'),
+      startTime: z.string().describe('Start time ISO 8601'),
+      endTime: z.string().describe('End time ISO 8601'),
+    }),
+  }),
+
+  create_time_tracking_request: tool({
+    description:
+      'Create a pending approval request for missed time tracking entries with proof image references.',
+    inputSchema: z.object({
+      requestId: z
+        .string()
+        .uuid()
+        .optional()
+        .describe('Optional request UUID, generated if omitted'),
+      title: z.string().describe('Request title'),
+      description: z
+        .string()
+        .nullish()
+        .describe('Request description, or null/omit'),
+      categoryId: z
+        .string()
+        .nullish()
+        .describe('Category UUID, or null/omit'),
+      taskId: z.string().nullish().describe('Task UUID, or null/omit'),
+      startTime: z.string().describe('Start time ISO 8601'),
+      endTime: z.string().describe('End time ISO 8601'),
+      breakTypeId: z
+        .string()
+        .nullish()
+        .describe('Break type UUID, or null/omit'),
+      breakTypeName: z
+        .string()
+        .nullish()
+        .describe('Break type name, or null/omit'),
+      linkedSessionId: z
+        .string()
+        .nullish()
+        .describe('Linked session UUID, or null/omit'),
+      imagePaths: z
+        .array(z.string())
+        .max(5)
+        .describe('Uploaded image storage paths for proof'),
+    }),
+  }),
+
+  update_time_tracking_session: tool({
+    description:
+      'Update fields of an existing time tracking session. Recomputes duration when times change.',
+    inputSchema: z.object({
+      sessionId: z.string().optional().describe('Session UUID'),
+      id: z
+        .string()
+        .optional()
+        .describe('Alias for sessionId. Use either sessionId or id.'),
+      title: z.string().optional().describe('Updated title'),
+      description: z
+        .string()
+        .nullable()
+        .optional()
+        .describe('Updated description'),
+      categoryId: z
+        .string()
+        .nullable()
+        .optional()
+        .describe('Updated category UUID'),
+      taskId: z.string().nullable().optional().describe('Updated task UUID'),
+      startTime: z.string().optional().describe('Updated start time ISO 8601'),
+      endTime: z.string().optional().describe('Updated end time ISO 8601'),
+    }),
+  }),
+
+  delete_time_tracking_session: tool({
+    description: 'Delete a time tracking session by ID.',
+    inputSchema: z.object({
+      sessionId: z.string().optional().describe('Session UUID'),
+      id: z
+        .string()
+        .optional()
+        .describe('Alias for sessionId. Use either sessionId or id.'),
+    }),
+  }),
+
+  move_time_tracking_session: tool({
+    description:
+      'Move a stopped session to another workspace after membership checks, with category/task remapping by name.',
+    inputSchema: z.object({
+      sessionId: z.string().optional().describe('Session UUID'),
+      id: z
+        .string()
+        .optional()
+        .describe('Alias for sessionId. Use either sessionId or id.'),
+      targetWorkspaceId: z.string().describe('Destination workspace UUID'),
+    }),
+  }),
+
   // ── Memory ──
   remember: tool({
     description:
@@ -937,7 +1101,7 @@ export const miraToolDefinitions = {
 export type MiraToolContext = {
   userId: string;
   wsId: string;
-  supabase: SupabaseClient;
+  supabase: TypedSupabaseClient;
   timezone?: string;
 };
 
@@ -1117,6 +1281,20 @@ export async function executeMiraTool(
       return executeStartTimer(args, ctx);
     case 'stop_timer':
       return executeStopTimer(args, ctx);
+    case 'list_time_tracking_sessions':
+      return executeListTimeTrackingSessions(args, ctx);
+    case 'get_time_tracking_session':
+      return executeGetTimeTrackingSession(args, ctx);
+    case 'create_time_tracking_entry':
+      return executeCreateTimeTrackingEntry(args, ctx);
+    case 'create_time_tracking_request':
+      return executeCreateTimeTrackingRequest(args, ctx);
+    case 'update_time_tracking_session':
+      return executeUpdateTimeTrackingSession(args, ctx);
+    case 'delete_time_tracking_session':
+      return executeDeleteTimeTrackingSession(args, ctx);
+    case 'move_time_tracking_session':
+      return executeMoveTimeTrackingSession(args, ctx);
 
     // Memory
     case 'remember':
