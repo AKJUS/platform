@@ -5,11 +5,13 @@ import 'package:http/http.dart' as http;
 import 'package:mime/mime.dart';
 import 'package:mobile/data/models/time_tracking/break_record.dart';
 import 'package:mobile/data/models/time_tracking/category.dart';
+import 'package:mobile/data/models/time_tracking/period_stats.dart';
 import 'package:mobile/data/models/time_tracking/pomodoro_settings.dart';
 import 'package:mobile/data/models/time_tracking/request.dart';
 import 'package:mobile/data/models/time_tracking/request_activity.dart';
 import 'package:mobile/data/models/time_tracking/request_comment.dart';
 import 'package:mobile/data/models/time_tracking/session.dart';
+import 'package:mobile/data/models/time_tracking/session_page.dart';
 import 'package:mobile/data/models/time_tracking/stats.dart';
 import 'package:mobile/data/models/workspace_settings.dart';
 import 'package:mobile/data/sources/api_client.dart';
@@ -22,6 +24,15 @@ abstract class ITimeTrackerRepository {
     String wsId, {
     int limit = 50,
     int offset = 0,
+  });
+
+  Future<TimeTrackingSessionPage> getHistorySessions(
+    String wsId, {
+    required DateTime dateFrom,
+    required DateTime dateTo,
+    String? cursor,
+    int limit = 10,
+    String? userId,
   });
 
   Future<TimeTrackingSession?> getRunningSession(String wsId);
@@ -81,9 +92,16 @@ abstract class ITimeTrackerRepository {
 
   Future<TimeTrackerStats> getStats(
     String wsId,
-    String userId, {
+    String? userId, {
     bool isPersonal = false,
     String? timezone,
+  });
+
+  Future<TimeTrackingPeriodStats> getPeriodStats(
+    String wsId, {
+    required DateTime dateFrom,
+    required DateTime dateTo,
+    String? userId,
   });
 
   Future<List<TimeTrackingRequest>> getRequests(
@@ -329,6 +347,28 @@ class TimeTrackerRepository implements ITimeTrackerRepository {
   }
 
   @override
+  Future<TimeTrackingSessionPage> getHistorySessions(
+    String wsId, {
+    required DateTime dateFrom,
+    required DateTime dateTo,
+    String? cursor,
+    int limit = 10,
+    String? userId,
+  }) async {
+    final data = await _api.getJson(
+      _withQuery('/api/v1/workspaces/$wsId/time-tracking/sessions', {
+        'type': 'history',
+        'limit': '$limit',
+        'dateFrom': _toApiIso(dateFrom),
+        'dateTo': _toApiIso(dateTo),
+        if (cursor != null) 'cursor': cursor,
+        if (userId != null) 'userId': userId,
+      }),
+    );
+    return TimeTrackingSessionPage.fromJson(data);
+  }
+
+  @override
   Future<TimeTrackingSession?> getRunningSession(String wsId) async {
     final data = await _api.getJson(
       _withQuery('/api/v1/workspaces/$wsId/time-tracking/sessions', {
@@ -524,13 +564,13 @@ class TimeTrackerRepository implements ITimeTrackerRepository {
   @override
   Future<TimeTrackerStats> getStats(
     String wsId,
-    String userId, {
+    String? userId, {
     bool isPersonal = false,
     String? timezone,
   }) async {
     final data = await _api.getJson(
       _withQuery('/api/v1/workspaces/$wsId/time-tracker/stats', {
-        'userId': userId,
+        if (userId != null && userId.isNotEmpty) 'userId': userId,
         'isPersonal': isPersonal.toString(),
         'summaryOnly': 'true',
         if (timezone != null) 'timezone': timezone,
@@ -543,6 +583,23 @@ class TimeTrackerRepository implements ITimeTrackerRepository {
       monthTime: data['monthTime'] as int? ?? 0,
       streak: data['streak'] as int? ?? 0,
     );
+  }
+
+  @override
+  Future<TimeTrackingPeriodStats> getPeriodStats(
+    String wsId, {
+    required DateTime dateFrom,
+    required DateTime dateTo,
+    String? userId,
+  }) async {
+    final data = await _api.getJson(
+      _withQuery('/api/v1/workspaces/$wsId/time-tracking/stats/period', {
+        'dateFrom': _toApiIso(dateFrom),
+        'dateTo': _toApiIso(dateTo),
+        if (userId != null) 'userId': userId,
+      }),
+    );
+    return TimeTrackingPeriodStats.fromJson(data);
   }
 
   @override

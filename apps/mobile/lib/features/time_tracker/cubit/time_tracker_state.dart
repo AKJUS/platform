@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:mobile/data/models/time_tracking/break_record.dart';
 import 'package:mobile/data/models/time_tracking/category.dart';
+import 'package:mobile/data/models/time_tracking/period_stats.dart';
 import 'package:mobile/data/models/time_tracking/pomodoro_settings.dart';
 import 'package:mobile/data/models/time_tracking/session.dart';
 import 'package:mobile/data/models/time_tracking/stats.dart';
@@ -8,6 +9,8 @@ import 'package:mobile/data/models/time_tracking/stats.dart';
 enum TimeTrackerStatus { initial, loading, loaded, error }
 
 enum PomodoroPhase { idle, focus, shortBreak, longBreak }
+
+enum HistoryViewMode { day, week, month }
 
 class TimeTrackerState extends Equatable {
   const TimeTrackerState({
@@ -25,6 +28,15 @@ class TimeTrackerState extends Equatable {
     this.pomodoroPhase = PomodoroPhase.idle,
     this.pomodoroSessionCount = 0,
     this.isPaused = false,
+    this.historyViewMode = HistoryViewMode.week,
+    this.historyAnchorDate,
+    this.historySessions = const [],
+    this.historyPeriodStats,
+    this.historyNextCursor,
+    this.historyHasMore = false,
+    this.isHistoryLoading = false,
+    this.isHistoryLoadingMore = false,
+    this.isHistoryStatsAccordionOpen = false,
     this.error,
   });
 
@@ -42,6 +54,15 @@ class TimeTrackerState extends Equatable {
   final PomodoroPhase pomodoroPhase;
   final int pomodoroSessionCount;
   final bool isPaused;
+  final HistoryViewMode historyViewMode;
+  final DateTime? historyAnchorDate;
+  final List<TimeTrackingSession> historySessions;
+  final TimeTrackingPeriodStats? historyPeriodStats;
+  final String? historyNextCursor;
+  final bool historyHasMore;
+  final bool isHistoryLoading;
+  final bool isHistoryLoadingMore;
+  final bool isHistoryStatsAccordionOpen;
   final String? error;
 
   bool get isRunning => runningSession != null && !isPaused;
@@ -61,11 +82,22 @@ class TimeTrackerState extends Equatable {
     PomodoroPhase? pomodoroPhase,
     int? pomodoroSessionCount,
     bool? isPaused,
+    HistoryViewMode? historyViewMode,
+    Object? historyAnchorDate = _sentinel,
+    List<TimeTrackingSession>? historySessions,
+    TimeTrackingPeriodStats? historyPeriodStats,
+    Object? historyNextCursor = _sentinel,
+    bool? historyHasMore,
+    bool? isHistoryLoading,
+    bool? isHistoryLoadingMore,
+    bool? isHistoryStatsAccordionOpen,
     String? error,
     bool clearRunningSession = false,
     bool clearActiveBreak = false,
     bool clearSelectedCategory = false,
     bool clearThresholdDays = false,
+    bool clearHistoryPeriodStats = false,
+    bool clearHistoryNextCursor = false,
     bool clearError = false,
   }) => TimeTrackerState(
     status: status ?? this.status,
@@ -90,6 +122,24 @@ class TimeTrackerState extends Equatable {
     pomodoroPhase: pomodoroPhase ?? this.pomodoroPhase,
     pomodoroSessionCount: pomodoroSessionCount ?? this.pomodoroSessionCount,
     isPaused: isPaused ?? this.isPaused,
+    historyViewMode: historyViewMode ?? this.historyViewMode,
+    historyAnchorDate: historyAnchorDate == _sentinel
+        ? this.historyAnchorDate
+        : historyAnchorDate as DateTime?,
+    historySessions: historySessions ?? this.historySessions,
+    historyPeriodStats: clearHistoryPeriodStats
+        ? null
+        : (historyPeriodStats ?? this.historyPeriodStats),
+    historyNextCursor: clearHistoryNextCursor
+        ? null
+        : (historyNextCursor == _sentinel
+              ? this.historyNextCursor
+              : historyNextCursor as String?),
+    historyHasMore: historyHasMore ?? this.historyHasMore,
+    isHistoryLoading: isHistoryLoading ?? this.isHistoryLoading,
+    isHistoryLoadingMore: isHistoryLoadingMore ?? this.isHistoryLoadingMore,
+    isHistoryStatsAccordionOpen:
+        isHistoryStatsAccordionOpen ?? this.isHistoryStatsAccordionOpen,
     error: clearError ? null : (error ?? this.error),
   );
 
@@ -109,6 +159,15 @@ class TimeTrackerState extends Equatable {
     pomodoroPhase,
     pomodoroSessionCount,
     isPaused,
+    historyViewMode,
+    historyAnchorDate,
+    historySessions,
+    historyPeriodStats,
+    historyNextCursor,
+    historyHasMore,
+    isHistoryLoading,
+    isHistoryLoadingMore,
+    isHistoryStatsAccordionOpen,
     error,
   ];
 }

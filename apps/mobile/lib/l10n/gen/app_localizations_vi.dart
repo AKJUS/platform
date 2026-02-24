@@ -417,6 +417,21 @@ class AppLocalizationsVi extends AppLocalizations {
   String get timerNoSessions => 'Chưa có phiên nào';
 
   @override
+  String get timerHistoryNoSessionsForPeriod => 'Không có phiên nào trong khoảng thời gian này';
+
+  @override
+  String get timerHistoryOverview => 'Tổng quan theo kỳ';
+
+  @override
+  String get timerHistoryTotalTime => 'Tổng thời gian';
+
+  @override
+  String get timerHistoryLoadMore => 'Tải thêm';
+
+  @override
+  String get timerHistoryEndOfList => 'Bạn đã xem hết danh sách';
+
+  @override
   String get timerToday => 'Hôm nay';
 
   @override
@@ -438,6 +453,9 @@ class AppLocalizationsVi extends AppLocalizations {
   String get timerEditSession => 'Sửa phiên';
 
   @override
+  String get timerSessionUpdated => 'Đã cập nhật phiên';
+
+  @override
   String get timerDeleteSession => 'Xóa phiên';
 
   @override
@@ -454,6 +472,12 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get timerDuration => 'Thời lượng';
+
+  @override
+  String get timerInvalidDuration => 'Thời lượng không hợp lệ';
+
+  @override
+  String get timerUnknownDate => 'Ngày không xác định';
 
   @override
   String get timerSave => 'Lưu';
@@ -638,6 +662,14 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get timerSessionExceededDescription => 'Phiên này đã vượt quá ngưỡng thời gian của không gian làm việc. Bạn có thể hủy phiên hoặc gửi yêu cầu để được duyệt.';
+
+  @override
+  String get timerTimeEditingRestricted => 'Chỉnh Sửa Thời Gian Bị Hạn Chế';
+
+  @override
+  String timerAllEditsRequireApproval(String date) {
+    return 'Tất cả các chỉnh sửa thời gian phải được gửi dưới dạng yêu cầu phê duyệt. Phiên này từ $date.';
+  }
 
   @override
   String get timerDiscardSession => 'Hủy phiên';

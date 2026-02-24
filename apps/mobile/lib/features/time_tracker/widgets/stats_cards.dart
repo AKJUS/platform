@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:mobile/core/responsive/responsive_padding.dart';
 import 'package:mobile/core/responsive/responsive_values.dart';
@@ -18,29 +20,57 @@ class StatsCards extends StatelessWidget {
       padding: EdgeInsets.symmetric(
         horizontal: ResponsivePadding.horizontal(context.deviceClass),
       ),
-      child: Row(
-        children: [
-          _StatCard(
-            label: l10n.timerToday,
-            value: _formatSeconds(stats?.todayTime ?? 0),
-          ),
-          const shad.Gap(8),
-          _StatCard(
-            label: l10n.timerThisWeek,
-            value: _formatSeconds(stats?.weekTime ?? 0),
-          ),
-          const shad.Gap(8),
-          _StatCard(
-            label: l10n.timerThisMonth,
-            value: _formatSeconds(stats?.monthTime ?? 0),
-          ),
-          const shad.Gap(8),
-          _StatCard(
-            label: l10n.timerStreak,
-            value: l10n.timerDays(stats?.streak ?? 0),
-            icon: shad.LucideIcons.flame,
-          ),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          const spacing = 8.0;
+          const fallbackTotalWidth = 320.0;
+          const minCardWidth = 140.0;
+          final baseWidth =
+              constraints.hasBoundedWidth && constraints.maxWidth.isFinite
+              ? constraints.maxWidth
+              : fallbackTotalWidth;
+          final availableWidth = math.max(0, baseWidth - spacing);
+          final cardWidth = math.min(
+            baseWidth,
+            math.max(minCardWidth, availableWidth / 2),
+          );
+
+          return Wrap(
+            spacing: spacing,
+            runSpacing: spacing,
+            children: [
+              SizedBox(
+                width: cardWidth,
+                child: _StatCard(
+                  label: l10n.timerToday,
+                  value: _formatSeconds(stats?.todayTime ?? 0),
+                ),
+              ),
+              SizedBox(
+                width: cardWidth,
+                child: _StatCard(
+                  label: l10n.timerThisWeek,
+                  value: _formatSeconds(stats?.weekTime ?? 0),
+                ),
+              ),
+              SizedBox(
+                width: cardWidth,
+                child: _StatCard(
+                  label: l10n.timerThisMonth,
+                  value: _formatSeconds(stats?.monthTime ?? 0),
+                ),
+              ),
+              SizedBox(
+                width: cardWidth,
+                child: _StatCard(
+                  label: l10n.timerStreak,
+                  value: l10n.timerDays(stats?.streak ?? 0),
+                  icon: shad.LucideIcons.flame,
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -68,41 +98,43 @@ class _StatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = shad.Theme.of(context);
 
-    return Expanded(
-      child: shad.Card(
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (icon != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Icon(
-                    icon,
-                    size: 18,
-                    color: theme.colorScheme.secondary,
-                  ),
-                ),
-              Text(
-                value,
-                style: theme.typography.small.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
-                textAlign: TextAlign.center,
+    return shad.Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: SizedBox(
+                height: 18,
+                child: icon == null
+                    ? const SizedBox.shrink()
+                    : Icon(
+                        icon,
+                        size: 18,
+                        color: theme.colorScheme.secondary,
+                      ),
               ),
-              const shad.Gap(2),
-              Text(
-                label,
-                style: theme.typography.small.copyWith(
-                  color: theme.colorScheme.mutedForeground,
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+            ),
+            Text(
+              value,
+              style: theme.typography.p.copyWith(
+                fontWeight: FontWeight.w700,
               ),
-            ],
-          ),
+              textAlign: TextAlign.center,
+            ),
+            const shad.Gap(2),
+            Text(
+              label,
+              style: theme.typography.textSmall.copyWith(
+                color: theme.colorScheme.mutedForeground,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
         ),
       ),
     );

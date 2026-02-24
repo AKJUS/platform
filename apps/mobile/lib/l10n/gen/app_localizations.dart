@@ -895,6 +895,36 @@ abstract class AppLocalizations {
   /// **'No sessions yet'**
   String get timerNoSessions;
 
+  /// No description provided for @timerHistoryNoSessionsForPeriod.
+  ///
+  /// In en, this message translates to:
+  /// **'No sessions for this period'**
+  String get timerHistoryNoSessionsForPeriod;
+
+  /// No description provided for @timerHistoryOverview.
+  ///
+  /// In en, this message translates to:
+  /// **'Period overview'**
+  String get timerHistoryOverview;
+
+  /// No description provided for @timerHistoryTotalTime.
+  ///
+  /// In en, this message translates to:
+  /// **'Total time'**
+  String get timerHistoryTotalTime;
+
+  /// No description provided for @timerHistoryLoadMore.
+  ///
+  /// In en, this message translates to:
+  /// **'Load more'**
+  String get timerHistoryLoadMore;
+
+  /// No description provided for @timerHistoryEndOfList.
+  ///
+  /// In en, this message translates to:
+  /// **'You reached the end of the list'**
+  String get timerHistoryEndOfList;
+
   /// No description provided for @timerToday.
   ///
   /// In en, this message translates to:
@@ -937,6 +967,12 @@ abstract class AppLocalizations {
   /// **'Edit session'**
   String get timerEditSession;
 
+  /// No description provided for @timerSessionUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Session updated'**
+  String get timerSessionUpdated;
+
   /// No description provided for @timerDeleteSession.
   ///
   /// In en, this message translates to:
@@ -972,6 +1008,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Duration'**
   String get timerDuration;
+
+  /// No description provided for @timerInvalidDuration.
+  ///
+  /// In en, this message translates to:
+  /// **'Invalid duration'**
+  String get timerInvalidDuration;
+
+  /// No description provided for @timerUnknownDate.
+  ///
+  /// In en, this message translates to:
+  /// **'Unknown date'**
+  String get timerUnknownDate;
 
   /// No description provided for @timerSave.
   ///
@@ -1332,6 +1380,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'This session is older than your workspace threshold. You can discard it or submit it as a request for approval.'**
   String get timerSessionExceededDescription;
+
+  /// No description provided for @timerTimeEditingRestricted.
+  ///
+  /// In en, this message translates to:
+  /// **'Time Editing Restricted'**
+  String get timerTimeEditingRestricted;
+
+  /// No description provided for @timerAllEditsRequireApproval.
+  ///
+  /// In en, this message translates to:
+  /// **'All time edits must be submitted as requests for approval. This session is from {date}.'**
+  String timerAllEditsRequireApproval(String date);
 
   /// No description provided for @timerDiscardSession.
   ///

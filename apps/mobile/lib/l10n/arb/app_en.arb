@@ -164,6 +164,11 @@
     "timerRecentSessions": "Recent sessions",
     "timerSeeAll": "See all",
     "timerNoSessions": "No sessions yet",
+    "timerHistoryNoSessionsForPeriod": "No sessions for this period",
+    "timerHistoryOverview": "Period overview",
+    "timerHistoryTotalTime": "Total time",
+    "timerHistoryLoadMore": "Load more",
+    "timerHistoryEndOfList": "You reached the end of the list",
     "timerToday": "Today",
     "timerThisWeek": "This week",
     "timerThisMonth": "This month",
@@ -171,12 +176,15 @@
     "timerStatsTitle": "Statistics",
     "timerActivityHeatmap": "Activity",
     "timerEditSession": "Edit session",
+    "timerSessionUpdated": "Session updated",
     "timerDeleteSession": "Delete session",
     "timerDeleteConfirm": "Delete this session?",
     "timerAddMissedEntry": "Add missed entry",
     "timerStartTime": "Start time",
     "timerEndTime": "End time",
     "timerDuration": "Duration",
+    "timerInvalidDuration": "Invalid duration",
+    "timerUnknownDate": "Unknown date",
     "timerSave": "Save",
     "timerPomodoro": "Pomodoro",
     "timerPomodoroSettings": "Pomodoro settings",
@@ -253,6 +261,15 @@
     "timerSubmitForApproval": "Submit for approval",
     "timerSessionExceeded": "Session exceeds threshold",
     "timerSessionExceededDescription": "This session is older than your workspace threshold. You can discard it or submit it as a request for approval.",
+    "timerTimeEditingRestricted": "Time Editing Restricted",
+    "timerAllEditsRequireApproval": "All time edits must be submitted as requests for approval. This session is from {date}.",
+    "@timerAllEditsRequireApproval": {
+        "placeholders": {
+            "date": {
+                "type": "String"
+            }
+        }
+    },
     "timerDiscardSession": "Discard session",
     "timerSubmitAsRequest": "Submit as request",
     "timerThresholdWarningAll": "All missed entries in this workspace require approval. Add at least one proof image before submitting.",

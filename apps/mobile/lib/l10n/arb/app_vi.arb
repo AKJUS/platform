@@ -164,6 +164,11 @@
     "timerRecentSessions": "Phiên gần đây",
     "timerSeeAll": "Xem tất cả",
     "timerNoSessions": "Chưa có phiên nào",
+    "timerHistoryNoSessionsForPeriod": "Không có phiên nào trong khoảng thời gian này",
+    "timerHistoryOverview": "Tổng quan theo kỳ",
+    "timerHistoryTotalTime": "Tổng thời gian",
+    "timerHistoryLoadMore": "Tải thêm",
+    "timerHistoryEndOfList": "Bạn đã xem hết danh sách",
     "timerToday": "Hôm nay",
     "timerThisWeek": "Tuần này",
     "timerThisMonth": "Tháng này",
@@ -171,12 +176,15 @@
     "timerStatsTitle": "Thống kê",
     "timerActivityHeatmap": "Hoạt động",
     "timerEditSession": "Sửa phiên",
+    "timerSessionUpdated": "Đã cập nhật phiên",
     "timerDeleteSession": "Xóa phiên",
     "timerDeleteConfirm": "Xóa phiên này?",
     "timerAddMissedEntry": "Thêm mục bị thiếu",
     "timerStartTime": "Thời gian bắt đầu",
     "timerEndTime": "Thời gian kết thúc",
     "timerDuration": "Thời lượng",
+    "timerInvalidDuration": "Thời lượng không hợp lệ",
+    "timerUnknownDate": "Ngày không xác định",
     "timerSave": "Lưu",
     "timerPomodoro": "Pomodoro",
     "timerPomodoroSettings": "Cài đặt Pomodoro",
@@ -253,6 +261,15 @@
     "timerSubmitForApproval": "Gửi duyệt",
     "timerSessionExceeded": "Phiên vượt ngưỡng",
     "timerSessionExceededDescription": "Phiên này đã vượt quá ngưỡng thời gian của không gian làm việc. Bạn có thể hủy phiên hoặc gửi yêu cầu để được duyệt.",
+    "timerTimeEditingRestricted": "Chỉnh Sửa Thời Gian Bị Hạn Chế",
+    "timerAllEditsRequireApproval": "Tất cả các chỉnh sửa thời gian phải được gửi dưới dạng yêu cầu phê duyệt. Phiên này từ {date}.",
+    "@timerAllEditsRequireApproval": {
+        "placeholders": {
+            "date": {
+                "type": "String"
+            }
+        }
+    },
     "timerDiscardSession": "Hủy phiên",
     "timerSubmitAsRequest": "Gửi yêu cầu",
     "timerThresholdWarningAll": "Mọi mục bổ sung trong không gian làm việc này đều cần được duyệt. Vui lòng thêm ít nhất một ảnh minh chứng trước khi gửi.",
