@@ -77,10 +77,34 @@ export default function GroupReportsClient({
   const { resolvedTheme } = useTheme();
 
   const [bulkExportOpen, setBulkExportOpen] = useState(false);
+  const [bulkExportTheme, setBulkExportTheme] = useState<'light' | 'dark'>(
+    resolvedTheme === 'dark' ? 'dark' : 'light'
+  );
   const [bulkReportsToExport, setBulkReportsToExport] = useState<
     WorkspaceUserReport[]
   >([]);
   const [isPreparingBulkExport, setIsPreparingBulkExport] = useState(false);
+
+  const resolveCurrentReportPreviewTheme = (): 'light' | 'dark' => {
+    const fallbackTheme = resolvedTheme === 'dark' ? 'dark' : 'light';
+    const rawTheme = window.localStorage.getItem('reportPreviewTheme');
+
+    if (!rawTheme) return fallbackTheme;
+
+    try {
+      const parsedTheme = JSON.parse(rawTheme);
+      if (parsedTheme === 'dark' || parsedTheme === 'light') {
+        return parsedTheme;
+      }
+      if (parsedTheme === 'auto') {
+        return fallbackTheme;
+      }
+    } catch {
+      return fallbackTheme;
+    }
+
+    return fallbackTheme;
+  };
 
   const [scoreCalculationMethod] = useLocalStorage<'AVERAGE' | 'LATEST'>(
     'scoreCalculationMethod',
@@ -541,6 +565,7 @@ export default function GroupReportsClient({
       return;
     }
 
+    setBulkExportTheme(resolveCurrentReportPreviewTheme());
     setIsPreparingBulkExport(true);
     try {
       let query = supabase
@@ -590,7 +615,7 @@ export default function GroupReportsClient({
         reports={bulkReportsToExport}
         configs={configsData}
         lang={locale}
-        theme={resolvedTheme === 'dark' ? 'dark' : 'light'}
+        theme={bulkExportTheme}
       />
       <div className="mb-4 flex flex-row items-center justify-between gap-2">
         <div className="flex flex-1 flex-col gap-2 md:flex-row md:items-center">

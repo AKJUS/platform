@@ -1,17 +1,28 @@
 'use client';
 
-import { defineRegistry, useBoundProp } from '@json-render/react';
+import {
+  defineRegistry,
+  useActions,
+  useBoundProp,
+  useStateStore,
+  useStateValue,
+} from '@json-render/react';
+import { useQuery } from '@tanstack/react-query';
 import { dashboardCatalog } from '@tuturuuu/ai/tools/json-render-catalog';
+import * as Icons from '@tuturuuu/icons';
 import {
   Check,
   ChevronLeft,
   ChevronRight,
   Dices,
+  Loader2,
   Maximize2,
   Minimize2,
   RotateCcw,
   X,
 } from '@tuturuuu/icons';
+import { Avatar, AvatarFallback, AvatarImage } from '@tuturuuu/ui/avatar';
+import { Badge } from '@tuturuuu/ui/badge';
 import { Button } from '@tuturuuu/ui/button';
 import {
   Card,
@@ -20,9 +31,52 @@ import {
   CardHeader,
   CardTitle,
 } from '@tuturuuu/ui/card';
+import { Checkbox } from '@tuturuuu/ui/checkbox';
+import { useWorkspaceUser } from '@tuturuuu/ui/hooks/use-workspace-user';
 import { Input } from '@tuturuuu/ui/input';
 import { Label } from '@tuturuuu/ui/label';
-import { useEffect, useMemo, useState } from 'react';
+import { Progress } from '@tuturuuu/ui/progress';
+import { RadioGroup, RadioGroupItem } from '@tuturuuu/ui/radio-group';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@tuturuuu/ui/select';
+import { Separator } from '@tuturuuu/ui/separator';
+import { Textarea } from '@tuturuuu/ui/textarea';
+import { MyTasksFilters } from '@tuturuuu/ui/tu-do/my-tasks/my-tasks-filters';
+import { MyTasksHeader } from '@tuturuuu/ui/tu-do/my-tasks/my-tasks-header';
+import TaskList from '@tuturuuu/ui/tu-do/my-tasks/task-list';
+import { useMyTasksState } from '@tuturuuu/ui/tu-do/my-tasks/use-my-tasks-state';
+import { cn } from '@tuturuuu/utils/format';
+import { useParams } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+
+const useComponentValue = <T,>(
+  propValue: T | undefined,
+  bindingPath: string | undefined,
+  fallbackName: string | undefined,
+  defaultValue: T
+): [T, (val: T) => void] => {
+  const { set } = useStateStore();
+
+  // Use absolute JSON pointer for fallback (e.g. "/amount")
+  const fallbackPath = fallbackName ? `/${fallbackName}` : undefined;
+  const path = bindingPath || fallbackPath;
+
+  const boundValue = useStateValue<T>(path || '');
+
+  const setValue = useCallback(
+    (val: T) => {
+      if (path) set(path, val);
+    },
+    [path, set]
+  );
+
+  return [(boundValue ?? propValue ?? defaultValue) as T, setValue];
+};
 
 export const { registry, handlers, executeAction } = defineRegistry(
   dashboardCatalog,
@@ -30,14 +84,119 @@ export const { registry, handlers, executeAction } = defineRegistry(
     components: {
       Card: ({ props, children }) => (
         <Card className="my-2 border border-border/60 bg-card/60">
-          <CardHeader>
-            <CardTitle className="text-lg">{props.title}</CardTitle>
-            {props.description && (
-              <CardDescription>{props.description}</CardDescription>
-            )}
-          </CardHeader>
-          <CardContent>{children}</CardContent>
+          {(props.title || props.description) && (
+            <CardHeader>
+              {props.title && (
+                <CardTitle className="text-lg">{props.title}</CardTitle>
+              )}
+              {props.description && (
+                <CardDescription>{props.description}</CardDescription>
+              )}
+            </CardHeader>
+          )}
+          <CardContent
+            className={cn(!props.title && !props.description && 'pt-6')}
+          >
+            {children}
+          </CardContent>
         </Card>
+      ),
+      Stack: ({ props, children }) => (
+        <div
+          className={cn(
+            'flex',
+            props.direction === 'horizontal' ? 'flex-row' : 'flex-col',
+            props.align === 'start' && 'items-start',
+            props.align === 'center' && 'items-center',
+            props.align === 'end' && 'items-end',
+            props.align === 'stretch' && 'items-stretch',
+            props.justify === 'start' && 'justify-start',
+            props.justify === 'center' && 'justify-center',
+            props.justify === 'end' && 'justify-end',
+            props.justify === 'between' && 'justify-between',
+            props.justify === 'around' && 'justify-around'
+          )}
+          style={{ gap: props.gap ? `${props.gap}px` : '1rem' }}
+        >
+          {children}
+        </div>
+      ),
+      Grid: ({ props, children }) => (
+        <div
+          className="grid w-full"
+          style={{
+            gridTemplateColumns: `repeat(${props.cols || 1}, minmax(0, 1fr))`,
+            gap: props.gap ? `${props.gap}px` : '1rem',
+          }}
+        >
+          {children}
+        </div>
+      ),
+      Text: ({ props }) => {
+        const Component =
+          props.variant === 'p' || !props.variant
+            ? 'p'
+            : (props.variant as any);
+        return (
+          <Component
+            className={cn(
+              props.variant === 'small' && 'text-sm',
+              props.variant === 'tiny' && 'text-xs',
+              props.weight === 'medium' && 'font-medium',
+              props.weight === 'semibold' && 'font-semibold',
+              props.weight === 'bold' && 'font-bold',
+              props.color === 'muted' && 'text-muted-foreground',
+              props.color === 'primary' && 'text-primary',
+              props.color === 'success' && 'text-dynamic-green',
+              props.color === 'warning' && 'text-dynamic-yellow',
+              props.color === 'error' && 'text-dynamic-red',
+              props.align === 'center' && 'text-center',
+              props.align === 'right' && 'text-right'
+            )}
+          >
+            {props.content}
+          </Component>
+        );
+      },
+      Icon: ({ props }) => {
+        const IconComp = (Icons as any)[props.name];
+        if (!IconComp) return null;
+        return (
+          <IconComp size={props.size || 16} style={{ color: props.color }} />
+        );
+      },
+      Badge: ({ props }) => (
+        <Badge variant={(props.variant as any) || 'default'}>
+          {props.label}
+        </Badge>
+      ),
+      Avatar: ({ props }) => (
+        <Avatar style={{ width: props.size || 32, height: props.size || 32 }}>
+          {props.src && <AvatarImage src={props.src} />}
+          <AvatarFallback>{props.fallback || '?'}</AvatarFallback>
+        </Avatar>
+      ),
+      Separator: ({ props }) => (
+        <Separator orientation={props.orientation || 'horizontal'} />
+      ),
+      Progress: ({ props }) => (
+        <div className="flex w-full flex-col gap-2">
+          {(props.label || props.showValue) && (
+            <div className="flex items-center justify-between text-xs">
+              {props.label && (
+                <span className="font-medium text-muted-foreground">
+                  {props.label}
+                </span>
+              )}
+              {props.showValue && (
+                <span className="font-mono text-muted-foreground">
+                  {Math.round(props.value)}%
+                </span>
+              )}
+            </div>
+          )}
+          <Progress value={props.value} className="h-2" />
+        </div>
       ),
       Metric: ({ props }) => (
         <div className="flex flex-col gap-1 rounded-lg border bg-surface p-4 shadow-sm">
@@ -62,23 +221,186 @@ export const { registry, handlers, executeAction } = defineRegistry(
           </div>
         </div>
       ),
-      Form: ({ props, children }) => (
-        <div className="my-4 flex flex-col gap-4 rounded-xl border bg-card p-6 shadow-sm">
-          <div>
-            <h3 className="font-semibold text-lg">{props.title}</h3>
-            {props.description && (
-              <p className="text-muted-foreground text-sm">
-                {props.description}
-              </p>
+      MyTasks: ({ props }) => {
+        const params = useParams();
+        const wsId = params.wsId as string;
+        const { data: user, isLoading: userLoading } = useWorkspaceUser();
+
+        // Fetch workspace data to check if it's personal
+        const { data: workspace, isLoading: workspaceLoading } = useQuery({
+          queryKey: ['workspace', wsId],
+          queryFn: async () => {
+            const res = await fetch(`/api/workspaces/${wsId}`);
+            if (!res.ok) return null;
+            return res.json();
+          },
+          enabled: !!wsId,
+        });
+
+        const state = useMyTasksState({
+          wsId,
+          userId: user?.id || '',
+          isPersonal: workspace?.personal || false,
+        });
+
+        if (userLoading || workspaceLoading)
+          return (
+            <div className="flex items-center justify-center p-8">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            </div>
+          );
+
+        if (!user || !workspace) return null;
+
+        return (
+          <div className="flex flex-col gap-6">
+            {props.showSummary && (
+              <MyTasksHeader
+                overdueCount={state.filteredTasks.overdueTasks?.length ?? 0}
+                todayCount={state.filteredTasks.todayTasks?.length ?? 0}
+                upcomingCount={state.filteredTasks.upcomingTasks?.length ?? 0}
+              />
             )}
+
+            {props.showFilters && (
+              <MyTasksFilters
+                workspacesData={state.workspacesData || []}
+                allBoardsData={state.allBoardsData}
+                taskFilters={state.taskFilters}
+                setTaskFilters={state.setTaskFilters}
+                availableLabels={state.availableLabels}
+                availableProjects={state.availableProjects}
+                workspaceLabels={state.workspaceLabels}
+                workspaceProjects={state.workspaceProjects}
+                onFilterChange={state.handleFilterChange}
+                onLabelFilterChange={state.handleLabelFilterChange}
+                onProjectFilterChange={state.handleProjectFilterChange}
+                onCreateNewBoard={() => state.setNewBoardDialogOpen(true)}
+              />
+            )}
+
+            <TaskList
+              wsId={wsId}
+              userId={user.id}
+              isPersonal={workspace.personal}
+              commandBarLoading={state.commandBarLoading}
+              queryLoading={state.queryLoading}
+              overdueTasks={state.filteredTasks.overdueTasks}
+              todayTasks={state.filteredTasks.todayTasks}
+              upcomingTasks={state.filteredTasks.upcomingTasks}
+              completedTasks={state.completedTasks}
+              totalActiveTasks={
+                (state.filteredTasks.overdueTasks?.length || 0) +
+                (state.filteredTasks.todayTasks?.length || 0) +
+                (state.filteredTasks.upcomingTasks?.length || 0)
+              }
+              totalCompletedTasks={state.totalCompletedTasks}
+              hasMoreCompleted={state.hasMoreCompleted}
+              isFetchingMoreCompleted={state.isFetchingMoreCompleted}
+              onFetchMoreCompleted={state.fetchMoreCompleted}
+              collapsedSections={state.collapsedSections}
+              toggleSection={state.toggleSection}
+              handleUpdate={state.handleUpdate}
+              availableLabels={state.availableLabels}
+              onCreateNewLabel={() => state.setNewLabelDialogOpen(true)}
+            />
           </div>
-          <div className="flex flex-col gap-4">{children}</div>
-        </div>
-      ),
+        );
+      },
+      Form: ({ props, children, bindings }) => {
+        const { state } = useStateStore();
+        const { handlers } = useActions();
+        const [isSubmitting, setIsSubmitting] = useState(false);
+        const [isSuccess, setIsSuccess] = useState(false);
+        const [error, setError] = useState<string | null>(null);
+        const [message, setMessage] = useState<string | null>(null);
+
+        // We use a bound property to trigger the action
+        const [, setOnSubmit] = useBoundProp<any>(
+          null,
+          bindings?.onSubmit || props.onSubmit
+        );
+
+        return (
+          <div className="my-4 flex flex-col gap-4 rounded-xl border bg-card p-6 shadow-sm">
+            <div>
+              <h3 className="font-semibold text-lg">{props.title}</h3>
+              {props.description && (
+                <p className="text-muted-foreground text-sm">
+                  {props.description}
+                </p>
+              )}
+            </div>
+            <form
+              className="flex flex-col gap-4"
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setIsSubmitting(true);
+                setError(null);
+                try {
+                  const actionName = props.submitAction || 'submit_form';
+                  const handler = (handlers as any)?.[actionName];
+
+                  if (handler) {
+                    await handler({
+                      title: props.title,
+                      values: state,
+                    });
+                  } else if (setOnSubmit) {
+                    // Fallback to binding if no action is defined
+                    await setOnSubmit({
+                      title: props.title,
+                      values: state,
+                    });
+                  } else {
+                    throw new Error(`Action "${actionName}" not found`);
+                  }
+
+                  setIsSuccess(true);
+                  setMessage('Submitted successfully!');
+                } catch (err) {
+                  setError(
+                    err instanceof Error ? err.message : 'Unknown error'
+                  );
+                } finally {
+                  setIsSubmitting(false);
+                }
+              }}
+            >
+              <div className="flex flex-col gap-4">{children}</div>
+              <Button
+                type="submit"
+                disabled={isSubmitting || isSuccess}
+                className="mt-2 w-full"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Submitting...
+                  </>
+                ) : isSuccess ? (
+                  <>
+                    <Check className="mr-2 h-4 w-4" />
+                    Submitted
+                  </>
+                ) : (
+                  props.submitLabel || 'Submit'
+                )}
+              </Button>
+              {error && <p className="text-dynamic-red text-sm">{error}</p>}
+              {message && !error && (
+                <p className="text-dynamic-green text-sm">{message}</p>
+              )}
+            </form>
+          </div>
+        );
+      },
       Input: ({ props, bindings }) => {
-        const [value, setValue] = useBoundProp<string>(
-          '',
-          bindings?.value || bindings?.[props.name]
+        const [value, setValue] = useComponentValue<string>(
+          props.value,
+          bindings?.value,
+          props.name,
+          ''
         );
         return (
           <div className="relative flex flex-col gap-2">
@@ -88,9 +410,202 @@ export const { registry, handlers, executeAction } = defineRegistry(
               type={props.type || 'text'}
               placeholder={props.placeholder}
               required={props.required}
-              value={value ?? ''}
+              value={value}
               onChange={(e) => setValue(e.target.value)}
             />
+          </div>
+        );
+      },
+      Textarea: ({ props, bindings }) => {
+        const [value, setValue] = useComponentValue<string>(
+          props.value,
+          bindings?.value,
+          props.name,
+          ''
+        );
+        return (
+          <div className="relative flex flex-col gap-2">
+            <Label htmlFor={props.name}>{props.label}</Label>
+            <Textarea
+              id={props.name}
+              placeholder={props.placeholder}
+              required={props.required}
+              rows={props.rows || 3}
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+            />
+          </div>
+        );
+      },
+      Checkbox: ({ props, bindings }) => {
+        const [checked, setChecked] = useComponentValue<boolean>(
+          props.checked,
+          bindings?.checked,
+          props.name,
+          false
+        );
+        return (
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id={props.name}
+                checked={!!checked}
+                onCheckedChange={(val) => setChecked(!!val)}
+                required={props.required}
+              />
+              <Label
+                htmlFor={props.name}
+                className="font-medium text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                {props.label}
+              </Label>
+            </div>
+            {props.description && (
+              <p className="pl-6 text-muted-foreground text-xs">
+                {props.description}
+              </p>
+            )}
+          </div>
+        );
+      },
+      CheckboxGroup: ({ props, bindings }) => {
+        const [values, setValues] = useComponentValue<string[]>(
+          props.values,
+          bindings?.values,
+          props.name,
+          []
+        );
+
+        const toggleValue = (value: string) => {
+          const current = Array.isArray(values) ? values : [];
+          if (current.includes(value)) {
+            setValues(current.filter((v) => v !== value));
+          } else {
+            setValues([...current, value]);
+          }
+        };
+
+        return (
+          <div className="flex flex-col gap-3">
+            <Label>{props.label}</Label>
+            <div className="flex flex-col gap-2">
+              {(props.options as any[])?.map((option) => (
+                <div key={option.value} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`${props.name}-${option.value}`}
+                    checked={(values || []).includes(option.value)}
+                    onCheckedChange={() => toggleValue(option.value)}
+                  />
+                  <Label
+                    htmlFor={`${props.name}-${option.value}`}
+                    className="font-normal text-sm leading-none"
+                  >
+                    {option.label}
+                  </Label>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      },
+      RadioGroup: ({ props, bindings }) => {
+        const [value, setValue] = useComponentValue<string>(
+          props.value,
+          bindings?.value,
+          props.name,
+          ''
+        );
+        return (
+          <div className="flex flex-col gap-3">
+            <Label>{props.label}</Label>
+            <RadioGroup
+              value={value}
+              onValueChange={setValue}
+              className="flex flex-col gap-2"
+              required={props.required}
+            >
+              {(props.options as any[])?.map((option) => (
+                <div key={option.value} className="flex items-center space-x-2">
+                  <RadioGroupItem
+                    value={option.value}
+                    id={`${props.name}-${option.value}`}
+                  />
+                  <Label
+                    htmlFor={`${props.name}-${option.value}`}
+                    className="font-normal text-sm leading-none"
+                  >
+                    {option.label}
+                  </Label>
+                </div>
+              ))}
+            </RadioGroup>
+          </div>
+        );
+      },
+      Select: ({ props, bindings }) => {
+        const params = useParams();
+        const wsId = params.wsId as string;
+        const { set } = useStateStore();
+
+        const [value, setValue] = useComponentValue<string>(
+          props.value,
+          bindings?.value,
+          props.name,
+          ''
+        );
+
+        // Fetch categories to allow auto-inferring transaction type
+        const { data: categories } = useQuery({
+          queryKey: [
+            'workspaces',
+            wsId,
+            'finance',
+            'transactions',
+            'categories',
+          ],
+          queryFn: async () => {
+            const res = await fetch(
+              `/api/workspaces/${wsId}/transactions/categories`
+            );
+            if (!res.ok) return [];
+            return res.json();
+          },
+          enabled: !!wsId && props.name === 'categoryId',
+        });
+
+        const handleValueChange = (newVal: string) => {
+          setValue(newVal);
+
+          // Auto-infer transaction type if this is a category select
+          if (props.name === 'categoryId' && categories) {
+            const category = categories.find((c: any) => c.id === newVal);
+            if (category) {
+              const type = category.is_expense ? 'expense' : 'income';
+              // Update the "type" field in state if it exists
+              set('/type', type);
+            }
+          }
+        };
+
+        return (
+          <div className="flex flex-col gap-2">
+            <Label htmlFor={props.name}>{props.label}</Label>
+            <Select
+              value={value}
+              onValueChange={handleValueChange}
+              required={props.required}
+            >
+              <SelectTrigger id={props.name} className="w-full">
+                <SelectValue placeholder={props.placeholder} />
+              </SelectTrigger>
+              <SelectContent>
+                {(props.options as any[])?.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         );
       },
@@ -149,7 +664,7 @@ export const { registry, handlers, executeAction } = defineRegistry(
           return shuffled;
         }, [props.options, props.randomize, randomizeCount]);
 
-        const answer = String(props.answer);
+        const answer = String(props.answer || (props as any).correctAnswer);
         const isCorrect = selected === answer;
 
         const quizContent = (
@@ -337,7 +852,8 @@ export const { registry, handlers, executeAction } = defineRegistry(
         const calculateScore = () => {
           let score = 0;
           for (let i = 0; i < quizzes.length; i++) {
-            if (answers[i] === quizzes[i].answer) {
+            const currentAnswer = quizzes[i].answer || quizzes[i].correctAnswer;
+            if (answers[i] === currentAnswer) {
               score++;
             }
           }
@@ -420,7 +936,8 @@ export const { registry, handlers, executeAction } = defineRegistry(
 
         const selected = answers[currentIndex];
         const isAnswered = selected !== undefined;
-        const isCorrect = selected === currentQuiz.answer;
+        const isCorrect =
+          selected === (currentQuiz.answer || currentQuiz.correctAnswer);
 
         const quizContent = (
           <div className="flex flex-col gap-6">
@@ -478,7 +995,9 @@ export const { registry, handlers, executeAction } = defineRegistry(
               <div className="flex flex-col gap-3">
                 {options.map((option: string) => {
                   const isSelected = selected === option;
-                  const isTheAnswer = option === currentQuiz.answer;
+                  const isTheAnswer =
+                    option ===
+                    (currentQuiz.answer || currentQuiz.correctAnswer);
 
                   let btnClasses =
                     'h-auto justify-start whitespace-normal px-5 py-4 text-left transition-all border-2';
@@ -663,16 +1182,16 @@ export const { registry, handlers, executeAction } = defineRegistry(
             </div>
 
             <div
-              className={`relative flex min-h-[250px] cursor-pointer select-none items-center justify-center rounded-2xl border-2 border-dashed p-8 text-center transition-all duration-500 [transform-style:preserve-3d] ${
+              className={`transform-3d relative flex min-h-62.5 cursor-pointer select-none items-center justify-center rounded-2xl border-2 border-dashed p-8 text-center transition-all duration-500 ${
                 flipped
-                  ? 'border-primary/40 bg-primary/5 [transform:rotateY(180deg)]'
+                  ? 'transform-[rotateY(180deg)] border-primary/40 bg-primary/5'
                   : 'border-border bg-secondary/20 hover:bg-secondary/30'
               }`}
               onClick={() => setFlipped(!flipped)}
             >
               {/* Front side */}
               <div
-                className={`absolute inset-0 flex flex-col items-center justify-center p-8 [backface-visibility:hidden] ${
+                className={`backface-hidden absolute inset-0 flex flex-col items-center justify-center p-8 ${
                   flipped ? 'pointer-events-none opacity-0' : 'opacity-100'
                 }`}
               >
@@ -689,7 +1208,7 @@ export const { registry, handlers, executeAction } = defineRegistry(
 
               {/* Back side */}
               <div
-                className={`absolute inset-0 flex flex-col items-center justify-center p-8 [backface-visibility:hidden] [transform:rotateY(180deg)] ${
+                className={`backface-hidden transform-[rotateY(180deg)] absolute inset-0 flex flex-col items-center justify-center p-8 ${
                   flipped ? 'opacity-100' : 'pointer-events-none opacity-0'
                 }`}
               >
@@ -784,8 +1303,60 @@ export const { registry, handlers, executeAction } = defineRegistry(
       },
     },
     actions: {
-      log_transaction: async (params, setState) => {
+      submit_form: async (params, setState, context) => {
         if (!params) return;
+        const { sendMessage } = (context as any) || {};
+        if (!sendMessage) {
+          setState((prev) => ({
+            ...prev,
+            error: 'Internal error: sendMessage not found',
+          }));
+          return;
+        }
+
+        setState((prev) => ({ ...prev, submitting: true, error: null }));
+
+        try {
+          const values = params.values || {};
+          const title = params.title || 'Form Submission';
+
+          // Format the message for the chat
+          const formattedValues = Object.entries(values)
+            .map(([key, value]) => {
+              const label = key.charAt(0).toUpperCase() + key.slice(1);
+              const displayValue = Array.isArray(value)
+                ? value.join(', ')
+                : String(value);
+              return `**${label}**: ${displayValue}`;
+            })
+            .join('\n');
+
+          const messageText = `### ${title}\n\n${formattedValues}`;
+
+          // Send the message to the assistant
+          await sendMessage({
+            role: 'user',
+            parts: [{ type: 'text', text: messageText }],
+          });
+
+          setState((prev) => ({
+            ...prev,
+            submitting: false,
+            success: true,
+            message: 'Form submitted successfully!',
+          }));
+        } catch (error) {
+          setState((prev) => ({
+            ...prev,
+            submitting: false,
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+          }));
+        }
+      },
+      log_transaction: async (params, setState, context) => {
+        if (!params) return;
+        const { sendMessage } = (context as any) || {};
         setState((prev) => ({ ...prev, submitting: true }));
         try {
           const res = await fetch('/api/v1/finance/transactions', {
@@ -800,6 +1371,18 @@ export const { registry, handlers, executeAction } = defineRegistry(
 
           if (!res.ok) {
             throw new Error('Failed to log transaction');
+          }
+
+          if (sendMessage) {
+            await sendMessage({
+              role: 'user',
+              parts: [
+                {
+                  type: 'text',
+                  text: `### Transaction Logged\n\n**Amount**: ${params.amount}\n**Description**: ${params.description || 'N/A'}`,
+                },
+              ],
+            });
           }
 
           setState((prev) => ({

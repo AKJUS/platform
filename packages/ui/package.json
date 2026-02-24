@@ -136,7 +136,7 @@
     "@tuturuuu/types": "workspace:*",
     "@tuturuuu/typescript-config": "workspace:*",
     "@types/html2canvas": "^1.0.0",
-    "@types/lodash": "^4.17.23",
+    "@types/lodash": "^4.17.24",
     "@types/node": "^25.3.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
@@ -215,6 +215,10 @@
     },
     "./tu-do/boards/*": "./src/components/ui/tu-do/boards/*.tsx",
     "./tu-do/drafts/*": "./src/components/ui/tu-do/drafts/*.tsx",
+    "./tu-do/my-tasks/use-my-tasks-state": {
+      "types": "./src/components/ui/tu-do/my-tasks/use-my-tasks-state.ts",
+      "import": "./src/components/ui/tu-do/my-tasks/use-my-tasks-state.ts"
+    },
     "./tu-do/my-tasks/*": "./src/components/ui/tu-do/my-tasks/*.tsx",
     "./tu-do/habits/*": "./src/components/ui/tu-do/habits/*.tsx",
     "./tu-do/notes/*": "./src/components/ui/tu-do/notes/*.tsx",

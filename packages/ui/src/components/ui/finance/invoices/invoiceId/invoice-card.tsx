@@ -152,8 +152,10 @@ export default function InvoiceCard({
         scale: 2,
         useCORS: true,
         backgroundColor: isDarkPreview ? '#1a1a1a' : '#ffffff',
-        width: element.offsetWidth,
-        height: element.offsetHeight,
+        width: element.scrollWidth,
+        height: element.scrollHeight,
+        windowWidth: element.scrollWidth,
+        windowHeight: element.scrollHeight,
       });
 
       await new Promise<void>((resolve, reject) => {
@@ -313,7 +315,7 @@ export default function InvoiceCard({
         <div
           ref={printableRef}
           id="printable-area"
-          className={`h-full rounded-lg border p-6 text-foreground md:p-12 ${isDarkPreview ? 'bg-foreground/10 text-foreground' : 'bg-white text-black'}`}
+          className={`h-full rounded-lg p-6 text-foreground md:p-12 print:rounded-none ${isDarkPreview ? 'bg-foreground/10 text-foreground' : 'bg-white text-black'}`}
         >
           {!isCompactInitialized ? (
             <div className="flex h-full min-h-100 items-center justify-center">

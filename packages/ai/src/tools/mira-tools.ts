@@ -10,6 +10,7 @@ import {
   executeGetUpcomingEvents,
   executeUpdateEvent,
 } from './executors/calendar';
+import { executeSetImmersiveMode } from './executors/chat';
 import {
   executeCreateTransactionCategory,
   executeCreateTransactionTag,
@@ -71,6 +72,7 @@ import {
 } from './executors/tasks';
 import { executeSetTheme } from './executors/theme';
 import { executeStartTimer, executeStopTimer } from './executors/timer';
+import { executeUpdateUserName } from './executors/user';
 import { executeListWorkspaceMembers } from './executors/workspace';
 // ── Executor imports ──
 import { dashboardCatalog } from './json-render-catalog';
@@ -148,8 +150,85 @@ export const MIRA_TOOL_DIRECTORY: Record<string, string> = {
     'Generate an interactive, actionable UI component or widget instead of plain text when it significantly improves user experience (e.g. for forms, dashboards, or data visualization).',
   // Workspace
   list_workspace_members: 'List all members of the workspace',
+  // User
+  update_user_name: "Update the user's display name or full name",
+  // Chat
+  set_immersive_mode: 'Enter or exit immersive fullscreen mode for the chat',
   // Meta (always active)
   no_action_needed: 'Conversational message — no tool action required',
+};
+
+import type { PermissionId } from '@tuturuuu/types';
+
+export const MIRA_TOOL_PERMISSIONS: Partial<
+  Record<string, PermissionId | PermissionId[]>
+> = {
+  // Tasks
+  get_my_tasks: [],
+  create_task: 'manage_projects',
+  complete_task: 'manage_projects',
+  update_task: 'manage_projects',
+  delete_task: 'manage_projects',
+  list_boards: [],
+  create_board: 'manage_projects',
+  update_board: 'manage_projects',
+  delete_board: 'manage_projects',
+  list_task_lists: [],
+  create_task_list: 'manage_projects',
+  update_task_list: 'manage_projects',
+  delete_task_list: 'manage_projects',
+  list_task_labels: [],
+  create_task_label: 'manage_projects',
+  update_task_label: 'manage_projects',
+  delete_task_label: 'manage_projects',
+  add_task_labels: 'manage_projects',
+  remove_task_labels: 'manage_projects',
+  list_projects: [],
+  create_project: 'manage_projects',
+  update_project: 'manage_projects',
+  delete_project: 'manage_projects',
+  add_task_to_project: 'manage_projects',
+  remove_task_from_project: 'manage_projects',
+  add_task_assignee: 'manage_projects',
+  remove_task_assignee: 'manage_projects',
+
+  // Calendar
+  get_upcoming_events: 'manage_calendar',
+  create_event: 'manage_calendar',
+  check_e2ee_status: 'manage_calendar',
+  enable_e2ee: 'manage_calendar',
+
+  // Finance
+  log_transaction: 'manage_finance',
+  get_spending_summary: 'manage_finance',
+  list_wallets: 'manage_finance',
+  create_wallet: 'manage_finance',
+  update_wallet: 'manage_finance',
+  delete_wallet: 'manage_finance',
+  list_transactions: 'manage_finance',
+  get_transaction: 'manage_finance',
+  update_transaction: 'manage_finance',
+  delete_transaction: 'manage_finance',
+  list_transaction_categories: 'manage_finance',
+  create_transaction_category: 'manage_finance',
+  update_transaction_category: 'manage_finance',
+  delete_transaction_category: 'manage_finance',
+  list_transaction_tags: 'manage_finance',
+  create_transaction_tag: 'manage_finance',
+  update_transaction_tag: 'manage_finance',
+  delete_transaction_tag: 'manage_finance',
+  set_default_currency: 'manage_finance',
+
+  // Time Tracking
+  // (Available to everyone internally or those who have tracking access, skipping strict perm here for now unless needed)
+
+  // Memory
+  // Memories are personal to the user mostly, skip strict perm
+
+  // Generative UI & Metadata
+  render_ui: [],
+  select_tools: [],
+  no_action_needed: [],
 };
 
 // ── Tool Definitions (schemas only, passed to streamText) ──
@@ -194,12 +273,12 @@ export const miraToolDefinitions = {
       name: z.string().describe('Task title'),
       description: z
         .string()
-        .nullable()
-        .describe('Task description (plain text), or null'),
+        .nullish()
+        .describe('Task description (plain text), or null/omit'),
       priority: z
         .enum(['low', 'normal', 'high', 'critical'])
-        .nullable()
-        .describe('Task priority level, or null for no priority'),
+        .nullish()
+        .describe('Task priority level, or null/omit for no priority'),
       assignToSelf: z
         .boolean()
         .optional()
@@ -431,12 +510,13 @@ export const miraToolDefinitions = {
     description:
       'Get upcoming calendar events for the next N days. Events are automatically decrypted if E2EE is enabled.',
     inputSchema: z.object({
-      num_days: z
+      days: z
         .number()
         .int()
         .min(1)
         .max(30)
-        .describe('Number of days to look ahead'),
+        .optional()
+        .describe('Number of days to look ahead (default: 7)'),
     }),
   }),
 
@@ -447,8 +527,11 @@ export const miraToolDefinitions = {
       title: z.string().describe('Event title'),
       startAt: z.string().describe('Start time ISO 8601'),
       endAt: z.string().describe('End time ISO 8601'),
-      description: z.string().nullable().describe('Event description, or null'),
-      location: z.string().nullable().describe('Event location, or null'),
+      description: z
+        .string()
+        .nullish()
+        .describe('Event description, or null/omit'),
+      location: z.string().nullish().describe('Event location, or null/omit'),
     }),
   }),
 
@@ -470,10 +553,10 @@ export const miraToolDefinitions = {
       'Log a financial transaction. Positive amount = income, negative = expense.',
     inputSchema: z.object({
       amount: z.number().describe('Amount (positive=income, negative=expense)'),
-      description: z.string().nullable().describe('What was this for?'),
+      description: z.string().nullish().describe('What was this for?'),
       walletId: z
         .string()
-        .nullable()
+        .nullish()
         .describe('Wallet UUID. If null, uses the first wallet.'),
     }),
   }),
@@ -486,7 +569,8 @@ export const miraToolDefinitions = {
         .int()
         .min(1)
         .max(365)
-        .describe('Number of past days to summarize'),
+        .optional()
+        .describe('Number of past days to summarize (default: 30)'),
     }),
   }),
 
@@ -633,8 +717,8 @@ export const miraToolDefinitions = {
       title: z.string().describe('What are you working on?'),
       description: z
         .string()
-        .nullable()
-        .describe('Additional details, or null'),
+        .nullish()
+        .describe('Additional details, or null/omit'),
     }),
   }),
 
@@ -643,8 +727,8 @@ export const miraToolDefinitions = {
     inputSchema: z.object({
       sessionId: z
         .string()
-        .nullable()
-        .describe('Session UUID, or null for active session'),
+        .nullish()
+        .describe('Session UUID, or null/omit for active session'),
     }),
   }),
 
@@ -673,14 +757,17 @@ export const miraToolDefinitions = {
         .describe('Search keywords, or null/omit for all'),
       category: z
         .enum(['preference', 'fact', 'conversation_topic', 'event', 'person'])
-        .nullable()
-        .describe('Filter by category, or null'),
+        .nullish()
+        .describe('Filter by category, or null/omit'),
       maxResults: z
         .number()
         .int()
         .min(1)
         .max(50)
-        .describe('Max results (20-50 for broad queries, 5-10 for specific)'),
+        .optional()
+        .describe(
+          'Max results (default: 10, use 20-50 for broad queries, 5-10 for specific)'
+        ),
     }),
   }),
 
@@ -807,7 +894,7 @@ export const miraToolDefinitions = {
   // ── Generative UI (json-render) ──
   render_ui: tool({
     description:
-      'Generate an interactive, actionable UI component or widget using json-render instead of plain text. Use this when the user asks for a dashboard, a form, or when it would significantly improve the user experience. You MUST output a JSON object matching the schema exactly.',
+      'Generate an interactive, actionable UI component or widget using json-render instead of plain text. Use this when the user asks for a dashboard, a form, or whenever a beautifully rendered visual response would complement and significantly improve the user experience (e.g. for status summaries, lists, or visualizations). You MUST output a JSON object matching the schema exactly.',
     inputSchema: dashboardCatalog.zodSchema(),
   }),
 
@@ -815,6 +902,24 @@ export const miraToolDefinitions = {
   list_workspace_members: tool({
     description: 'List all members of the current workspace with their roles.',
     inputSchema: z.object({}),
+  }),
+
+  // ── User ──
+  update_user_name: tool({
+    description: "Update the user's display name or full name.",
+    inputSchema: z.object({
+      displayName: z.string().nullish().describe('New display name'),
+      fullName: z.string().nullish().describe('New full name'),
+    }),
+  }),
+
+  // ── Chat ──
+  set_immersive_mode: tool({
+    description:
+      'Enter or exit immersive fullscreen mode for the current chat.',
+    inputSchema: z.object({
+      enabled: z.boolean().describe('Whether to enable immersive mode'),
+    }),
   }),
 
   // ── Escape-hatch ──
@@ -840,14 +945,47 @@ export type MiraToolName = keyof typeof miraToolDefinitions;
 
 // ── Stream Tools Factory ──
 
-export function createMiraStreamTools(ctx: MiraToolContext): ToolSet {
+export function createMiraStreamTools(
+  ctx: MiraToolContext,
+  withoutPermission?: (p: PermissionId) => boolean
+): ToolSet {
   const tools: ToolSet = {};
   for (const [name, def] of Object.entries(miraToolDefinitions)) {
-    tools[name] = {
-      ...def,
-      execute: async (args: Record<string, unknown>) =>
-        executeMiraTool(name, args, ctx),
-    } as Tool;
+    // Check permissions
+    const requiredPerm = MIRA_TOOL_PERMISSIONS[name];
+    let isMissingPermission = false;
+    let missingPermissionsStr = '';
+
+    if (requiredPerm && withoutPermission) {
+      if (Array.isArray(requiredPerm)) {
+        const missing = requiredPerm.filter((p) => withoutPermission(p));
+        if (missing.length > 0) {
+          isMissingPermission = true;
+          missingPermissionsStr = missing.join(', ');
+        }
+      } else {
+        if (withoutPermission(requiredPerm)) {
+          isMissingPermission = true;
+          missingPermissionsStr = requiredPerm;
+        }
+      }
+    }
+
+    if (isMissingPermission) {
+      tools[name] = {
+        ...def,
+        execute: async () => ({
+          ok: false,
+          error: `You do not have the required permissions to use this tool. Missing permission(s): ${missingPermissionsStr}. Please inform the user.`,
+        }),
+      } as Tool;
+    } else {
+      tools[name] = {
+        ...def,
+        execute: async (args: Record<string, unknown>) =>
+          executeMiraTool(name, args, ctx),
+      } as Tool;
+    }
   }
   return tools;
 }
@@ -1017,6 +1155,14 @@ export async function executeMiraTool(
     // Workspace
     case 'list_workspace_members':
       return executeListWorkspaceMembers(args, ctx);
+
+    // User
+    case 'update_user_name':
+      return executeUpdateUserName(args, ctx);
+
+    // Chat
+    case 'set_immersive_mode':
+      return executeSetImmersiveMode(args, ctx);
 
     default:
       return { error: `Unknown tool: ${toolName}` };

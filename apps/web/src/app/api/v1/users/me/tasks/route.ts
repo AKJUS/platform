@@ -9,6 +9,7 @@ import {
 } from '@tuturuuu/utils/task-overrides';
 import { NextResponse } from 'next/server';
 import { withSessionAuth } from '@/lib/api-auth';
+import { normalizeWorkspaceId } from '@/lib/workspace-helper';
 
 /** Row shape returned by get_user_tasks_with_relations RPC */
 interface RpcTaskRow {
@@ -51,6 +52,9 @@ export const GET = withSessionAuth(
       const wsId = url.searchParams.get('wsId');
       const isPersonal = url.searchParams.get('isPersonal') === 'true';
 
+      const normalizedWsId =
+        !isPersonal && wsId ? await normalizeWorkspaceId(wsId) : undefined;
+
       // Parse optional server-side filter params
       const filterWsIds = url.searchParams.getAll('filterWsId');
       const filterBoardIds = url.searchParams.getAll('filterBoardId');
@@ -63,7 +67,7 @@ export const GET = withSessionAuth(
       const [rpcResult, boardListOverridesResult] = await Promise.all([
         supabase.rpc('get_user_tasks_with_relations', {
           p_user_id: user.id,
-          p_ws_id: isPersonal ? undefined : (wsId ?? undefined),
+          p_ws_id: normalizedWsId,
           p_include_deleted: false,
           p_list_statuses: ['not_started', 'active', 'done'],
           p_exclude_personally_completed: false,

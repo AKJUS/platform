@@ -8,6 +8,7 @@ import WorkspaceWrapper from '@/components/workspace-wrapper';
 import DashboardInsights from './components/dashboard-insights';
 import MiraDashboardClient from './components/mira-dashboard-client';
 import PermissionSetupBanner from './permission-setup-banner';
+import UserGroupQuickActions from './user-groups/quick-actions';
 
 export const metadata: Metadata = {
   title: 'Dashboard',
@@ -49,6 +50,8 @@ export default async function WorkspaceHomePage({ params }: Props) {
                 isCreator={workspace.creator_id === currentUser.id}
               />
             )}
+
+            <UserGroupQuickActions wsId={wsId} />
 
             <MiraDashboardClient
               currentUser={currentUser}

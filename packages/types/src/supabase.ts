@@ -442,6 +442,7 @@ export type Database = {
           name: string;
           output_price_per_token: number;
           output_tiers: Json | null;
+          pricing_raw: Json | null;
           provider: string;
           released_at: string | null;
           synced_at: string;
@@ -464,6 +465,7 @@ export type Database = {
           name: string;
           output_price_per_token?: number;
           output_tiers?: Json | null;
+          pricing_raw?: Json | null;
           provider: string;
           released_at?: string | null;
           synced_at?: string;
@@ -486,6 +488,7 @@ export type Database = {
           name?: string;
           output_price_per_token?: number;
           output_tiers?: Json | null;
+          pricing_raw?: Json | null;
           provider?: string;
           released_at?: string | null;
           synced_at?: string;
@@ -494,6 +497,45 @@ export type Database = {
           web_search_price?: number | null;
         };
         Relationships: [];
+      };
+      ai_model_favorites: {
+        Row: {
+          created_at: string;
+          id: string;
+          model_id: string;
+          user_id: string;
+          ws_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          model_id: string;
+          user_id: string;
+          ws_id: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          model_id?: string;
+          user_id?: string;
+          ws_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'ai_model_favorites_ws_id_fkey';
+            columns: ['ws_id'];
+            isOneToOne: false;
+            referencedRelation: 'workspace_link_counts';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'ai_model_favorites_ws_id_fkey';
+            columns: ['ws_id'];
+            isOneToOne: false;
+            referencedRelation: 'workspaces';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       ai_models: {
         Row: {

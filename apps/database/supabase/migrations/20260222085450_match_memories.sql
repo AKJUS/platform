@@ -1,5 +1,5 @@
 create or replace function match_memories(
-  query_embedding vector(768),
+  query_embedding extensions.vector(768),
   match_count int default 10,
   filter_category text default null
 ) returns table (

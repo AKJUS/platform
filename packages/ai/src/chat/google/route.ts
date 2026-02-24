@@ -9,6 +9,7 @@ import {
   createDynamicClient,
 } from '@tuturuuu/supabase/next/server';
 import { MAX_CHAT_MESSAGE_LENGTH } from '@tuturuuu/utils/constants';
+import { getPermissions } from '@tuturuuu/utils/workspace-helper';
 import type { ToolSet } from 'ai';
 import {
   consumeStream,
@@ -471,6 +472,19 @@ export function createPOST(
       let miraTools: ToolSet | undefined;
 
       if (isMiraMode && wsId) {
+        let withoutPermission: ((p: any) => boolean) | undefined;
+        try {
+          const permissionsResult = await getPermissions({
+            wsId,
+            request: req,
+          });
+          if (permissionsResult) {
+            withoutPermission = permissionsResult.withoutPermission;
+          }
+        } catch (permErr) {
+          console.error('Failed to get permissions for Mira tools:', permErr);
+        }
+
         const ctx: MiraToolContext = {
           userId: user.id,
           wsId,
@@ -483,6 +497,7 @@ export function createPOST(
           const dynamicInstruction = buildMiraSystemInstruction({
             soul,
             isFirstInteraction,
+            withoutPermission,
           });
           miraSystemPrompt = `${contextString}\n\n${dynamicInstruction}`;
         } catch (ctxErr) {
@@ -490,9 +505,9 @@ export function createPOST(
             'Failed to build Mira context (continuing with default instruction):',
             ctxErr
           );
-          miraSystemPrompt = buildMiraSystemInstruction();
+          miraSystemPrompt = buildMiraSystemInstruction({ withoutPermission });
         }
-        miraTools = createMiraStreamTools(ctx);
+        miraTools = createMiraStreamTools(ctx, withoutPermission);
       }
 
       const effectiveSource = isMiraMode ? 'Mira' : 'Rewise';

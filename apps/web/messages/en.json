@@ -553,6 +553,7 @@
     "add_bonus": "Add Bonus",
     "all_models": "All",
     "all_providers": "All Providers",
+    "all_tags": "All tags",
     "all_types": "All Types",
     "allocation_updated": "Allocation updated",
     "allocation_updated_with_balances": "Allocation updated. {count} active balance(s) adjusted.",
@@ -579,6 +580,7 @@
     "features_description": "Control which AI features are available per tier",
     "features_title": "Feature Access",
     "filter_by_provider": "Filter by provider...",
+    "filter_by_tag": "All tags",
     "filter_feature": "Filter feature...",
     "filter_model": "Filter model...",
     "inactive": "Inactive",
@@ -640,7 +642,10 @@
     "unlimited": "Unlimited",
     "update_failed": "Update failed",
     "usage_by_feature": "Usage by Feature",
-    "usage_by_model": "Usage by Model"
+    "usage_by_model": "Usage by Model",
+    "view_grid": "Grid view",
+    "view_list": "List view",
+    "view_mode": "View mode"
   },
   "ai-execution-charts": {
     "active": "Active",
@@ -2811,16 +2816,36 @@
     },
     "keep_it_up": "Keep it up!",
     "mira_chat": {
+      "attach_files": "Attach files",
       "copy_message": "Copy message",
       "copy_output": "Copy output",
       "credits_remaining": "AI credits remaining",
+      "download_image": "Download image",
       "empty_state": "Ask {name} anything — tasks, schedule, expenses, or just chat.",
       "error": "Something went wrong. Please try again.",
       "exit_fullscreen": "Exit fullscreen",
+      "files_attached": "{count, plural, one {# file attached} other {# files attached}}",
       "fullscreen": "Fullscreen chat",
       "generated_image": "Generated image",
+      "max_files_reached": "Maximum files reached",
+      "model_added_to_favorites": "Added {model} to favorites",
+      "model_ctx_label": "Ctx",
+      "model_favorite": "Add to favorites",
+      "model_favorites_heading": "Favorites",
+      "model_filter_providers": "Filter by provider",
+      "model_hide_locked": "Hide locked models",
+      "model_in_price_label": "In",
+      "model_max_out_label": "Max out",
+      "model_out_price_label": "Out",
+      "model_removed_from_favorites": "Removed {model} from favorites",
       "model_selector_empty": "No models found.",
       "model_selector_search": "Search models...",
+      "model_show_all": "Show all models",
+      "model_show_favorites": "Show favorites only",
+      "model_unfavorite": "Remove from favorites",
+      "model_unlock_more_description": "Upgrade your workspace plan to access more advanced AI models.",
+      "model_unlock_more_title": "Unlock more models",
+      "model_upgrade_cta": "Upgrade",
       "model_upgrade_required": "Upgrade your plan to use this model",
       "new_conversation": "New conversation",
       "no_tools_needed": "No tools needed",
@@ -2842,6 +2867,7 @@
       "tool_done": "Done",
       "tool_error": "Error",
       "tool_generating_image": "Generating image...",
+      "tool_generating_ui": "Generating interface...",
       "tool_running": "Running...",
       "using_tools": "Working on it...",
       "view_only": "View only",
@@ -5078,6 +5104,9 @@
     "trash": "Trash"
   },
   "marketing": {
+    "models": {
+      "title": "AI Models Directory"
+    },
     "solutions": {
       "education": {
         "bento_grid_description": "Access thousands of curated educational resources, textbooks, and multimedia content.",
@@ -5163,6 +5192,27 @@
         "use_cases_title": "Solutions For Every Level"
       }
     }
+  },
+  "marketing-models": {
+    "all_providers": "All Providers",
+    "all_tags": "All Tags",
+    "all_types": "All Types",
+    "context_window_label": "Context Window",
+    "filter_provider": "All Providers",
+    "filter_tag": "All Tags",
+    "filter_type": "All Types",
+    "generation_price_label": "Generation Price",
+    "input_price_label": "Input",
+    "max_output_label": "Max Output",
+    "no_results": "No models found matching your criteria.",
+    "output_price_label": "Output",
+    "search_placeholder": "Search models...",
+    "showing_count": "Showing {count} models",
+    "subtitle": "Explore the full range of AI models powered by Tuturuuu.",
+    "title": "AI Models Directory",
+    "view_grid": "Grid view",
+    "view_list": "List view",
+    "view_mode": "View mode"
   },
   "meet-together": {
     "agenda": "Agenda",

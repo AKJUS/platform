@@ -47,6 +47,10 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'tuturuuu.com',
       },
+      {
+        protocol: 'https',
+        hostname: 'models.dev',
+      },
     ],
   },
 };
