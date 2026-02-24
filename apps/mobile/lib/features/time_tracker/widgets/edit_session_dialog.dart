@@ -247,7 +247,7 @@ class _EditSessionDialogState extends State<EditSessionDialog> {
                         shad.showToast(
                           context: this.context,
                           builder: (context, overlay) => shad.Alert(
-                            content: Text(context.l10n.timerSave),
+                            content: Text(context.l10n.timerSessionUpdated),
                           ),
                         );
 

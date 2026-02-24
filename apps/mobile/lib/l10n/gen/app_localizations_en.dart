@@ -453,6 +453,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get timerEditSession => 'Edit session';
 
   @override
+  String get timerSessionUpdated => 'Session updated';
+
+  @override
   String get timerDeleteSession => 'Delete session';
 
   @override

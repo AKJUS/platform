@@ -967,6 +967,12 @@ abstract class AppLocalizations {
   /// **'Edit session'**
   String get timerEditSession;
 
+  /// No description provided for @timerSessionUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Session updated'**
+  String get timerSessionUpdated;
+
   /// No description provided for @timerDeleteSession.
   ///
   /// In en, this message translates to:

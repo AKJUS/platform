@@ -453,6 +453,9 @@ class AppLocalizationsVi extends AppLocalizations {
   String get timerEditSession => 'Sửa phiên';
 
   @override
+  String get timerSessionUpdated => 'Đã cập nhật phiên';
+
+  @override
   String get timerDeleteSession => 'Xóa phiên';
 
   @override
