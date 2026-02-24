@@ -22,7 +22,6 @@ import { Separator } from '@tuturuuu/ui/separator';
 import { Tabs, TabsList, TabsTrigger } from '@tuturuuu/ui/tabs';
 import { useLocale, useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
-import type { ReactNode } from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import * as z from 'zod';
 import { RejectDialog } from '../../approvals/components/reject-dialog';
@@ -32,6 +31,7 @@ import { DeleteReportDialog } from './components/delete-report-dialog';
 import { ReportActions } from './components/report-actions';
 import { ReportHistory } from './components/report-history';
 import UserReportForm from './form';
+import { useReportDynamicText } from './hooks/use-report-dynamic-text';
 import { useReportExport } from './hooks/use-report-export';
 import { useReportHistory } from './hooks/use-report-history';
 import {
@@ -206,47 +206,11 @@ export default function EditableReportPreview({
   const content = form.watch('content');
   const feedback = form.watch('feedback');
 
-  const parseDynamicText = (text?: string | null): ReactNode => {
-    if (!text) return '';
-    const segments = text.split(/({{.*?}})/g).filter(Boolean);
-    const parsedText = segments.map((segment, index) => {
-      const match = segment.match(/{{(.*?)}}/);
-      if (match) {
-        const key = match?.[1]?.trim() || '';
-        if (key === 'user_name') {
-          return (
-            <span key={key + index} className="font-semibold">
-              {report.user_name || '...'}
-            </span>
-          );
-        }
-        if (key === 'group_name') {
-          return (
-            <span key={key + index} className="font-semibold">
-              {report.group_name || '...'}
-            </span>
-          );
-        }
-        if (key === 'group_manager_name') {
-          return (
-            <span key={key + index} className="font-semibold">
-              {report.creator_name || '...'}
-            </span>
-          );
-        }
-        return (
-          <span
-            key={key + index}
-            className="rounded bg-foreground px-1 py-0.5 font-semibold text-background"
-          >
-            {key}
-          </span>
-        );
-      }
-      return segment;
-    });
-    return parsedText;
-  };
+  const parseDynamicText = useReportDynamicText({
+    userName: report.user_name,
+    groupName: report.group_name,
+    groupManagerName: report.creator_name,
+  });
 
   const [reportTheme, setReportTheme] = useLocalStorage<
     'auto' | 'light' | 'dark'
