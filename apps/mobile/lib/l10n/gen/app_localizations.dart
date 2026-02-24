@@ -1069,30 +1069,6 @@ abstract class AppLocalizations {
   /// **'Requests'**
   String get timerRequestsTitle;
 
-  /// No description provided for @timerRequestSubmittedTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Request sent'**
-  String get timerRequestSubmittedTitle;
-
-  /// No description provided for @timerRequestSubmittedContent.
-  ///
-  /// In en, this message translates to:
-  /// **'Your time entry has been submitted for approval.'**
-  String get timerRequestSubmittedContent;
-
-  /// No description provided for @timerMissedEntrySavedTitle.
-  ///
-  /// In en, this message translates to:
-  /// **'Entry saved'**
-  String get timerMissedEntrySavedTitle;
-
-  /// No description provided for @timerMissedEntrySavedContent.
-  ///
-  /// In en, this message translates to:
-  /// **'Your missed time entry was added successfully.'**
-  String get timerMissedEntrySavedContent;
-
   /// No description provided for @timerRequestPending.
   ///
   /// In en, this message translates to:
@@ -1392,6 +1368,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Submit for approval'**
   String get timerSubmitForApproval;
+
+  /// No description provided for @timerRequestSubmittedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Request sent'**
+  String get timerRequestSubmittedTitle;
+
+  /// No description provided for @timerRequestSubmittedContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Your time entry has been submitted for approval.'**
+  String get timerRequestSubmittedContent;
+
+  /// No description provided for @timerMissedEntrySavedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Entry saved'**
+  String get timerMissedEntrySavedTitle;
+
+  /// No description provided for @timerMissedEntrySavedContent.
+  ///
+  /// In en, this message translates to:
+  /// **'Your missed time entry was added successfully.'**
+  String get timerMissedEntrySavedContent;
 
   /// No description provided for @timerSessionExceeded.
   ///

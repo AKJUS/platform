@@ -14,6 +14,7 @@ export const APP_PUBLIC_PATHS = [
   '/solutions',
   '/careers',
   '/partners',
+  '/models',
   '/security',
   '/security/bug-bounty',
   '/contributors',
