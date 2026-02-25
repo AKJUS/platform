@@ -1,27 +1,27 @@
 import type { MiraToolContext } from '../../mira-tools';
 import {
-  createTimeTrackingEntryArgsSchema,
-  createTimeTrackingRequestArgsSchema,
-  deleteTimeTrackingSessionArgsSchema,
-  type DeleteTimeTrackingSessionArgs,
-  getZodErrorMessage,
-  moveTimeTrackingSessionArgsSchema,
-  type MoveTimeTrackingSessionArgs,
-  startTimerArgsSchema,
-  type StartTimerArgs,
-  stopTimerArgsSchema,
-  type StopTimerArgs,
-  updateTimeTrackingSessionArgsSchema,
-  type UpdateTimeTrackingSessionArgs,
-  type CreateTimeTrackingEntryArgs,
-  type CreateTimeTrackingRequestArgs,
-} from './timer-mutation-schemas';
-import {
   coerceOptionalString,
   MIN_DURATION_SECONDS,
   parseFlexibleDateTime,
   shouldRequireApproval,
 } from './timer-helpers';
+import {
+  type CreateTimeTrackingEntryArgs,
+  type CreateTimeTrackingRequestArgs,
+  createTimeTrackingEntryArgsSchema,
+  createTimeTrackingRequestArgsSchema,
+  type DeleteTimeTrackingSessionArgs,
+  deleteTimeTrackingSessionArgsSchema,
+  getZodErrorMessage,
+  type MoveTimeTrackingSessionArgs,
+  moveTimeTrackingSessionArgsSchema,
+  type StartTimerArgs,
+  type StopTimerArgs,
+  startTimerArgsSchema,
+  stopTimerArgsSchema,
+  type UpdateTimeTrackingSessionArgs,
+  updateTimeTrackingSessionArgsSchema,
+} from './timer-mutation-schemas';
 
 type MutationError = { error: string };
 
@@ -103,7 +103,7 @@ type MoveTimeTrackingSessionResult =
 export async function executeStartTimer(
   args: Record<string, unknown>,
   ctx: MiraToolContext
-) : Promise<StartTimerResult> {
+): Promise<StartTimerResult> {
   let parsedArgs: StartTimerArgs;
   try {
     parsedArgs = startTimerArgsSchema.parse(args);
@@ -180,7 +180,7 @@ export async function executeStartTimer(
 export async function executeStopTimer(
   args: Record<string, unknown>,
   ctx: MiraToolContext
-) : Promise<StopTimerResult> {
+): Promise<StopTimerResult> {
   let parsedArgs: StopTimerArgs;
   try {
     parsedArgs = stopTimerArgsSchema.parse(args);
@@ -245,7 +245,7 @@ export async function executeStopTimer(
 export async function executeCreateTimeTrackingEntry(
   args: Record<string, unknown>,
   ctx: MiraToolContext
-) : Promise<CreateTimeTrackingEntryResult> {
+): Promise<CreateTimeTrackingEntryResult> {
   let parsedArgs: CreateTimeTrackingEntryArgs;
   try {
     parsedArgs = createTimeTrackingEntryArgsSchema.parse(args);
@@ -282,7 +282,10 @@ export async function executeCreateTimeTrackingEntry(
     const imagePaths = parsedArgs.imagePaths ?? [];
 
     if (imagePaths.length > 0) {
-      const requestResult = await executeCreateTimeTrackingRequest(parsedArgs, ctx);
+      const requestResult = await executeCreateTimeTrackingRequest(
+        parsedArgs,
+        ctx
+      );
       if (
         typeof requestResult === 'object' &&
         requestResult !== null &&
@@ -370,7 +373,7 @@ export async function executeCreateTimeTrackingEntry(
 export async function executeCreateTimeTrackingRequest(
   args: Record<string, unknown>,
   ctx: MiraToolContext
-) : Promise<CreateTimeTrackingRequestResult> {
+): Promise<CreateTimeTrackingRequestResult> {
   let parsedArgs: CreateTimeTrackingRequestArgs;
   try {
     parsedArgs = createTimeTrackingRequestArgsSchema.parse(args);
@@ -456,7 +459,7 @@ export async function executeCreateTimeTrackingRequest(
 export async function executeUpdateTimeTrackingSession(
   args: Record<string, unknown>,
   ctx: MiraToolContext
-) : Promise<UpdateTimeTrackingSessionResult> {
+): Promise<UpdateTimeTrackingSessionResult> {
   let parsedArgs: UpdateTimeTrackingSessionArgs;
   try {
     parsedArgs = updateTimeTrackingSessionArgsSchema.parse(args);
@@ -561,7 +564,7 @@ export async function executeUpdateTimeTrackingSession(
 export async function executeDeleteTimeTrackingSession(
   args: Record<string, unknown>,
   ctx: MiraToolContext
-) : Promise<DeleteTimeTrackingSessionResult> {
+): Promise<DeleteTimeTrackingSessionResult> {
   let parsedArgs: DeleteTimeTrackingSessionArgs;
   try {
     parsedArgs = deleteTimeTrackingSessionArgsSchema.parse(args);
@@ -570,7 +573,8 @@ export async function executeDeleteTimeTrackingSession(
   }
 
   const sessionId =
-    coerceOptionalString(parsedArgs.sessionId) ?? coerceOptionalString(parsedArgs.id);
+    coerceOptionalString(parsedArgs.sessionId) ??
+    coerceOptionalString(parsedArgs.id);
   if (!sessionId) return { error: 'sessionId is required' };
 
   const { error } = await ctx.supabase
@@ -587,7 +591,7 @@ export async function executeDeleteTimeTrackingSession(
 export async function executeMoveTimeTrackingSession(
   args: Record<string, unknown>,
   ctx: MiraToolContext
-) : Promise<MoveTimeTrackingSessionResult> {
+): Promise<MoveTimeTrackingSessionResult> {
   let parsedArgs: MoveTimeTrackingSessionArgs;
   try {
     parsedArgs = moveTimeTrackingSessionArgsSchema.parse(args);

@@ -313,7 +313,8 @@ export function useCreateTimeTrackingRequest() {
         if (!uploadUrlRes.ok) {
           const body = await uploadUrlRes.json().catch(() => ({}));
           throw new Error(
-            (body as { error?: string }).error || 'Failed to prepare file upload'
+            (body as { error?: string }).error ||
+              'Failed to prepare file upload'
           );
         }
 

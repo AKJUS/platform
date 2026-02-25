@@ -44,8 +44,8 @@ import {
 } from '../../form-field-utils';
 import {
   shouldUseTimeTrackingRequestAction,
-  useCreateTimeTrackingRequest,
   useComponentValue,
+  useCreateTimeTrackingRequest,
 } from '../shared';
 
 type FormActionHandler =
