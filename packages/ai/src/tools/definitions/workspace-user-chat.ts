@@ -1,0 +1,75 @@
+import { z } from 'zod';
+import { tool } from '../core';
+
+export const workspaceUserChatToolDefinitions = {
+  update_my_settings: tool({
+    description:
+      "Update YOUR OWN (the assistant's) personality. The `name` field is YOUR name, not the user's. Use `remember` for user's name.",
+    inputSchema: z.object({
+      name: z.string().max(50).nullish().describe('New assistant name'),
+      tone: z
+        .enum([
+          'balanced',
+          'casual',
+          'formal',
+          'friendly',
+          'playful',
+          'professional',
+          'warm',
+        ])
+        .nullish()
+        .describe('Communication tone'),
+      personality: z
+        .string()
+        .max(2000)
+        .nullish()
+        .describe('Personality description / behavioral preferences'),
+      boundaries: z.string().max(2000).nullish().describe('Custom boundaries'),
+      vibe: z
+        .enum([
+          'calm',
+          'energetic',
+          'friendly',
+          'neutral',
+          'playful',
+          'warm',
+          'witty',
+        ])
+        .nullish()
+        .describe('Energy/vibe'),
+      chat_tone: z
+        .enum(['thorough', 'concise', 'detailed', 'brief'])
+        .nullish()
+        .describe('Response verbosity'),
+    }),
+  }),
+
+  set_theme: tool({
+    description:
+      'Switch the UI theme. Use when user asks for dark mode, light mode, or system theme.',
+    inputSchema: z.object({
+      theme: z.enum(['light', 'dark', 'system']).describe('Theme to apply'),
+    }),
+  }),
+
+  list_workspace_members: tool({
+    description: 'List all members of the current workspace with their roles.',
+    inputSchema: z.object({}),
+  }),
+
+  update_user_name: tool({
+    description: "Update the user's display name or full name.",
+    inputSchema: z.object({
+      displayName: z.string().nullish().describe('New display name'),
+      fullName: z.string().nullish().describe('New full name'),
+    }),
+  }),
+
+  set_immersive_mode: tool({
+    description:
+      'Enter or exit immersive fullscreen mode for the current chat.',
+    inputSchema: z.object({
+      enabled: z.boolean().describe('Whether to enable immersive mode'),
+    }),
+  }),
+} as const;
