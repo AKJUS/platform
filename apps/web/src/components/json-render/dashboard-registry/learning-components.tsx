@@ -12,11 +12,21 @@ import {
 } from '@tuturuuu/icons';
 import { Button } from '@tuturuuu/ui/button';
 import { Card } from '@tuturuuu/ui/card';
+import type {
+  JsonRenderComponentContext,
+  JsonRenderFlashcardProps,
+  JsonRenderMultiFlashcardProps,
+  JsonRenderMultiQuizProps,
+  JsonRenderQuizProps,
+} from '@tuturuuu/types';
 import { useMemo, useState } from 'react';
-import { MultiQuizItem } from './shared';
+
+type LearningQuizProps = JsonRenderQuizProps;
+type LearningMultiQuizProps = JsonRenderMultiQuizProps;
+type LearningMultiFlashcardProps = JsonRenderMultiFlashcardProps;
 
 export const dashboardLearningComponents = {
-  Flashcard: ({ props }: any) => {
+  Flashcard: ({ props }: JsonRenderComponentContext<JsonRenderFlashcardProps>) => {
     const [flipped, setFlipped] = useState(false);
 
     return (
@@ -37,13 +47,13 @@ export const dashboardLearningComponents = {
     );
   },
 
-  Quiz: ({ props }: any) => {
+  Quiz: ({ props }: JsonRenderComponentContext<LearningQuizProps>) => {
     const [selected, setSelected] = useState<string | null>(null);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [randomizeCount, setRandomizeCount] = useState(0);
 
     const options = useMemo(() => {
-      const original = (props.options as string[]) || [];
+      const original = props.options || [];
       if (!props.randomize && randomizeCount === 0) return original;
       const shuffled = [...original];
       for (let i = shuffled.length - 1; i > 0; i--) {
@@ -53,7 +63,7 @@ export const dashboardLearningComponents = {
       return shuffled;
     }, [props.options, props.randomize, randomizeCount]);
 
-    const answer = String(props.answer || (props as any).correctAnswer);
+    const answer = String(props.answer || props.correctAnswer || '');
     const isCorrect = selected === answer;
 
     const quizContent = (
@@ -195,7 +205,7 @@ export const dashboardLearningComponents = {
     );
   },
 
-  MultiQuiz: ({ props }: any) => {
+  MultiQuiz: ({ props }: JsonRenderComponentContext<LearningMultiQuizProps>) => {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [answers, setAnswers] = useState<Record<number, string>>({});
     const [showScore, setShowScore] = useState(false);
@@ -205,7 +215,7 @@ export const dashboardLearningComponents = {
 
     const quizzes = useMemo(() => {
       const original = Array.isArray(props.quizzes)
-        ? (props.quizzes as MultiQuizItem[])
+        ? props.quizzes
         : [];
       if (!props.randomize && quizRandomizeCount === 0) return original;
       const shuffled = [...original];
@@ -220,7 +230,7 @@ export const dashboardLearningComponents = {
 
     const options = useMemo(() => {
       if (!currentQuiz) return [];
-      const original = (currentQuiz.options as string[]) || [];
+      const original = currentQuiz.options || [];
       if (
         !currentQuiz.randomizeOptions &&
         !props.randomize &&
@@ -247,7 +257,7 @@ export const dashboardLearningComponents = {
         const quiz = quizzes[i];
         if (!quiz) continue;
         const currentAnswer = quiz.answer || quiz.correctAnswer;
-        if (answers[i] === currentAnswer) {
+        if (currentAnswer && answers[i] === currentAnswer) {
           score++;
         }
       }
@@ -508,14 +518,14 @@ export const dashboardLearningComponents = {
     );
   },
 
-  MultiFlashcard: ({ props }: any) => {
+  MultiFlashcard: ({ props }: JsonRenderComponentContext<LearningMultiFlashcardProps>) => {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [flipped, setFlipped] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
     const [randomizeCount, setRandomizeCount] = useState(0);
 
     const flashcards = useMemo(() => {
-      const original = (props.flashcards as any[]) || [];
+      const original = props.flashcards || [];
       if (!props.randomize && randomizeCount === 0) return original;
       const shuffled = [...original];
       for (let i = shuffled.length - 1; i > 0; i--) {

@@ -1,6 +1,7 @@
 'use client';
 
 import { useStateStore, useStateValue } from '@json-render/react';
+import type { JsonRenderMultiQuizItem } from '@tuturuuu/types';
 import { useCallback, useEffect, useState } from 'react';
 
 type SignedUploadResponse = {
@@ -25,14 +26,7 @@ export type StatDisplayProps = {
   variant?: 'success' | 'warning' | 'error' | string;
 };
 
-export type MultiQuizItem = {
-  question?: string;
-  options?: string[];
-  answer?: string;
-  correctAnswer?: string;
-  explanation?: string;
-  randomizeOptions?: boolean;
-};
+export type MultiQuizItem = JsonRenderMultiQuizItem;
 
 export const useComponentValue = <T,>(
   propValue: T | undefined,
