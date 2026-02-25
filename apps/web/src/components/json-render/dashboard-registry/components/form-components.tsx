@@ -35,6 +35,7 @@ import {
   type DragEvent,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from 'react';
@@ -56,6 +57,8 @@ type JsonRenderStringBinding = { value?: string };
 type JsonRenderCheckboxBinding = { checked?: string };
 type JsonRenderStringArrayBinding = { values?: string };
 type JsonRenderSubmitBinding = { onSubmit?: string };
+
+const EMPTY_FILES: File[] = [];
 
 type FormSubmitParams = {
   props: JsonRenderFormProps;
@@ -297,21 +300,22 @@ export const dashboardFormComponents = {
     );
     const [isDragOver, setIsDragOver] = useState(false);
     const [imageError, setImageError] = useState<string | null>(null);
-    const [imagePreviews, setImagePreviews] = useState<string[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const safeFiles = Array.isArray(files) ? files : [];
+    const safeFiles = Array.isArray(files) ? files : EMPTY_FILES;
+
+    const imagePreviews = useMemo(
+      () => safeFiles.map((file) => URL.createObjectURL(file)),
+      [safeFiles]
+    );
 
     useEffect(() => {
-      const previews = safeFiles.map((file) => URL.createObjectURL(file));
-      setImagePreviews(previews);
-
       return () => {
-        previews.forEach((url) => {
+        imagePreviews.forEach((url) => {
           URL.revokeObjectURL(url);
         });
       };
-    }, [safeFiles]);
+    }, [imagePreviews]);
 
     const addFiles = useCallback(
       (incoming: File[]) => {
