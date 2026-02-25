@@ -217,6 +217,10 @@ export const dashboardCatalog = defineCatalog(schema, {
           .describe(
             'The name of the action to trigger on submit (e.g. "submit_form")'
           ),
+        submitParams: z
+          .record(z.string(), z.unknown())
+          .optional()
+          .describe('Optional static params merged into submit payload'),
         onSubmit: z.any().optional().describe('Binding for the submit action'),
       }),
       hasChildren: true,
@@ -233,7 +237,7 @@ export const dashboardCatalog = defineCatalog(schema, {
           .optional()
           .describe('Whether the field is required'),
         type: z
-          .enum(['text', 'number', 'email', 'password'])
+          .enum(['text', 'number', 'email', 'password', 'datetime-local'])
           .optional()
           .describe('Input type, defaults to text'),
         value: z.any().optional().describe('Input value binding'),
@@ -473,7 +477,7 @@ export const dashboardCatalog = defineCatalog(schema, {
       params: z.object({
         title: z.string().describe('The title of the form being submitted'),
         values: z
-          .record(z.string(), z.any())
+          .record(z.string(), z.unknown())
           .describe('The values of the form fields'),
       }),
       description: 'Submit a generic form back to the assistant.',
@@ -508,8 +512,16 @@ export const dashboardCatalog = defineCatalog(schema, {
           .optional()
           .describe('Category UUID or null'),
         taskId: z.string().nullable().optional().describe('Task UUID or null'),
-        startTime: z.string().describe('Start time ISO 8601'),
-        endTime: z.string().describe('End time ISO 8601'),
+        date: z
+          .string()
+          .optional()
+          .describe('Optional base date (YYYY-MM-DD) when using HH:mm inputs'),
+        startTime: z
+          .string()
+          .describe('Start time (ISO 8601, YYYY-MM-DD HH:mm, or HH:mm with date)'),
+        endTime: z
+          .string()
+          .describe('End time (ISO 8601, YYYY-MM-DD HH:mm, or HH:mm with date)'),
         imagePaths: z
           .array(z.string())
           .optional()

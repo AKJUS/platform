@@ -1,18 +1,77 @@
 import type { MiraToolContext } from '../mira-tools';
 
 const MIN_DURATION_SECONDS = 60;
+const ENABLE_APPROVAL_BYPASS_CHECK = false;
 
-function parseIsoDate(
+function parseDateOnly(
   value: unknown,
   fieldName: string
+): { ok: true; value: string } | { ok: false; error: string } {
+  if (typeof value !== 'string' || !value.trim()) {
+    return { ok: false, error: `${fieldName} is required` };
+  }
+
+  const trimmed = value.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return { ok: false, error: `${fieldName} must use YYYY-MM-DD format` };
+  }
+
+  const parsed = new Date(`${trimmed}T00:00:00`);
+  if (Number.isNaN(parsed.getTime())) {
+    return { ok: false, error: `${fieldName} must be a valid date` };
+  }
+
+  return { ok: true, value: trimmed };
+}
+
+export function parseFlexibleDateTime(
+  value: unknown,
+  fieldName: string,
+  options?: { date?: unknown }
 ): { ok: true; value: Date } | { ok: false; error: string } {
   if (typeof value !== 'string' || !value.trim()) {
     return { ok: false, error: `${fieldName} is required` };
   }
 
-  const parsed = new Date(value);
+  const trimmed = value.trim();
+  const parsed = new Date(trimmed);
   if (Number.isNaN(parsed.getTime())) {
-    return { ok: false, error: `${fieldName} must be a valid ISO datetime` };
+    const dateTimeWithSpaceMatch = trimmed.match(
+      /^(\d{4}-\d{2}-\d{2})\s+([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/
+    );
+    if (dateTimeWithSpaceMatch) {
+      const [, datePart, hours, minutes, seconds = '00'] = dateTimeWithSpaceMatch;
+      const combined = new Date(`${datePart}T${hours}:${minutes}:${seconds}`);
+      if (!Number.isNaN(combined.getTime())) {
+        return { ok: true, value: combined };
+      }
+    }
+
+    const timeOnlyMatch = trimmed.match(/^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/);
+    if (timeOnlyMatch) {
+      const dateParsed = parseDateOnly(options?.date, 'date');
+      if (!dateParsed.ok) {
+        return {
+          ok: false,
+          error: `${fieldName} must be a valid ISO datetime, or HH:mm/HH:mm:ss when date is provided in YYYY-MM-DD format`,
+        };
+      }
+
+      const [, hours, minutes, seconds = '00'] = timeOnlyMatch;
+      const combined = new Date(
+        `${dateParsed.value}T${hours}:${minutes}:${seconds}`
+      );
+      if (!Number.isNaN(combined.getTime())) {
+        return { ok: true, value: combined };
+      }
+    }
+
+    return {
+      ok: false,
+      error:
+        `${fieldName} must be a valid ISO datetime, YYYY-MM-DD HH:mm, ` +
+        `or HH:mm/HH:mm:ss when date is provided in YYYY-MM-DD format`,
+    };
   }
 
   return { ok: true, value: parsed };
@@ -95,8 +154,11 @@ async function shouldRequireApproval(
     return { requiresApproval: false };
   }
 
-  const bypassAllowed = await hasBypassApprovalPermission(ctx);
-  if (bypassAllowed) return { requiresApproval: false };
+  if (ENABLE_APPROVAL_BYPASS_CHECK) {
+    const bypassAllowed = await hasBypassApprovalPermission(ctx);
+    if (bypassAllowed) return { requiresApproval: false };
+  }
+
 
   if (thresholdDays === 0) {
     return {
@@ -148,7 +210,6 @@ export async function executeStartTimer(
       is_running: true,
       user_id: ctx.userId,
       ws_id: ctx.wsId,
-      date: now.toISOString().split('T')[0],
     })
     .select('id, title, start_time')
     .single();
@@ -299,9 +360,13 @@ export async function executeCreateTimeTrackingEntry(
   const title = coerceOptionalString(args.title);
   if (!title) return { error: 'title is required' };
 
-  const startParsed = parseIsoDate(args.startTime, 'startTime');
+  const startParsed = parseFlexibleDateTime(args.startTime, 'startTime', {
+    date: args.date,
+  });
   if (!startParsed.ok) return { error: startParsed.error };
-  const endParsed = parseIsoDate(args.endTime, 'endTime');
+  const endParsed = parseFlexibleDateTime(args.endTime, 'endTime', {
+    date: args.date,
+  });
   if (!endParsed.ok) return { error: endParsed.error };
 
   const startTime = startParsed.value;
@@ -319,12 +384,46 @@ export async function executeCreateTimeTrackingEntry(
 
   const approvalCheck = await shouldRequireApproval(startTime, ctx);
   if (approvalCheck.requiresApproval) {
+    const imagePaths = Array.isArray(args.imagePaths)
+      ? args.imagePaths.filter(
+          (value): value is string => typeof value === 'string'
+        )
+      : [];
+
+    if (imagePaths.length > 0) {
+      const requestResult = await executeCreateTimeTrackingRequest(args, ctx);
+      if (
+        typeof requestResult === 'object' &&
+        requestResult !== null &&
+        'error' in requestResult
+      ) {
+        return requestResult;
+      }
+
+      return {
+        ...(typeof requestResult === 'object' && requestResult
+          ? requestResult
+          : {}),
+        requiresApproval: true,
+        requestCreated: true,
+      };
+    }
+
     return {
       success: true,
       requiresApproval: true,
+      requestCreated: false,
       message:
-        approvalCheck.reason ??
-        'This missed entry requires approval. Submit a time tracking request with proof images.',
+        `${approvalCheck.reason ?? 'This missed entry requires approval.'} ` +
+        'No request has been created yet.',
+      nextStep:
+        'Inform the user to upload proof images and submit a time tracking request to complete this entry.',
+      approvalRequest: {
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
+        titleHint: title,
+        descriptionHint: coerceOptionalString(args.description),
+      },
     };
   }
 
@@ -342,7 +441,6 @@ export async function executeCreateTimeTrackingEntry(
       duration_seconds: durationSeconds,
       is_running: false,
       pending_approval: false,
-      date: startTime.toISOString().split('T')[0],
     })
     .select(
       `
@@ -370,9 +468,13 @@ export async function executeCreateTimeTrackingRequest(
   const title = coerceOptionalString(args.title);
   if (!title) return { error: 'title is required' };
 
-  const startParsed = parseIsoDate(args.startTime, 'startTime');
+  const startParsed = parseFlexibleDateTime(args.startTime, 'startTime', {
+    date: args.date,
+  });
   if (!startParsed.ok) return { error: startParsed.error };
-  const endParsed = parseIsoDate(args.endTime, 'endTime');
+  const endParsed = parseFlexibleDateTime(args.endTime, 'endTime', {
+    date: args.date,
+  });
   if (!endParsed.ok) return { error: endParsed.error };
 
   const startTime = startParsed.value;
@@ -478,15 +580,18 @@ export async function executeUpdateTimeTrackingSession(
   let nextEndTime = existing.end_time;
 
   if (args.startTime !== undefined) {
-    const parsed = parseIsoDate(args.startTime, 'startTime');
+    const parsed = parseFlexibleDateTime(args.startTime, 'startTime', {
+      date: args.date,
+    });
     if (!parsed.ok) return { error: parsed.error };
     nextStartTime = parsed.value.toISOString();
     updates.start_time = nextStartTime;
-    updates.date = parsed.value.toISOString().split('T')[0];
   }
 
   if (args.endTime !== undefined) {
-    const parsed = parseIsoDate(args.endTime, 'endTime');
+    const parsed = parseFlexibleDateTime(args.endTime, 'endTime', {
+      date: args.date,
+    });
     if (!parsed.ok) return { error: parsed.error };
     nextEndTime = parsed.value.toISOString();
     updates.end_time = nextEndTime;

@@ -50,9 +50,18 @@ import { MyTasksFilters } from '@tuturuuu/ui/tu-do/my-tasks/my-tasks-filters';
 import { MyTasksHeader } from '@tuturuuu/ui/tu-do/my-tasks/my-tasks-header';
 import TaskList from '@tuturuuu/ui/tu-do/my-tasks/task-list';
 import { useMyTasksState } from '@tuturuuu/ui/tu-do/my-tasks/use-my-tasks-state';
+import { MissedEntryImageUploadSection } from '@tuturuuu/ui/custom/missed-entry/image-upload-section';
 import { cn } from '@tuturuuu/utils/format';
 import { useParams } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type DragEvent,
+} from 'react';
 
 const useComponentValue = <T,>(
   propValue: T | undefined,
@@ -165,6 +174,69 @@ type SignedUploadResponse = {
 function collectFilesFromValue(value: unknown): File[] {
   if (!Array.isArray(value)) return [];
   return value.filter((item): item is File => item instanceof File);
+}
+
+function normalizeIsoDateTimeInput(value: unknown): string | null {
+  if (typeof value !== 'string' || !value.trim()) return null;
+  const trimmed = value.trim();
+
+  const parsed = new Date(trimmed);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toISOString();
+  }
+
+  const dateTimeWithSpaceMatch = trimmed.match(
+    /^(\d{4}-\d{2}-\d{2})\s+([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/
+  );
+  if (dateTimeWithSpaceMatch) {
+    const [, datePart, hours, minutes, seconds = '00'] = dateTimeWithSpaceMatch;
+    const normalized = new Date(`${datePart}T${hours}:${minutes}:${seconds}`);
+    if (!Number.isNaN(normalized.getTime())) {
+      return normalized.toISOString();
+    }
+  }
+
+  return null;
+}
+
+function resolveTimeTrackingRequestDescription(
+  params: Record<string, unknown>
+): string {
+  if (typeof params.description === 'string') return params.description;
+
+  const values = params.values;
+  if (
+    values &&
+    typeof values === 'object' &&
+    typeof (values as Record<string, unknown>).description === 'string'
+  ) {
+    return (values as Record<string, unknown>).description as string;
+  }
+
+  if (typeof params.details === 'string') return params.details;
+
+  return '';
+}
+
+function shouldUseTimeTrackingRequestAction(
+  explicitAction: string | undefined,
+  values: Record<string, unknown>,
+  submitParams: Record<string, unknown>
+): boolean {
+  if (explicitAction === 'create_time_tracking_request') return true;
+  if (explicitAction && explicitAction !== 'submit_form') return false;
+
+  const merged = { ...submitParams, ...values };
+  const hasStartTime = typeof merged.startTime === 'string';
+  const hasEndTime = typeof merged.endTime === 'string';
+  const hasTitle =
+    typeof merged.title === 'string' && merged.title.trim().length > 0;
+  const hasEvidence =
+    collectFilesFromValue(merged.evidence).length > 0 ||
+    collectFilesFromValue(merged.attachments).length > 0 ||
+    (Array.isArray(merged.imagePaths) && merged.imagePaths.length > 0);
+
+  return hasStartTime && hasEndTime && (hasTitle || hasEvidence);
 }
 
 async function uploadTimeTrackingRequestFiles(
@@ -657,9 +729,12 @@ export const { registry, handlers, executeAction } = defineRegistry(
         const [isSuccess, setIsSuccess] = useState(false);
         const [error, setError] = useState<string | null>(null);
         const [message, setMessage] = useState<string | null>(null);
+        type FormActionHandler =
+          | ((params: Record<string, unknown>) => unknown)
+          | ((params: Record<string, unknown>) => Promise<unknown>);
 
         // We use a bound property to trigger the action
-        const [, setOnSubmit] = useBoundProp<any>(
+        const [, setOnSubmit] = useBoundProp<unknown>(
           null,
           bindings?.onSubmit || props.onSubmit
         );
@@ -681,18 +756,32 @@ export const { registry, handlers, executeAction } = defineRegistry(
                 setIsSubmitting(true);
                 setError(null);
                 try {
-                  const actionName = props.submitAction || 'submit_form';
-                  const handler = (handlers as any)?.[actionName];
+                  const submitParams =
+                    (props as { submitParams?: Record<string, unknown> })
+                      .submitParams || {};
                   const values = (state as Record<string, unknown>) || {};
+
+                  const actionName = shouldUseTimeTrackingRequestAction(
+                    props.submitAction,
+                    values,
+                    submitParams
+                  )
+                    ? 'create_time_tracking_request'
+                    : props.submitAction || 'submit_form';
+                  const handler = (handlers as Record<string, FormActionHandler>)[
+                    actionName
+                  ];
+                  let actionResult: unknown = null;
 
                   if (handler) {
                     if (actionName === 'submit_form') {
-                      await handler({
+                      actionResult = await handler({
                         title: props.title,
                         values,
                       });
                     } else {
-                      await handler({
+                      actionResult = await handler({
+                        ...submitParams,
                         ...values,
                         wsId,
                       });
@@ -707,8 +796,24 @@ export const { registry, handlers, executeAction } = defineRegistry(
                     throw new Error(`Action "${actionName}" not found`);
                   }
 
+                  if (
+                    actionResult &&
+                    typeof actionResult === 'object' &&
+                    'error' in (actionResult as Record<string, unknown>) &&
+                    typeof (actionResult as Record<string, unknown>).error ===
+                      'string'
+                  ) {
+                    throw new Error(
+                      (actionResult as Record<string, unknown>).error as string
+                    );
+                  }
+
                   setIsSuccess(true);
-                  setMessage('Submitted successfully!');
+                  if (actionName === 'submit_form') {
+                    setMessage('Sent to assistant successfully.');
+                  } else {
+                    setMessage('Submitted successfully!');
+                  }
                 } catch (err) {
                   setError(
                     err instanceof Error ? err.message : 'Unknown error'
@@ -775,46 +880,116 @@ export const { registry, handlers, executeAction } = defineRegistry(
           props.name,
           []
         );
+        const [isDragOver, setIsDragOver] = useState(false);
+        const [imageError, setImageError] = useState<string | null>(null);
+        const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+        const fileInputRef = useRef<HTMLInputElement>(null);
+
+        const safeFiles = Array.isArray(files) ? files : [];
+
+        useEffect(() => {
+          const previews = safeFiles.map((file) => URL.createObjectURL(file));
+          setImagePreviews(previews);
+
+          return () => {
+            previews.forEach((url) => URL.revokeObjectURL(url));
+          };
+        }, [safeFiles]);
+
+        const addFiles = useCallback(
+          (incoming: File[]) => {
+            const imageFiles = incoming.filter((file) =>
+              file.type.startsWith('image/')
+            );
+
+            if (imageFiles.length !== incoming.length) {
+              setImageError('Only image files are supported');
+            } else {
+              setImageError(null);
+            }
+
+            const availableSlots = Math.max(0, maxFiles - safeFiles.length);
+            const filesToAdd = imageFiles.slice(0, availableSlots);
+
+            if (filesToAdd.length < imageFiles.length) {
+              setImageError(`You can upload up to ${maxFiles} images`);
+            }
+
+            if (filesToAdd.length > 0) {
+              setFiles([...safeFiles, ...filesToAdd]);
+            }
+          },
+          [maxFiles, safeFiles, setFiles]
+        );
+
+        const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+          const selected = Array.from(event.target.files || []);
+          addFiles(selected);
+          event.target.value = '';
+        };
+
+        const handleDragOver = (event: DragEvent<Element>) => {
+          event.preventDefault();
+          setIsDragOver(true);
+        };
+
+        const handleDragLeave = (event: DragEvent<Element>) => {
+          event.preventDefault();
+          setIsDragOver(false);
+        };
+
+        const handleDrop = (event: DragEvent<Element>) => {
+          event.preventDefault();
+          setIsDragOver(false);
+          const dropped = Array.from(event.dataTransfer.files || []);
+          addFiles(dropped);
+        };
+
+        const handleRemoveNew = (index: number) => {
+          const nextFiles = safeFiles.filter((_, fileIndex) => fileIndex !== index);
+          setFiles(nextFiles);
+          setImageError(null);
+        };
 
         return (
           <div className="relative flex flex-col gap-2">
-            <Label htmlFor={props.name}>{props.label}</Label>
             {props.description && (
               <p className="text-muted-foreground text-xs">
                 {props.description}
               </p>
             )}
-            <Input
-              id={props.name}
-              type="file"
-              accept={props.accept || 'image/*'}
-              required={props.required}
-              multiple={maxFiles > 1}
-              onChange={(event) => {
-                const selected = Array.from(event.target.files || []).slice(
-                  0,
-                  maxFiles
-                );
-                setFiles(selected);
+            <MissedEntryImageUploadSection
+              imagePreviews={imagePreviews}
+              isDragOver={isDragOver}
+              imageError={imageError}
+              canAddMore={safeFiles.length < maxFiles}
+              fileInputRef={fileInputRef}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onFileChange={handleFileChange}
+              onRemoveNew={handleRemoveNew}
+              onRemoveExisting={() => {}}
+              labels={{
+                proofOfWork: `${props.label} (${safeFiles.length}/${maxFiles})`,
+                compressing: 'Processing images...',
+                dropImages: 'Drop images here',
+                clickToUpload: 'Click to upload or drag and drop',
+                imageFormats: 'PNG, JPG, GIF, or WebP up to 1MB each',
+                proofImageAlt: 'Proof image',
+                existing: 'Existing',
+                new: 'New',
               }}
             />
-            {Array.isArray(files) && files.length > 0 && (
-              <div className="rounded-md border border-border/70 p-2">
-                <p className="mb-1 text-muted-foreground text-xs">
-                  Selected files ({files.length}/{maxFiles})
-                </p>
-                <div className="flex flex-col gap-1">
-                  {files.map((file, index) => (
-                    <div
-                      key={`${file.name}-${index}`}
-                      className="truncate text-xs"
-                      title={file.name}
-                    >
-                      {file.name}
-                    </div>
-                  ))}
-                </div>
-              </div>
+            {props.required && safeFiles.length === 0 && (
+              <input
+                tabIndex={-1}
+                aria-hidden
+                required
+                value=""
+                onChange={() => {}}
+                className="pointer-events-none absolute h-0 w-0 opacity-0"
+              />
             )}
           </div>
         );
@@ -1823,13 +1998,15 @@ export const { registry, handlers, executeAction } = defineRegistry(
             throw new Error('Title is required');
           }
 
-          const startTime =
-            typeof params.startTime === 'string' ? params.startTime : undefined;
-          const endTime =
-            typeof params.endTime === 'string' ? params.endTime : undefined;
+          const startTime = normalizeIsoDateTimeInput(params.startTime);
+          const endTime = normalizeIsoDateTimeInput(params.endTime);
           if (!startTime || !endTime) {
-            throw new Error('startTime and endTime are required');
+            throw new Error(
+              'startTime and endTime are required and must be valid date/time values'
+            );
           }
+
+          const description = resolveTimeTrackingRequestDescription(params);
 
           const requestId =
             typeof params.requestId === 'string' && params.requestId
@@ -1871,10 +2048,7 @@ export const { registry, handlers, executeAction } = defineRegistry(
               body: JSON.stringify({
                 requestId,
                 title,
-                description:
-                  typeof params.description === 'string'
-                    ? params.description
-                    : '',
+                description,
                 categoryId:
                   typeof params.categoryId === 'string'
                     ? params.categoryId
@@ -1895,13 +2069,33 @@ export const { registry, handlers, executeAction } = defineRegistry(
             );
           }
 
+          const responseBody = (await response.json().catch(() =>
+            null
+          )) as
+            | {
+                success?: boolean;
+                request?: {
+                  id?: string;
+                  workspace_id?: string;
+                };
+              }
+            | null;
+
+          if (!responseBody?.success || !responseBody?.request?.id) {
+            throw new Error(
+              'Request submission response was incomplete. Please try again.'
+            );
+          }
+
+          const summaryDescription = description.trim() ? description.trim() : 'N/A';
+
           if (sendMessage) {
             await sendMessage({
               role: 'user',
               parts: [
                 {
                   type: 'text',
-                  text: `### Time Tracking Request Submitted\n\n**Title**: ${title}\n**Evidence Files**: ${imagePaths.length}`,
+                  text: `### Time Tracking Request Submitted\n\n**Title**: ${title}\n**Description**: ${summaryDescription}\n**Request ID**: ${responseBody.request.id}\n**Evidence Files**: ${imagePaths.length}`,
                 },
               ],
             });
@@ -1914,12 +2108,17 @@ export const { registry, handlers, executeAction } = defineRegistry(
             message: 'Time tracking request submitted successfully!',
           }));
         } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : 'Unknown error';
+
           setState((prev) => ({
             ...prev,
             submitting: false,
             success: false,
-            error: error instanceof Error ? error.message : 'Unknown error',
+            error: errorMessage,
           }));
+
+          throw error instanceof Error ? error : new Error(errorMessage);
         }
       },
     },

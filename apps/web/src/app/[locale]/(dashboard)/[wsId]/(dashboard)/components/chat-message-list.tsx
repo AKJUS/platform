@@ -31,6 +31,7 @@ import { useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
 import {
   Component,
+  type ComponentProps,
   type ErrorInfo,
   type ReactNode,
   useCallback,
@@ -116,13 +117,163 @@ function getDisplayText(message: UIMessage): string {
 
 type ToolPartData = { type: string; [key: string]: unknown };
 
+type JsonObject = Record<string, unknown>;
+type RendererSpec = NonNullable<ComponentProps<typeof Renderer>['spec']>;
+
+type ApprovalRequestUiData = {
+  startTime: string;
+  endTime: string;
+  titleHint?: string | null;
+  descriptionHint?: string | null;
+};
+
+function isObjectRecord(value: unknown): value is JsonObject {
+  return typeof value === 'object' && value !== null;
+}
+
+function isApprovalRequestUiData(value: unknown): value is ApprovalRequestUiData {
+  if (!isObjectRecord(value)) return false;
+
+  return (
+    typeof value.startTime === 'string' && typeof value.endTime === 'string'
+  );
+}
+
+function isRendererSpec(value: unknown): value is RendererSpec {
+  if (!isObjectRecord(value)) return false;
+
+  return typeof value.root === 'string' && isObjectRecord(value.elements);
+}
+
+function toDateTimeLocalValue(value: string): string {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+
+  const pad = (num: number) => String(num).padStart(2, '0');
+
+  return `${parsed.getFullYear()}-${pad(parsed.getMonth() + 1)}-${pad(parsed.getDate())}T${pad(parsed.getHours())}:${pad(parsed.getMinutes())}`;
+}
+
+function buildApprovalRequestSpec(
+  t: (key: string, values?: Record<string, unknown>) => string,
+  approval: ApprovalRequestUiData
+): ComponentProps<typeof Renderer>['spec'] {
+  const startTimeValue = toDateTimeLocalValue(approval.startTime);
+  const endTimeValue = toDateTimeLocalValue(approval.endTime);
+  const detailLine = t('approval_request.helper_time', {
+    startTime: approval.startTime,
+    endTime: approval.endTime,
+  });
+  const titleLine = approval.titleHint
+    ? t('approval_request.helper_title', { title: approval.titleHint })
+    : null;
+  const helperText = titleLine ? `${detailLine}\n${titleLine}` : detailLine;
+
+  return {
+    root: 'approval-card',
+    elements: {
+      'approval-card': {
+        type: 'Card',
+        props: {
+          title: t('approval_request.card_title'),
+          description: t('approval_request.card_description'),
+        },
+        children: ['approval-help', 'request-form'],
+      },
+      'approval-help': {
+        type: 'Text',
+        props: {
+          content: helperText,
+          variant: 'small',
+          color: 'muted',
+        },
+      },
+      'request-form': {
+        type: 'Form',
+        props: {
+          title: t('approval_request.form_title'),
+          description: t('approval_request.form_description'),
+          submitLabel: t('approval_request.form_submit'),
+          submitAction: 'create_time_tracking_request',
+          submitParams: {
+            title: approval.titleHint ?? '',
+            description: approval.descriptionHint ?? '',
+            startTime: startTimeValue,
+            endTime: endTimeValue,
+          },
+        },
+        children: [
+          'request-title',
+          'request-description',
+          'request-start',
+          'request-end',
+          'request-attachments',
+        ],
+      },
+      'request-title': {
+        type: 'Input',
+        props: {
+          name: 'title',
+          label: t('approval_request.title_label'),
+          placeholder: t('approval_request.title_placeholder'),
+          required: true,
+          value: approval.titleHint ?? '',
+        },
+      },
+      'request-description': {
+        type: 'Textarea',
+        props: {
+          name: 'description',
+          label: t('approval_request.description_label'),
+          placeholder: t('approval_request.description_placeholder'),
+          rows: 3,
+          value: approval.descriptionHint ?? '',
+        },
+      },
+      'request-start': {
+        type: 'Input',
+        props: {
+          name: 'startTime',
+          label: t('approval_request.start_label'),
+          placeholder: t('approval_request.start_placeholder'),
+          type: 'datetime-local',
+          required: true,
+          value: startTimeValue,
+        },
+      },
+      'request-end': {
+        type: 'Input',
+        props: {
+          name: 'endTime',
+          label: t('approval_request.end_label'),
+          placeholder: t('approval_request.end_placeholder'),
+          type: 'datetime-local',
+          required: true,
+          value: endTimeValue,
+        },
+      },
+      'request-attachments': {
+        type: 'FileAttachmentInput',
+        props: {
+          name: 'attachments',
+          label: t('approval_request.attachments_label'),
+          description: t('approval_request.attachments_description'),
+          required: true,
+          maxFiles: 5,
+          accept: 'image/*',
+        },
+      },
+    },
+  };
+}
+
 /**
  * Groups consecutive tool parts with the same tool name into render groups.
  * Text parts remain individual; adjacent tool parts of the same name collapse.
  */
 type RenderGroup =
-  | { kind: 'text'; text: string | any; index: number }
-  | { kind: 'reasoning'; text: string | any; index: number }
+  | { kind: 'text'; text: string | unknown; index: number }
+  | { kind: 'reasoning'; text: string | unknown; index: number }
   | {
       kind: 'tool';
       toolName: string;
@@ -523,13 +674,17 @@ function JsonHighlight({
 /** Extract status info from a single tool part */
 function getToolPartStatus(part: ToolPartData) {
   const state = (part as { state?: string }).state ?? '';
-  const output = (part as { output?: any }).output;
+  const output = (part as { output?: unknown }).output;
+  const outputRecord = isObjectRecord(output) ? output : null;
 
   const isDone = state === 'output-available';
   const baseError = state === 'output-error' || state === 'output-denied';
 
   // Logical error: tool executed but returned success: false or an error field
-  const logicalError = isDone && (output?.success === false || !!output?.error);
+  const logicalError =
+    isDone &&
+    (outputRecord?.success === false ||
+      (typeof outputRecord?.error === 'string' && outputRecord.error.length > 0));
 
   const isError = baseError || logicalError;
   const isRunning = !isDone && !baseError;
@@ -549,6 +704,7 @@ function ToolCallPart({ part }: { part: ToolPartData }) {
   const toolName = humanizeToolName(rawToolName);
   const output = (part as { output?: unknown }).output;
   const errorText = (part as { errorText?: string }).errorText;
+  const outputRecord = isObjectRecord(output) ? output : null;
 
   const { isDone, isError, isRunning, logicalError } = getToolPartStatus(part);
 
@@ -561,10 +717,27 @@ function ToolCallPart({ part }: { part: ToolPartData }) {
 
   const outputText = isError
     ? errorText ||
-      (output as any)?.error ||
-      (output as any)?.message ||
+      (typeof outputRecord?.error === 'string' ? outputRecord.error : null) ||
+      (typeof outputRecord?.message === 'string'
+        ? outputRecord.message
+        : null) ||
       'Unknown error'
     : JSON.stringify(output, null, 2);
+
+  const approvalSpecRaw =
+    outputRecord && 'approvalRequest' in outputRecord
+      ? outputRecord.approvalRequest
+      : undefined;
+  const approvalSpec = isApprovalRequestUiData(approvalSpecRaw)
+    ? approvalSpecRaw
+    : null;
+  const approvalUiSpec = approvalSpec
+    ? buildApprovalRequestSpec(
+        (key: string, values?: Record<string, unknown>) =>
+          t(key as never, values as never),
+        approvalSpec
+      )
+    : null;
 
   const handleCopy = useCallback(() => {
     void navigator.clipboard.writeText(outputText);
@@ -643,7 +816,7 @@ function ToolCallPart({ part }: { part: ToolPartData }) {
   if (rawToolName === 'render_ui' && hasOutput) {
     if (isDone && !logicalError && output) {
       // The output of render_ui is just the spec `{ spec: ... }` returned from mira-tools executor
-      const spec = (output as { spec?: any })?.spec;
+      const spec = isRendererSpec(outputRecord?.spec) ? outputRecord.spec : null;
       if (spec) {
         return (
           <div className="my-2 flex w-full max-w-full flex-col gap-1.5">
@@ -659,6 +832,22 @@ function ToolCallPart({ part }: { part: ToolPartData }) {
         );
       }
     }
+  }
+
+  // Deterministic approval UI for missed-entry requests
+  if (isDone && !logicalError && approvalUiSpec) {
+    return (
+      <div className="my-2 flex w-full max-w-full flex-col gap-1.5">
+        <div className="mb-1 flex items-center gap-1.5 text-xs">
+          <Check className="h-3.5 w-3.5 text-dynamic-green" />
+          <span className="font-medium">{toolName}</span>
+          <span className="text-muted-foreground">{t('tool_done')}</span>
+        </div>
+        <VisibilityProvider>
+          <Renderer spec={approvalUiSpec} registry={registry} />
+        </VisibilityProvider>
+      </div>
+    );
   }
 
   // Completed image tool: render the image inline from tool output

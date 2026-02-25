@@ -150,9 +150,7 @@ export const MIRA_TOOL_DIRECTORY: Record<string, string> = {
     'List your time tracking history with pagination and filters',
   get_time_tracking_session: 'Get one time tracking session by ID',
   create_time_tracking_entry:
-    'Create a stopped/manual time tracking history entry',
-  create_time_tracking_request:
-    'Submit a missed-entry time tracking request for approval',
+    'Create a stopped/manual time tracking history entry. If approval is required, include imagePaths to submit a request instead.',
   update_time_tracking_session: 'Update a time tracking history session',
   delete_time_tracking_session: 'Delete a time tracking history session',
   move_time_tracking_session:
@@ -789,7 +787,7 @@ export const miraToolDefinitions = {
 
   create_time_tracking_entry: tool({
     description:
-      'Create a manual (stopped) time tracking entry. If approval is required, it will return requiresApproval=true instead of inserting.',
+      'Create a manual (stopped) time tracking entry. If approval is required and imagePaths are provided, it submits a pending approval request. If approval is required but no imagePaths are provided, it returns requiresApproval=true with guidance.',
     inputSchema: z.object({
       title: z.string().describe('Entry title'),
       description: z
@@ -801,17 +799,48 @@ export const miraToolDefinitions = {
         .nullish()
         .describe('Time tracking category UUID, or null/omit'),
       taskId: z.string().nullish().describe('Task UUID, or null/omit'),
-      startTime: z.string().describe('Start time ISO 8601'),
-      endTime: z.string().describe('End time ISO 8601'),
+      startTime: z
+        .iso
+        .datetime()
+        .describe('Start time (ISO 8601, YYYY-MM-DD HH:mm, or HH:mm with date)'),
+      endTime: z
+        .iso
+        .datetime()
+        .describe('End time (ISO 8601, YYYY-MM-DD HH:mm, or HH:mm with date)'),
+      requestId: z
+        .string()
+        .uuid()
+        .optional()
+        .describe(
+          'Optional request UUID used for evidence path prefix when approval request is needed'
+        ),
+      breakTypeId: z
+        .string()
+        .nullish()
+        .describe('Break type UUID, or null/omit'),
+      breakTypeName: z
+        .string()
+        .nullish()
+        .describe('Break type name, or null/omit'),
+      linkedSessionId: z
+        .string()
+        .nullish()
+        .describe('Linked session UUID, or null/omit'),
+      imagePaths: z
+        .array(z.string())
+        .max(5)
+        .optional()
+        .describe(
+          'Uploaded image storage paths for proof. Required only when approval is needed.'
+        ),
     }),
   }),
 
   create_time_tracking_request: tool({
     description:
-      'Create a pending approval request for missed time tracking entries with proof image references.',
+      'Deprecated compatibility alias. Prefer create_time_tracking_entry with imagePaths for approval-required entries.',
     inputSchema: z.object({
       requestId: z
-        .string()
         .uuid()
         .optional()
         .describe('Optional request UUID, generated if omitted'),
@@ -822,14 +851,24 @@ export const miraToolDefinitions = {
         .describe('Request description, or null/omit'),
       categoryId: z.string().nullish().describe('Category UUID, or null/omit'),
       taskId: z.string().nullish().describe('Task UUID, or null/omit'),
-      startTime: z.string().describe('Start time ISO 8601'),
-      endTime: z.string().describe('End time ISO 8601'),
+      date: z
+        .string()
+        .optional()
+        .describe('Optional base date (YYYY-MM-DD) when using HH:mm time inputs'),
+      startTime: z
+        .iso
+        .datetime()
+        .describe('Start time (ISO 8601, YYYY-MM-DD HH:mm, or HH:mm with date)'),
+      endTime: z
+        .iso
+        .datetime()
+        .describe('End time (ISO 8601, YYYY-MM-DD HH:mm, or HH:mm with date)'),
       breakTypeId: z
         .string()
         .nullish()
         .describe('Break type UUID, or null/omit'),
       breakTypeName: z
-        .string()
+        .string() 
         .nullish()
         .describe('Break type name, or null/omit'),
       linkedSessionId: z
@@ -864,8 +903,20 @@ export const miraToolDefinitions = {
         .optional()
         .describe('Updated category UUID'),
       taskId: z.string().nullable().optional().describe('Updated task UUID'),
-      startTime: z.string().optional().describe('Updated start time ISO 8601'),
-      endTime: z.string().optional().describe('Updated end time ISO 8601'),
+      startTime: z
+        .iso
+        .datetime()
+        .optional()
+        .describe(
+          'Updated start time (ISO 8601, YYYY-MM-DD HH:mm, or HH:mm with date)'
+        ),
+      endTime: z
+        .iso
+        .datetime()
+        .optional()
+        .describe(
+          'Updated end time (ISO 8601, YYYY-MM-DD HH:mm, or HH:mm with date)'
+        ),
     }),
   }),
 
