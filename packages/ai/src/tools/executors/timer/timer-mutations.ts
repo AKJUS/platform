@@ -7,9 +7,7 @@ import {
 } from './timer-helpers';
 import {
   type CreateTimeTrackingEntryArgs,
-  type CreateTimeTrackingRequestArgs,
   createTimeTrackingEntryArgsSchema,
-  createTimeTrackingRequestArgsSchema,
   type DeleteTimeTrackingSessionArgs,
   deleteTimeTrackingSessionArgsSchema,
   getZodErrorMessage,
@@ -46,14 +44,6 @@ type StopTimerResult =
       };
     };
 
-type CreateTimeTrackingRequestResult =
-  | MutationError
-  | {
-      success: true;
-      message: string;
-      request: unknown;
-    };
-
 type CreateTimeTrackingEntryResult =
   | MutationError
   | {
@@ -74,7 +64,6 @@ type CreateTimeTrackingEntryResult =
         titleHint: string;
         descriptionHint: string | null;
       };
-      request?: unknown;
     };
 
 type UpdateTimeTrackingSessionResult =
@@ -279,45 +268,6 @@ export async function executeCreateTimeTrackingEntry(
 
   const approvalCheck = await shouldRequireApproval(startTime, ctx);
   if (approvalCheck.requiresApproval) {
-    const imagePaths = parsedArgs.imagePaths ?? [];
-
-    if (imagePaths.length > 0) {
-      const requestResult = await executeCreateTimeTrackingRequest(
-        parsedArgs,
-        ctx
-      );
-      if (
-        typeof requestResult === 'object' &&
-        requestResult !== null &&
-        'error' in requestResult
-      ) {
-        return requestResult;
-      }
-
-      const requestPayload =
-        requestResult &&
-        typeof requestResult === 'object' &&
-        'request' in requestResult
-          ? requestResult.request
-          : undefined;
-
-      const requestMessage =
-        requestResult &&
-        typeof requestResult === 'object' &&
-        'message' in requestResult &&
-        typeof requestResult.message === 'string'
-          ? requestResult.message
-          : 'Time tracking request submitted for approval.';
-
-      return {
-        success: true,
-        message: requestMessage,
-        request: requestPayload,
-        requiresApproval: true,
-        requestCreated: true,
-      };
-    }
-
     return {
       success: true,
       requiresApproval: true,
@@ -367,92 +317,6 @@ export async function executeCreateTimeTrackingEntry(
     requiresApproval: false,
     message: 'Time tracking entry created.',
     session: data,
-  };
-}
-
-export async function executeCreateTimeTrackingRequest(
-  args: Record<string, unknown>,
-  ctx: MiraToolContext
-): Promise<CreateTimeTrackingRequestResult> {
-  let parsedArgs: CreateTimeTrackingRequestArgs;
-  try {
-    parsedArgs = createTimeTrackingRequestArgsSchema.parse(args);
-  } catch (error) {
-    return { error: getZodErrorMessage(error) };
-  }
-
-  const title = parsedArgs.title;
-
-  const startParsed = parseFlexibleDateTime(parsedArgs.startTime, 'startTime', {
-    date: parsedArgs.date,
-  });
-  if (!startParsed.ok) return { error: startParsed.error };
-  const endParsed = parseFlexibleDateTime(parsedArgs.endTime, 'endTime', {
-    date: parsedArgs.date,
-  });
-  if (!endParsed.ok) return { error: endParsed.error };
-
-  const startTime = startParsed.value;
-  const endTime = endParsed.value;
-  if (endTime <= startTime) {
-    return { error: 'endTime must be after startTime' };
-  }
-
-  const imagePaths = parsedArgs.imagePaths ?? [];
-
-  if (imagePaths.length === 0) {
-    return {
-      error:
-        'This request requires proof images. Upload image evidence and include imagePaths.',
-    };
-  }
-
-  if (imagePaths.length > 5) {
-    return { error: 'A maximum of 5 image references is allowed' };
-  }
-
-  const requestId =
-    (typeof parsedArgs.requestId === 'string' && parsedArgs.requestId) ||
-    crypto.randomUUID();
-
-  const pathPrefix = `${requestId}/`;
-  const hasInvalidPath = imagePaths.some(
-    (path) => !path.startsWith(pathPrefix) || path.includes('..')
-  );
-  if (hasInvalidPath) {
-    return {
-      error:
-        'Invalid image path detected. Every path must start with "<requestId>/".',
-    };
-  }
-
-  const { data, error } = await ctx.supabase
-    .from('time_tracking_requests')
-    .insert({
-      id: requestId,
-      workspace_id: ctx.wsId,
-      user_id: ctx.userId,
-      title,
-      description: coerceOptionalString(parsedArgs.description),
-      category_id: coerceOptionalString(parsedArgs.categoryId),
-      task_id: coerceOptionalString(parsedArgs.taskId),
-      start_time: startTime.toISOString(),
-      end_time: endTime.toISOString(),
-      break_type_id: coerceOptionalString(parsedArgs.breakTypeId),
-      break_type_name: coerceOptionalString(parsedArgs.breakTypeName),
-      linked_session_id: coerceOptionalString(parsedArgs.linkedSessionId),
-      images: imagePaths,
-      approval_status: 'PENDING',
-    })
-    .select('*')
-    .single();
-
-  if (error) return { error: error.message };
-
-  return {
-    success: true,
-    message: 'Time tracking request submitted for approval.',
-    request: data,
   };
 }
 

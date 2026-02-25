@@ -69,7 +69,6 @@ import {
 import { executeSetTheme } from './executors/theme';
 import {
   executeCreateTimeTrackingEntry,
-  executeCreateTimeTrackingRequest,
   executeDeleteTimeTrackingSession,
   executeGetTimeTrackingSession,
   executeListTimeTrackingSessions,
@@ -154,7 +153,6 @@ const toolHandlers: Record<string, ToolHandler> = {
   list_time_tracking_sessions: executeListTimeTrackingSessions,
   get_time_tracking_session: executeGetTimeTrackingSession,
   create_time_tracking_entry: executeCreateTimeTrackingEntry,
-  create_time_tracking_request: executeCreateTimeTrackingRequest,
   update_time_tracking_session: executeUpdateTimeTrackingSession,
   delete_time_tracking_session: executeDeleteTimeTrackingSession,
   move_time_tracking_session: executeMoveTimeTrackingSession,

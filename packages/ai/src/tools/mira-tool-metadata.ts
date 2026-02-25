@@ -58,7 +58,7 @@ export const MIRA_TOOL_DIRECTORY: Record<string, string> = {
     'List your time tracking history with pagination and filters',
   get_time_tracking_session: 'Get one time tracking session by ID',
   create_time_tracking_entry:
-    'Create a stopped/manual time tracking history entry. If approval is required, include imagePaths to submit a request instead.',
+    'Create a stopped/manual time tracking history entry. If approval is required, it returns requiresApproval with next-step guidance for the user/UI to handle approval.',
   update_time_tracking_session: 'Update a time tracking history session',
   delete_time_tracking_session: 'Delete a time tracking history session',
   move_time_tracking_session:

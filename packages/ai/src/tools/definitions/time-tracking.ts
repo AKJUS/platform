@@ -65,7 +65,7 @@ export const timeTrackingToolDefinitions = {
 
   create_time_tracking_entry: tool({
     description:
-      'Create a manual (stopped) time tracking entry. If approval is required and imagePaths are provided, it submits a pending approval request. If approval is required but no imagePaths are provided, it returns requiresApproval=true with guidance.',
+      'Create a manual (stopped) time tracking entry. If approval is required, it returns requiresApproval=true with next-step guidance for the user/UI to complete approval.',
     inputSchema: z.object({
       title: z.string().describe('Entry title'),
       description: z
@@ -83,79 +83,9 @@ export const timeTrackingToolDefinitions = {
       endTime: z.iso
         .datetime()
         .describe('End time (ISO 8601, YYYY-MM-DD HH:mm)'),
-      requestId: z
-        .uuid()
-        .optional()
-        .describe(
-          'Optional request UUID used for evidence path prefix when approval request is needed'
-        ),
-      breakTypeId: z
-        .string()
-        .nullish()
-        .describe('Break type UUID, or null/omit'),
-      breakTypeName: z
-        .string()
-        .nullish()
-        .describe('Break type name, or null/omit'),
-      linkedSessionId: z
-        .string()
-        .nullish()
-        .describe('Linked session UUID, or null/omit'),
-      imagePaths: z
-        .array(z.string())
-        .max(5)
-        .optional()
-        .describe(
-          'Uploaded image storage paths for proof. Required only when approval is needed.'
-        ),
     }),
   }),
 
-  create_time_tracking_request: tool({
-    description:
-      'Deprecated compatibility alias. Prefer create_time_tracking_entry with imagePaths for approval-required entries.',
-    inputSchema: z.object({
-      requestId: z
-        .uuid()
-        .optional()
-        .describe('Optional request UUID, generated if omitted'),
-      title: z.string().describe('Request title'),
-      description: z
-        .string()
-        .nullish()
-        .describe('Request description, or null/omit'),
-      categoryId: z.string().nullish().describe('Category UUID, or null/omit'),
-      taskId: z.string().nullish().describe('Task UUID, or null/omit'),
-      date: z
-        .string()
-        .optional()
-        .describe(
-          'Optional base date (YYYY-MM-DD) when using HH:mm time inputs'
-        ),
-      startTime: z.iso
-        .datetime()
-        .describe('Start time (ISO 8601, YYYY-MM-DD HH:mm)'),
-      endTime: z.iso
-        .datetime()
-        .describe('End time (ISO 8601, YYYY-MM-DD HH:mm)'),
-      breakTypeId: z
-        .string()
-        .nullish()
-        .describe('Break type UUID, or null/omit'),
-      breakTypeName: z
-        .string()
-        .nullish()
-        .describe('Break type name, or null/omit'),
-      linkedSessionId: z
-        .string()
-        .nullish()
-        .describe('Linked session UUID, or null/omit'),
-      imagePaths: z
-        .array(z.string())
-        .max(5)
-        .describe('Uploaded image storage paths for proof'),
-    }),
-  }),
 
   update_time_tracking_session: tool({
     description:

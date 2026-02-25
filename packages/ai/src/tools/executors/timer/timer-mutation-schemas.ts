@@ -21,34 +21,10 @@ export const createTimeTrackingEntryArgsSchema = z.object({
   startTime: z.unknown(),
   endTime: z.unknown(),
   date: z.unknown().optional(),
-  imagePaths: z.array(z.string()).optional(),
-  requestId: z.union([z.string(), z.null()]).optional(),
-  breakTypeId: z.union([z.string(), z.null()]).optional(),
-  breakTypeName: z.union([z.string(), z.null()]).optional(),
-  linkedSessionId: z.union([z.string(), z.null()]).optional(),
 });
 
 export type CreateTimeTrackingEntryArgs = z.infer<
   typeof createTimeTrackingEntryArgsSchema
->;
-
-export const createTimeTrackingRequestArgsSchema = z.object({
-  title: z.string().trim().min(1, 'title is required'),
-  description: z.union([z.string(), z.null()]).optional(),
-  categoryId: z.union([z.string(), z.null()]).optional(),
-  taskId: z.union([z.string(), z.null()]).optional(),
-  startTime: z.unknown(),
-  endTime: z.unknown(),
-  date: z.unknown().optional(),
-  imagePaths: z.array(z.string()).optional(),
-  requestId: z.union([z.string(), z.null()]).optional(),
-  breakTypeId: z.union([z.string(), z.null()]).optional(),
-  breakTypeName: z.union([z.string(), z.null()]).optional(),
-  linkedSessionId: z.union([z.string(), z.null()]).optional(),
-});
-
-export type CreateTimeTrackingRequestArgs = z.infer<
-  typeof createTimeTrackingRequestArgsSchema
 >;
 
 export const updateTimeTrackingSessionArgsSchema = z.object({

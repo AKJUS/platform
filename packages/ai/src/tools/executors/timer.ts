@@ -1,7 +1,6 @@
 export { parseFlexibleDateTime } from './timer/timer-helpers';
 export {
   executeCreateTimeTrackingEntry,
-  executeCreateTimeTrackingRequest,
   executeDeleteTimeTrackingSession,
   executeMoveTimeTrackingSession,
   executeStartTimer,
