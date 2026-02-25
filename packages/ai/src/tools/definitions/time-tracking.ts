@@ -86,7 +86,6 @@ export const timeTrackingToolDefinitions = {
     }),
   }),
 
-
   update_time_tracking_session: tool({
     description:
       'Update fields of an existing time tracking session. Recomputes duration when times change.',
