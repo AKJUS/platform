@@ -59,6 +59,7 @@ import { cn } from '@tuturuuu/utils/format';
 import { useParams } from 'next/navigation';
 import {
   type ChangeEvent,
+  type ComponentType,
   type DragEvent,
   useCallback,
   useEffect,
@@ -268,6 +269,40 @@ function shouldUseTimeTrackingRequestAction(
     (Array.isArray(merged.imagePaths) && merged.imagePaths.length > 0);
 
   return hasStartTime && hasEndTime && (hasTitle || hasEvidence);
+}
+
+type IconProps = {
+  size?: number;
+  className?: string;
+  strokeWidth?: number;
+};
+
+type IconComponent = ComponentType<IconProps>;
+
+type StatDisplayProps = {
+  label?: string;
+  value?: string | number;
+  icon?: string;
+  variant?: 'success' | 'warning' | 'error' | string;
+};
+
+type MultiQuizItem = {
+  question?: string;
+  options?: string[];
+  answer?: string;
+  correctAnswer?: string;
+  explanation?: string;
+  randomizeOptions?: boolean;
+};
+
+const iconRegistry = Icons as unknown as Record<
+  string,
+  IconComponent | undefined
+>;
+
+function resolveRegistryIcon(name?: string): IconComponent | null {
+  if (!name) return null;
+  return getIconComponentByKey(name) ?? iconRegistry[name] ?? null;
 }
 
 async function uploadTimeTrackingRequestFiles(
@@ -536,9 +571,7 @@ export const { registry, handlers, executeAction } = defineRegistry(
       },
       ListItem: ({ props }) => {
         const actions = useActions();
-        const IconComp = props.icon
-          ? (getIconComponentByKey(props.icon) ?? (Icons as any)[props.icon])
-          : null;
+        const IconComp = resolveRegistryIcon(props.icon);
         return (
           <button
             type="button"
@@ -662,10 +695,8 @@ export const { registry, handlers, executeAction } = defineRegistry(
         );
       },
       Stat: ({ props }) => {
-        const p = props as any;
-        const IconComp = p.icon
-          ? (getIconComponentByKey(p.icon) ?? (Icons as any)[p.icon])
-          : null;
+        const p = props as StatDisplayProps;
+        const IconComp = resolveRegistryIcon(p.icon);
         const colorClass =
           p.variant === 'success'
             ? 'text-dynamic-green'
@@ -1308,7 +1339,9 @@ export const { registry, handlers, executeAction } = defineRegistry(
           setImagePreviews(previews);
 
           return () => {
-            previews.forEach((url) => URL.revokeObjectURL(url));
+            previews.forEach((url) => {
+              URL.revokeObjectURL(url);
+            });
           };
         }, [safeFiles]);
 
@@ -1804,7 +1837,9 @@ export const { registry, handlers, executeAction } = defineRegistry(
         const [optionRandomizeCount, setOptionRandomizeCount] = useState(0);
 
         const quizzes = useMemo(() => {
-          const original = (props.quizzes as any[]) || [];
+          const original = Array.isArray(props.quizzes)
+            ? (props.quizzes as MultiQuizItem[])
+            : [];
           if (!props.randomize && quizRandomizeCount === 0) return original;
           const shuffled = [...original];
           for (let i = shuffled.length - 1; i > 0; i--) {
@@ -1842,7 +1877,9 @@ export const { registry, handlers, executeAction } = defineRegistry(
         const calculateScore = () => {
           let score = 0;
           for (let i = 0; i < quizzes.length; i++) {
-            const currentAnswer = quizzes[i].answer || quizzes[i].correctAnswer;
+            const quiz = quizzes[i];
+            if (!quiz) continue;
+            const currentAnswer = quiz.answer || quiz.correctAnswer;
             if (answers[i] === currentAnswer) {
               score++;
             }
@@ -1923,6 +1960,8 @@ export const { registry, handlers, executeAction } = defineRegistry(
             </div>
           );
         }
+
+        if (!currentQuiz) return null;
 
         const selected = answers[currentIndex];
         const isAnswered = selected !== undefined;
