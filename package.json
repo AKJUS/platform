@@ -144,6 +144,7 @@
   ],
   "workspaces": ["apps/*", "packages/*"],
   "overrides": {
+    "google-auth-library": "^10.6.1",
     "@polar-sh/sdk": "^0.45.0"
   }
 }
