@@ -159,4 +159,54 @@ export const dashboardActions = {
       }));
     }
   },
+  create_time_tracking_request: async (
+    params: Record<string, unknown> | undefined,
+    setState: RegistrySetState,
+    context: RegistryContext
+  ) => {
+    if (!params) return;
+    const { submitText, sendMessage } = context || {};
+    if (!submitText && !sendMessage) {
+      setState((prev) => ({
+        ...prev,
+        error: 'Internal error: sendMessage not found',
+      }));
+      return;
+    }
+
+    setState((prev) => ({ ...prev, submitting: true, error: null }));
+
+    try {
+      const messageText = buildFormSubmissionMessage({
+        title:
+          typeof params.title === 'string'
+            ? params.title
+            : 'Time tracking request',
+        values: params,
+      });
+
+      if (submitText) {
+        submitText(messageText);
+      } else if (sendMessage) {
+        await sendMessage({
+          role: 'user',
+          parts: [{ type: 'text', text: messageText }],
+        });
+      }
+
+      setState((prev) => ({
+        ...prev,
+        submitting: false,
+        success: true,
+        message: 'Time tracking request submitted successfully!',
+      }));
+    } catch (error) {
+      setState((prev) => ({
+        ...prev,
+        submitting: false,
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      }));
+    }
+  },
 };
