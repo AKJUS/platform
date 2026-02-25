@@ -35,6 +35,7 @@ import {
 } from '@tuturuuu/ui/card';
 import { Checkbox } from '@tuturuuu/ui/checkbox';
 import { getIconComponentByKey } from '@tuturuuu/ui/custom/icon-picker';
+import { MissedEntryImageUploadSection } from '@tuturuuu/ui/custom/missed-entry/image-upload-section';
 import { useWorkspaceUser } from '@tuturuuu/ui/hooks/use-workspace-user';
 import { Input } from '@tuturuuu/ui/input';
 import { Label } from '@tuturuuu/ui/label';
@@ -54,17 +55,16 @@ import { MyTasksFilters } from '@tuturuuu/ui/tu-do/my-tasks/my-tasks-filters';
 import { MyTasksHeader } from '@tuturuuu/ui/tu-do/my-tasks/my-tasks-header';
 import TaskList from '@tuturuuu/ui/tu-do/my-tasks/task-list';
 import { useMyTasksState } from '@tuturuuu/ui/tu-do/my-tasks/use-my-tasks-state';
-import { MissedEntryImageUploadSection } from '@tuturuuu/ui/custom/missed-entry/image-upload-section';
 import { cn } from '@tuturuuu/utils/format';
 import { useParams } from 'next/navigation';
 import {
+  type ChangeEvent,
+  type DragEvent,
   useCallback,
   useEffect,
   useMemo,
   useRef,
   useState,
-  type ChangeEvent,
-  type DragEvent,
 } from 'react';
 import { dispatchUiAction } from './action-dispatch';
 import {
@@ -1182,9 +1182,9 @@ export const { registry, handlers, executeAction } = defineRegistry(
                   )
                     ? 'create_time_tracking_request'
                     : props.submitAction || 'submit_form';
-                  const handler = (handlers as Record<string, FormActionHandler>)[
-                    actionName
-                  ];
+                  const handler = (
+                    handlers as Record<string, FormActionHandler>
+                  )[actionName];
                   let actionResult: unknown = null;
 
                   if (handler) {
@@ -1362,7 +1362,9 @@ export const { registry, handlers, executeAction } = defineRegistry(
         };
 
         const handleRemoveNew = (index: number) => {
-          const nextFiles = safeFiles.filter((_, fileIndex) => fileIndex !== index);
+          const nextFiles = safeFiles.filter(
+            (_, fileIndex) => fileIndex !== index
+          );
           setFiles(nextFiles);
           setImageError(null);
         };
@@ -2512,17 +2514,13 @@ export const { registry, handlers, executeAction } = defineRegistry(
             );
           }
 
-          const responseBody = (await response.json().catch(() =>
-            null
-          )) as
-            | {
-                success?: boolean;
-                request?: {
-                  id?: string;
-                  workspace_id?: string;
-                };
-              }
-            | null;
+          const responseBody = (await response.json().catch(() => null)) as {
+            success?: boolean;
+            request?: {
+              id?: string;
+              workspace_id?: string;
+            };
+          } | null;
 
           if (!responseBody?.success || !responseBody?.request?.id) {
             throw new Error(
@@ -2530,7 +2528,9 @@ export const { registry, handlers, executeAction } = defineRegistry(
             );
           }
 
-          const summaryDescription = description.trim() ? description.trim() : 'N/A';
+          const summaryDescription = description.trim()
+            ? description.trim()
+            : 'N/A';
 
           if (sendMessage) {
             await sendMessage({

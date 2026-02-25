@@ -24,7 +24,7 @@ const MIRA_MEMORY_EMBEDDING_DIM = 3072;
 type EmbeddingTaskType = 'RETRIEVAL_DOCUMENT' | 'RETRIEVAL_QUERY';
 
 type MemoryEmbeddingBackfillOptions = {
-  category?: string | null;
+  category?: MiraMemoryCategory | null;
   maxCandidates?: number;
   maxRegenerations?: number;
 };
@@ -224,7 +224,7 @@ export async function executeRecall(
               await ctx.supabase.rpc('match_memories', {
                 query_embedding: embedding as any,
                 match_count: maxResults,
-                filter_category: category,
+                filter_category: category ?? undefined,
               });
 
             if (retryError) {

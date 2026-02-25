@@ -803,12 +803,12 @@ export const miraToolDefinitions = {
         .nullish()
         .describe('Time tracking category UUID, or null/omit'),
       taskId: z.string().nullish().describe('Task UUID, or null/omit'),
-      startTime: z
-        .iso
+      startTime: z.iso
         .datetime()
-        .describe('Start time (ISO 8601, YYYY-MM-DD HH:mm, or HH:mm with date)'),
-      endTime: z
-        .iso
+        .describe(
+          'Start time (ISO 8601, YYYY-MM-DD HH:mm, or HH:mm with date)'
+        ),
+      endTime: z.iso
         .datetime()
         .describe('End time (ISO 8601, YYYY-MM-DD HH:mm, or HH:mm with date)'),
       requestId: z
@@ -858,13 +858,15 @@ export const miraToolDefinitions = {
       date: z
         .string()
         .optional()
-        .describe('Optional base date (YYYY-MM-DD) when using HH:mm time inputs'),
-      startTime: z
-        .iso
+        .describe(
+          'Optional base date (YYYY-MM-DD) when using HH:mm time inputs'
+        ),
+      startTime: z.iso
         .datetime()
-        .describe('Start time (ISO 8601, YYYY-MM-DD HH:mm, or HH:mm with date)'),
-      endTime: z
-        .iso
+        .describe(
+          'Start time (ISO 8601, YYYY-MM-DD HH:mm, or HH:mm with date)'
+        ),
+      endTime: z.iso
         .datetime()
         .describe('End time (ISO 8601, YYYY-MM-DD HH:mm, or HH:mm with date)'),
       breakTypeId: z
@@ -872,7 +874,7 @@ export const miraToolDefinitions = {
         .nullish()
         .describe('Break type UUID, or null/omit'),
       breakTypeName: z
-        .string() 
+        .string()
         .nullish()
         .describe('Break type name, or null/omit'),
       linkedSessionId: z
@@ -907,15 +909,13 @@ export const miraToolDefinitions = {
         .optional()
         .describe('Updated category UUID'),
       taskId: z.string().nullable().optional().describe('Updated task UUID'),
-      startTime: z
-        .iso
+      startTime: z.iso
         .datetime()
         .optional()
         .describe(
           'Updated start time (ISO 8601, YYYY-MM-DD HH:mm, or HH:mm with date)'
         ),
-      endTime: z
-        .iso
+      endTime: z.iso
         .datetime()
         .optional()
         .describe(

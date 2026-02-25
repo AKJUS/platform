@@ -40,14 +40,17 @@ export function parseFlexibleDateTime(
       /^(\d{4}-\d{2}-\d{2})\s+([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/
     );
     if (dateTimeWithSpaceMatch) {
-      const [, datePart, hours, minutes, seconds = '00'] = dateTimeWithSpaceMatch;
+      const [, datePart, hours, minutes, seconds = '00'] =
+        dateTimeWithSpaceMatch;
       const combined = new Date(`${datePart}T${hours}:${minutes}:${seconds}`);
       if (!Number.isNaN(combined.getTime())) {
         return { ok: true, value: combined };
       }
     }
 
-    const timeOnlyMatch = trimmed.match(/^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/);
+    const timeOnlyMatch = trimmed.match(
+      /^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/
+    );
     if (timeOnlyMatch) {
       const dateParsed = parseDateOnly(options?.date, 'date');
       if (!dateParsed.ok) {
@@ -158,7 +161,6 @@ async function shouldRequireApproval(
     const bypassAllowed = await hasBypassApprovalPermission(ctx);
     if (bypassAllowed) return { requiresApproval: false };
   }
-
 
   if (thresholdDays === 0) {
     return {

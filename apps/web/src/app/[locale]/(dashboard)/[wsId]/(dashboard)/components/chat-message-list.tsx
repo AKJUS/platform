@@ -165,7 +165,9 @@ function isObjectRecord(value: unknown): value is JsonObject {
   return typeof value === 'object' && value !== null;
 }
 
-function isApprovalRequestUiData(value: unknown): value is ApprovalRequestUiData {
+function isApprovalRequestUiData(
+  value: unknown
+): value is ApprovalRequestUiData {
   if (!isObjectRecord(value)) return false;
 
   return (
@@ -786,7 +788,8 @@ function getToolPartStatus(part: ToolPartData) {
   const logicalError =
     isDone &&
     (outputRecord?.success === false ||
-      (typeof outputRecord?.error === 'string' && outputRecord.error.length > 0));
+      (typeof outputRecord?.error === 'string' &&
+        outputRecord.error.length > 0));
 
   const isError = baseError || logicalError;
   const isRunning = !isDone && !baseError;

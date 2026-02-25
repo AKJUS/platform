@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { MiraToolContext } from '../mira-tools';
-import {
-  executeCreateTimeTrackingEntry,
-  parseFlexibleDateTime,
-} from './timer';
+import { executeCreateTimeTrackingEntry, parseFlexibleDateTime } from './timer';
 
 function createApprovalRequiredContext(): MiraToolContext {
   const supabase = {
@@ -55,10 +52,7 @@ describe('parseFlexibleDateTime', () => {
   });
 
   it('accepts YYYY-MM-DD HH:mm format', () => {
-    const result = parseFlexibleDateTime(
-      '2026-02-24 17:00',
-      'endTime'
-    );
+    const result = parseFlexibleDateTime('2026-02-24 17:00', 'endTime');
 
     expect(result.ok).toBe(true);
   });

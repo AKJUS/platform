@@ -638,10 +638,14 @@ export const dashboardCatalog = defineCatalog(schema, {
           .describe('Optional base date (YYYY-MM-DD) when using HH:mm inputs'),
         startTime: z
           .string()
-          .describe('Start time (ISO 8601, YYYY-MM-DD HH:mm, or HH:mm with date)'),
+          .describe(
+            'Start time (ISO 8601, YYYY-MM-DD HH:mm, or HH:mm with date)'
+          ),
         endTime: z
           .string()
-          .describe('End time (ISO 8601, YYYY-MM-DD HH:mm, or HH:mm with date)'),
+          .describe(
+            'End time (ISO 8601, YYYY-MM-DD HH:mm, or HH:mm with date)'
+          ),
         imagePaths: z
           .array(z.string())
           .optional()
