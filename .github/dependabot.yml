@@ -4,18 +4,19 @@
 # https://docs.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
 
 version: 2
+enable-beta-ecosystems: true
 updates:
-  - package-ecosystem: 'github-actions'
-    directory: '/'
+  - package-ecosystem: "github-actions"
+    directory: "/"
     schedule:
-      interval: 'daily'
+      interval: "daily"
 
-  - package-ecosystem: 'npm'
-    directory: '/'
+  - package-ecosystem: "npm"
+    directory: "/"
     schedule:
-      interval: 'daily'
+      interval: "daily"
 
-  - package-ecosystem: 'pub'
-    directory: '/apps/mobile'
+  - package-ecosystem: "pub"
+    directory: "/apps/mobile"
     schedule:
-      interval: 'daily'
+      interval: "daily"
