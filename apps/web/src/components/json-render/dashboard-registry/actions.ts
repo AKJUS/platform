@@ -11,7 +11,9 @@ import {
   uploadTimeTrackingRequestFiles,
 } from './shared';
 
-type RegistrySetState = (updater: (prev: Record<string, unknown>) => Record<string, unknown>) => void;
+type RegistrySetState = (
+  updater: (prev: Record<string, unknown>) => Record<string, unknown>
+) => void;
 
 type RegistryContext = {
   submitText?: (text: string) => void;
@@ -269,7 +271,9 @@ export const dashboardActions = {
         );
       }
 
-      const summaryDescription = description.trim() ? description.trim() : 'N/A';
+      const summaryDescription = description.trim()
+        ? description.trim()
+        : 'N/A';
 
       if (sendMessage) {
         await sendMessage({

@@ -28,7 +28,7 @@ export type StatDisplayProps = {
 
 export type MultiQuizItem = JsonRenderMultiQuizItem;
 
-export const useComponentValue = <T,>(
+export const useComponentValue = <T>(
   propValue: T | undefined,
   bindingPath: string | undefined,
   fallbackName: string | undefined,

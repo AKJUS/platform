@@ -10,8 +10,6 @@ import {
   RotateCcw,
   X,
 } from '@tuturuuu/icons';
-import { Button } from '@tuturuuu/ui/button';
-import { Card } from '@tuturuuu/ui/card';
 import type {
   JsonRenderComponentContext,
   JsonRenderFlashcardProps,
@@ -19,6 +17,8 @@ import type {
   JsonRenderMultiQuizProps,
   JsonRenderQuizProps,
 } from '@tuturuuu/types';
+import { Button } from '@tuturuuu/ui/button';
+import { Card } from '@tuturuuu/ui/card';
 import { useMemo, useState } from 'react';
 
 type LearningQuizProps = JsonRenderQuizProps;
@@ -26,7 +26,9 @@ type LearningMultiQuizProps = JsonRenderMultiQuizProps;
 type LearningMultiFlashcardProps = JsonRenderMultiFlashcardProps;
 
 export const dashboardLearningComponents = {
-  Flashcard: ({ props }: JsonRenderComponentContext<JsonRenderFlashcardProps>) => {
+  Flashcard: ({
+    props,
+  }: JsonRenderComponentContext<JsonRenderFlashcardProps>) => {
     const [flipped, setFlipped] = useState(false);
 
     return (
@@ -205,7 +207,9 @@ export const dashboardLearningComponents = {
     );
   },
 
-  MultiQuiz: ({ props }: JsonRenderComponentContext<LearningMultiQuizProps>) => {
+  MultiQuiz: ({
+    props,
+  }: JsonRenderComponentContext<LearningMultiQuizProps>) => {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [answers, setAnswers] = useState<Record<number, string>>({});
     const [showScore, setShowScore] = useState(false);
@@ -214,9 +218,7 @@ export const dashboardLearningComponents = {
     const [optionRandomizeCount, setOptionRandomizeCount] = useState(0);
 
     const quizzes = useMemo(() => {
-      const original = Array.isArray(props.quizzes)
-        ? props.quizzes
-        : [];
+      const original = Array.isArray(props.quizzes) ? props.quizzes : [];
       if (!props.randomize && quizRandomizeCount === 0) return original;
       const shuffled = [...original];
       for (let i = shuffled.length - 1; i > 0; i--) {
@@ -518,7 +520,9 @@ export const dashboardLearningComponents = {
     );
   },
 
-  MultiFlashcard: ({ props }: JsonRenderComponentContext<LearningMultiFlashcardProps>) => {
+  MultiFlashcard: ({
+    props,
+  }: JsonRenderComponentContext<LearningMultiFlashcardProps>) => {
     const [currentIndex, setCurrentIndex] = useState(0);
     const [flipped, setFlipped] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);

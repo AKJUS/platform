@@ -3,6 +3,18 @@
 import { useActions, useBoundProp, useStateStore } from '@json-render/react';
 import { useQuery } from '@tanstack/react-query';
 import { Check, Loader2 } from '@tuturuuu/icons';
+import type {
+  JsonRenderCheckboxGroupProps,
+  JsonRenderCheckboxProps,
+  JsonRenderComponentContext,
+  JsonRenderFileAttachmentInputProps,
+  JsonRenderFormProps,
+  JsonRenderInputProps,
+  JsonRenderRadioGroupProps,
+  JsonRenderSelectProps,
+  JsonRenderTextareaProps,
+  JsonRenderTransactionCategory,
+} from '@tuturuuu/types';
 import { Button } from '@tuturuuu/ui/button';
 import { Checkbox } from '@tuturuuu/ui/checkbox';
 import { MissedEntryImageUploadSection } from '@tuturuuu/ui/custom/missed-entry/image-upload-section';
@@ -17,18 +29,6 @@ import {
   SelectValue,
 } from '@tuturuuu/ui/select';
 import { Textarea } from '@tuturuuu/ui/textarea';
-import type {
-  JsonRenderCheckboxGroupProps,
-  JsonRenderCheckboxProps,
-  JsonRenderComponentContext,
-  JsonRenderFileAttachmentInputProps,
-  JsonRenderFormProps,
-  JsonRenderInputProps,
-  JsonRenderRadioGroupProps,
-  JsonRenderSelectProps,
-  JsonRenderTextareaProps,
-  JsonRenderTransactionCategory,
-} from '@tuturuuu/types';
 import { useParams } from 'next/navigation';
 import {
   type ChangeEvent,
@@ -38,8 +38,14 @@ import {
   useRef,
   useState,
 } from 'react';
-import { deriveFormFieldName, normalizeTextControlValue } from '../../form-field-utils';
-import { shouldUseTimeTrackingRequestAction, useComponentValue } from '../shared';
+import {
+  deriveFormFieldName,
+  normalizeTextControlValue,
+} from '../../form-field-utils';
+import {
+  shouldUseTimeTrackingRequestAction,
+  useComponentValue,
+} from '../shared';
 
 type FormActionHandler =
   | ((params: Record<string, unknown>) => unknown)
@@ -51,7 +57,14 @@ type JsonRenderStringArrayBinding = { values?: string };
 type JsonRenderSubmitBinding = { onSubmit?: string };
 
 export const dashboardFormComponents = {
-  Form: ({ props, children, bindings }: JsonRenderComponentContext<JsonRenderFormProps, JsonRenderSubmitBinding>) => {
+  Form: ({
+    props,
+    children,
+    bindings,
+  }: JsonRenderComponentContext<
+    JsonRenderFormProps,
+    JsonRenderSubmitBinding
+  >) => {
     const params = useParams();
     const wsId = params.wsId as string;
     const { state } = useStateStore();
@@ -82,8 +95,8 @@ export const dashboardFormComponents = {
             setError(null);
             try {
               const submitParams =
-                (props as { submitParams?: Record<string, unknown> }).submitParams ||
-                {};
+                (props as { submitParams?: Record<string, unknown> })
+                  .submitParams || {};
               const values = (state as Record<string, unknown>) || {};
 
               const actionName = shouldUseTimeTrackingRequestAction(
@@ -93,7 +106,9 @@ export const dashboardFormComponents = {
               )
                 ? 'create_time_tracking_request'
                 : props.submitAction || 'submit_form';
-              const handler = (handlers as Record<string, FormActionHandler>)[actionName];
+              const handler = (handlers as Record<string, FormActionHandler>)[
+                actionName
+              ];
               let actionResult: unknown = null;
 
               if (handler) {
@@ -122,7 +137,8 @@ export const dashboardFormComponents = {
                 actionResult &&
                 typeof actionResult === 'object' &&
                 'error' in (actionResult as Record<string, unknown>) &&
-                typeof (actionResult as Record<string, unknown>).error === 'string'
+                typeof (actionResult as Record<string, unknown>).error ===
+                  'string'
               ) {
                 throw new Error(
                   (actionResult as Record<string, unknown>).error as string
@@ -163,12 +179,20 @@ export const dashboardFormComponents = {
             )}
           </Button>
           {error && <p className="text-dynamic-red text-sm">{error}</p>}
-          {message && !error && <p className="text-dynamic-green text-sm">{message}</p>}
+          {message && !error && (
+            <p className="text-dynamic-green text-sm">{message}</p>
+          )}
         </form>
       </div>
     );
   },
-  Input: ({ props, bindings }: JsonRenderComponentContext<JsonRenderInputProps, JsonRenderStringBinding>) => {
+  Input: ({
+    props,
+    bindings,
+  }: JsonRenderComponentContext<
+    JsonRenderInputProps,
+    JsonRenderStringBinding
+  >) => {
     const fieldName = deriveFormFieldName(props.name, props.label, 'input');
     const [rawValue, setValue] = useComponentValue<unknown>(
       props.value,
@@ -191,7 +215,13 @@ export const dashboardFormComponents = {
       </div>
     );
   },
-  FileAttachmentInput: ({ props, bindings }: JsonRenderComponentContext<JsonRenderFileAttachmentInputProps, JsonRenderStringBinding>) => {
+  FileAttachmentInput: ({
+    props,
+    bindings,
+  }: JsonRenderComponentContext<
+    JsonRenderFileAttachmentInputProps,
+    JsonRenderStringBinding
+  >) => {
     const maxFiles = props.maxFiles || 5;
     const [files, setFiles] = useComponentValue<File[]>(
       props.value,
@@ -313,7 +343,13 @@ export const dashboardFormComponents = {
       </div>
     );
   },
-  Textarea: ({ props, bindings }: JsonRenderComponentContext<JsonRenderTextareaProps, JsonRenderStringBinding>) => {
+  Textarea: ({
+    props,
+    bindings,
+  }: JsonRenderComponentContext<
+    JsonRenderTextareaProps,
+    JsonRenderStringBinding
+  >) => {
     const fieldName = deriveFormFieldName(props.name, props.label, 'textarea');
     const [rawValue, setValue] = useComponentValue<unknown>(
       props.value,
@@ -336,7 +372,13 @@ export const dashboardFormComponents = {
       </div>
     );
   },
-  Checkbox: ({ props, bindings }: JsonRenderComponentContext<JsonRenderCheckboxProps, JsonRenderCheckboxBinding>) => {
+  Checkbox: ({
+    props,
+    bindings,
+  }: JsonRenderComponentContext<
+    JsonRenderCheckboxProps,
+    JsonRenderCheckboxBinding
+  >) => {
     const [checked, setChecked] = useComponentValue<boolean>(
       props.checked,
       bindings?.checked,
@@ -360,12 +402,20 @@ export const dashboardFormComponents = {
           </Label>
         </div>
         {props.description && (
-          <p className="pl-6 text-muted-foreground text-xs">{props.description}</p>
+          <p className="pl-6 text-muted-foreground text-xs">
+            {props.description}
+          </p>
         )}
       </div>
     );
   },
-  CheckboxGroup: ({ props, bindings }: JsonRenderComponentContext<JsonRenderCheckboxGroupProps, JsonRenderStringArrayBinding>) => {
+  CheckboxGroup: ({
+    props,
+    bindings,
+  }: JsonRenderComponentContext<
+    JsonRenderCheckboxGroupProps,
+    JsonRenderStringArrayBinding
+  >) => {
     const [values, setValues] = useComponentValue<string[]>(
       props.values,
       bindings?.values,
@@ -405,7 +455,13 @@ export const dashboardFormComponents = {
       </div>
     );
   },
-  RadioGroup: ({ props, bindings }: JsonRenderComponentContext<JsonRenderRadioGroupProps, JsonRenderStringBinding>) => {
+  RadioGroup: ({
+    props,
+    bindings,
+  }: JsonRenderComponentContext<
+    JsonRenderRadioGroupProps,
+    JsonRenderStringBinding
+  >) => {
     const [value, setValue] = useComponentValue<string>(
       props.value,
       bindings?.value,
@@ -423,7 +479,10 @@ export const dashboardFormComponents = {
         >
           {props.options?.map((option) => (
             <div key={option.value} className="flex items-center space-x-2">
-              <RadioGroupItem value={option.value} id={`${props.name}-${option.value}`} />
+              <RadioGroupItem
+                value={option.value}
+                id={`${props.name}-${option.value}`}
+              />
               <Label
                 htmlFor={`${props.name}-${option.value}`}
                 className="font-normal text-sm leading-none"
@@ -436,7 +495,13 @@ export const dashboardFormComponents = {
       </div>
     );
   },
-  Select: ({ props, bindings }: JsonRenderComponentContext<JsonRenderSelectProps, JsonRenderStringBinding>) => {
+  Select: ({
+    props,
+    bindings,
+  }: JsonRenderComponentContext<
+    JsonRenderSelectProps,
+    JsonRenderStringBinding
+  >) => {
     const params = useParams();
     const wsId = params.wsId as string;
     const { set } = useStateStore();
@@ -451,9 +516,12 @@ export const dashboardFormComponents = {
     const { data: categories } = useQuery({
       queryKey: ['workspaces', wsId, 'finance', 'transactions', 'categories'],
       queryFn: async (): Promise<JsonRenderTransactionCategory[]> => {
-        const res = await fetch(`/api/workspaces/${wsId}/transactions/categories`, {
-          cache: 'no-store',
-        });
+        const res = await fetch(
+          `/api/workspaces/${wsId}/transactions/categories`,
+          {
+            cache: 'no-store',
+          }
+        );
         if (!res.ok) return [];
         return (await res.json()) as JsonRenderTransactionCategory[];
       },
@@ -475,7 +543,11 @@ export const dashboardFormComponents = {
     return (
       <div className="flex flex-col gap-2">
         <Label htmlFor={props.name}>{props.label}</Label>
-        <Select value={value} onValueChange={handleValueChange} required={props.required}>
+        <Select
+          value={value}
+          onValueChange={handleValueChange}
+          required={props.required}
+        >
           <SelectTrigger id={props.name} className="w-full">
             <SelectValue placeholder={props.placeholder} />
           </SelectTrigger>

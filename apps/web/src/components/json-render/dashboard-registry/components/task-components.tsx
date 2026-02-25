@@ -2,6 +2,13 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { Loader2 } from '@tuturuuu/icons';
+import type {
+  JsonRenderComponentContext,
+  JsonRenderMyTasksProps,
+  JsonRenderTimeTrackingStatsProps,
+  JsonRenderTimeTrackingStatsResponse,
+  JsonRenderWorkspaceSummary,
+} from '@tuturuuu/types';
 import {
   Card,
   CardContent,
@@ -15,13 +22,6 @@ import { MyTasksFilters } from '@tuturuuu/ui/tu-do/my-tasks/my-tasks-filters';
 import { MyTasksHeader } from '@tuturuuu/ui/tu-do/my-tasks/my-tasks-header';
 import TaskList from '@tuturuuu/ui/tu-do/my-tasks/task-list';
 import { useMyTasksState } from '@tuturuuu/ui/tu-do/my-tasks/use-my-tasks-state';
-import type {
-  JsonRenderComponentContext,
-  JsonRenderMyTasksProps,
-  JsonRenderTimeTrackingStatsProps,
-  JsonRenderTimeTrackingStatsResponse,
-  JsonRenderWorkspaceSummary,
-} from '@tuturuuu/types';
 import { useParams } from 'next/navigation';
 import { formatDurationLabel, resolveStatsRange } from '../shared';
 
@@ -31,17 +31,18 @@ export const dashboardTaskComponents = {
     const wsId = params.wsId as string;
     const { data: user, isLoading: userLoading } = useWorkspaceUser();
 
-    const { data: workspace, isLoading: workspaceLoading } = useQuery<JsonRenderWorkspaceSummary | null>({
-      queryKey: ['workspace', wsId],
-      queryFn: async () => {
-        const res = await fetch(`/api/workspaces/${wsId}`, {
-          cache: 'no-store',
-        });
-        if (!res.ok) return null;
-        return (await res.json()) as JsonRenderWorkspaceSummary;
-      },
-      enabled: !!wsId,
-    });
+    const { data: workspace, isLoading: workspaceLoading } =
+      useQuery<JsonRenderWorkspaceSummary | null>({
+        queryKey: ['workspace', wsId],
+        queryFn: async () => {
+          const res = await fetch(`/api/workspaces/${wsId}`, {
+            cache: 'no-store',
+          });
+          if (!res.ok) return null;
+          return (await res.json()) as JsonRenderWorkspaceSummary;
+        },
+        enabled: !!wsId,
+      });
 
     const state = useMyTasksState({
       wsId,
@@ -113,7 +114,9 @@ export const dashboardTaskComponents = {
       </div>
     );
   },
-  TimeTrackingStats: ({ props }: JsonRenderComponentContext<JsonRenderTimeTrackingStatsProps>) => {
+  TimeTrackingStats: ({
+    props,
+  }: JsonRenderComponentContext<JsonRenderTimeTrackingStatsProps>) => {
     const params = useParams();
     const wsId = params.wsId as string;
     const maxItems = props.maxItems || 5;
@@ -122,51 +125,53 @@ export const dashboardTaskComponents = {
 
     const { data: user, isLoading: userLoading } = useWorkspaceUser();
 
-    const { data: workspace, isLoading: workspaceLoading } = useQuery<JsonRenderWorkspaceSummary | null>({
-      queryKey: ['workspace', wsId, 'time-tracking-stats-widget'],
-      queryFn: async () => {
-        const res = await fetch(`/api/workspaces/${wsId}`, {
-          cache: 'no-store',
-        });
-        if (!res.ok) return null;
-        return (await res.json()) as JsonRenderWorkspaceSummary;
-      },
-      enabled: !!wsId,
-    });
+    const { data: workspace, isLoading: workspaceLoading } =
+      useQuery<JsonRenderWorkspaceSummary | null>({
+        queryKey: ['workspace', wsId, 'time-tracking-stats-widget'],
+        queryFn: async () => {
+          const res = await fetch(`/api/workspaces/${wsId}`, {
+            cache: 'no-store',
+          });
+          if (!res.ok) return null;
+          return (await res.json()) as JsonRenderWorkspaceSummary;
+        },
+        enabled: !!wsId,
+      });
 
     const range = resolveStatsRange(props.period, props.dateFrom, props.dateTo);
 
-    const { data: stats, isLoading: statsLoading } = useQuery<JsonRenderTimeTrackingStatsResponse | null>({
-      queryKey: [
-        'workspace',
-        wsId,
-        'time-tracking',
-        'stats',
-        'period',
-        user?.id,
-        range.from.toISOString(),
-        range.to.toISOString(),
-      ],
-      queryFn: async () => {
-        if (!user?.id) return null;
+    const { data: stats, isLoading: statsLoading } =
+      useQuery<JsonRenderTimeTrackingStatsResponse | null>({
+        queryKey: [
+          'workspace',
+          wsId,
+          'time-tracking',
+          'stats',
+          'period',
+          user?.id,
+          range.from.toISOString(),
+          range.to.toISOString(),
+        ],
+        queryFn: async () => {
+          if (!user?.id) return null;
 
-        const query = new URLSearchParams({
-          dateFrom: range.from.toISOString(),
-          dateTo: range.to.toISOString(),
-          timezone: 'UTC',
-          userId: user.id,
-        });
+          const query = new URLSearchParams({
+            dateFrom: range.from.toISOString(),
+            dateTo: range.to.toISOString(),
+            timezone: 'UTC',
+            userId: user.id,
+          });
 
-        const res = await fetch(
-          `/api/v1/workspaces/${encodeURIComponent(wsId)}/time-tracking/stats/period?${query.toString()}`,
-          { cache: 'no-store' }
-        );
+          const res = await fetch(
+            `/api/v1/workspaces/${encodeURIComponent(wsId)}/time-tracking/stats/period?${query.toString()}`,
+            { cache: 'no-store' }
+          );
 
-        if (!res.ok) return null;
-        return (await res.json()) as JsonRenderTimeTrackingStatsResponse;
-      },
-      enabled: !!wsId && !!user?.id && !!workspace,
-    });
+          if (!res.ok) return null;
+          return (await res.json()) as JsonRenderTimeTrackingStatsResponse;
+        },
+        enabled: !!wsId && !!user?.id && !!workspace,
+      });
 
     if (userLoading || workspaceLoading || statsLoading) {
       return (
@@ -181,7 +186,9 @@ export const dashboardTaskComponents = {
         <Card className="my-2 border border-border/60 bg-card/60">
           <CardHeader>
             <CardTitle className="text-lg">Time Tracking Stats</CardTitle>
-            <CardDescription>No stats available for this period.</CardDescription>
+            <CardDescription>
+              No stats available for this period.
+            </CardDescription>
           </CardHeader>
         </Card>
       );
@@ -231,7 +238,9 @@ export const dashboardTaskComponents = {
                 </p>
               </div>
               <div className="rounded-lg border bg-surface p-4">
-                <p className="text-muted-foreground text-sm">Best Time of Day</p>
+                <p className="text-muted-foreground text-sm">
+                  Best Time of Day
+                </p>
                 <p className="font-bold text-xl capitalize">
                   {bestTimeOfDayLabel}
                 </p>
@@ -248,14 +257,18 @@ export const dashboardTaskComponents = {
                 )}
                 {topBreakdown.map((item, index: number) => {
                   const share =
-                    totalDuration > 0 ? (item.duration / totalDuration) * 100 : 0;
+                    totalDuration > 0
+                      ? (item.duration / totalDuration) * 100
+                      : 0;
                   return (
                     <div
                       key={`${item.name}-${index}`}
                       className="space-y-1 rounded-md border p-2"
                     >
                       <div className="flex items-center justify-between gap-2 text-sm">
-                        <span className="truncate font-medium">{item.name}</span>
+                        <span className="truncate font-medium">
+                          {item.name}
+                        </span>
                         <span className="text-muted-foreground">
                           {formatDurationLabel(item.duration || 0)}
                         </span>

@@ -52,7 +52,13 @@ export type JsonRenderIconProps = {
 
 export type JsonRenderBadgeProps = {
   label: string;
-  variant?: 'default' | 'secondary' | 'outline' | 'success' | 'warning' | 'error';
+  variant?:
+    | 'default'
+    | 'secondary'
+    | 'outline'
+    | 'success'
+    | 'warning'
+    | 'error';
 };
 
 export type JsonRenderAvatarProps = {
@@ -107,7 +113,13 @@ export type JsonRenderTabsProps = {
 
 export type JsonRenderButtonProps = {
   label: string;
-  variant?: 'default' | 'secondary' | 'destructive' | 'outline' | 'ghost' | 'link';
+  variant?:
+    | 'default'
+    | 'secondary'
+    | 'destructive'
+    | 'outline'
+    | 'ghost'
+    | 'link';
   size?: 'default' | 'sm' | 'lg' | 'icon';
   icon?: string;
   action?: string;
@@ -244,7 +256,13 @@ export type JsonRenderMyTasksProps = {
 };
 
 export type JsonRenderTimeTrackingStatsProps = {
-  period?: 'today' | 'this_week' | 'this_month' | 'last_7_days' | 'last_30_days' | 'custom';
+  period?:
+    | 'today'
+    | 'this_week'
+    | 'this_month'
+    | 'last_7_days'
+    | 'last_30_days'
+    | 'custom';
   dateFrom?: string;
   dateTo?: string;
   showBreakdown?: boolean;

@@ -2,20 +2,6 @@
 
 import { useActions, useStateBinding, useStateStore } from '@json-render/react';
 import * as Icons from '@tuturuuu/icons';
-import { Avatar, AvatarFallback, AvatarImage } from '@tuturuuu/ui/avatar';
-import { Badge } from '@tuturuuu/ui/badge';
-import { Button } from '@tuturuuu/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@tuturuuu/ui/card';
-import { getIconComponentByKey } from '@tuturuuu/ui/custom/icon-picker';
-import { Progress } from '@tuturuuu/ui/progress';
-import { Separator } from '@tuturuuu/ui/separator';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@tuturuuu/ui/tabs';
 import type {
   JsonRenderBadgeProps,
   JsonRenderBarChartProps,
@@ -33,11 +19,28 @@ import type {
   JsonRenderTabsProps,
   JsonRenderTextProps,
 } from '@tuturuuu/types';
+import { Avatar, AvatarFallback, AvatarImage } from '@tuturuuu/ui/avatar';
+import { Badge } from '@tuturuuu/ui/badge';
+import { Button } from '@tuturuuu/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@tuturuuu/ui/card';
+import { getIconComponentByKey } from '@tuturuuu/ui/custom/icon-picker';
+import { Progress } from '@tuturuuu/ui/progress';
+import { Separator } from '@tuturuuu/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@tuturuuu/ui/tabs';
 import { cn } from '@tuturuuu/utils/format';
-import { createElement, type ComponentType } from 'react';
+import { type ComponentType, createElement } from 'react';
 import { dispatchUiAction } from '../../action-dispatch';
-import { isStructuredSubmitAction, resolveActionHandlerMap } from '../../action-routing';
-import { type IconProps, type StatDisplayProps } from '../shared';
+import {
+  isStructuredSubmitAction,
+  resolveActionHandlerMap,
+} from '../../action-routing';
+import type { IconProps, StatDisplayProps } from '../shared';
 
 type IconComponent = ComponentType<IconProps>;
 
@@ -55,8 +58,12 @@ type LegacyTextProps = JsonRenderTextProps;
 type LegacyCalloutProps = JsonRenderCalloutProps;
 
 export const dashboardBaseComponents = {
-  Card: ({ props, children }: JsonRenderComponentContext<JsonRenderCardProps>) => {
-    const hasContent = children && Array.isArray(children) && children.length > 0;
+  Card: ({
+    props,
+    children,
+  }: JsonRenderComponentContext<JsonRenderCardProps>) => {
+    const hasContent =
+      children && Array.isArray(children) && children.length > 0;
     return (
       <Card className="my-2 min-w-0 overflow-hidden rounded-xl border border-border/50 bg-card/80 shadow-sm backdrop-blur-sm">
         {(props.title || props.description) && (
@@ -86,7 +93,10 @@ export const dashboardBaseComponents = {
       </Card>
     );
   },
-  Stack: ({ props, children }: JsonRenderComponentContext<JsonRenderStackProps>) => (
+  Stack: ({
+    props,
+    children,
+  }: JsonRenderComponentContext<JsonRenderStackProps>) => (
     <div
       className={cn(
         'flex min-w-0 [&>*]:min-w-0',
@@ -106,7 +116,10 @@ export const dashboardBaseComponents = {
       {children}
     </div>
   ),
-  Grid: ({ props, children }: JsonRenderComponentContext<JsonRenderGridProps>) => (
+  Grid: ({
+    props,
+    children,
+  }: JsonRenderComponentContext<JsonRenderGridProps>) => (
     <div
       className="grid w-full min-w-0 [&>*]:min-w-0"
       style={{
@@ -175,13 +188,21 @@ export const dashboardBaseComponents = {
   Badge: ({ props }: JsonRenderComponentContext<JsonRenderBadgeProps>) => (
     <Badge variant={props.variant || 'default'}>{props.label}</Badge>
   ),
-  Avatar: ({ props }: JsonRenderComponentContext<{ src?: string; fallback?: string; size?: number }>) => (
+  Avatar: ({
+    props,
+  }: JsonRenderComponentContext<{
+    src?: string;
+    fallback?: string;
+    size?: number;
+  }>) => (
     <Avatar style={{ width: props.size || 32, height: props.size || 32 }}>
       {props.src && <AvatarImage src={props.src} />}
       <AvatarFallback>{props.fallback || '?'}</AvatarFallback>
     </Avatar>
   ),
-  Separator: ({ props }: JsonRenderComponentContext<JsonRenderSeparatorProps>) => (
+  Separator: ({
+    props,
+  }: JsonRenderComponentContext<JsonRenderSeparatorProps>) => (
     <Separator orientation={props.orientation || 'horizontal'} />
   ),
   Callout: ({ props }: JsonRenderComponentContext<LegacyCalloutProps>) => {
@@ -231,7 +252,10 @@ export const dashboardBaseComponents = {
         <div className="min-w-0 flex-1">
           {props.title && (
             <div
-              className={cn('mb-0.5 break-words font-semibold text-sm', style.text)}
+              className={cn(
+                'mb-0.5 break-words font-semibold text-sm',
+                style.text
+              )}
             >
               {props.title}
             </div>
@@ -243,7 +267,9 @@ export const dashboardBaseComponents = {
       </div>
     );
   },
-  ListItem: ({ props }: JsonRenderComponentContext<JsonRenderListItemProps>) => {
+  ListItem: ({
+    props,
+  }: JsonRenderComponentContext<JsonRenderListItemProps>) => {
     const actions = useActions();
     const IconComp = resolveRegistryIcon(props.icon);
     return (
@@ -296,7 +322,9 @@ export const dashboardBaseComponents = {
       </button>
     );
   },
-  Progress: ({ props }: JsonRenderComponentContext<JsonRenderProgressProps>) => {
+  Progress: ({
+    props,
+  }: JsonRenderComponentContext<JsonRenderProgressProps>) => {
     const resolveColor = () => {
       if (props.color && props.color !== 'default') return props.color;
       if (props.value > 66) return 'success';
@@ -314,7 +342,9 @@ export const dashboardBaseComponents = {
         {(props.label || props.showValue) && (
           <div className="flex items-center justify-between text-xs">
             {props.label && (
-              <span className="font-medium text-foreground/70">{props.label}</span>
+              <span className="font-medium text-foreground/70">
+                {props.label}
+              </span>
             )}
             {props.showValue && (
               <span className="font-mono text-[11px] text-muted-foreground">
@@ -323,7 +353,10 @@ export const dashboardBaseComponents = {
             )}
           </div>
         )}
-        <Progress value={props.value} className={cn('h-2 rounded-full', colorClasses[color])} />
+        <Progress
+          value={props.value}
+          className={cn('h-2 rounded-full', colorClasses[color])}
+        />
       </div>
     );
   },
@@ -338,7 +371,9 @@ export const dashboardBaseComponents = {
           {props.title}
         </div>
         <div className="flex items-baseline gap-2">
-          <div className="font-bold text-2xl tracking-tighter">{props.value}</div>
+          <div className="font-bold text-2xl tracking-tighter">
+            {props.value}
+          </div>
           {showTrend && (
             <div
               className={cn(
@@ -375,23 +410,32 @@ export const dashboardBaseComponents = {
         {IconComp && (
           <IconComp
             size={14}
-            className={cn('shrink-0', p.variant ? colorClass : 'text-muted-foreground')}
+            className={cn(
+              'shrink-0',
+              p.variant ? colorClass : 'text-muted-foreground'
+            )}
           />
         )}
         <div className="flex flex-col leading-tight">
           <span className="text-[10px] text-muted-foreground/80 uppercase tracking-wide">
             {p.label}
           </span>
-          <span className={cn('font-semibold text-sm tracking-tight', colorClass)}>
+          <span
+            className={cn('font-semibold text-sm tracking-tight', colorClass)}
+          >
             {p.value}
           </span>
         </div>
       </div>
     );
   },
-  Tabs: ({ props, children }: JsonRenderComponentContext<JsonRenderTabsProps>) => {
+  Tabs: ({
+    props,
+    children,
+  }: JsonRenderComponentContext<JsonRenderTabsProps>) => {
     const [activeTab, setActiveTab] = useStateBinding<string>('activeTab');
-    const currentTab = activeTab ?? props.defaultTab ?? props.tabs?.[0]?.id ?? '';
+    const currentTab =
+      activeTab ?? props.defaultTab ?? props.tabs?.[0]?.id ?? '';
 
     return (
       <Tabs value={currentTab} onValueChange={setActiveTab} className="w-full">
@@ -456,13 +500,18 @@ export const dashboardBaseComponents = {
         }}
       >
         {IconComp && (
-          <IconComp className={cn('inline-block', props.label ? 'mr-2' : '')} size={16} />
+          <IconComp
+            className={cn('inline-block', props.label ? 'mr-2' : '')}
+            size={16}
+          />
         )}
         {props.label}
       </Button>
     );
   },
-  BarChart: ({ props }: JsonRenderComponentContext<JsonRenderBarChartProps>) => {
+  BarChart: ({
+    props,
+  }: JsonRenderComponentContext<JsonRenderBarChartProps>) => {
     const maxValue = Math.max(...(props.data?.map((d) => d.value) || [100]));
 
     const resolveBarColor = (color?: string): string | undefined => {
@@ -494,7 +543,10 @@ export const dashboardBaseComponents = {
           {props.data?.map((item, i: number) => {
             const barColor = resolveBarColor(item.color);
             return (
-              <div key={i} className="group relative flex flex-1 flex-col items-center gap-2">
+              <div
+                key={i}
+                className="group relative flex flex-1 flex-col items-center gap-2"
+              >
                 <div
                   className={cn(
                     'w-full rounded-t-md transition-all duration-500 group-hover:opacity-80',
