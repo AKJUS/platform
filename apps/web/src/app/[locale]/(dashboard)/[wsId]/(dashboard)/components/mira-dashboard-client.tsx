@@ -103,6 +103,12 @@ export default function MiraDashboardClient({
           <MiraChatPanel
             wsId={wsId}
             assistantName={assistantName}
+            userName={
+              currentUser.display_name ||
+              currentUser.full_name ||
+              currentUser.email ||
+              undefined
+            }
             userAvatarUrl={currentUser.avatar_url}
             isFullscreen={isFullscreen}
             onToggleFullscreen={() => setIsFullscreen((prev) => !prev)}

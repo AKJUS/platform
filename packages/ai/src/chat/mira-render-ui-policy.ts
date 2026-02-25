@@ -1,0 +1,261 @@
+import type { ModelMessage } from 'ai';
+
+type ToolStepLike = {
+  toolCalls?: Array<{
+    toolName: string;
+    args?: Record<string, unknown>;
+    input?: Record<string, unknown>;
+  }>;
+  toolResults?: Array<{
+    toolName?: string;
+    output?: Record<string, unknown>;
+  }>;
+};
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function safeParseJson(value: string): unknown {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
+function isRenderableRenderUiSpec(value: unknown): boolean {
+  if (!isRecord(value)) return false;
+  if (typeof value.root !== 'string' || value.root.length === 0) return false;
+  if (!isRecord(value.elements)) return false;
+
+  const elementEntries = Object.entries(value.elements);
+  if (elementEntries.length === 0) return false;
+  if (!(value.root in value.elements)) return false;
+
+  const rootElement = value.elements[value.root];
+  if (!isRecord(rootElement)) return false;
+  return typeof rootElement.type === 'string';
+}
+
+function extractRenderUiOutputCandidates(output: unknown): unknown[] {
+  if (!isRecord(output)) return [];
+  const candidates: unknown[] = [output];
+
+  const wrapperKeys = [
+    'spec',
+    'output',
+    'result',
+    'data',
+    'payload',
+    'json_schema',
+    'schema',
+  ];
+
+  for (const key of wrapperKeys) {
+    if (key in output) candidates.push(output[key]);
+  }
+
+  const jsonValue = output.json;
+  if (typeof jsonValue === 'string') {
+    const parsed = safeParseJson(jsonValue);
+    if (parsed !== null) candidates.push(parsed);
+  } else if (jsonValue !== undefined) {
+    candidates.push(jsonValue);
+  }
+
+  return candidates;
+}
+
+function hasRenderableSpecInOutput(output: unknown): boolean {
+  const queue = extractRenderUiOutputCandidates(output);
+  const visited = new WeakSet<object>();
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (current === null || current === undefined) continue;
+
+    if (typeof current === 'string') {
+      const parsed = safeParseJson(current);
+      if (parsed !== null) queue.push(parsed);
+      continue;
+    }
+
+    if (!isRecord(current)) continue;
+    if (visited.has(current)) continue;
+    visited.add(current);
+
+    if (isRenderableRenderUiSpec(current)) return true;
+
+    queue.push(...extractRenderUiOutputCandidates(current));
+  }
+
+  return false;
+}
+
+function isRecoveredRenderUiOutput(output: unknown): boolean {
+  const queue: unknown[] = [output];
+  const visited = new WeakSet<object>();
+
+  while (queue.length > 0) {
+    const current = queue.shift();
+    if (current === null || current === undefined) continue;
+
+    if (typeof current === 'string') {
+      const parsed = safeParseJson(current);
+      if (parsed !== null) queue.push(parsed);
+      continue;
+    }
+
+    if (!isRecord(current)) continue;
+    if (visited.has(current)) continue;
+    visited.add(current);
+
+    if (current.recoveredFromInvalidSpec === true) return true;
+
+    queue.push(...extractRenderUiOutputCandidates(current));
+  }
+
+  return false;
+}
+
+function extractTextFromUserMessage(message: ModelMessage): string {
+  if (typeof message.content === 'string') return message.content;
+  if (!Array.isArray(message.content)) return '';
+
+  return message.content
+    .filter(
+      (
+        part
+      ): part is {
+        type: 'text';
+        text: string;
+      } => part.type === 'text' && typeof part.text === 'string'
+    )
+    .map((part) => part.text)
+    .join('\n');
+}
+
+export function shouldForceRenderUiForLatestUserMessage(
+  messages: ModelMessage[]
+): boolean {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i];
+    if (!message || message.role !== 'user') continue;
+    const text = extractTextFromUserMessage(message).toLowerCase();
+    if (!text) return false;
+
+    // Explicit user insistence that render_ui tool must be used.
+    if (
+      /render_ui/.test(text) &&
+      /(must|should|need|use|tool|not like this|instead)/.test(text)
+    ) {
+      return true;
+    }
+
+    return false;
+  }
+
+  return false;
+}
+
+export function extractSelectedToolsFromSteps(steps: unknown[]): string[] {
+  for (let i = steps.length - 1; i >= 0; i--) {
+    const step = steps[i] as ToolStepLike | undefined;
+    const selectCall = step?.toolCalls?.find(
+      (toolCall) => toolCall.toolName === 'select_tools'
+    );
+    const tools = selectCall?.args?.tools ?? selectCall?.input?.tools;
+    if (Array.isArray(tools)) {
+      return tools.filter((tool): tool is string => typeof tool === 'string');
+    }
+
+    const selectResult = step?.toolResults?.find(
+      (toolResult) => toolResult.toolName === 'select_tools'
+    );
+    const selectedTools = selectResult?.output?.selectedTools;
+    if (Array.isArray(selectedTools)) {
+      return selectedTools.filter(
+        (tool): tool is string => typeof tool === 'string'
+      );
+    }
+  }
+  return [];
+}
+
+export function wasToolEverSelectedInSteps(
+  steps: unknown[],
+  toolName: string
+): boolean {
+  return steps.some((step) => {
+    const typedStep = step as ToolStepLike | undefined;
+
+    const fromCalls = (typedStep?.toolCalls ?? []).some((toolCall) => {
+      if (toolCall.toolName !== 'select_tools') return false;
+      const tools = toolCall.args?.tools ?? toolCall.input?.tools;
+      return (
+        Array.isArray(tools) &&
+        tools.some((tool) => typeof tool === 'string' && tool === toolName)
+      );
+    });
+
+    if (fromCalls) return true;
+
+    return (typedStep?.toolResults ?? []).some((toolResult) => {
+      if (toolResult.toolName !== 'select_tools') return false;
+      const selected = toolResult.output?.selectedTools;
+      return (
+        Array.isArray(selected) &&
+        selected.some((tool) => typeof tool === 'string' && tool === toolName)
+      );
+    });
+  });
+}
+
+export function hasToolCallInSteps(
+  steps: unknown[],
+  toolName: string
+): boolean {
+  return steps.some((step) => {
+    const typedStep = step as ToolStepLike | undefined;
+    const called = (typedStep?.toolCalls ?? []).some(
+      (toolCall) => toolCall.toolName === toolName
+    );
+    const hasResult = (typedStep?.toolResults ?? []).some(
+      (toolResult) => toolResult.toolName === toolName
+    );
+    return called || hasResult;
+  });
+}
+
+export function hasRenderableRenderUiInSteps(steps: unknown[]): boolean {
+  return steps.some((step) => {
+    const typedStep = step as ToolStepLike | undefined;
+    return (typedStep?.toolResults ?? []).some(
+      (toolResult) =>
+        toolResult.toolName === 'render_ui' &&
+        hasRenderableSpecInOutput(toolResult.output) &&
+        !isRecoveredRenderUiOutput(toolResult.output)
+    );
+  });
+}
+
+export function buildActiveToolsFromSelected(
+  selectedTools: string[]
+): string[] {
+  if (selectedTools.length === 0) return ['select_tools', 'no_action_needed'];
+
+  const unique = Array.from(new Set(selectedTools));
+  const includesNoAction = unique.includes('no_action_needed');
+
+  const active = [
+    ...unique.filter(
+      (toolName) =>
+        toolName !== 'select_tools' && toolName !== 'no_action_needed'
+    ),
+    'select_tools',
+    ...(includesNoAction ? ['no_action_needed'] : []),
+  ];
+
+  return Array.from(new Set(active));
+}

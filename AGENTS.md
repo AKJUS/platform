@@ -1708,6 +1708,116 @@ do not use `VoidCallback` that immediately closes UI. Prefer
 close the sheet/dialog on success. Catch `Exception` in the UI layer to show
 user feedback (e.g., `SnackBar`). If a Cubit catches repository errors,
 rethrow after emitting state so callers can handle failures locally.
+
+### 15.11 render_ui Input Normalization
+
+`render_ui` tool calls can arrive wrapped as `{ "json_schema": { ... } }` or
+`{ "json": "<stringified schema>" }`, and models may omit `children`/`props` or
+place `bindings` under `props.bindings`. Normalize these shapes before schema
+validation in the tool preprocessor so valid intent is not rejected by strict
+top-level parsing (`root`/`elements` must be recovered first).
+
+### 15.12 json-render Action Dispatch
+
+When wiring clickable `render_ui` components (`Button`, `ListItem`, etc.),
+`useActions()` from `@json-render/react` returns an object that contains
+`handlers` (and helpers), not a flat handler map. Resolve handlers via
+`useActions().handlers[actionId]` and keep a fallback to
+`handlers.__ui_action__` so unknown action ids still submit a follow-up message.
+
+### 15.13 render_ui Retry Loop Guard
+
+When enforcing `render_ui` in chat step policies, do not treat failed/no-op
+calls as success (for example `{ root: "...", elements: {} }`). Add a loop
+breaker so repeated invalid attempts do not spin indefinitely. Prefer
+auto-recovering to a minimal valid UI spec over returning hard failures for
+empty specs.
+
+### 15.14 render_ui Recovery Visibility
+
+If a `render_ui` group contains both an auto-recovery placeholder and a later
+valid corrected spec in the same assistant turn, hide the recovery placeholder
+from chat rendering and show only the corrected UI.
+
+### 15.15 render_ui Policy Success Criteria
+
+In tool-step policies, do not count auto-recovered `render_ui` outputs
+(`recoveredFromInvalidSpec: true`) as a successful UI render. Require at least
+one non-recovered renderable `render_ui` result before allowing the turn to
+finish.
+
+### 15.16 render_ui Selection Persistence
+
+If `render_ui` was selected earlier in the same turn, do not allow a later
+`select_tools` call (for example `["no_action_needed"]`) to bypass unresolved
+UI generation. Enforce `render_ui` until a non-recovered renderable result is
+produced.
+
+### 15.17 render_ui Hard Failsafe
+
+When invalid `render_ui` specs repeat (empty/partial `elements` in a loop),
+return a deterministic valid failsafe UI (for example a Quick Actions panel)
+after a small threshold instead of continuing recovery placeholders forever.
+
+### 15.18 render_ui First-Invalid Failsafe
+
+If `render_ui` receives an invalid spec (`elements` empty/missing root element),
+prefer emitting a deterministic valid failsafe UI immediately on the first
+invalid attempt. This prevents first-try UX regressions caused by multiple
+recovery placeholders before a usable UI appears.
+
+### 15.19 render_ui Single-Result Display
+
+When a single assistant turn emits multiple non-recovered `render_ui` outputs
+(for example a failsafe followed by a corrected UI), render only the latest
+valid one in chat UI. Do not display multiple actionable panels from the same
+turn.
+
+### 15.20 Unbound Form Field Safety
+
+In json-render form controls (`Input`, `Textarea`), never bind to an empty
+state path (`''`). Doing so can bind the whole state object and render
+`[object Object]` in text fields. Use local component state for unbound fields,
+derive stable fallback names from labels when `name` is missing, and normalize
+non-string text values before rendering.
+
+### 15.21 Submit-Style Button Routing
+
+For standalone generated forms built with `Card + Input/Textarea + Button`
+instead of the `Form` component, route structured submit actions (`submit_form`,
+`submit_*`) to the `submit_form` action handler (with collected state values)
+when no direct action handler exists. Do not fall back to generic `__ui_action__`
+for submit-style actions, or form data will be lost.
+
+### 15.22 Mermaid Self-Repair Feedback Loop
+
+Mermaid parse errors in rendered assistant markdown must be treated as an
+actionable signal, not just visual output. Detect invalid Mermaid fenced blocks
+client-side after streaming completes, then auto-submit one hidden repair prompt
+containing the parser error + original diagram so the assistant can self-correct
+without waiting for user feedback. Guard with retry limits to prevent loops.
+
+### 15.23 Mira Memory Embedding Self-Heal
+
+When Mira memory embedding dimensionality changes (for example 768 -> 3072),
+the assistant must self-heal missing/null memory embeddings during normal memory
+flows. In semantic recall, if initial `match_memories` returns no hits, trigger
+automatic backfill of missing embeddings and retry semantic search once instead
+of waiting for manual user intervention.
+
+### 15.24 AI Gateway Embedding Model IDs
+
+For embedding calls routed through AI Gateway, prefer gateway model-id strings
+(`'google/gemini-embedding-001'`) instead of provider constructors like
+`google.embeddingModel('gemini-embedding-001')`. This ensures embedding traffic
+consistently uses AI Gateway features and policy controls.
+
+### 15.25 render_ui Fallback UX Must Stay Compact
+
+When `render_ui` auto-recovers from invalid specs, fallback output must be a
+compact status indicator (warning/error/loading style), not fabricated content
+such as "Quick Actions" panels or explanatory prose that the model did not
+intend to show.
  
 ## 16. Glossary
 

@@ -2838,6 +2838,7 @@
       "attach_files": "Attach files",
       "copy_message": "Copy message",
       "copy_output": "Copy output",
+      "copy_raw_json": "Copy raw JSON",
       "credits_remaining": "AI credits remaining",
       "download_image": "Download image",
       "empty_state": "Ask {name} anything — tasks, schedule, expenses, or just chat.",
@@ -2888,6 +2889,9 @@
       "tool_generating_image": "Generating image...",
       "tool_generating_ui": "Generating interface...",
       "tool_running": "Running...",
+      "tool_search_failed": "Search failed",
+      "tool_searched_web": "Searched the web",
+      "tool_searching_web": "Searching the web...",
       "using_tools": "Working on it...",
       "view_only": "View only",
       "you": "You"

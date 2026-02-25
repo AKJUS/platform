@@ -6,16 +6,21 @@ export const dashboardCatalog = defineCatalog(schema, {
   components: {
     Card: {
       props: z.object({
-        title: z.string().optional().describe('The title of the card'),
+        title: z
+          .string()
+          .optional()
+          .describe(
+            'Card header title. Use this instead of a separate Text child for section headers.'
+          ),
         description: z
           .string()
           .nullable()
           .optional()
-          .describe('Optional description of the card'),
+          .describe('Optional subtitle below the title'),
       }),
       hasChildren: true,
       description:
-        'A structural container to group related components together. Always use this as a wrapper for other interactive elements.',
+        'A styled container to group related content. Always use the `title` prop for section headers instead of adding a Text child.',
     },
     Stack: {
       props: z.object({
@@ -49,11 +54,17 @@ export const dashboardCatalog = defineCatalog(schema, {
     },
     Text: {
       props: z.object({
-        content: z.string().describe('The text content'),
+        content: z
+          .string()
+          .describe(
+            'The text string to display. IMPORTANT: use "content", NOT "text".'
+          ),
         variant: z
           .enum(['h1', 'h2', 'h3', 'h4', 'p', 'small', 'tiny'])
           .optional()
-          .describe('Typography variant'),
+          .describe(
+            'Typography variant. Valid: h1, h2, h3, h4, p, small, tiny. Do NOT use "body".'
+          ),
         weight: z
           .enum(['normal', 'medium', 'semibold', 'bold'])
           .optional()
@@ -68,7 +79,8 @@ export const dashboardCatalog = defineCatalog(schema, {
           .describe('Text alignment'),
       }),
       hasChildren: false,
-      description: 'A typography component for rendering text.',
+      description:
+        'Renders text. The prop for the text string is `content` (NOT `text`). Example: { "content": "Hello", "variant": "p" }',
     },
     Icon: {
       props: z.object({
@@ -116,6 +128,51 @@ export const dashboardCatalog = defineCatalog(schema, {
       hasChildren: false,
       description: 'A visual line to separate content.',
     },
+    Callout: {
+      props: z.object({
+        content: z
+          .string()
+          .describe('The callout message text. Use `content`, NOT `text`.'),
+        variant: z
+          .enum(['info', 'success', 'warning', 'error'])
+          .optional()
+          .describe('Callout style, defaults to info'),
+        title: z.string().optional().describe('Optional bold title'),
+      }),
+      hasChildren: false,
+      description:
+        'A colored banner for informational messages (e.g. "No tasks today!", status updates). Use the `content` prop for the message text.',
+    },
+    ListItem: {
+      props: z.object({
+        title: z.string().describe('Primary text'),
+        subtitle: z
+          .string()
+          .optional()
+          .describe('Secondary text shown below the title'),
+        icon: z
+          .string()
+          .optional()
+          .describe(
+            'Lucide icon name in PascalCase (e.g. "Calendar", "Wallet")'
+          ),
+        iconColor: z
+          .string()
+          .optional()
+          .describe('Custom color for the icon pill'),
+        trailing: z
+          .string()
+          .optional()
+          .describe('Optional trailing text (e.g. time, amount)'),
+        action: z
+          .string()
+          .optional()
+          .describe('Action key to trigger on click'),
+      }),
+      hasChildren: false,
+      description:
+        'A structured row with icon, title, subtitle, and trailing text. Perfect for event lists, task items, transaction rows.',
+    },
     Progress: {
       props: z.object({
         value: z.number().describe('Progress value from 0 to 100'),
@@ -124,9 +181,62 @@ export const dashboardCatalog = defineCatalog(schema, {
           .boolean()
           .optional()
           .describe('Whether to show the percentage'),
+        color: z
+          .enum(['default', 'success', 'warning', 'error'])
+          .optional()
+          .describe(
+            'Progress bar color. Defaults to auto: green >66, yellow >33, red ≤33'
+          ),
       }),
       hasChildren: false,
       description: 'A progress bar component.',
+    },
+    Tabs: {
+      props: z.object({
+        tabs: z
+          .array(
+            z.object({
+              id: z.string().describe('Unique ID for the tab'),
+              label: z.string().describe('Display label for the tab'),
+            })
+          )
+          .describe('List of tabs to show'),
+        defaultTab: z.string().optional().describe('ID of the default tab'),
+      }),
+      hasChildren: true,
+      description:
+        'A tabbed interface. Children should be elements that respond to the active tab state (visible when tab matches).',
+    },
+    BarChart: {
+      props: z.object({
+        data: z
+          .array(
+            z.object({
+              label: z.string().describe('Label for the bar'),
+              value: z
+                .number()
+                .describe('Value for the bar (0-100 recommended)'),
+              color: z
+                .string()
+                .optional()
+                .describe('Hex color or dynamic token'),
+            })
+          )
+          .describe('Data points for the chart'),
+        height: z.number().optional().describe('Chart height in pixels'),
+      }),
+      hasChildren: false,
+      description:
+        'A simple vertical bar chart for visualizing lists of numbers.',
+    },
+    Stat: {
+      props: z.object({
+        label: z.string().describe('Short label'),
+        value: z.string().describe('Stat value'),
+        icon: z.string().optional().describe('Lucide icon name'),
+      }),
+      hasChildren: false,
+      description: 'A compact, inline-friendly version of Metric.',
     },
     Metric: {
       props: z.object({
@@ -368,9 +478,19 @@ export const dashboardCatalog = defineCatalog(schema, {
       props: z.object({
         label: z.string().describe('Button text'),
         variant: z
-          .enum(['primary', 'secondary', 'destructive', 'outline', 'ghost'])
+          .enum([
+            'default',
+            'secondary',
+            'destructive',
+            'outline',
+            'ghost',
+            'link',
+          ])
           .optional()
           .describe('Button visual style'),
+        size: z.enum(['default', 'sm', 'lg', 'icon']).optional(),
+        icon: z.string().optional().describe('Lucide icon name'),
+        action: z.string().optional().describe('Action key to trigger'),
       }),
       hasChildren: false,
       description:
@@ -529,6 +649,24 @@ export const dashboardCatalog = defineCatalog(schema, {
       }),
       description:
         'Submit a time tracking missed-entry request with optional evidence attachments.',
+    },
+    __ui_action__: {
+      params: z.object({
+        id: z
+          .string()
+          .optional()
+          .describe('Action identifier from Button/ListItem props.action'),
+        label: z
+          .string()
+          .optional()
+          .describe('Optional display label from the clicked component'),
+        source: z
+          .enum(['button', 'list-item', 'ui'])
+          .optional()
+          .describe('Origin of the action trigger'),
+      }),
+      description:
+        'Generic follow-up action emitted when a clickable generated UI element is activated.',
     },
   },
 });

@@ -1,6 +1,5 @@
 'use client';
 
-import { setByPath } from '@json-render/core';
 import { ActionProvider, StateProvider } from '@json-render/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { DefaultChatTransport } from '@tuturuuu/ai/core';
@@ -30,6 +29,11 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { handlers as jsonRenderHandlers } from '@/components/json-render/dashboard-registry';
+import {
+  createGenerativeUIAdapter,
+  resetGenerativeUIStore,
+  useGenerativeUIStore,
+} from '@/components/json-render/generative-ui-store';
 import { resolveTimezone } from '@/lib/calendar-settings-resolver';
 import ChatInputBar from './chat-input-bar';
 import ChatMessageList from './chat-message-list';
@@ -41,6 +45,7 @@ import QuickActionChips from './quick-action-chips';
 interface MiraChatPanelProps {
   wsId: string;
   assistantName: string;
+  userName?: string;
   userAvatarUrl?: string | null;
   onVoiceToggle?: () => void;
   isFullscreen?: boolean;
@@ -146,6 +151,7 @@ const QUEUE_DEBOUNCE_MS = 500;
 export default function MiraChatPanel({
   wsId,
   assistantName,
+  userName,
   userAvatarUrl,
   onVoiceToggle,
   isFullscreen,
@@ -167,34 +173,27 @@ export default function MiraChatPanel({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const scrollEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Lift state for Generative UI so action handlers can access it
-  const [generativeState, setGenerativeState] = useState<Record<string, any>>(
-    {}
-  );
-  const generativeStateRef = useRef(generativeState);
-  generativeStateRef.current = generativeState;
+  // Zustand-backed store adapter — single source of truth for generative UI
+  const generativeUIStore = useMemo(() => createGenerativeUIAdapter(), []);
 
   const sendMessageRef = useRef<typeof sendMessage>(null!);
+  const submitTextRef = useRef<((value: string) => void) | null>(null);
 
   // json-render action handlers factory expecting state accessors
   const actionHandlers = useMemo(
     () =>
       jsonRenderHandlers(
         () => (updater: any) => {
-          // Provide a setState implementation that updates our lifted state
-          setGenerativeState((prev) => {
-            if (typeof updater === 'function') {
-              return updater(prev);
-            }
-            if (updater && typeof updater === 'object') {
-              return { ...prev, ...updater };
-            }
-            return prev;
-          });
+          const prev = useGenerativeUIStore.getState().ui;
+          if (typeof updater === 'function') {
+            useGenerativeUIStore.setState({ ui: updater(prev) });
+          } else if (updater && typeof updater === 'object') {
+            useGenerativeUIStore.setState({ ui: { ...prev, ...updater } });
+          }
         },
         () => ({
-          // Provide the current state plus extra context
-          ...generativeStateRef.current,
+          ...useGenerativeUIStore.getState().ui,
+          submitText: submitTextRef.current,
           sendMessage: sendMessageRef.current,
         })
       ),
@@ -298,6 +297,7 @@ export default function MiraChatPanel({
     messages,
     sendMessage,
     status,
+    stop,
   } = useChat({
     id: stableChatId,
     generateId: generateRandomUUID,
@@ -451,6 +451,25 @@ export default function MiraChatPanel({
                     input: tc.input ?? tc.args ?? {},
                     output: tr?.output ?? tr?.result ?? null,
                   });
+                }
+              }
+
+              // Reconstruct source-url parts from persisted sources
+              const sources = meta?.sources as
+                | Array<{
+                    sourceId: string;
+                    url: string;
+                    title?: string;
+                  }>
+                | undefined;
+              if (Array.isArray(sources)) {
+                for (const src of sources) {
+                  parts.push({
+                    type: 'source-url' as const,
+                    sourceId: src.sourceId,
+                    url: src.url,
+                    ...(src.title ? { title: src.title } : {}),
+                  } as UIMessage['parts'][number]);
                 }
               }
 
@@ -819,14 +838,43 @@ export default function MiraChatPanel({
         snapshotAttachmentsForMessage('queued');
       }
 
-      // Reset debounce timer
+      const currentlyBusy = status === 'submitted' || status === 'streaming';
+
+      // If the assistant is currently busy (submitted or streaming), stop the
+      // ongoing response and send the new message immediately instead of
+      // waiting for the debounce window.
+      if (currentlyBusy) {
+        if (debounceTimerRef.current) {
+          clearTimeout(debounceTimerRef.current);
+          debounceTimerRef.current = null;
+        }
+        if (typeof stop === 'function') {
+          stop();
+        }
+        flushQueue();
+        return;
+      }
+
+      // Otherwise, use the normal debounce window for batching
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
       debounceTimerRef.current = setTimeout(flushQueue, QUEUE_DEBOUNCE_MS);
     },
-    [flushQueue, attachedFiles, snapshotAttachmentsForMessage]
+    [flushQueue, attachedFiles, snapshotAttachmentsForMessage, status, stop]
   );
+
+  const handleAutoSubmitMermaidFix = useCallback(
+    (prompt: string) => {
+      handleSubmit(prompt);
+    },
+    [handleSubmit]
+  );
+
+  // Expose the debounced submit handler to generative UI actions so that
+  // render_ui forms and quick actions can trigger chat submissions with the
+  // same batching and interrupt semantics as the main input bar.
+  submitTextRef.current = handleSubmit;
 
   // Cleanup debounce timer on unmount
   useEffect(() => {
@@ -853,6 +901,7 @@ export default function MiraChatPanel({
     setInput('');
     clearAttachedFiles();
     setMessageAttachments(new Map());
+    resetGenerativeUIStore();
     // Generate a fresh fallback ID so useChat creates a new Chat instance
     setFallbackChatId(generateRandomUUID());
   }, [wsId, clearAttachedFiles]);
@@ -867,7 +916,8 @@ export default function MiraChatPanel({
   const hasMessages =
     messages.length > 0 || !!pendingDisplay || hasFileOnlyPending;
 
-  // Hide bottom bar while scrolling, show again after scroll stops
+  // Hide bottom bar while scrolling; in "view only" mode, only show the input
+  // panel when the user is scrolled to the bottom.
   const SCROLL_END_DELAY_MS = 700;
   useEffect(() => {
     if (!hasMessages) return;
@@ -881,8 +931,16 @@ export default function MiraChatPanel({
       const isNearBottom =
         el.scrollHeight - el.scrollTop - el.clientHeight < 50;
 
-      // If we are artificially scrolling down (e.g. streaming snap), or user is at bottom, keep visible.
-      // Only hide if the user specifically scrolls way up into history.
+      // In view-only mode, only surface the input bar when the user is at (or
+      // very near) the bottom of the conversation; otherwise keep it hidden.
+      if (viewOnly) {
+        setBottomBarVisible(isNearBottom);
+        return;
+      }
+
+      // Normal mode: keep existing behavior of hiding while the user scrolls
+      // far up, and re-showing shortly after scrolling stops or when near the
+      // bottom.
       if (isNearBottom) {
         setBottomBarVisible(true);
         if (scrollEndTimerRef.current) {
@@ -901,6 +959,8 @@ export default function MiraChatPanel({
     };
 
     el.addEventListener('scroll', onScroll, { passive: true });
+    // Run once on mount to initialize visibility based on initial scroll
+    onScroll();
     return () => {
       el.removeEventListener('scroll', onScroll);
       if (scrollEndTimerRef.current) {
@@ -908,6 +968,27 @@ export default function MiraChatPanel({
         scrollEndTimerRef.current = null;
       }
     };
+  }, [hasMessages, viewOnly]);
+
+  // When switching between empty/non-empty chat states, ensure the input panel
+  // behaves intuitively:
+  // - On an empty chat, always show the input (regardless of prior view-only
+  //   state) so the user can start typing immediately.
+  // - On the first real message in a new chat, also surface the input panel
+  //   even if the previous conversation ended in "view only" mode.
+  const firstMessageSeenRef = useRef(false);
+  useEffect(() => {
+    if (!hasMessages) {
+      firstMessageSeenRef.current = false;
+      setViewOnly(false);
+      setBottomBarVisible(true);
+      return;
+    }
+    if (!firstMessageSeenRef.current) {
+      firstMessageSeenRef.current = true;
+      setViewOnly(false);
+      setBottomBarVisible(true);
+    }
   }, [hasMessages]);
 
   const viewOnlyButtonTitle = viewOnly
@@ -987,16 +1068,7 @@ export default function MiraChatPanel({
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {hasMessages ? (
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-            <StateProvider
-              initialState={generativeState}
-              onStateChange={(path, value) => {
-                setGenerativeState((prev) => {
-                  const next = { ...prev };
-                  setByPath(next, path, value);
-                  return next;
-                });
-              }}
-            >
+            <StateProvider store={generativeUIStore}>
               <ActionProvider handlers={actionHandlers}>
                 <ChatMessageList
                   messages={
@@ -1031,7 +1103,9 @@ export default function MiraChatPanel({
                   }
                   isStreaming={isBusy || !!pendingPrompt}
                   assistantName={assistantName}
+                  userName={userName}
                   userAvatarUrl={userAvatarUrl}
+                  onAutoSubmitMermaidFix={handleAutoSubmitMermaidFix}
                   scrollContainerRef={scrollContainerRef}
                   messageAttachments={messageAttachments}
                 />
@@ -1057,7 +1131,7 @@ export default function MiraChatPanel({
             <div className="flex w-full justify-center">
               <QuickActionChips
                 onSend={handleSubmit}
-                disabled={isBusy}
+                disabled={false}
                 variant="cards"
               />
             </div>
@@ -1067,13 +1141,12 @@ export default function MiraChatPanel({
         <div
           className={cn(
             'absolute right-0 bottom-0 left-0 z-10 flex min-w-0 max-w-full flex-col gap-2 p-3 transition-transform duration-300 ease-out sm:p-4',
-            (!bottomBarVisible || viewOnly) &&
-              'pointer-events-none translate-y-full'
+            !bottomBarVisible && 'pointer-events-none translate-y-full'
           )}
         >
           {hasMessages && !isBusy && (
             <div className="min-w-0 overflow-x-auto overflow-y-hidden">
-              <QuickActionChips onSend={handleSubmit} disabled={isBusy} />
+              <QuickActionChips onSend={handleSubmit} disabled={false} />
             </div>
           )}
           <div className="min-w-0">

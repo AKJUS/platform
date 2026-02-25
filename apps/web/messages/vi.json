@@ -2838,6 +2838,7 @@
       "attach_files": "Đính kèm tệp",
       "copy_message": "Sao chép tin nhắn",
       "copy_output": "Sao chép kết quả",
+      "copy_raw_json": "Sao chép JSON thô",
       "credits_remaining": "Tín dụng AI còn lại",
       "download_image": "Tải hình ảnh",
       "empty_state": "Hỏi {name} bất cứ điều gì — công việc, lịch trình, chi tiêu, hay chỉ trò chuyện.",
@@ -2888,6 +2889,9 @@
       "tool_generating_image": "Đang tạo hình ảnh...",
       "tool_generating_ui": "Đang tạo giao diện...",
       "tool_running": "Đang chạy...",
+      "tool_search_failed": "Tìm kiếm thất bại",
+      "tool_searched_web": "Đã tìm kiếm trên web",
+      "tool_searching_web": "Đang tìm kiếm trên web...",
       "using_tools": "Đang xử lý...",
       "view_only": "Chỉ xem",
       "you": "Bạn"

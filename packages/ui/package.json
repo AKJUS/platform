@@ -47,7 +47,7 @@
     "@tanstack/react-pacer": "^0.20.0",
     "@tanstack/react-query": "^5.90.12",
     "@tanstack/react-table": "^8.21.3",
-    "@tanstack/react-virtual": "^3.13.18",
+    "@tanstack/react-virtual": "^3.13.19",
     "@tiptap/core": "^3.20.0",
     "@tiptap/extension-collaboration": "^3.20.0",
     "@tiptap/extension-collaboration-caret": "^3.20.0",
@@ -90,7 +90,7 @@
     "eventemitter3": "^5.0.4",
     "framer-motion": "^12.34.3",
     "gsap": "^3.14.2",
-    "html2canvas-pro": "^2.0.0",
+    "html2canvas-pro": "^2.0.1",
     "input-otp": "^1.4.2",
     "lodash": "^4.17.23",
     "moment": "^2.30.1",
@@ -127,7 +127,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4.2.0",
+    "@tailwindcss/postcss": "^4.2.1",
     "@tailwindcss/typography": "^0.5.19",
     "@tanstack/react-query": "^5.90.21",
     "@tanstack/react-table": "^8.21.3",
@@ -148,7 +148,7 @@
     "jsdom": "^28.1.0",
     "postcss": "^8.5.6",
     "postcss-load-config": "^6.0.1",
-    "tailwindcss": "^4.2.0",
+    "tailwindcss": "^4.2.1",
     "typescript": "^5.9.3",
     "uuid": "^13.0.0",
     "vitest": "^4.0.18"

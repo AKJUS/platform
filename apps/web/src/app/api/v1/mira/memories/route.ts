@@ -6,9 +6,15 @@
  */
 
 import { createClient } from '@tuturuuu/supabase/next/server';
+import { extractIPFromHeaders } from '@tuturuuu/utils/abuse-protection';
 import { MAX_SUPPORT_INQUIRY_LENGTH } from '@tuturuuu/utils/constants';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import {
+  buildMiraReadRateLimitKey,
+  checkRateLimit,
+  MIRA_READ_RATE_LIMIT,
+} from '@/lib/rate-limit';
 
 const memoryCategories = [
   'preference',
@@ -32,6 +38,15 @@ const deleteMemorySchema = z.object({
 
 export async function GET(request: Request) {
   try {
+    const ipAddress = extractIPFromHeaders(request.headers);
+    const rateLimitResult = await checkRateLimit(
+      buildMiraReadRateLimitKey('memories', ipAddress),
+      MIRA_READ_RATE_LIMIT
+    );
+    if (!('allowed' in rateLimitResult)) {
+      return rateLimitResult;
+    }
+
     const supabase = await createClient();
     const {
       data: { user },

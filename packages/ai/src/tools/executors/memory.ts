@@ -1,4 +1,3 @@
-import { google } from '@ai-sdk/google';
 import type { Enums, TablesInsert, TablesUpdate } from '@tuturuuu/types';
 import { embed } from 'ai';
 import type { MiraToolContext } from '../mira-tools';
@@ -20,17 +19,111 @@ function toMemoryCategory(value: unknown): MiraMemoryCategory | undefined {
     : undefined;
 }
 
-async function generateEmbedding(text: string) {
+const MIRA_MEMORY_EMBEDDING_DIM = 3072;
+
+type EmbeddingTaskType = 'RETRIEVAL_DOCUMENT' | 'RETRIEVAL_QUERY';
+
+type MemoryEmbeddingBackfillOptions = {
+  category?: string | null;
+  maxCandidates?: number;
+  maxRegenerations?: number;
+};
+
+async function generateEmbedding(text: string, taskType: EmbeddingTaskType) {
   try {
     const { embedding } = await embed({
-      model: google.embeddingModel('gemini-embedding-001'),
+      model: 'google/gemini-embedding-001',
       value: text,
+      providerOptions: {
+        google: {
+          outputDimensionality: MIRA_MEMORY_EMBEDDING_DIM,
+          taskType,
+        },
+      },
     });
+    if (
+      !Array.isArray(embedding) ||
+      embedding.length !== MIRA_MEMORY_EMBEDDING_DIM
+    ) {
+      console.error(
+        'Invalid memory embedding shape:',
+        Array.isArray(embedding) ? embedding.length : typeof embedding
+      );
+      return null;
+    }
     return embedding;
   } catch (error) {
     console.error('Failed to generate embedding:', error);
     return null;
   }
+}
+
+function toMemoryEmbeddingInput(key: string, value: string): string {
+  return `${key}: ${value}`;
+}
+
+async function regenerateMissingMemoryEmbeddings(
+  ctx: MiraToolContext,
+  options: MemoryEmbeddingBackfillOptions = {}
+): Promise<number> {
+  const { category = null, maxCandidates = 20, maxRegenerations = 8 } = options;
+
+  let missingQuery = ctx.supabase
+    .from('mira_memories')
+    .select('id, key, value')
+    .eq('user_id', ctx.userId)
+    .is('embedding', null)
+    .order('updated_at', { ascending: false })
+    .limit(maxCandidates);
+
+  if (category) {
+    missingQuery = missingQuery.eq('category', category);
+  }
+
+  const { data: missingMemories, error } = await missingQuery;
+  if (error) {
+    console.error('Failed to load missing memory embeddings:', error);
+    return 0;
+  }
+
+  if (!missingMemories?.length) {
+    return 0;
+  }
+
+  let regenerated = 0;
+  for (const memory of missingMemories.slice(0, maxRegenerations)) {
+    const key = memory.key as string | null;
+    const value = memory.value as string | null;
+    if (!key || !value) {
+      continue;
+    }
+
+    const embedding = await generateEmbedding(
+      toMemoryEmbeddingInput(key, value),
+      'RETRIEVAL_DOCUMENT'
+    );
+    if (!embedding) {
+      continue;
+    }
+
+    const { error: updateError } = await ctx.supabase
+      .from('mira_memories')
+      .update({ embedding: embedding as any })
+      .eq('id', memory.id)
+      .eq('user_id', ctx.userId);
+
+    if (updateError) {
+      console.error(
+        'Failed to update regenerated memory embedding:',
+        updateError
+      );
+      continue;
+    }
+
+    regenerated += 1;
+  }
+
+  return regenerated;
 }
 export async function executeRemember(
   args: Record<string, unknown>,
@@ -54,8 +147,8 @@ export async function executeRemember(
     .eq('key', key)
     .maybeSingle();
 
-  const combinedText = `${key}: ${value}`;
-  const embedding = await generateEmbedding(combinedText);
+  const combinedText = toMemoryEmbeddingInput(key, value);
+  const embedding = await generateEmbedding(combinedText, 'RETRIEVAL_DOCUMENT');
 
   if (existing) {
     const updatePayload: TablesUpdate<'mira_memories'> = {
@@ -109,7 +202,7 @@ export async function executeRecall(
 
   if (query?.trim()) {
     // Semantic search using the match_memories RPC
-    const embedding = await generateEmbedding(query);
+    const embedding = await generateEmbedding(query, 'RETRIEVAL_QUERY');
 
     if (embedding) {
       const { data, error } = await ctx.supabase.rpc('match_memories', {
@@ -122,6 +215,25 @@ export async function executeRecall(
         errorMsg = error.message;
       } else {
         memories = data || [];
+        if (!memories.length) {
+          const regenerated = await regenerateMissingMemoryEmbeddings(ctx, {
+            category,
+          });
+          if (regenerated > 0) {
+            const { data: retriedData, error: retryError } =
+              await ctx.supabase.rpc('match_memories', {
+                query_embedding: embedding as any,
+                match_count: maxResults,
+                filter_category: category,
+              });
+
+            if (retryError) {
+              errorMsg = retryError.message;
+            } else {
+              memories = retriedData || [];
+            }
+          }
+        }
       }
     } else {
       // Fallback to text search if embedding generation fails
@@ -262,8 +374,8 @@ export async function executeMergeMemories(
     return { error: 'No keys provided to delete' };
   }
 
-  const combinedText = `${newKey}: ${newValue}`;
-  const embedding = await generateEmbedding(combinedText);
+  const combinedText = toMemoryEmbeddingInput(newKey, newValue);
+  const embedding = await generateEmbedding(combinedText, 'RETRIEVAL_DOCUMENT');
 
   // First, insert or update the new combined memory
   const { data: existing } = await ctx.supabase

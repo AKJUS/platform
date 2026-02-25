@@ -86,6 +86,7 @@ import { executeUpdateUserName } from './executors/user';
 import { executeListWorkspaceMembers } from './executors/workspace';
 // ── Executor imports ──
 import { dashboardCatalog } from './json-render-catalog';
+import { normalizeRenderUiInputForTool } from './normalize-render-ui-input';
 
 // ── Tool Directory (name → one-line description for system prompt) ──
 
@@ -160,6 +161,9 @@ export const MIRA_TOOL_DIRECTORY: Record<string, string> = {
   recall: 'Search saved memories',
   // Image
   create_image: 'Generate an image from a text description',
+  // Search (always active — no need to select)
+  google_search:
+    '[ALWAYS ACTIVE — do NOT select] Built-in Google web search for real-time info (news, prices, weather, facts). Called automatically when grounding is needed.',
   // Self-configuration
   update_my_settings: "Update the assistant's personality settings",
   // Appearance
@@ -1106,8 +1110,11 @@ export const miraToolDefinitions = {
   // ── Generative UI (json-render) ──
   render_ui: tool({
     description:
-      'Generate an interactive, actionable UI component or widget using json-render instead of plain text. Use this when the user asks for a dashboard, a form, or whenever a beautifully rendered visual response would complement and significantly improve the user experience (e.g. for status summaries, lists, or visualizations). You MUST output a JSON object matching the schema exactly.',
-    inputSchema: dashboardCatalog.zodSchema(),
+      'Generate an interactive, actionable UI component or widget using json-render instead of plain text. Use this when the user asks for a dashboard, a form, or whenever a beautifully rendered visual response would complement and significantly improve the user experience (e.g. for status summaries, lists, or visualizations). You MUST output a JSON object matching the schema exactly — do NOT wrap it in a "json" string.',
+    inputSchema: z.preprocess(
+      (val: unknown) => normalizeRenderUiInputForTool(val),
+      dashboardCatalog.zodSchema()
+    ),
   }),
 
   // ── Workspace ──
@@ -1155,6 +1162,74 @@ export type MiraToolContext = {
 
 export type MiraToolName = keyof typeof miraToolDefinitions;
 
+function isRenderableRenderUiSpec(
+  value: Record<string, unknown> | undefined
+): boolean {
+  if (!value) return false;
+  if (typeof value.root !== 'string' || value.root.length === 0) return false;
+  const elements = value.elements;
+  if (!elements || typeof elements !== 'object' || Array.isArray(elements)) {
+    return false;
+  }
+
+  const elementEntries = Object.entries(elements);
+  if (elementEntries.length === 0) return false;
+  if (!(value.root in elements)) return false;
+
+  const rootElement = (elements as Record<string, unknown>)[value.root];
+  return (
+    !!rootElement &&
+    typeof rootElement === 'object' &&
+    !Array.isArray(rootElement)
+  );
+}
+
+function buildRenderUiRecoverySpec(args: Record<string, unknown>) {
+  const requestedRoot =
+    typeof args.root === 'string' && args.root.trim().length > 0
+      ? args.root.trim()
+      : 'render_ui_recovery_root';
+
+  return {
+    root: requestedRoot,
+    elements: {
+      [requestedRoot]: {
+        type: 'Callout',
+        props: {
+          title: 'UI unavailable',
+          variant: 'warning',
+          content:
+            'Could not render the generated UI spec. Please retry this request.',
+        },
+        children: [],
+      },
+    },
+  };
+}
+
+function buildRenderUiFailsafeSpec(args: Record<string, unknown>) {
+  const requestedRoot =
+    typeof args.root === 'string' && args.root.trim().length > 0
+      ? args.root.trim()
+      : 'render_ui_failsafe_root';
+
+  return {
+    root: requestedRoot,
+    elements: {
+      [requestedRoot]: {
+        type: 'Callout',
+        props: {
+          title: 'UI unavailable',
+          variant: 'warning',
+          content:
+            'Could not render the generated UI spec. Please retry this request.',
+        },
+        children: [],
+      },
+    },
+  };
+}
+
 // ── Stream Tools Factory ──
 
 export function createMiraStreamTools(
@@ -1162,6 +1237,7 @@ export function createMiraStreamTools(
   withoutPermission?: (p: PermissionId) => boolean
 ): ToolSet {
   const tools: ToolSet = {};
+  let renderUiInvalidAttempts = 0;
   for (const [name, def] of Object.entries(miraToolDefinitions)) {
     // Check permissions
     const requiredPerm = MIRA_TOOL_PERMISSIONS[name];
@@ -1192,6 +1268,31 @@ export function createMiraStreamTools(
         }),
       } as Tool;
     } else {
+      if (name === 'render_ui') {
+        tools[name] = {
+          ...def,
+          execute: async (args: Record<string, unknown>) => {
+            if (isRenderableRenderUiSpec(args)) {
+              renderUiInvalidAttempts = 0;
+              return { spec: args };
+            }
+
+            renderUiInvalidAttempts += 1;
+            const isRepeatedInvalidAttempt = renderUiInvalidAttempts > 1;
+            return {
+              spec: buildRenderUiFailsafeSpec(args),
+              autoRecoveredFromInvalidSpec: true,
+              ...(isRepeatedInvalidAttempt
+                ? { forcedFromRecoveryLoop: true }
+                : {}),
+              warning:
+                'Invalid render_ui spec was replaced with a compact warning indicator because elements was empty or root was missing.',
+            };
+          },
+        } as Tool;
+        continue;
+      }
+
       tools[name] = {
         ...def,
         execute: async (args: Record<string, unknown>) =>
@@ -1375,7 +1476,18 @@ export async function executeMiraTool(
     // Generative UI
     case 'render_ui':
       // The model generates the UI spec according to the json-render catalog.
-      // We return it as is, so the client can render it natively.
+      // Recover empty/no-op specs to prevent retry loops with placeholder calls
+      // such as {"root":"x","elements":{}}.
+      if (!isRenderableRenderUiSpec(args)) {
+        return {
+          spec: buildRenderUiRecoverySpec(args),
+          recoveredFromInvalidSpec: true,
+          warning:
+            'Invalid render_ui spec was auto-recovered because elements was empty or root was missing.',
+        };
+      }
+
+      // Valid spec: return as-is so the client can render it natively.
       return { spec: args };
 
     // Workspace

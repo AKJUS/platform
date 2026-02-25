@@ -504,18 +504,6 @@ class AppLocalizationsVi extends AppLocalizations {
   String get timerRequestsTitle => 'Yêu cầu';
 
   @override
-  String get timerRequestSubmittedTitle => 'Đã gửi yêu cầu';
-
-  @override
-  String get timerRequestSubmittedContent => 'Mục thời gian của bạn đã được gửi để duyệt.';
-
-  @override
-  String get timerMissedEntrySavedTitle => 'Đã lưu mục';
-
-  @override
-  String get timerMissedEntrySavedContent => 'Mục thời gian bỏ lỡ của bạn đã được thêm thành công.';
-
-  @override
   String get timerRequestPending => 'Đang chờ';
 
   @override
@@ -668,6 +656,18 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get timerSubmitForApproval => 'Gửi duyệt';
+
+  @override
+  String get timerRequestSubmittedTitle => 'Đã gửi yêu cầu';
+
+  @override
+  String get timerRequestSubmittedContent => 'Mục thời gian của bạn đã được gửi để duyệt.';
+
+  @override
+  String get timerMissedEntrySavedTitle => 'Đã lưu mục';
+
+  @override
+  String get timerMissedEntrySavedContent => 'Mục thời gian bỏ lỡ của bạn đã được thêm thành công.';
 
   @override
   String get timerSessionExceeded => 'Phiên vượt ngưỡng';

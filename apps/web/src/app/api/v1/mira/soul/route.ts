@@ -5,8 +5,14 @@
  */
 
 import { createClient } from '@tuturuuu/supabase/next/server';
+import { extractIPFromHeaders } from '@tuturuuu/utils/abuse-protection';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import {
+  buildMiraReadRateLimitKey,
+  checkRateLimit,
+  MIRA_READ_RATE_LIMIT,
+} from '@/lib/rate-limit';
 
 const updateSoulSchema = z.object({
   name: z.string().min(1).max(50).optional(),
@@ -18,8 +24,17 @@ const updateSoulSchema = z.object({
   chat_tone: z.string().max(50).optional(),
 });
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const ipAddress = extractIPFromHeaders(request.headers);
+    const rateLimitResult = await checkRateLimit(
+      buildMiraReadRateLimitKey('soul', ipAddress),
+      MIRA_READ_RATE_LIMIT
+    );
+    if (!('allowed' in rateLimitResult)) {
+      return rateLimitResult;
+    }
+
     const supabase = await createClient();
     const {
       data: { user },

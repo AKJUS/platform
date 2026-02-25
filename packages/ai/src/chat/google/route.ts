@@ -1,3 +1,4 @@
+import { google } from '@ai-sdk/google';
 import { capMaxOutputTokensByCredits } from '@tuturuuu/ai/credits/cap-output-tokens';
 import {
   checkAiCredits,
@@ -30,6 +31,13 @@ import {
   createMiraStreamTools,
   type MiraToolContext,
 } from '../../tools/mira-tools';
+import {
+  buildActiveToolsFromSelected,
+  extractSelectedToolsFromSteps,
+  hasRenderableRenderUiInSteps,
+  shouldForceRenderUiForLatestUserMessage,
+  wasToolEverSelectedInSteps,
+} from '../mira-render-ui-policy';
 import { buildMiraSystemInstruction } from '../mira-system-instruction';
 
 export const maxDuration = 60;
@@ -523,6 +531,13 @@ export function createPOST(
       const thinkingConfig = supportsThinking
         ? { thinkingConfig: { includeThoughts: true } }
         : {};
+      const forceRenderUi =
+        shouldForceRenderUiForLatestUserMessage(processedMessages);
+
+      // Google Search tool — always available for grounding with web results
+      const googleSearchTool = {
+        google_search: google.tools.googleSearch({}),
+      };
 
       const result = streamText({
         abortSignal: req.signal,
@@ -534,48 +549,93 @@ export function createPOST(
         ...(cappedMaxOutput ? { maxOutputTokens: cappedMaxOutput } : {}),
         ...(miraTools
           ? {
-              tools: miraTools,
+              tools: { ...miraTools, ...googleSearchTool },
               stopWhen: stepCountIs(25),
               toolChoice: 'auto' as const,
-              prepareStep: ({ steps }: { steps: unknown[] }) => {
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              prepareStep: ({ steps }: { steps: unknown[] }): any => {
                 if (steps.length === 0) {
-                  // Step 0: only select_tools + no_action_needed are active.
+                  // Step 0: ALWAYS route through select_tools first.
                   // The model reads the tool directory from the system prompt
                   // and picks which tools it needs via select_tools.
+                  // google_search is always available as a provider-native tool.
                   return {
                     toolChoice: 'required' as const,
-                    activeTools: ['select_tools', 'no_action_needed'],
+                    activeTools: ['select_tools', 'google_search'],
                   };
                 }
 
-                // Step 1+: use latest select_tools result as cached set; keep select_tools available to add/change tools
-                type StepLike = {
-                  toolCalls?: Array<{
-                    toolName: string;
-                    args?: Record<string, unknown>;
-                  }>;
-                };
-                let selectedTools: string[] = [];
-                for (let i = steps.length - 1; i >= 0; i--) {
-                  const step = steps[i] as StepLike | undefined;
-                  const selectCall = step?.toolCalls?.find(
-                    (tc) => tc.toolName === 'select_tools'
-                  );
-                  if (selectCall?.args?.tools) {
-                    selectedTools = selectCall.args.tools as string[];
-                    break;
-                  }
+                // Step 1+: use latest select_tools result as cached set; keep select_tools
+                // available to add/change tools.
+                const selectedTools = extractSelectedToolsFromSteps(steps);
+
+                // If the user explicitly insists on render_ui, require at least one
+                // render_ui tool call before allowing no_action_needed escape-hatch.
+                if (forceRenderUi && !hasRenderableRenderUiInSteps(steps)) {
+                  const active = [
+                    ...selectedTools.filter(
+                      (toolName) =>
+                        toolName !== 'select_tools' &&
+                        toolName !== 'no_action_needed'
+                    ),
+                    'render_ui',
+                    'select_tools',
+                  ];
+
+                  return {
+                    toolChoice: 'required' as const,
+                    activeTools: Array.from(
+                      new Set([...active, 'google_search'])
+                    ),
+                  };
                 }
-                // Current cached set + select_tools so the model can reuse cache or change tools when needed
-                const active = [
-                  ...selectedTools.filter((t) => t !== 'select_tools'),
-                  'select_tools',
-                  'no_action_needed',
-                ];
-                return { activeTools: active };
+
+                // If render_ui was selected, it MUST be called at least once before
+                // the model can exit into plain text-only completion.
+                const renderUiSelectedEver =
+                  selectedTools.includes('render_ui') ||
+                  wasToolEverSelectedInSteps(steps, 'render_ui');
+                if (
+                  renderUiSelectedEver &&
+                  !hasRenderableRenderUiInSteps(steps)
+                ) {
+                  const active = buildActiveToolsFromSelected(selectedTools)
+                    .filter((toolName) => toolName !== 'no_action_needed')
+                    .concat('render_ui', 'select_tools');
+                  return {
+                    toolChoice: 'required' as const,
+                    activeTools: Array.from(
+                      new Set([...active, 'google_search'])
+                    ),
+                  };
+                }
+
+                // Once a non-recovered render_ui output exists for this turn,
+                // do not allow additional render_ui calls in the same turn.
+                if (hasRenderableRenderUiInSteps(steps)) {
+                  const active = buildActiveToolsFromSelected(selectedTools)
+                    .filter((toolName) => toolName !== 'render_ui')
+                    .concat('select_tools');
+                  return {
+                    activeTools: Array.from(
+                      new Set([...active, 'google_search'])
+                    ),
+                  };
+                }
+
+                // Current cached set + select_tools so the model can reuse cache or change tools when needed.
+                // no_action_needed is only active if it was selected by select_tools.
+                return {
+                  activeTools: [
+                    ...buildActiveToolsFromSelected(selectedTools),
+                    'google_search',
+                  ],
+                };
               },
             }
-          : {}),
+          : {
+              tools: googleSearchTool,
+            }),
         providerOptions: {
           google: {
             ...thinkingConfig,
@@ -709,6 +769,21 @@ export function createPOST(
                       toolResults: JSON.parse(JSON.stringify(allToolResults)),
                     }
                   : {}),
+                ...((response as any).sources?.length
+                  ? {
+                      sources: (response as any).sources.map(
+                        (s: {
+                          sourceId?: string;
+                          url?: string;
+                          title?: string;
+                        }) => ({
+                          sourceId: s.sourceId,
+                          url: s.url,
+                          title: s.title,
+                        })
+                      ),
+                    }
+                  : {}),
               },
             })
             .select('id')
@@ -722,9 +797,84 @@ export function createPOST(
 
           console.log('AI Response saved to database');
 
+          // === DEBUG: dump response shape for Google Search grounding ===
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const resp = response as any;
+          console.log(
+            '[Google Search Debug] response keys:',
+            Object.keys(response)
+          );
+          console.log(
+            '[Google Search Debug] providerMetadata:',
+            JSON.stringify(resp.providerMetadata, null, 2)?.slice(0, 500)
+          );
+          console.log(
+            '[Google Search Debug] sources:',
+            JSON.stringify(resp.sources, null, 2)?.slice(0, 500)
+          );
+          if (resp.steps?.length) {
+            for (let si = 0; si < resp.steps.length; si++) {
+              const s = resp.steps[si];
+              console.log(
+                `[Google Search Debug] step[${si}] providerMetadata:`,
+                JSON.stringify(s?.providerMetadata, null, 2)?.slice(0, 500)
+              );
+              console.log(
+                `[Google Search Debug] step[${si}] sources:`,
+                JSON.stringify(s?.sources, null, 2)?.slice(0, 500)
+              );
+            }
+          }
+          // === END DEBUG ===
+
+          // Count Google Search queries from grounding metadata.
+          // google.tools.googleSearch() is a provider-native grounding tool
+          // that runs on Google's infrastructure — it does NOT appear in
+          // allToolCalls. Search usage is exposed via:
+          //   1. response.providerMetadata.google.groundingMetadata.webSearchQueries
+          //   2. Per-step providerMetadata (same path)
+          //   3. response.sources (fallback — at least 1 search occurred)
+          // See: https://ai-sdk.dev/providers/ai-sdk-providers/google-generative-ai#google-search
+          let searchCount = 0;
+
+          // Method 1: Top-level providerMetadata (primary — aggregated result)
+          const topQueries = resp.providerMetadata?.google?.groundingMetadata
+            ?.webSearchQueries as string[] | undefined;
+          if (topQueries?.length) {
+            searchCount = topQueries.length;
+          }
+
+          // Method 2: Per-step providerMetadata (multi-step conversations)
+          if (searchCount === 0 && resp.steps?.length) {
+            for (const step of resp.steps) {
+              const stepQueries = step.providerMetadata?.google
+                ?.groundingMetadata?.webSearchQueries as string[] | undefined;
+              if (stepQueries?.length) {
+                searchCount += stepQueries.length;
+              }
+            }
+          }
+
+          // Method 3: Fallback — check sources array (search was used at least once)
+          if (searchCount === 0) {
+            const sources = resp.sources as unknown[] | undefined;
+            if (Array.isArray(sources) && sources.length > 0) {
+              searchCount = 1;
+            }
+          }
+
+          if (searchCount > 0) {
+            console.log(
+              `Google Search grounding detected: ${searchCount} search quer${searchCount === 1 ? 'y' : 'ies'}`
+            );
+          }
+
           if (
             wsId &&
-            (inputTokens > 0 || outputTokens > 0 || reasoningTokens > 0)
+            (inputTokens > 0 ||
+              outputTokens > 0 ||
+              reasoningTokens > 0 ||
+              searchCount > 0)
           ) {
             deductAiCredits({
               wsId,
@@ -735,6 +885,7 @@ export function createPOST(
               reasoningTokens,
               feature: 'chat',
               chatMessageId: msgData?.id,
+              ...(searchCount > 0 ? { searchCount } : {}),
             }).catch((err) =>
               console.error('Failed to deduct AI credits:', err)
             );
@@ -748,6 +899,7 @@ export function createPOST(
       return result.toUIMessageStreamResponse({
         consumeSseStream: consumeStream,
         sendReasoning: true,
+        sendSources: true,
       });
     } catch (error) {
       if (error instanceof Error) {

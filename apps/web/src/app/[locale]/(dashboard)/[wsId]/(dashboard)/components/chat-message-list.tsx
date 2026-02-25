@@ -4,7 +4,7 @@ import { Renderer, VisibilityProvider } from '@json-render/react';
 import { cjk } from '@streamdown/cjk';
 import { code } from '@streamdown/code';
 import { math } from '@streamdown/math';
-import { mermaid } from '@streamdown/mermaid';
+import { mermaid as mermaidPlugin } from '@streamdown/mermaid';
 import type { UIMessage } from '@tuturuuu/ai/types';
 import {
   AlertCircle,
@@ -14,6 +14,8 @@ import {
   ChevronRight,
   ClipboardCopy,
   ClipboardList,
+  ExternalLink,
+  Globe,
   Loader2,
   Paperclip,
   Sparkles,
@@ -23,10 +25,16 @@ import { Avatar, AvatarFallback, AvatarImage } from '@tuturuuu/ui/avatar';
 import { Dialog, DialogContent, DialogTitle } from '@tuturuuu/ui/dialog';
 import { cn } from '@tuturuuu/utils/format';
 import { getToolName, isToolUIPart } from 'ai';
+import {
+  buildMermaidAutoRepairPrompt,
+  extractMermaidBlocks,
+  isAutoMermaidRepairPrompt,
+  simpleStableHash,
+} from '@/app/[locale]/(dashboard)/[wsId]/(dashboard)/components/mermaid-auto-repair';
 import { registry } from '@/components/json-render/dashboard-registry';
-import type { MessageFileAttachment } from './file-preview-chips';
-import { MessageFileAttachments } from './file-preview-chips';
+import { resolveRenderUiSpecFromOutput } from '@/components/json-render/render-ui-spec';
 import 'katex/dist/katex.min.css';
+import mermaidParser from 'mermaid';
 import { useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
 import {
@@ -41,19 +49,45 @@ import {
   useState,
 } from 'react';
 import { Streamdown } from 'streamdown';
+import type { MessageFileAttachment } from './file-preview-chips';
+import { MessageFileAttachments } from './file-preview-chips';
 
 interface ChatMessageListProps {
   messages: UIMessage[];
   isStreaming: boolean;
   assistantName?: string;
+  userName?: string;
   userAvatarUrl?: string | null;
+  onAutoSubmitMermaidFix?: (prompt: string) => void;
   /** Optional ref for the scrollable container (e.g. for scroll-based UI) */
   scrollContainerRef?: React.RefObject<HTMLDivElement | null>;
   /** File attachment metadata keyed by message ID, rendered inline in user bubbles. */
   messageAttachments?: Map<string, MessageFileAttachment[]>;
 }
 
-const plugins = { code, mermaid, math, cjk };
+const plugins = { code, mermaid: mermaidPlugin, math, cjk };
+const MAX_AUTO_MERMAID_REPAIR_ATTEMPTS = 2;
+let mermaidParserInitialized = false;
+
+function ensureMermaidParserInitialized(): void {
+  if (mermaidParserInitialized) return;
+  mermaidParser.initialize({
+    startOnLoad: false,
+    securityLevel: 'strict',
+    theme: 'default',
+  });
+  mermaidParserInitialized = true;
+}
+
+function getErrorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === 'string') return error;
+  try {
+    return JSON.stringify(error);
+  } catch {
+    return 'Unknown Mermaid parse error';
+  }
+}
 
 function hasTextContent(message: UIMessage): boolean {
   return (
@@ -112,6 +146,7 @@ const FILE_ONLY_PLACEHOLDERS = new Set([
 function getDisplayText(message: UIMessage): string {
   const raw = getMessageText(message);
   if (FILE_ONLY_PLACEHOLDERS.has(raw.trim())) return '';
+  if (isAutoMermaidRepairPrompt(raw)) return '';
   return raw;
 }
 
@@ -383,7 +418,7 @@ function AssistantMarkdown({
   isAnimating: boolean;
 }) {
   return (
-    <div className="wrap-break-word min-w-0 max-w-full overflow-hidden [&_code]:break-all [&_pre]:max-w-full [&_pre]:overflow-x-auto">
+    <div className="wrap-break-word [&_pre]:!overflow-x-hidden [&_pre]:!whitespace-pre-wrap [&_pre_code]:!whitespace-pre-wrap min-w-0 max-w-full overflow-hidden [&_pre]:max-w-full [&_pre]:break-words [&_pre_code]:break-words [&_pre_code]:[overflow-wrap:anywhere]">
       <MarkdownErrorBoundary
         fallback={<p className="wrap-break-word whitespace-pre-wrap">{text}</p>}
       >
@@ -482,7 +517,7 @@ function ReasoningPart({
         />
       </button>
       {expanded && (
-        <div className="border-dynamic-purple/20 border-l-2 pl-3 text-muted-foreground text-xs">
+        <div className="[&_pre]:!overflow-x-hidden [&_pre]:!whitespace-pre-wrap [&_pre_code]:!whitespace-pre-wrap border-dynamic-purple/20 border-l-2 pl-3 text-muted-foreground text-xs [&_pre]:max-w-full [&_pre]:break-words [&_pre_code]:break-words [&_pre_code]:[overflow-wrap:anywhere]">
           <MarkdownErrorBoundary
             fallback={<p className="whitespace-pre-wrap">{text}</p>}
           >
@@ -505,7 +540,7 @@ function ReasoningPart({
   );
 }
 
-function CopyButton({ text }: { text: string }) {
+function CopyButton({ text, icon }: { text: string; icon?: 'copy' | 'json' }) {
   const t = useTranslations('dashboard.mira_chat');
   const [copied, setCopied] = useState(false);
 
@@ -520,6 +555,8 @@ function CopyButton({ text }: { text: string }) {
     return () => clearTimeout(timer);
   }, [copied]);
 
+  const isJson = icon === 'json';
+
   return (
     <button
       type="button"
@@ -530,14 +567,86 @@ function CopyButton({ text }: { text: string }) {
         'text-muted-foreground hover:bg-foreground/10 hover:text-foreground',
         copied && 'text-dynamic-green opacity-100 hover:text-dynamic-green'
       )}
-      title={t('copy_message')}
+      title={isJson ? t('copy_raw_json') : t('copy_message')}
     >
       {copied ? (
         <Check className="h-3 w-3" />
+      ) : isJson ? (
+        <ClipboardList className="h-3 w-3" />
       ) : (
         <ClipboardCopy className="h-3 w-3" />
       )}
     </button>
+  );
+}
+
+/** Compact sources section shown when Google Search grounding provides source-url parts */
+function SourcesPart({
+  parts,
+}: {
+  parts: Array<{ url: string; title?: string; sourceId: string }>;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  if (parts.length === 0) return null;
+
+  // Dedupe by url
+  const seen = new Set<string>();
+  const unique = parts.filter((p) => {
+    if (seen.has(p.url)) return false;
+    seen.add(p.url);
+    return true;
+  });
+
+  return (
+    <div className="mt-2 flex flex-col gap-1.5">
+      <button
+        type="button"
+        onClick={() => setExpanded((e) => !e)}
+        className="flex items-center gap-1.5 text-muted-foreground text-xs transition-colors hover:text-foreground"
+      >
+        <Globe className="h-3 w-3 text-dynamic-cyan" />
+        <span className="font-medium">
+          {unique.length} {unique.length === 1 ? 'source' : 'sources'}
+        </span>
+        <ChevronRight
+          className={cn(
+            'ml-0.5 h-3 w-3 transition-transform',
+            expanded && 'rotate-90'
+          )}
+        />
+      </button>
+      {expanded && (
+        <div className="flex flex-wrap gap-1.5">
+          {unique.map((src, i) => {
+            const hostname = (() => {
+              try {
+                return new URL(src.url).hostname.replace(/^www\./, '');
+              } catch {
+                return src.url;
+              }
+            })();
+            return (
+              <a
+                key={`${src.sourceId ?? i}-${i}`}
+                href={src.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 rounded-md border border-dynamic-cyan/20 bg-dynamic-cyan/5 px-2 py-1 text-[11px] text-dynamic-cyan transition-colors hover:border-dynamic-cyan/40 hover:bg-dynamic-cyan/10"
+                title={src.title || src.url}
+              >
+                <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-dynamic-cyan/15 font-bold font-mono text-[9px]">
+                  {i + 1}
+                </span>
+                <span className="max-w-32 truncate">
+                  {src.title || hostname}
+                </span>
+                <ExternalLink className="h-2.5 w-2.5 shrink-0 opacity-50" />
+              </a>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -781,6 +890,34 @@ function ToolCallPart({ part }: { part: ToolPartData }) {
         </div>
       );
     }
+    // Hide select_tools badge when only google_search (always-active) was selected
+    const isOnlyGoogleSearch =
+      selected?.length === 1 && selected[0] === 'google_search';
+    if (isOnlyGoogleSearch) return null;
+  }
+
+  // Google Search grounding: compact badge with search styling
+  if (rawToolName === 'google_search') {
+    return (
+      <div className="flex items-start gap-2 rounded-lg border border-dynamic-cyan/30 bg-dynamic-cyan/5 px-3 py-2 text-xs">
+        {isRunning ? (
+          <Loader2 className="mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin text-dynamic-cyan" />
+        ) : isError ? (
+          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-dynamic-red" />
+        ) : (
+          <Globe className="mt-0.5 h-3.5 w-3.5 shrink-0 text-dynamic-cyan" />
+        )}
+        <span className="flex items-center gap-1.5">
+          <span className="font-medium text-dynamic-cyan">
+            {isRunning
+              ? t('tool_searching_web')
+              : isError
+                ? t('tool_search_failed')
+                : t('tool_searched_web')}
+          </span>
+        </span>
+      </div>
+    );
   }
 
   if (isImageTool && isRunning) {
@@ -815,9 +952,8 @@ function ToolCallPart({ part }: { part: ToolPartData }) {
   // Generative UI tool: render the output natively instead of showing JSON
   if (rawToolName === 'render_ui' && hasOutput) {
     if (isDone && !logicalError && output) {
-      // The output of render_ui is just the spec `{ spec: ... }` returned from mira-tools executor
-      const spec = isRendererSpec(outputRecord?.spec) ? outputRecord.spec : null;
-      if (spec) {
+      const cleanedSpec = resolveRenderUiSpecFromOutput(output);
+      if (cleanedSpec) {
         return (
           <div className="my-2 flex w-full max-w-full flex-col gap-1.5">
             <div className="mb-1 flex items-center gap-1.5 text-xs">
@@ -826,11 +962,25 @@ function ToolCallPart({ part }: { part: ToolPartData }) {
               <span className="text-muted-foreground">{t('tool_done')}</span>
             </div>
             <VisibilityProvider>
-              <Renderer spec={spec} registry={registry} />
+              <Renderer spec={cleanedSpec} registry={registry} />
             </VisibilityProvider>
           </div>
         );
       }
+
+      // Show graceful fallback for severely invalid specs
+      return (
+        <div className="my-2 flex w-full max-w-full flex-col gap-1.5">
+          <div className="mb-1 flex items-center gap-1.5 text-xs">
+            <AlertCircle className="h-3.5 w-3.5 text-dynamic-yellow" />
+            <span className="font-medium">{toolName}</span>
+            <span className="text-muted-foreground">{t('tool_done')}</span>
+          </div>
+          <div className="rounded-lg border border-dynamic-yellow/30 bg-dynamic-yellow/5 p-3 text-muted-foreground text-sm">
+            The generated UI could not be rendered. Please try again.
+          </div>
+        </div>
+      );
     }
   }
 
@@ -1233,7 +1383,9 @@ export default function ChatMessageList({
   messages,
   isStreaming,
   assistantName,
+  userName,
   userAvatarUrl,
+  onAutoSubmitMermaidFix,
   scrollContainerRef,
   messageAttachments,
 }: ChatMessageListProps) {
@@ -1262,6 +1414,61 @@ export default function ChatMessageList({
     if (!el) return;
     el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
   }, [messages.length]);
+
+  const attemptedMermaidRepairsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!onAutoSubmitMermaidFix) return;
+    if (isStreaming) return;
+
+    const lastAssistantWithMermaid = [...messages]
+      .reverse()
+      .find(
+        (msg) =>
+          msg.role === 'assistant' && getMessageText(msg).includes('```mermaid')
+      );
+    if (!lastAssistantWithMermaid) return;
+
+    const fullText = getMessageText(lastAssistantWithMermaid);
+    const mermaidBlocks = extractMermaidBlocks(fullText);
+    if (mermaidBlocks.length === 0) return;
+
+    let cancelled = false;
+
+    const run = async () => {
+      ensureMermaidParserInitialized();
+      for (let i = 0; i < mermaidBlocks.length; i++) {
+        const block = mermaidBlocks[i]!;
+        const repairKey = `${lastAssistantWithMermaid.id}:${i}:${simpleStableHash(block)}`;
+        if (attemptedMermaidRepairsRef.current.has(repairKey)) continue;
+        if (
+          attemptedMermaidRepairsRef.current.size >=
+          MAX_AUTO_MERMAID_REPAIR_ATTEMPTS
+        ) {
+          break;
+        }
+
+        try {
+          await mermaidParser.parse(block);
+        } catch (error) {
+          if (cancelled) return;
+          attemptedMermaidRepairsRef.current.add(repairKey);
+          onAutoSubmitMermaidFix(
+            buildMermaidAutoRepairPrompt({
+              parseError: getErrorMessage(error),
+              originalDiagram: block,
+            })
+          );
+          break;
+        }
+      }
+    };
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [messages, isStreaming, onAutoSubmitMermaidFix]);
 
   if (messages.length === 0) return null;
 
@@ -1357,7 +1564,7 @@ export default function ChatMessageList({
                     isUser && 'text-right'
                   )}
                 >
-                  {isUser ? t('you') : (assistantName ?? 'Mira')}
+                  {isUser ? userName || t('you') : (assistantName ?? 'Mira')}
                 </span>
               )}
 
@@ -1423,6 +1630,83 @@ export default function ChatMessageList({
                             );
                           }
                           if (group.kind === 'tool') {
+                            if (group.toolName === 'render_ui') {
+                              // Hide intermediate invalid/no-op render_ui calls
+                              // when a later valid UI spec exists in the same run.
+                              const partsWithValidity = group.parts.map(
+                                (part) => ({
+                                  part,
+                                  hasRenderableSpec:
+                                    !!resolveRenderUiSpecFromOutput(
+                                      (part as { output?: unknown }).output
+                                    ),
+                                  recoveredFromInvalidSpec: !!(
+                                    (part as { output?: unknown }).output &&
+                                    typeof (part as { output?: unknown })
+                                      .output === 'object' &&
+                                    (
+                                      part as {
+                                        output?: {
+                                          recoveredFromInvalidSpec?: boolean;
+                                        };
+                                      }
+                                    ).output?.recoveredFromInvalidSpec === true
+                                  ),
+                                })
+                              );
+                              const hasAnyRenderable = partsWithValidity.some(
+                                (entry) => entry.hasRenderableSpec
+                              );
+                              const hasRecoveredRenderable =
+                                partsWithValidity.some(
+                                  (entry) =>
+                                    entry.hasRenderableSpec &&
+                                    entry.recoveredFromInvalidSpec
+                                );
+                              const hasNonRecoveredRenderable =
+                                partsWithValidity.some(
+                                  (entry) =>
+                                    entry.hasRenderableSpec &&
+                                    !entry.recoveredFromInvalidSpec
+                                );
+                              const shouldDeferRecoveredPlaceholder =
+                                hasRecoveredRenderable &&
+                                !hasNonRecoveredRenderable &&
+                                isStreaming &&
+                                isLastAssistant;
+
+                              const visibleParts = hasNonRecoveredRenderable
+                                ? partsWithValidity
+                                    .filter(
+                                      (entry) =>
+                                        entry.hasRenderableSpec &&
+                                        !entry.recoveredFromInvalidSpec
+                                    )
+                                    .slice(-1)
+                                    .map((entry) => entry.part)
+                                : hasAnyRenderable
+                                  ? partsWithValidity
+                                      .filter(
+                                        (entry) => entry.hasRenderableSpec
+                                      )
+                                      .slice(-1)
+                                      .map((entry) => entry.part)
+                                  : group.parts;
+
+                              if (
+                                shouldDeferRecoveredPlaceholder &&
+                                visibleParts.length > 0
+                              ) {
+                                return null;
+                              }
+
+                              return visibleParts.map((part, idx) => (
+                                <ToolCallPart
+                                  key={`render-ui-${group.startIndex}-${idx}`}
+                                  part={part}
+                                />
+                              ));
+                            }
                             if (group.parts.length === 1) {
                               return (
                                 <ToolCallPart
@@ -1442,6 +1726,22 @@ export default function ChatMessageList({
                           return null;
                         });
                       })()}
+                      {/* Sources from Google Search grounding */}
+                      {(() => {
+                        const sourceParts = message.parts.filter(
+                          (
+                            p
+                          ): p is {
+                            type: 'source-url';
+                            url: string;
+                            title?: string;
+                            sourceId: string;
+                          } => p.type === 'source-url'
+                        );
+                        return sourceParts.length > 0 ? (
+                          <SourcesPart parts={sourceParts} />
+                        ) : null;
+                      })()}
                     </div>
                   )}
                 </div>
@@ -1449,6 +1749,13 @@ export default function ChatMessageList({
                 {/* Copy button — appears on hover (hide for file-only messages) */}
                 {hasDisplayText && messageText.trim() && (
                   <CopyButton text={messageText} />
+                )}
+                {/* Copy raw JSON — appears on hover, for non-user messages only */}
+                {!isUser && (
+                  <CopyButton
+                    text={JSON.stringify(message, null, 2)}
+                    icon="json"
+                  />
                 )}
               </div>
             </div>
