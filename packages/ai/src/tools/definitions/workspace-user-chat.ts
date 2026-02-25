@@ -5,43 +5,62 @@ export const workspaceUserChatToolDefinitions = {
   update_my_settings: tool({
     description:
       "Update YOUR OWN (the assistant's) personality. The `name` field is YOUR name, not the user's. Use `remember` for user's name.",
-    inputSchema: z.object({
-      name: z.string().max(50).nullish().describe('New assistant name'),
-      tone: z
-        .enum([
-          'balanced',
-          'casual',
-          'formal',
-          'friendly',
-          'playful',
-          'professional',
-          'warm',
-        ])
-        .nullish()
-        .describe('Communication tone'),
-      personality: z
-        .string()
-        .max(2000)
-        .nullish()
-        .describe('Personality description / behavioral preferences'),
-      boundaries: z.string().max(2000).nullish().describe('Custom boundaries'),
-      vibe: z
-        .enum([
-          'calm',
-          'energetic',
-          'friendly',
-          'neutral',
-          'playful',
-          'warm',
-          'witty',
-        ])
-        .nullish()
-        .describe('Energy/vibe'),
-      chat_tone: z
-        .enum(['thorough', 'concise', 'detailed', 'brief'])
-        .nullish()
-        .describe('Response verbosity'),
-    }),
+    inputSchema: z
+      .object({
+        name: z.string().max(50).nullish().describe('New assistant name'),
+        tone: z
+          .enum([
+            'balanced',
+            'casual',
+            'formal',
+            'friendly',
+            'playful',
+            'professional',
+            'warm',
+          ])
+          .nullish()
+          .describe('Communication tone'),
+        personality: z
+          .string()
+          .max(2000)
+          .nullish()
+          .describe('Personality description / behavioral preferences'),
+        boundaries: z
+          .string()
+          .max(2000)
+          .nullish()
+          .describe('Custom boundaries'),
+        vibe: z
+          .enum([
+            'calm',
+            'energetic',
+            'friendly',
+            'neutral',
+            'playful',
+            'warm',
+            'witty',
+          ])
+          .nullish()
+          .describe('Energy/vibe'),
+        chat_tone: z
+          .enum(['thorough', 'concise', 'detailed', 'brief'])
+          .nullish()
+          .describe('Response verbosity'),
+      })
+      .refine(
+        (data) =>
+          [
+            data.name,
+            data.tone,
+            data.personality,
+            data.boundaries,
+            data.vibe,
+            data.chat_tone,
+          ].some((value) => value !== null && value !== undefined),
+        {
+          message: 'At least one field must be provided',
+        }
+      ),
   }),
 
   set_theme: tool({
@@ -59,10 +78,20 @@ export const workspaceUserChatToolDefinitions = {
 
   update_user_name: tool({
     description: "Update the user's display name or full name.",
-    inputSchema: z.object({
-      displayName: z.string().nullish().describe('New display name'),
-      fullName: z.string().nullish().describe('New full name'),
-    }),
+    inputSchema: z
+      .object({
+        displayName: z.string().nullish().describe('New display name'),
+        fullName: z.string().nullish().describe('New full name'),
+      })
+      .refine(
+        (data) =>
+          [data.displayName, data.fullName].some(
+            (value) => value !== null && value !== undefined
+          ),
+        {
+          message: 'At least one field must be provided',
+        }
+      ),
   }),
 
   set_immersive_mode: tool({

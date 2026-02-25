@@ -19,6 +19,12 @@ import type {
 } from '@tuturuuu/types';
 import { Button } from '@tuturuuu/ui/button';
 import { Card } from '@tuturuuu/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@tuturuuu/ui/dialog';
 import { useMemo, useState } from 'react';
 
 type LearningQuizProps = JsonRenderQuizProps;
@@ -179,24 +185,26 @@ export const dashboardLearningComponents = {
 
     if (isFullscreen) {
       return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm sm:p-8">
-          <div className="relative flex w-full max-w-2xl flex-col gap-4 rounded-2xl border bg-card p-6 shadow-2xl sm:p-10">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute top-4 right-4 h-10 w-10 rounded-full"
-              onClick={() => setIsFullscreen(false)}
-            >
-              <Minimize2 className="h-5 w-5" />
-            </Button>
-            <div className="mb-4">
-              <h2 className="font-bold text-2xl tracking-tight">
-                Quiz Immersion
-              </h2>
-            </div>
+        <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
+          <DialogContent className="max-w-2xl gap-4 p-6 sm:p-10">
+            <DialogHeader>
+              <div className="flex items-center justify-between gap-2">
+                <DialogTitle className="font-bold text-2xl tracking-tight">
+                  Quiz Immersion
+                </DialogTitle>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-10 w-10 rounded-full"
+                  onClick={() => setIsFullscreen(false)}
+                >
+                  <Minimize2 className="h-5 w-5" />
+                </Button>
+              </div>
+            </DialogHeader>
             {quizContent}
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       );
     }
 
@@ -317,19 +325,26 @@ export const dashboardLearningComponents = {
 
       if (isFullscreen) {
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm sm:p-8">
-            <div className="relative flex w-full max-w-2xl flex-col gap-4 rounded-2xl border bg-card p-10 shadow-2xl sm:p-12">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute top-4 right-4 h-10 w-10 rounded-full"
-                onClick={() => setIsFullscreen(false)}
-              >
-                <Minimize2 className="h-5 w-5" />
-              </Button>
+          <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
+            <DialogContent className="max-w-2xl gap-4 p-10 sm:p-12">
+              <DialogHeader>
+                <div className="flex items-center justify-between gap-2">
+                  <DialogTitle className="font-bold text-2xl tracking-tight">
+                    Quiz Immersion
+                  </DialogTitle>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-10 w-10 rounded-full"
+                    onClick={() => setIsFullscreen(false)}
+                  >
+                    <Minimize2 className="h-5 w-5" />
+                  </Button>
+                </div>
+              </DialogHeader>
               {scoreContent}
-            </div>
-          </div>
+            </DialogContent>
+          </Dialog>
         );
       }
 
@@ -497,19 +512,26 @@ export const dashboardLearningComponents = {
 
     if (isFullscreen) {
       return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm sm:p-8">
-          <div className="relative flex w-full max-w-2xl flex-col gap-4 rounded-2xl border bg-card p-6 shadow-2xl sm:p-10">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute top-4 right-4 h-10 w-10 rounded-full"
-              onClick={() => setIsFullscreen(false)}
-            >
-              <Minimize2 className="h-5 w-5" />
-            </Button>
+        <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
+          <DialogContent className="max-w-2xl gap-4 p-6 sm:p-10">
+            <DialogHeader>
+              <div className="flex items-center justify-between gap-2">
+                <DialogTitle className="font-bold text-2xl tracking-tight">
+                  Quiz Immersion
+                </DialogTitle>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-10 w-10 rounded-full"
+                  onClick={() => setIsFullscreen(false)}
+                >
+                  <Minimize2 className="h-5 w-5" />
+                </Button>
+              </div>
+            </DialogHeader>
             {quizContent}
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       );
     }
 
@@ -687,19 +709,26 @@ export const dashboardLearningComponents = {
 
     if (isFullscreen) {
       return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm sm:p-8">
-          <div className="relative flex w-full max-w-2xl flex-col gap-4 rounded-2xl border bg-card p-6 shadow-2xl sm:p-10">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute top-4 right-4 h-10 w-10 rounded-full"
-              onClick={() => setIsFullscreen(false)}
-            >
-              <Minimize2 className="h-5 w-5" />
-            </Button>
+        <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
+          <DialogContent className="max-w-2xl gap-4 p-6 sm:p-10">
+            <DialogHeader>
+              <div className="flex items-center justify-between gap-2">
+                <DialogTitle className="font-bold text-2xl tracking-tight">
+                  Quiz Immersion
+                </DialogTitle>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-10 w-10 rounded-full"
+                  onClick={() => setIsFullscreen(false)}
+                >
+                  <Minimize2 className="h-5 w-5" />
+                </Button>
+              </div>
+            </DialogHeader>
             {flashcardContent}
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       );
     }
 

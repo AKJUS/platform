@@ -44,6 +44,7 @@ import {
 } from '../../form-field-utils';
 import {
   shouldUseTimeTrackingRequestAction,
+  useCreateTimeTrackingRequest,
   useComponentValue,
 } from '../shared';
 
@@ -55,6 +56,102 @@ type JsonRenderStringBinding = { value?: string };
 type JsonRenderCheckboxBinding = { checked?: string };
 type JsonRenderStringArrayBinding = { values?: string };
 type JsonRenderSubmitBinding = { onSubmit?: string };
+
+type FormSubmitParams = {
+  props: JsonRenderFormProps;
+  state: Record<string, unknown>;
+  submitParams: Record<string, unknown>;
+  wsId: string;
+  handlers: Record<string, FormActionHandler>;
+  createTimeTrackingRequest: (
+    params: Record<string, unknown>
+  ) => Promise<{ success: true }>;
+  setOnSubmit?: ((value: unknown) => unknown | Promise<unknown>) | null;
+};
+
+type FormSubmitResult = {
+  actionName: string;
+  message: string;
+};
+
+const handleFormSubmit = async ({
+  props,
+  state,
+  submitParams,
+  wsId,
+  handlers,
+  createTimeTrackingRequest,
+  setOnSubmit,
+}: FormSubmitParams): Promise<FormSubmitResult> => {
+  const values = state || {};
+  const actionName = shouldUseTimeTrackingRequestAction(
+    props.submitAction,
+    values,
+    submitParams
+  )
+    ? 'create_time_tracking_request'
+    : props.submitAction || 'submit_form';
+
+  let actionResult: unknown = null;
+
+  if (actionName === 'create_time_tracking_request') {
+    actionResult = await createTimeTrackingRequest({
+      ...submitParams,
+      ...values,
+      wsId,
+    });
+  } else {
+    const handler = handlers[actionName];
+    if (handler) {
+      if (actionName === 'submit_form') {
+        actionResult = await handler({
+          title: props.title,
+          values,
+        });
+      } else {
+        actionResult = await handler({
+          ...submitParams,
+          ...values,
+          wsId,
+        });
+      }
+    } else if (setOnSubmit) {
+      await setOnSubmit({
+        title: props.title,
+        values,
+      });
+    } else {
+      throw new Error(`Action "${actionName}" not found`);
+    }
+  }
+
+  if (
+    actionResult &&
+    typeof actionResult === 'object' &&
+    'success' in (actionResult as Record<string, unknown>) &&
+    (actionResult as Record<string, unknown>).success === false &&
+    typeof (actionResult as Record<string, unknown>).error === 'string'
+  ) {
+    throw new Error((actionResult as Record<string, unknown>).error as string);
+  }
+
+  if (
+    actionResult &&
+    typeof actionResult === 'object' &&
+    'error' in (actionResult as Record<string, unknown>) &&
+    typeof (actionResult as Record<string, unknown>).error === 'string'
+  ) {
+    throw new Error((actionResult as Record<string, unknown>).error as string);
+  }
+
+  return {
+    actionName,
+    message:
+      actionName === 'submit_form'
+        ? 'Sent to assistant successfully.'
+        : 'Submitted successfully!',
+  };
+};
 
 export const dashboardFormComponents = {
   Form: ({
@@ -73,6 +170,7 @@ export const dashboardFormComponents = {
     const [isSuccess, setIsSuccess] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [message, setMessage] = useState<string | null>(null);
+    const createTimeTrackingRequestMutation = useCreateTimeTrackingRequest();
 
     const [, setOnSubmit] = useBoundProp<unknown>(
       null,
@@ -92,66 +190,30 @@ export const dashboardFormComponents = {
           onSubmit={async (e) => {
             e.preventDefault();
             setIsSubmitting(true);
+            setIsSuccess(false);
             setError(null);
+            setMessage(null);
             try {
               const submitParams =
                 (props as { submitParams?: Record<string, unknown> })
                   .submitParams || {};
-              const values = (state as Record<string, unknown>) || {};
-
-              const actionName = shouldUseTimeTrackingRequestAction(
-                props.submitAction,
-                values,
-                submitParams
-              )
-                ? 'create_time_tracking_request'
-                : props.submitAction || 'submit_form';
-              const handler = (handlers as Record<string, FormActionHandler>)[
-                actionName
-              ];
-              let actionResult: unknown = null;
-
-              if (handler) {
-                if (actionName === 'submit_form') {
-                  actionResult = await handler({
-                    title: props.title,
-                    values,
-                  });
-                } else {
-                  actionResult = await handler({
-                    ...submitParams,
-                    ...values,
-                    wsId,
-                  });
-                }
-              } else if (setOnSubmit) {
-                await setOnSubmit({
-                  title: props.title,
-                  values,
-                });
-              } else {
-                throw new Error(`Action "${actionName}" not found`);
-              }
-
-              if (
-                actionResult &&
-                typeof actionResult === 'object' &&
-                'error' in (actionResult as Record<string, unknown>) &&
-                typeof (actionResult as Record<string, unknown>).error ===
-                  'string'
-              ) {
-                throw new Error(
-                  (actionResult as Record<string, unknown>).error as string
-                );
-              }
-
+              const result = await handleFormSubmit({
+                props,
+                state: ((state as Record<string, unknown>) || {}) as Record<
+                  string,
+                  unknown
+                >,
+                submitParams,
+                wsId,
+                handlers: handlers as Record<string, FormActionHandler>,
+                createTimeTrackingRequest:
+                  createTimeTrackingRequestMutation.mutateAsync,
+                setOnSubmit,
+              });
               setIsSuccess(true);
-              if (actionName === 'submit_form') {
-                setMessage('Sent to assistant successfully.');
-              } else {
-                setMessage('Submitted successfully!');
-              }
+              setMessage(result.message);
             } catch (err) {
+              setIsSuccess(false);
               setError(err instanceof Error ? err.message : 'Unknown error');
             } finally {
               setIsSubmitting(false);
@@ -161,10 +223,14 @@ export const dashboardFormComponents = {
           <div className="flex flex-col gap-4">{children}</div>
           <Button
             type="submit"
-            disabled={isSubmitting || isSuccess}
+            disabled={
+              isSubmitting ||
+              isSuccess ||
+              createTimeTrackingRequestMutation.isPending
+            }
             className="mt-2 w-full"
           >
-            {isSubmitting ? (
+            {isSubmitting || createTimeTrackingRequestMutation.isPending ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Submitting...

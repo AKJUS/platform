@@ -1,5 +1,5 @@
 import type { MiraToolContext } from '../../mira-tools';
-import { normalizeCursor } from './timer-helpers';
+import { coerceOptionalString, normalizeCursor } from './timer-helpers';
 
 export async function executeListTimeTrackingSessions(
   args: Record<string, unknown>,
@@ -62,7 +62,9 @@ export async function executeGetTimeTrackingSession(
   args: Record<string, unknown>,
   ctx: MiraToolContext
 ) {
-  const sessionId = (args.sessionId as string) ?? (args.id as string);
+  const sessionIdNormalized = coerceOptionalString(args.sessionId);
+  const idNormalized = coerceOptionalString(args.id);
+  const sessionId = sessionIdNormalized ?? idNormalized;
   if (!sessionId) return { error: 'sessionId is required' };
 
   const { data, error } = await ctx.supabase

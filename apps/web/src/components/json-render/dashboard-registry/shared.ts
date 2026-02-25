@@ -1,16 +1,33 @@
 'use client';
 
 import { useStateStore, useStateValue } from '@json-render/react';
+import { useMutation } from '@tanstack/react-query';
 import type { JsonRenderMultiQuizItem } from '@tuturuuu/types';
 import { useCallback, useEffect, useState } from 'react';
+import { z } from 'zod';
 
-type SignedUploadResponse = {
-  uploads: Array<{
-    filename: string;
-    signedUrl: string;
-    token: string;
-    path: string;
-  }>;
+export const SignedUploadResponseSchema = z.object({
+  uploads: z.array(
+    z.object({
+      filename: z.string(),
+      signedUrl: z.string(),
+      token: z.string(),
+      path: z.string(),
+    })
+  ),
+});
+
+type CreateTimeTrackingRequestInput = Record<string, unknown>;
+
+export type CreateTimeTrackingRequestSuccess = {
+  success: true;
+  request: {
+    id: string;
+    workspaceId: string;
+  };
+  title: string;
+  description: string;
+  imagePaths: string[];
 };
 
 export type IconProps = {
@@ -149,6 +166,26 @@ export function normalizeIsoDateTimeInput(value: unknown): string | null {
   if (typeof value !== 'string' || !value.trim()) return null;
   const trimmed = value.trim();
 
+  const isValidCalendarDate = (datePart: string): boolean => {
+    const match = datePart.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (!match) return false;
+
+    const [, yearString, monthString, dayString] = match;
+    const year = Number(yearString);
+    const month = Number(monthString);
+    const day = Number(dayString);
+
+    if (month < 1 || month > 12 || day < 1) return false;
+
+    const maxDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+    return day <= maxDay;
+  };
+
+  const leadingDate = trimmed.match(/^(\d{4}-\d{2}-\d{2})(?:[T\s]|$)/)?.[1];
+  if (leadingDate && !isValidCalendarDate(leadingDate)) {
+    return null;
+  }
+
   const parsed = new Date(trimmed);
   if (!Number.isNaN(parsed.getTime())) {
     return parsed.toISOString();
@@ -159,6 +196,9 @@ export function normalizeIsoDateTimeInput(value: unknown): string | null {
   );
   if (dateTimeWithSpaceMatch) {
     const [, datePart, hours, minutes, seconds = '00'] = dateTimeWithSpaceMatch;
+    if (!datePart) return null;
+    if (!isValidCalendarDate(datePart)) return null;
+
     const normalized = new Date(`${datePart}T${hours}:${minutes}:${seconds}`);
     if (!Number.isNaN(normalized.getTime())) {
       return normalized.toISOString();
@@ -208,59 +248,164 @@ export function shouldUseTimeTrackingRequestAction(
   return hasStartTime && hasEndTime && (hasTitle || hasEvidence);
 }
 
-export async function uploadTimeTrackingRequestFiles(
-  wsId: string,
-  requestId: string,
-  files: File[]
-): Promise<string[]> {
-  if (files.length === 0) return [];
-
-  const uploadUrlRes = await fetch(
-    `/api/v1/workspaces/${encodeURIComponent(wsId)}/time-tracking/requests/upload-url`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        requestId,
-        files: files.map((file) => ({ filename: file.name })),
-      }),
-    }
-  );
-
-  if (!uploadUrlRes.ok) {
-    const body = await uploadUrlRes.json().catch(() => ({}));
-    throw new Error(
-      (body as { error?: string }).error || 'Failed to prepare file upload'
-    );
-  }
-
-  const uploadData = (await uploadUrlRes.json()) as SignedUploadResponse;
-  if (
-    !Array.isArray(uploadData.uploads) ||
-    uploadData.uploads.length !== files.length
-  ) {
-    throw new Error('Upload URL response is invalid');
-  }
-
-  await Promise.all(
-    uploadData.uploads.map(async (upload, index) => {
-      const file = files[index];
-      if (!file) return;
-
-      const fileUploadRes = await fetch(upload.signedUrl, {
-        method: 'PUT',
-        headers: {
-          Authorization: `Bearer ${upload.token}`,
-          'Content-Type': file.type || 'application/octet-stream',
-        },
-        body: file,
-      });
-
-      if (!fileUploadRes.ok) {
-        throw new Error(`Failed to upload file "${file.name}"`);
+export function useCreateTimeTrackingRequest() {
+  return useMutation<
+    CreateTimeTrackingRequestSuccess,
+    Error,
+    CreateTimeTrackingRequestInput
+  >({
+    mutationFn: async (params) => {
+      const wsId = typeof params.wsId === 'string' ? params.wsId : undefined;
+      if (!wsId) {
+        throw new Error('Workspace ID is required');
       }
-    })
-  );
 
-  return uploadData.uploads.map((upload) => upload.path);
+      const title =
+        typeof params.title === 'string' && params.title.trim()
+          ? params.title.trim()
+          : undefined;
+      if (!title) {
+        throw new Error('Title is required');
+      }
+
+      const startTime = normalizeIsoDateTimeInput(params.startTime);
+      const endTime = normalizeIsoDateTimeInput(params.endTime);
+      if (!startTime || !endTime) {
+        throw new Error(
+          'startTime and endTime are required and must be valid date/time values'
+        );
+      }
+
+      const description = resolveTimeTrackingRequestDescription(params);
+
+      const requestId =
+        typeof params.requestId === 'string' && params.requestId
+          ? params.requestId
+          : crypto.randomUUID();
+
+      const rawEvidence = params.evidence;
+      const rawAttachments = params.attachments;
+      const files = [
+        ...collectFilesFromValue(rawEvidence),
+        ...collectFilesFromValue(rawAttachments),
+      ].slice(0, 5);
+
+      const preUploadedPaths = Array.isArray(params.imagePaths)
+        ? params.imagePaths.filter(
+            (path): path is string => typeof path === 'string'
+          )
+        : [];
+
+      let uploadedPaths: string[] = [];
+      if (files.length > 0) {
+        const uploadUrlRes = await fetch(
+          `/api/v1/workspaces/${encodeURIComponent(wsId)}/time-tracking/requests/upload-url`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              requestId,
+              files: files.map((file) => ({ filename: file.name })),
+            }),
+          }
+        );
+
+        if (!uploadUrlRes.ok) {
+          const body = await uploadUrlRes.json().catch(() => ({}));
+          throw new Error(
+            (body as { error?: string }).error || 'Failed to prepare file upload'
+          );
+        }
+
+        const uploadData = SignedUploadResponseSchema.parse(
+          await uploadUrlRes.json()
+        );
+        if (uploadData.uploads.length !== files.length) {
+          throw new Error('Upload URL response is invalid');
+        }
+
+        await Promise.all(
+          uploadData.uploads.map(async (upload, index) => {
+            const file = files[index];
+            if (!file) return;
+
+            const fileUploadRes = await fetch(upload.signedUrl, {
+              method: 'PUT',
+              headers: {
+                Authorization: `Bearer ${upload.token}`,
+                'Content-Type': file.type || 'application/octet-stream',
+              },
+              body: file,
+            });
+
+            if (!fileUploadRes.ok) {
+              throw new Error(`Failed to upload file "${file.name}"`);
+            }
+          })
+        );
+
+        uploadedPaths = uploadData.uploads.map((upload) => upload.path);
+      }
+
+      const imagePaths = [...preUploadedPaths, ...uploadedPaths];
+
+      if (imagePaths.length === 0) {
+        throw new Error(
+          'Please attach at least one evidence image before submitting'
+        );
+      }
+
+      const response = await fetch(
+        `/api/v1/workspaces/${encodeURIComponent(wsId)}/time-tracking/requests`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            requestId,
+            title,
+            description,
+            categoryId:
+              typeof params.categoryId === 'string' ? params.categoryId : '',
+            taskId: typeof params.taskId === 'string' ? params.taskId : '',
+            startTime,
+            endTime,
+            imagePaths,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        throw new Error(
+          (body as { error?: string }).error ||
+            'Failed to submit time tracking request'
+        );
+      }
+
+      const responseBody = (await response.json().catch(() => null)) as {
+        success?: boolean;
+        request?: {
+          id?: string;
+          workspace_id?: string;
+        };
+      } | null;
+
+      if (!responseBody?.success || !responseBody?.request?.id) {
+        throw new Error(
+          'Request submission response was incomplete. Please try again.'
+        );
+      }
+
+      return {
+        success: true,
+        request: {
+          id: responseBody.request.id,
+          workspaceId: responseBody.request.workspace_id || wsId,
+        },
+        title,
+        description,
+        imagePaths,
+      };
+    },
+  });
 }

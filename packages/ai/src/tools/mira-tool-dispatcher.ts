@@ -86,185 +86,114 @@ import {
 } from './mira-tool-render-ui';
 import type { MiraToolContext } from './mira-tool-types';
 
+type ToolHandler = (
+  args: Record<string, unknown>,
+  ctx: MiraToolContext
+) => Promise<unknown> | unknown;
+
+const toolHandlers: Record<string, ToolHandler> = {
+  select_tools: (args) => ({ ok: true, selectedTools: args.tools }),
+  no_action_needed: () => ({ ok: true }),
+
+  get_my_tasks: executeGetMyTasks,
+  create_task: executeCreateTask,
+  complete_task: executeCompleteTask,
+  update_task: executeUpdateTask,
+  delete_task: executeDeleteTask,
+  list_boards: executeListBoards,
+  create_board: executeCreateBoard,
+  update_board: executeUpdateBoard,
+  delete_board: executeDeleteBoard,
+  list_task_lists: executeListTaskLists,
+  create_task_list: executeCreateTaskList,
+  update_task_list: executeUpdateTaskList,
+  delete_task_list: executeDeleteTaskList,
+  list_task_labels: executeListTaskLabels,
+  create_task_label: executeCreateTaskLabel,
+  update_task_label: executeUpdateTaskLabel,
+  delete_task_label: executeDeleteTaskLabel,
+  add_task_labels: executeAddTaskLabels,
+  remove_task_labels: executeRemoveTaskLabels,
+  list_projects: executeListProjects,
+  create_project: executeCreateProject,
+  update_project: executeUpdateProject,
+  delete_project: executeDeleteProject,
+  add_task_to_project: executeAddTaskToProject,
+  remove_task_from_project: executeRemoveTaskFromProject,
+  add_task_assignee: executeAddTaskAssignee,
+  remove_task_assignee: executeRemoveTaskAssignee,
+
+  get_upcoming_events: executeGetUpcomingEvents,
+  create_event: executeCreateEvent,
+  update_event: executeUpdateEvent,
+  delete_event: executeDeleteEvent,
+  check_e2ee_status: executeCheckE2EEStatus,
+  enable_e2ee: executeEnableE2EE,
+
+  log_transaction: executeLogTransaction,
+  get_spending_summary: executeGetSpendingSummary,
+  list_wallets: executeListWallets,
+  create_wallet: executeCreateWallet,
+  update_wallet: executeUpdateWallet,
+  delete_wallet: executeDeleteWallet,
+  list_transactions: executeListTransactions,
+  get_transaction: executeGetTransaction,
+  update_transaction: executeUpdateTransaction,
+  delete_transaction: executeDeleteTransaction,
+  list_transaction_categories: executeListTransactionCategories,
+  create_transaction_category: executeCreateTransactionCategory,
+  update_transaction_category: executeUpdateTransactionCategory,
+  delete_transaction_category: executeDeleteTransactionCategory,
+  list_transaction_tags: executeListTransactionTags,
+  create_transaction_tag: executeCreateTransactionTag,
+  update_transaction_tag: executeUpdateTransactionTag,
+  delete_transaction_tag: executeDeleteTransactionTag,
+
+  start_timer: executeStartTimer,
+  stop_timer: executeStopTimer,
+  list_time_tracking_sessions: executeListTimeTrackingSessions,
+  get_time_tracking_session: executeGetTimeTrackingSession,
+  create_time_tracking_entry: executeCreateTimeTrackingEntry,
+  create_time_tracking_request: executeCreateTimeTrackingRequest,
+  update_time_tracking_session: executeUpdateTimeTrackingSession,
+  delete_time_tracking_session: executeDeleteTimeTrackingSession,
+  move_time_tracking_session: executeMoveTimeTrackingSession,
+
+  remember: executeRemember,
+  recall: executeRecall,
+  list_memories: executeListMemories,
+  delete_memory: executeDeleteMemory,
+  merge_memories: executeMergeMemories,
+
+  create_image: executeGenerateImage,
+
+  update_my_settings: executeUpdateMySettings,
+  set_default_currency: executeSetDefaultCurrency,
+  set_theme: executeSetTheme,
+  list_workspace_members: executeListWorkspaceMembers,
+  update_user_name: executeUpdateUserName,
+  set_immersive_mode: executeSetImmersiveMode,
+};
+
 export async function executeMiraTool(
   toolName: string,
   args: Record<string, unknown>,
   ctx: MiraToolContext
 ): Promise<unknown> {
-  switch (toolName) {
-    case 'select_tools':
-      return { ok: true, selectedTools: args.tools };
-    case 'no_action_needed':
-      return { ok: true };
-
-    case 'get_my_tasks':
-      return executeGetMyTasks(args, ctx);
-    case 'create_task':
-      return executeCreateTask(args, ctx);
-    case 'complete_task':
-      return executeCompleteTask(args, ctx);
-    case 'update_task':
-      return executeUpdateTask(args, ctx);
-    case 'delete_task':
-      return executeDeleteTask(args, ctx);
-    case 'list_boards':
-      return executeListBoards(args, ctx);
-    case 'create_board':
-      return executeCreateBoard(args, ctx);
-    case 'update_board':
-      return executeUpdateBoard(args, ctx);
-    case 'delete_board':
-      return executeDeleteBoard(args, ctx);
-    case 'list_task_lists':
-      return executeListTaskLists(args, ctx);
-    case 'create_task_list':
-      return executeCreateTaskList(args, ctx);
-    case 'update_task_list':
-      return executeUpdateTaskList(args, ctx);
-    case 'delete_task_list':
-      return executeDeleteTaskList(args, ctx);
-    case 'list_task_labels':
-      return executeListTaskLabels(args, ctx);
-    case 'create_task_label':
-      return executeCreateTaskLabel(args, ctx);
-    case 'update_task_label':
-      return executeUpdateTaskLabel(args, ctx);
-    case 'delete_task_label':
-      return executeDeleteTaskLabel(args, ctx);
-    case 'add_task_labels':
-      return executeAddTaskLabels(args, ctx);
-    case 'remove_task_labels':
-      return executeRemoveTaskLabels(args, ctx);
-    case 'list_projects':
-      return executeListProjects(args, ctx);
-    case 'create_project':
-      return executeCreateProject(args, ctx);
-    case 'update_project':
-      return executeUpdateProject(args, ctx);
-    case 'delete_project':
-      return executeDeleteProject(args, ctx);
-    case 'add_task_to_project':
-      return executeAddTaskToProject(args, ctx);
-    case 'remove_task_from_project':
-      return executeRemoveTaskFromProject(args, ctx);
-    case 'add_task_assignee':
-      return executeAddTaskAssignee(args, ctx);
-    case 'remove_task_assignee':
-      return executeRemoveTaskAssignee(args, ctx);
-
-    case 'get_upcoming_events':
-      return executeGetUpcomingEvents(args, ctx);
-    case 'create_event':
-      return executeCreateEvent(args, ctx);
-    case 'update_event':
-      return executeUpdateEvent(args, ctx);
-    case 'delete_event':
-      return executeDeleteEvent(args, ctx);
-    case 'check_e2ee_status':
-      return executeCheckE2EEStatus(args, ctx);
-    case 'enable_e2ee':
-      return executeEnableE2EE(args, ctx);
-
-    case 'log_transaction':
-      return executeLogTransaction(args, ctx);
-    case 'get_spending_summary':
-      return executeGetSpendingSummary(args, ctx);
-    case 'list_wallets':
-      return executeListWallets(args, ctx);
-    case 'create_wallet':
-      return executeCreateWallet(args, ctx);
-    case 'update_wallet':
-      return executeUpdateWallet(args, ctx);
-    case 'delete_wallet':
-      return executeDeleteWallet(args, ctx);
-    case 'list_transactions':
-      return executeListTransactions(args, ctx);
-    case 'get_transaction':
-      return executeGetTransaction(args, ctx);
-    case 'update_transaction':
-      return executeUpdateTransaction(args, ctx);
-    case 'delete_transaction':
-      return executeDeleteTransaction(args, ctx);
-    case 'list_transaction_categories':
-      return executeListTransactionCategories(args, ctx);
-    case 'create_transaction_category':
-      return executeCreateTransactionCategory(args, ctx);
-    case 'update_transaction_category':
-      return executeUpdateTransactionCategory(args, ctx);
-    case 'delete_transaction_category':
-      return executeDeleteTransactionCategory(args, ctx);
-    case 'list_transaction_tags':
-      return executeListTransactionTags(args, ctx);
-    case 'create_transaction_tag':
-      return executeCreateTransactionTag(args, ctx);
-    case 'update_transaction_tag':
-      return executeUpdateTransactionTag(args, ctx);
-    case 'delete_transaction_tag':
-      return executeDeleteTransactionTag(args, ctx);
-
-    case 'start_timer':
-      return executeStartTimer(args, ctx);
-    case 'stop_timer':
-      return executeStopTimer(args, ctx);
-    case 'list_time_tracking_sessions':
-      return executeListTimeTrackingSessions(args, ctx);
-    case 'get_time_tracking_session':
-      return executeGetTimeTrackingSession(args, ctx);
-    case 'create_time_tracking_entry':
-      return executeCreateTimeTrackingEntry(args, ctx);
-    case 'create_time_tracking_request':
-      return executeCreateTimeTrackingRequest(args, ctx);
-    case 'update_time_tracking_session':
-      return executeUpdateTimeTrackingSession(args, ctx);
-    case 'delete_time_tracking_session':
-      return executeDeleteTimeTrackingSession(args, ctx);
-    case 'move_time_tracking_session':
-      return executeMoveTimeTrackingSession(args, ctx);
-
-    case 'remember':
-      return executeRemember(args, ctx);
-    case 'recall':
-      return executeRecall(args, ctx);
-    case 'list_memories':
-      return executeListMemories(args, ctx);
-    case 'delete_memory':
-      return executeDeleteMemory(args, ctx);
-    case 'merge_memories':
-      return executeMergeMemories(args, ctx);
-
-    case 'create_image':
-      return executeGenerateImage(args, ctx);
-
-    case 'update_my_settings':
-      return executeUpdateMySettings(args, ctx);
-
-    case 'set_default_currency':
-      return executeSetDefaultCurrency(args, ctx);
-
-    case 'set_theme':
-      return executeSetTheme(args, ctx);
-
-    case 'render_ui':
-      if (!isRenderableRenderUiSpec(args)) {
-        return {
-          spec: buildRenderUiRecoverySpec(args),
-          recoveredFromInvalidSpec: true,
-          warning:
-            'Invalid render_ui spec was auto-recovered because elements was empty or root was missing.',
-        };
-      }
-      return { spec: args };
-
-    case 'list_workspace_members':
-      return executeListWorkspaceMembers(args, ctx);
-
-    case 'update_user_name':
-      return executeUpdateUserName(args, ctx);
-
-    case 'set_immersive_mode':
-      return executeSetImmersiveMode(args, ctx);
-
-    default:
-      return { error: `Unknown tool: ${toolName}` };
+  if (toolName === 'render_ui') {
+    if (!isRenderableRenderUiSpec(args)) {
+      return {
+        spec: buildRenderUiRecoverySpec(args),
+        recoveredFromInvalidSpec: true,
+        warning:
+          'Invalid render_ui spec was auto-recovered because elements was empty or root was missing.',
+      };
+    }
+    return { spec: args };
   }
+
+  const handler = toolHandlers[toolName];
+  if (!handler) return { error: `Unknown tool: ${toolName}` };
+
+  return handler(args, ctx);
 }

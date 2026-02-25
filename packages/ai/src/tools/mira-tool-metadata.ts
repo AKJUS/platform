@@ -1,6 +1,7 @@
 import type { PermissionId } from '@tuturuuu/types';
 
 export const MIRA_TOOL_DIRECTORY: Record<string, string> = {
+  select_tools: 'Present user with tool selection options',
   get_my_tasks: 'Get your tasks by status (overdue, today, upcoming)',
   create_task: 'Create a new task',
   complete_task: 'Mark a task as completed',
@@ -64,6 +65,9 @@ export const MIRA_TOOL_DIRECTORY: Record<string, string> = {
     'Move a session to another workspace if you are a member of both',
   remember: 'Save a fact/preference about the user',
   recall: 'Search saved memories',
+  list_memories: 'List saved memories with filters/pagination',
+  delete_memory: 'Delete a saved memory',
+  merge_memories: 'Merge multiple memories into one',
   create_image: 'Generate an image from a text description',
   google_search:
     '[ALWAYS ACTIVE — do NOT select] Built-in Google web search for real-time info (news, prices, weather, facts). Called automatically when grounding is needed.',

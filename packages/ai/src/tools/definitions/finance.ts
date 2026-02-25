@@ -10,6 +10,7 @@ export const financeToolDefinitions = {
       description: z.string().nullish().describe('What was this for?'),
       walletId: z
         .string()
+        .uuid()
         .nullish()
         .describe('Wallet UUID. If null, uses the first wallet.'),
     }),
@@ -46,7 +47,7 @@ export const financeToolDefinitions = {
   update_wallet: tool({
     description: 'Update wallet details.',
     inputSchema: z.object({
-      walletId: z.string().describe('Wallet UUID'),
+      walletId: z.string().uuid().describe('Wallet UUID'),
       name: z.string().optional().describe('New name'),
       currency: z.string().optional().describe('New currency'),
       balance: z.number().optional().describe('New balance'),
@@ -56,16 +57,26 @@ export const financeToolDefinitions = {
   delete_wallet: tool({
     description: 'Delete a wallet.',
     inputSchema: z.object({
-      walletId: z.string().describe('Wallet UUID'),
+      walletId: z.string().uuid().describe('Wallet UUID'),
     }),
   }),
 
   list_transactions: tool({
     description: 'List transactions with optional filters.',
     inputSchema: z.object({
-      walletId: z.string().optional().describe('Filter by wallet UUID'),
-      categoryId: z.string().optional().describe('Filter by category UUID'),
-      days: z.number().int().optional().describe('Only last N days'),
+      walletId: z.string().uuid().optional().describe('Filter by wallet UUID'),
+      categoryId: z
+        .string()
+        .uuid()
+        .optional()
+        .describe('Filter by category UUID'),
+      days: z
+        .number()
+        .int()
+        .min(1)
+        .max(365)
+        .optional()
+        .describe('Only last N days'),
       limit: z
         .number()
         .int()
@@ -79,24 +90,24 @@ export const financeToolDefinitions = {
   get_transaction: tool({
     description: 'Get a single transaction by ID.',
     inputSchema: z.object({
-      transactionId: z.string().describe('Transaction UUID'),
+      transactionId: z.string().uuid().describe('Transaction UUID'),
     }),
   }),
 
   update_transaction: tool({
     description: 'Update a transaction.',
     inputSchema: z.object({
-      transactionId: z.string().describe('Transaction UUID'),
+      transactionId: z.string().uuid().describe('Transaction UUID'),
       amount: z.number().optional().describe('New amount'),
       description: z.string().optional().describe('New description'),
-      categoryId: z.string().optional().describe('New category UUID'),
+      categoryId: z.string().uuid().optional().describe('New category UUID'),
     }),
   }),
 
   delete_transaction: tool({
     description: 'Delete a transaction.',
     inputSchema: z.object({
-      transactionId: z.string().describe('Transaction UUID'),
+      transactionId: z.string().uuid().describe('Transaction UUID'),
     }),
   }),
 
@@ -119,7 +130,7 @@ export const financeToolDefinitions = {
   update_transaction_category: tool({
     description: 'Update a transaction category.',
     inputSchema: z.object({
-      categoryId: z.string().describe('Category UUID'),
+      categoryId: z.string().uuid().describe('Category UUID'),
       name: z.string().optional().describe('New name'),
       isExpense: z.boolean().optional().describe('Is expense?'),
     }),
@@ -128,7 +139,7 @@ export const financeToolDefinitions = {
   delete_transaction_category: tool({
     description: 'Delete a transaction category.',
     inputSchema: z.object({
-      categoryId: z.string().describe('Category UUID'),
+      categoryId: z.string().uuid().describe('Category UUID'),
     }),
   }),
 
@@ -149,7 +160,7 @@ export const financeToolDefinitions = {
   update_transaction_tag: tool({
     description: 'Update a transaction tag.',
     inputSchema: z.object({
-      tagId: z.string().describe('Tag UUID'),
+      tagId: z.string().uuid().describe('Tag UUID'),
       name: z.string().optional().describe('New name'),
       color: z.string().optional().describe('New color'),
       description: z.string().optional().describe('New description'),
@@ -159,7 +170,7 @@ export const financeToolDefinitions = {
   delete_transaction_tag: tool({
     description: 'Delete a transaction tag.',
     inputSchema: z.object({
-      tagId: z.string().describe('Tag UUID'),
+      tagId: z.string().uuid().describe('Tag UUID'),
     }),
   }),
 

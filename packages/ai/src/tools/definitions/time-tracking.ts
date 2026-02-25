@@ -49,13 +49,18 @@ export const timeTrackingToolDefinitions = {
   get_time_tracking_session: tool({
     description:
       'Get one specific time tracking session by ID in the current workspace.',
-    inputSchema: z.object({
-      sessionId: z.string().optional().describe('Session UUID'),
-      id: z
-        .string()
-        .optional()
-        .describe('Alias for sessionId. Use either sessionId or id.'),
-    }),
+    inputSchema: z
+      .object({
+        sessionId: z.string().optional().describe('Session UUID'),
+        id: z
+          .string()
+          .optional()
+          .describe('Alias for sessionId. Use either sessionId or id.'),
+      })
+      .refine((data) => Boolean(data.sessionId || data.id), {
+        message: 'sessionId or id is required',
+        path: ['sessionId'],
+      }),
   }),
 
   create_time_tracking_entry: tool({
@@ -155,56 +160,71 @@ export const timeTrackingToolDefinitions = {
   update_time_tracking_session: tool({
     description:
       'Update fields of an existing time tracking session. Recomputes duration when times change.',
-    inputSchema: z.object({
-      sessionId: z.string().optional().describe('Session UUID'),
-      id: z
-        .string()
-        .optional()
-        .describe('Alias for sessionId. Use either sessionId or id.'),
-      title: z.string().optional().describe('Updated title'),
-      description: z
-        .string()
-        .nullable()
-        .optional()
-        .describe('Updated description'),
-      categoryId: z
-        .string()
-        .nullable()
-        .optional()
-        .describe('Updated category UUID'),
-      taskId: z.string().nullable().optional().describe('Updated task UUID'),
-      startTime: z.iso
-        .datetime()
-        .optional()
-        .describe('Updated start time (ISO 8601, YYYY-MM-DD HH:mm)'),
-      endTime: z.iso
-        .datetime()
-        .optional()
-        .describe('Updated end time (ISO 8601, YYYY-MM-DD HH:mm)'),
-    }),
+    inputSchema: z
+      .object({
+        sessionId: z.string().optional().describe('Session UUID'),
+        id: z
+          .string()
+          .optional()
+          .describe('Alias for sessionId. Use either sessionId or id.'),
+        title: z.string().optional().describe('Updated title'),
+        description: z
+          .string()
+          .nullable()
+          .optional()
+          .describe('Updated description'),
+        categoryId: z
+          .string()
+          .nullable()
+          .optional()
+          .describe('Updated category UUID'),
+        taskId: z.string().nullable().optional().describe('Updated task UUID'),
+        startTime: z.iso
+          .datetime()
+          .optional()
+          .describe('Updated start time (ISO 8601, YYYY-MM-DD HH:mm)'),
+        endTime: z.iso
+          .datetime()
+          .optional()
+          .describe('Updated end time (ISO 8601, YYYY-MM-DD HH:mm)'),
+      })
+      .refine((data) => Boolean(data.sessionId || data.id), {
+        message: 'sessionId or id is required',
+        path: ['sessionId'],
+      }),
   }),
 
   delete_time_tracking_session: tool({
     description: 'Delete a time tracking session by ID.',
-    inputSchema: z.object({
-      sessionId: z.string().optional().describe('Session UUID'),
-      id: z
-        .string()
-        .optional()
-        .describe('Alias for sessionId. Use either sessionId or id.'),
-    }),
+    inputSchema: z
+      .object({
+        sessionId: z.string().optional().describe('Session UUID'),
+        id: z
+          .string()
+          .optional()
+          .describe('Alias for sessionId. Use either sessionId or id.'),
+      })
+      .refine((data) => Boolean(data.sessionId || data.id), {
+        message: 'sessionId or id is required',
+        path: ['sessionId'],
+      }),
   }),
 
   move_time_tracking_session: tool({
     description:
       'Move a stopped session to another workspace after membership checks, with category/task remapping by name.',
-    inputSchema: z.object({
-      sessionId: z.string().optional().describe('Session UUID'),
-      id: z
-        .string()
-        .optional()
-        .describe('Alias for sessionId. Use either sessionId or id.'),
-      targetWorkspaceId: z.string().describe('Destination workspace UUID'),
-    }),
+    inputSchema: z
+      .object({
+        sessionId: z.string().optional().describe('Session UUID'),
+        id: z
+          .string()
+          .optional()
+          .describe('Alias for sessionId. Use either sessionId or id.'),
+        targetWorkspaceId: z.string().describe('Destination workspace UUID'),
+      })
+      .refine((data) => Boolean(data.sessionId || data.id), {
+        message: 'sessionId or id is required',
+        path: ['sessionId'],
+      }),
   }),
 } as const;

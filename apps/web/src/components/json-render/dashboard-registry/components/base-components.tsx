@@ -34,7 +34,7 @@ import { Progress } from '@tuturuuu/ui/progress';
 import { Separator } from '@tuturuuu/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@tuturuuu/ui/tabs';
 import { cn } from '@tuturuuu/utils/format';
-import { type ComponentType, createElement } from 'react';
+import { Children, type ComponentType, createElement, useId } from 'react';
 import { dispatchUiAction } from '../../action-dispatch';
 import {
   isStructuredSubmitAction,
@@ -62,8 +62,7 @@ export const dashboardBaseComponents = {
     props,
     children,
   }: JsonRenderComponentContext<JsonRenderCardProps>) => {
-    const hasContent =
-      children && Array.isArray(children) && children.length > 0;
+    const hasContent = Children.count(children) > 0;
     return (
       <Card className="my-2 min-w-0 overflow-hidden rounded-xl border border-border/50 bg-card/80 shadow-sm backdrop-blur-sm">
         {(props.title || props.description) && (
@@ -433,7 +432,9 @@ export const dashboardBaseComponents = {
     props,
     children,
   }: JsonRenderComponentContext<JsonRenderTabsProps>) => {
-    const [activeTab, setActiveTab] = useStateBinding<string>('activeTab');
+    const instanceId = useId();
+    const tabStateKey = `activeTab-${instanceId.replace(/:/g, '_')}`;
+    const [activeTab, setActiveTab] = useStateBinding<string>(tabStateKey);
     const currentTab =
       activeTab ?? props.defaultTab ?? props.tabs?.[0]?.id ?? '';
 

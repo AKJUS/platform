@@ -17,7 +17,10 @@ function parseDateOnly(
   }
 
   const parsed = new Date(`${trimmed}T00:00:00`);
-  if (Number.isNaN(parsed.getTime())) {
+  if (
+    Number.isNaN(parsed.getTime()) ||
+    parsed.toISOString().slice(0, 10) !== trimmed
+  ) {
     return { ok: false, error: `${fieldName} must be a valid date` };
   }
 
@@ -146,11 +149,15 @@ export async function shouldRequireApproval(
   startTime: Date,
   ctx: MiraToolContext
 ): Promise<{ requiresApproval: boolean; reason?: string }> {
-  const { data: settings } = await ctx.supabase
+  const { data: settings, error } = await ctx.supabase
     .from('workspace_settings')
     .select('missed_entry_date_threshold')
     .eq('ws_id', ctx.wsId)
     .maybeSingle();
+
+  if (error) {
+    return { requiresApproval: true };
+  }
 
   const thresholdDays = settings?.missed_entry_date_threshold;
   if (thresholdDays === null || thresholdDays === undefined) {

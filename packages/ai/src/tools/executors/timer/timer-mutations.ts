@@ -1,32 +1,170 @@
 import type { MiraToolContext } from '../../mira-tools';
 import {
+  createTimeTrackingEntryArgsSchema,
+  createTimeTrackingRequestArgsSchema,
+  deleteTimeTrackingSessionArgsSchema,
+  type DeleteTimeTrackingSessionArgs,
+  getZodErrorMessage,
+  moveTimeTrackingSessionArgsSchema,
+  type MoveTimeTrackingSessionArgs,
+  startTimerArgsSchema,
+  type StartTimerArgs,
+  stopTimerArgsSchema,
+  type StopTimerArgs,
+  updateTimeTrackingSessionArgsSchema,
+  type UpdateTimeTrackingSessionArgs,
+  type CreateTimeTrackingEntryArgs,
+  type CreateTimeTrackingRequestArgs,
+} from './timer-mutation-schemas';
+import {
   coerceOptionalString,
   MIN_DURATION_SECONDS,
   parseFlexibleDateTime,
   shouldRequireApproval,
 } from './timer-helpers';
 
+type MutationError = { error: string };
+
+type StartTimerResult =
+  | MutationError
+  | {
+      success: true;
+      message: string;
+      session: unknown;
+    };
+
+type StopTimerResult =
+  | MutationError
+  | {
+      success: true;
+      message: string;
+      session: {
+        id: string;
+        title: string;
+        durationSeconds: number;
+        durationFormatted: string;
+      };
+    };
+
+type CreateTimeTrackingRequestResult =
+  | MutationError
+  | {
+      success: true;
+      message: string;
+      request: unknown;
+    };
+
+type CreateTimeTrackingEntryResult =
+  | MutationError
+  | {
+      success: true;
+      requiresApproval: false;
+      message: string;
+      session: unknown;
+    }
+  | {
+      success: true;
+      requiresApproval: true;
+      requestCreated: boolean;
+      message?: string;
+      nextStep?: string;
+      approvalRequest?: {
+        startTime: string;
+        endTime: string;
+        titleHint: string;
+        descriptionHint: string | null;
+      };
+      request?: unknown;
+    };
+
+type UpdateTimeTrackingSessionResult =
+  | MutationError
+  | {
+      success: true;
+      message: string;
+      session?: unknown;
+    };
+
+type DeleteTimeTrackingSessionResult =
+  | MutationError
+  | {
+      success: true;
+      message: string;
+    };
+
+type MoveTimeTrackingSessionResult =
+  | MutationError
+  | {
+      success: true;
+      message: string;
+      session: unknown;
+    };
+
 export async function executeStartTimer(
   args: Record<string, unknown>,
   ctx: MiraToolContext
-) {
-  const title = coerceOptionalString(args.title);
-  if (!title) return { error: 'title is required' };
+) : Promise<StartTimerResult> {
+  let parsedArgs: StartTimerArgs;
+  try {
+    parsedArgs = startTimerArgsSchema.parse(args);
+  } catch (error) {
+    return { error: getZodErrorMessage(error) };
+  }
 
-  await ctx.supabase
-    .from('time_tracking_sessions')
-    .update({ is_running: false, end_time: new Date().toISOString() })
-    .eq('user_id', ctx.userId)
-    .eq('ws_id', ctx.wsId)
-    .eq('is_running', true);
-
+  const title = parsedArgs.title;
   const now = new Date();
+
+  const { data: runningSessions, error: runningSelectError } =
+    await ctx.supabase
+      .from('time_tracking_sessions')
+      .select('id, start_time')
+      .eq('user_id', ctx.userId)
+      .eq('ws_id', ctx.wsId)
+      .eq('is_running', true);
+
+  if (runningSelectError) return { error: runningSelectError.message };
+
+  for (const runningSession of runningSessions ?? []) {
+    const runningStartTime = new Date(runningSession.start_time);
+    const durationSeconds = Number.isNaN(runningStartTime.getTime())
+      ? 0
+      : Math.max(
+          0,
+          Math.floor((now.getTime() - runningStartTime.getTime()) / 1000)
+        );
+
+    const { data: stoppedRows, error: stopError } = await ctx.supabase
+      .from('time_tracking_sessions')
+      .update({
+        is_running: false,
+        end_time: now.toISOString(),
+        duration_seconds: durationSeconds,
+      })
+      .eq('id', runningSession.id)
+      .eq('user_id', ctx.userId)
+      .eq('ws_id', ctx.wsId)
+      .eq('is_running', true)
+      .select('id');
+
+    if (stopError) {
+      return {
+        error: `Failed to stop running timer before starting a new one: ${stopError.message}`,
+      };
+    }
+
+    if (!stoppedRows?.length) {
+      return {
+        error:
+          'Failed to stop running timer before starting a new one: no session was updated',
+      };
+    }
+  }
 
   const { data: session, error } = await ctx.supabase
     .from('time_tracking_sessions')
     .insert({
       title,
-      description: coerceOptionalString(args.description),
+      description: coerceOptionalString(parsedArgs.description),
       start_time: now.toISOString(),
       is_running: true,
       user_id: ctx.userId,
@@ -42,8 +180,15 @@ export async function executeStartTimer(
 export async function executeStopTimer(
   args: Record<string, unknown>,
   ctx: MiraToolContext
-) {
-  const sessionId = args.sessionId as string | null;
+) : Promise<StopTimerResult> {
+  let parsedArgs: StopTimerArgs;
+  try {
+    parsedArgs = stopTimerArgsSchema.parse(args);
+  } catch (error) {
+    return { error: getZodErrorMessage(error) };
+  }
+
+  const sessionId = coerceOptionalString(parsedArgs.sessionId);
 
   let query = ctx.supabase
     .from('time_tracking_sessions')
@@ -54,7 +199,9 @@ export async function executeStopTimer(
 
   if (sessionId) query = query.eq('id', sessionId);
 
-  const { data: session } = await query.limit(1).single();
+  const { data: session, error: sessionError } = await query.limit(1).single();
+
+  if (sessionError) return { error: sessionError.message };
 
   if (!session) return { error: 'No running timer found' };
 
@@ -64,16 +211,21 @@ export async function executeStopTimer(
     (endTime.getTime() - startTime.getTime()) / 1000
   );
 
-  const { error } = await ctx.supabase
+  const { data: stoppedRows, error } = await ctx.supabase
     .from('time_tracking_sessions')
     .update({
       is_running: false,
       end_time: endTime.toISOString(),
       duration_seconds: durationSeconds,
     })
-    .eq('id', session.id);
+    .eq('id', session.id)
+    .eq('is_running', true)
+    .select('id');
 
   if (error) return { error: error.message };
+  if (!stoppedRows?.length) {
+    return { error: 'Failed to stop timer: no running session was updated' };
+  }
 
   const hours = Math.floor(durationSeconds / 3600);
   const minutes = Math.floor((durationSeconds % 3600) / 60);
@@ -93,16 +245,22 @@ export async function executeStopTimer(
 export async function executeCreateTimeTrackingEntry(
   args: Record<string, unknown>,
   ctx: MiraToolContext
-) {
-  const title = coerceOptionalString(args.title);
-  if (!title) return { error: 'title is required' };
+) : Promise<CreateTimeTrackingEntryResult> {
+  let parsedArgs: CreateTimeTrackingEntryArgs;
+  try {
+    parsedArgs = createTimeTrackingEntryArgsSchema.parse(args);
+  } catch (error) {
+    return { error: getZodErrorMessage(error) };
+  }
 
-  const startParsed = parseFlexibleDateTime(args.startTime, 'startTime', {
-    date: args.date,
+  const title = parsedArgs.title;
+
+  const startParsed = parseFlexibleDateTime(parsedArgs.startTime, 'startTime', {
+    date: parsedArgs.date,
   });
   if (!startParsed.ok) return { error: startParsed.error };
-  const endParsed = parseFlexibleDateTime(args.endTime, 'endTime', {
-    date: args.date,
+  const endParsed = parseFlexibleDateTime(parsedArgs.endTime, 'endTime', {
+    date: parsedArgs.date,
   });
   if (!endParsed.ok) return { error: endParsed.error };
 
@@ -121,14 +279,10 @@ export async function executeCreateTimeTrackingEntry(
 
   const approvalCheck = await shouldRequireApproval(startTime, ctx);
   if (approvalCheck.requiresApproval) {
-    const imagePaths = Array.isArray(args.imagePaths)
-      ? args.imagePaths.filter(
-          (value): value is string => typeof value === 'string'
-        )
-      : [];
+    const imagePaths = parsedArgs.imagePaths ?? [];
 
     if (imagePaths.length > 0) {
-      const requestResult = await executeCreateTimeTrackingRequest(args, ctx);
+      const requestResult = await executeCreateTimeTrackingRequest(parsedArgs, ctx);
       if (
         typeof requestResult === 'object' &&
         requestResult !== null &&
@@ -137,10 +291,25 @@ export async function executeCreateTimeTrackingEntry(
         return requestResult;
       }
 
+      const requestPayload =
+        requestResult &&
+        typeof requestResult === 'object' &&
+        'request' in requestResult
+          ? requestResult.request
+          : undefined;
+
+      const requestMessage =
+        requestResult &&
+        typeof requestResult === 'object' &&
+        'message' in requestResult &&
+        typeof requestResult.message === 'string'
+          ? requestResult.message
+          : 'Time tracking request submitted for approval.';
+
       return {
-        ...(typeof requestResult === 'object' && requestResult
-          ? requestResult
-          : {}),
+        success: true,
+        message: requestMessage,
+        request: requestPayload,
         requiresApproval: true,
         requestCreated: true,
       };
@@ -159,7 +328,7 @@ export async function executeCreateTimeTrackingEntry(
         startTime: startTime.toISOString(),
         endTime: endTime.toISOString(),
         titleHint: title,
-        descriptionHint: coerceOptionalString(args.description),
+        descriptionHint: coerceOptionalString(parsedArgs.description),
       },
     };
   }
@@ -170,9 +339,9 @@ export async function executeCreateTimeTrackingEntry(
       ws_id: ctx.wsId,
       user_id: ctx.userId,
       title,
-      description: coerceOptionalString(args.description),
-      category_id: coerceOptionalString(args.categoryId),
-      task_id: coerceOptionalString(args.taskId),
+      description: coerceOptionalString(parsedArgs.description),
+      category_id: coerceOptionalString(parsedArgs.categoryId),
+      task_id: coerceOptionalString(parsedArgs.taskId),
       start_time: startTime.toISOString(),
       end_time: endTime.toISOString(),
       duration_seconds: durationSeconds,
@@ -201,16 +370,22 @@ export async function executeCreateTimeTrackingEntry(
 export async function executeCreateTimeTrackingRequest(
   args: Record<string, unknown>,
   ctx: MiraToolContext
-) {
-  const title = coerceOptionalString(args.title);
-  if (!title) return { error: 'title is required' };
+) : Promise<CreateTimeTrackingRequestResult> {
+  let parsedArgs: CreateTimeTrackingRequestArgs;
+  try {
+    parsedArgs = createTimeTrackingRequestArgsSchema.parse(args);
+  } catch (error) {
+    return { error: getZodErrorMessage(error) };
+  }
 
-  const startParsed = parseFlexibleDateTime(args.startTime, 'startTime', {
-    date: args.date,
+  const title = parsedArgs.title;
+
+  const startParsed = parseFlexibleDateTime(parsedArgs.startTime, 'startTime', {
+    date: parsedArgs.date,
   });
   if (!startParsed.ok) return { error: startParsed.error };
-  const endParsed = parseFlexibleDateTime(args.endTime, 'endTime', {
-    date: args.date,
+  const endParsed = parseFlexibleDateTime(parsedArgs.endTime, 'endTime', {
+    date: parsedArgs.date,
   });
   if (!endParsed.ok) return { error: endParsed.error };
 
@@ -220,11 +395,7 @@ export async function executeCreateTimeTrackingRequest(
     return { error: 'endTime must be after startTime' };
   }
 
-  const imagePaths = Array.isArray(args.imagePaths)
-    ? args.imagePaths.filter(
-        (value): value is string => typeof value === 'string'
-      )
-    : [];
+  const imagePaths = parsedArgs.imagePaths ?? [];
 
   if (imagePaths.length === 0) {
     return {
@@ -238,7 +409,7 @@ export async function executeCreateTimeTrackingRequest(
   }
 
   const requestId =
-    (typeof args.requestId === 'string' && args.requestId) ||
+    (typeof parsedArgs.requestId === 'string' && parsedArgs.requestId) ||
     crypto.randomUUID();
 
   const pathPrefix = `${requestId}/`;
@@ -259,14 +430,14 @@ export async function executeCreateTimeTrackingRequest(
       workspace_id: ctx.wsId,
       user_id: ctx.userId,
       title,
-      description: coerceOptionalString(args.description),
-      category_id: coerceOptionalString(args.categoryId),
-      task_id: coerceOptionalString(args.taskId),
+      description: coerceOptionalString(parsedArgs.description),
+      category_id: coerceOptionalString(parsedArgs.categoryId),
+      task_id: coerceOptionalString(parsedArgs.taskId),
       start_time: startTime.toISOString(),
       end_time: endTime.toISOString(),
-      break_type_id: coerceOptionalString(args.breakTypeId),
-      break_type_name: coerceOptionalString(args.breakTypeName),
-      linked_session_id: coerceOptionalString(args.linkedSessionId),
+      break_type_id: coerceOptionalString(parsedArgs.breakTypeId),
+      break_type_name: coerceOptionalString(parsedArgs.breakTypeName),
+      linked_session_id: coerceOptionalString(parsedArgs.linkedSessionId),
       images: imagePaths,
       approval_status: 'PENDING',
     })
@@ -285,8 +456,17 @@ export async function executeCreateTimeTrackingRequest(
 export async function executeUpdateTimeTrackingSession(
   args: Record<string, unknown>,
   ctx: MiraToolContext
-) {
-  const sessionId = (args.sessionId as string) ?? (args.id as string);
+) : Promise<UpdateTimeTrackingSessionResult> {
+  let parsedArgs: UpdateTimeTrackingSessionArgs;
+  try {
+    parsedArgs = updateTimeTrackingSessionArgsSchema.parse(args);
+  } catch (error) {
+    return { error: getZodErrorMessage(error) };
+  }
+
+  const sessionId =
+    coerceOptionalString(parsedArgs.sessionId) ??
+    coerceOptionalString(parsedArgs.id);
   if (!sessionId) return { error: 'sessionId is required' };
 
   const { data: existing, error: existingError } = await ctx.supabase
@@ -301,40 +481,41 @@ export async function executeUpdateTimeTrackingSession(
   if (!existing) return { error: 'Session not found' };
 
   const updates: Record<string, unknown> = {};
-  if (args.title !== undefined)
-    updates.title = coerceOptionalString(args.title);
-  if (args.description !== undefined) {
-    updates.description = coerceOptionalString(args.description);
+  if (parsedArgs.title !== undefined) {
+    updates.title = coerceOptionalString(parsedArgs.title);
   }
-  if (args.categoryId !== undefined) {
-    updates.category_id = coerceOptionalString(args.categoryId);
+  if (parsedArgs.description !== undefined) {
+    updates.description = coerceOptionalString(parsedArgs.description);
   }
-  if (args.taskId !== undefined) {
-    updates.task_id = coerceOptionalString(args.taskId);
+  if (parsedArgs.categoryId !== undefined) {
+    updates.category_id = coerceOptionalString(parsedArgs.categoryId);
+  }
+  if (parsedArgs.taskId !== undefined) {
+    updates.task_id = coerceOptionalString(parsedArgs.taskId);
   }
 
   let nextStartTime = existing.start_time;
   let nextEndTime = existing.end_time;
 
-  if (args.startTime !== undefined) {
-    const parsed = parseFlexibleDateTime(args.startTime, 'startTime', {
-      date: args.date,
+  if (parsedArgs.startTime !== undefined) {
+    const parsed = parseFlexibleDateTime(parsedArgs.startTime, 'startTime', {
+      date: parsedArgs.date,
     });
     if (!parsed.ok) return { error: parsed.error };
     nextStartTime = parsed.value.toISOString();
     updates.start_time = nextStartTime;
   }
 
-  if (args.endTime !== undefined) {
-    const parsed = parseFlexibleDateTime(args.endTime, 'endTime', {
-      date: args.date,
+  if (parsedArgs.endTime !== undefined) {
+    const parsed = parseFlexibleDateTime(parsedArgs.endTime, 'endTime', {
+      date: parsedArgs.date,
     });
     if (!parsed.ok) return { error: parsed.error };
     nextEndTime = parsed.value.toISOString();
     updates.end_time = nextEndTime;
   }
 
-  if (args.startTime !== undefined || args.endTime !== undefined) {
+  if (parsedArgs.startTime !== undefined || parsedArgs.endTime !== undefined) {
     if (!nextEndTime) {
       return { error: 'Cannot compute duration without endTime' };
     }
@@ -380,8 +561,16 @@ export async function executeUpdateTimeTrackingSession(
 export async function executeDeleteTimeTrackingSession(
   args: Record<string, unknown>,
   ctx: MiraToolContext
-) {
-  const sessionId = (args.sessionId as string) ?? (args.id as string);
+) : Promise<DeleteTimeTrackingSessionResult> {
+  let parsedArgs: DeleteTimeTrackingSessionArgs;
+  try {
+    parsedArgs = deleteTimeTrackingSessionArgsSchema.parse(args);
+  } catch (error) {
+    return { error: getZodErrorMessage(error) };
+  }
+
+  const sessionId =
+    coerceOptionalString(parsedArgs.sessionId) ?? coerceOptionalString(parsedArgs.id);
   if (!sessionId) return { error: 'sessionId is required' };
 
   const { error } = await ctx.supabase
@@ -398,9 +587,18 @@ export async function executeDeleteTimeTrackingSession(
 export async function executeMoveTimeTrackingSession(
   args: Record<string, unknown>,
   ctx: MiraToolContext
-) {
-  const sessionId = (args.sessionId as string) ?? (args.id as string);
-  const targetWorkspaceId = coerceOptionalString(args.targetWorkspaceId);
+) : Promise<MoveTimeTrackingSessionResult> {
+  let parsedArgs: MoveTimeTrackingSessionArgs;
+  try {
+    parsedArgs = moveTimeTrackingSessionArgsSchema.parse(args);
+  } catch (error) {
+    return { error: getZodErrorMessage(error) };
+  }
+
+  const sessionId =
+    coerceOptionalString(parsedArgs.sessionId) ??
+    coerceOptionalString(parsedArgs.id);
+  const targetWorkspaceId = coerceOptionalString(parsedArgs.targetWorkspaceId);
 
   if (!sessionId) return { error: 'sessionId is required' };
   if (!targetWorkspaceId) return { error: 'targetWorkspaceId is required' };

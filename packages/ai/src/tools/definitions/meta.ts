@@ -1,5 +1,8 @@
 import { z } from 'zod';
 import { tool } from '../core';
+import { MIRA_TOOL_DIRECTORY } from '../mira-tool-metadata';
+
+const validToolSet = new Set(Object.keys(MIRA_TOOL_DIRECTORY));
 
 export const metaToolDefinitions = {
   select_tools: tool({
@@ -9,6 +12,9 @@ export const metaToolDefinitions = {
       tools: z
         .array(z.string())
         .min(1)
+        .refine((tools) => tools.every((toolName) => validToolSet.has(toolName)), {
+          message: 'Invalid tool name(s)',
+        })
         .describe(
           'Array of tool names to activate (e.g. ["get_my_tasks", "create_task"]). Include all tools you expect to call.'
         ),
