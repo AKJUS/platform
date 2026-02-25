@@ -22,10 +22,17 @@ export function isRenderableRenderUiSpec(
 }
 
 export function buildRenderUiRecoverySpec(args: Record<string, unknown>) {
+  return buildRenderUiCalloutSpec(args, 'render_ui_recovery_root');
+}
+
+function buildRenderUiCalloutSpec(
+  args: Record<string, unknown>,
+  fallbackRoot: string
+) {
   const requestedRoot =
     typeof args.root === 'string' && args.root.trim().length > 0
       ? args.root.trim()
-      : 'render_ui_recovery_root';
+      : fallbackRoot;
 
   return {
     root: requestedRoot,
@@ -45,24 +52,5 @@ export function buildRenderUiRecoverySpec(args: Record<string, unknown>) {
 }
 
 export function buildRenderUiFailsafeSpec(args: Record<string, unknown>) {
-  const requestedRoot =
-    typeof args.root === 'string' && args.root.trim().length > 0
-      ? args.root.trim()
-      : 'render_ui_failsafe_root';
-
-  return {
-    root: requestedRoot,
-    elements: {
-      [requestedRoot]: {
-        type: 'Callout',
-        props: {
-          title: 'UI unavailable',
-          variant: 'warning',
-          content:
-            'Could not render the generated UI spec. Please retry this request.',
-        },
-        children: [],
-      },
-    },
-  };
+  return buildRenderUiCalloutSpec(args, 'render_ui_failsafe_root');
 }

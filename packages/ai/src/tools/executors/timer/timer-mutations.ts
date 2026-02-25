@@ -10,7 +10,8 @@ export async function executeStartTimer(
   args: Record<string, unknown>,
   ctx: MiraToolContext
 ) {
-  const title = args.title as string;
+  const title = coerceOptionalString(args.title);
+  if (!title) return { error: 'title is required' };
 
   await ctx.supabase
     .from('time_tracking_sessions')
@@ -25,7 +26,7 @@ export async function executeStartTimer(
     .from('time_tracking_sessions')
     .insert({
       title,
-      description: (args.description as string) ?? null,
+      description: coerceOptionalString(args.description),
       start_time: now.toISOString(),
       is_running: true,
       user_id: ctx.userId,

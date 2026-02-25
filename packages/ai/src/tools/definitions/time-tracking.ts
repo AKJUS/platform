@@ -74,14 +74,11 @@ export const timeTrackingToolDefinitions = {
       taskId: z.string().nullish().describe('Task UUID, or null/omit'),
       startTime: z.iso
         .datetime()
-        .describe(
-          'Start time (ISO 8601, YYYY-MM-DD HH:mm, or HH:mm with date)'
-        ),
+        .describe('Start time (ISO 8601, YYYY-MM-DD HH:mm)'),
       endTime: z.iso
         .datetime()
-        .describe('End time (ISO 8601, YYYY-MM-DD HH:mm, or HH:mm with date)'),
+        .describe('End time (ISO 8601, YYYY-MM-DD HH:mm)'),
       requestId: z
-        .string()
         .uuid()
         .optional()
         .describe(
@@ -132,12 +129,10 @@ export const timeTrackingToolDefinitions = {
         ),
       startTime: z.iso
         .datetime()
-        .describe(
-          'Start time (ISO 8601, YYYY-MM-DD HH:mm, or HH:mm with date)'
-        ),
+        .describe('Start time (ISO 8601, YYYY-MM-DD HH:mm)'),
       endTime: z.iso
         .datetime()
-        .describe('End time (ISO 8601, YYYY-MM-DD HH:mm, or HH:mm with date)'),
+        .describe('End time (ISO 8601, YYYY-MM-DD HH:mm)'),
       breakTypeId: z
         .string()
         .nullish()
@@ -181,15 +176,11 @@ export const timeTrackingToolDefinitions = {
       startTime: z.iso
         .datetime()
         .optional()
-        .describe(
-          'Updated start time (ISO 8601, YYYY-MM-DD HH:mm, or HH:mm with date)'
-        ),
+        .describe('Updated start time (ISO 8601, YYYY-MM-DD HH:mm)'),
       endTime: z.iso
         .datetime()
         .optional()
-        .describe(
-          'Updated end time (ISO 8601, YYYY-MM-DD HH:mm, or HH:mm with date)'
-        ),
+        .describe('Updated end time (ISO 8601, YYYY-MM-DD HH:mm)'),
     }),
   }),
 

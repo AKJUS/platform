@@ -49,39 +49,54 @@ export const taskToolDefinitions = {
   update_task: tool({
     description:
       'Update fields on an existing task. Use taskId (or id) for the task UUID and endDate (or dueDate) for due date (ISO). Only pass fields that need changing.',
-    inputSchema: z.object({
-      taskId: z.string().optional().describe('UUID of the task'),
-      id: z
-        .string()
-        .optional()
-        .describe('Alias for taskId. Use either taskId or id.'),
-      name: z.string().optional().describe('New task name'),
-      description: z.string().nullable().optional().describe('New description'),
-      priority: z
-        .enum(['low', 'normal', 'high', 'critical'])
-        .nullable()
-        .optional()
-        .describe('New priority'),
-      startDate: z.string().nullable().optional().describe('Start date ISO'),
-      endDate: z
-        .string()
-        .nullable()
-        .optional()
-        .describe('Due date ISO (use for due date)'),
-      dueDate: z
-        .string()
-        .nullable()
-        .optional()
-        .describe('Alias for endDate. Use either endDate or dueDate.'),
-      estimationPoints: z
-        .number()
-        .int()
-        .min(0)
-        .max(7)
-        .optional()
-        .describe('Estimation point index (0-7)'),
-      listId: z.string().optional().describe('Move to a different list'),
-    }),
+    inputSchema: z
+      .object({
+        taskId: z.string().optional().describe('UUID of the task'),
+        id: z
+          .string()
+          .optional()
+          .describe('Alias for taskId. Use either taskId or id.'),
+        name: z.string().optional().describe('New task name'),
+        description: z
+          .string()
+          .nullable()
+          .optional()
+          .describe('New description'),
+        priority: z
+          .enum(['low', 'normal', 'high', 'critical'])
+          .nullable()
+          .optional()
+          .describe('New priority'),
+        startDate: z.string().nullable().optional().describe('Start date ISO'),
+        endDate: z
+          .string()
+          .nullable()
+          .optional()
+          .describe('Due date ISO (use for due date)'),
+        dueDate: z
+          .string()
+          .nullable()
+          .optional()
+          .describe('Alias for endDate. Use either endDate or dueDate.'),
+        estimationPoints: z
+          .number()
+          .int()
+          .min(0)
+          .max(7)
+          .optional()
+          .describe('Estimation point index (0-7)'),
+        listId: z.string().optional().describe('Move to a different list'),
+      })
+      .refine(
+        (data) =>
+          [data.taskId, data.id].some(
+            (value) => typeof value === 'string' && value.trim().length > 0
+          ),
+        {
+          message: 'taskId or id is required',
+          path: ['taskId'],
+        }
+      ),
   }),
 
   delete_task: tool({

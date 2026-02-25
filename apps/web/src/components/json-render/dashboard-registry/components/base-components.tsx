@@ -512,7 +512,7 @@ export const dashboardBaseComponents = {
   BarChart: ({
     props,
   }: JsonRenderComponentContext<JsonRenderBarChartProps>) => {
-    const maxValue = Math.max(...(props.data?.map((d) => d.value) || [100]));
+    const maxValue = Math.max(1, ...(props.data?.map((d) => d.value) ?? [100]));
 
     const resolveBarColor = (color?: string): string | undefined => {
       if (!color) return undefined;
