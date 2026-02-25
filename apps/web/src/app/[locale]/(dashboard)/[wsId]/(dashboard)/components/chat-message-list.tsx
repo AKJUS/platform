@@ -153,7 +153,6 @@ function getDisplayText(message: UIMessage): string {
 type ToolPartData = { type: string; [key: string]: unknown };
 
 type JsonObject = Record<string, unknown>;
-type RendererSpec = NonNullable<ComponentProps<typeof Renderer>['spec']>;
 
 type ApprovalRequestUiData = {
   startTime: string;
@@ -172,12 +171,6 @@ function isApprovalRequestUiData(value: unknown): value is ApprovalRequestUiData
   return (
     typeof value.startTime === 'string' && typeof value.endTime === 'string'
   );
-}
-
-function isRendererSpec(value: unknown): value is RendererSpec {
-  if (!isObjectRecord(value)) return false;
-
-  return typeof value.root === 'string' && isObjectRecord(value.elements);
 }
 
 function toDateTimeLocalValue(value: string): string {
