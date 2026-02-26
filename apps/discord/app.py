@@ -2,9 +2,12 @@
 
 import json
 import os
+import tempfile
 import traceback
+from pathlib import Path
 from typing import cast
 
+import aiohttp
 import modal
 import requests
 
@@ -23,6 +26,7 @@ image = (
         "nanoid",
         "pytz",
         "aiohttp",
+        "markitdown[all]",
     )
     .add_local_python_source(
         "auth",
@@ -851,8 +855,12 @@ def create_slash_command(force: bool = False):
 @modal.asgi_app()
 def web_app():
     """Main web application for handling Discord interactions."""
+    from urllib.parse import urlparse
+
     from fastapi import FastAPI, HTTPException, Request
     from fastapi.middleware.cors import CORSMiddleware
+    from markitdown import MarkItDown
+    from pydantic import BaseModel
 
     web_app = FastAPI()
 
@@ -1203,5 +1211,87 @@ def web_app():
             ) from error
 
         return {"status": "ok", **result}
+
+    class MarkitdownRequest(BaseModel):
+        signed_url: str
+        filename: str | None = None
+        enable_plugins: bool = True
+
+    @web_app.post("/markitdown")
+    async def markitdown_endpoint(request: Request, payload: MarkitdownRequest):
+        """Convert a Supabase signed file URL into markdown using MarkItDown."""
+        if not _is_cron_request_authorized(request):
+            raise HTTPException(status_code=401, detail="Unauthorized")
+
+        max_bytes = 50 * 1024 * 1024
+        signed_url = payload.signed_url.strip()
+
+        if not signed_url:
+            raise HTTPException(status_code=400, detail="signed_url is required")
+
+        parsed = urlparse(signed_url)
+        if parsed.scheme != "https":
+            raise HTTPException(status_code=400, detail="Invalid signed URL scheme")
+        if "/storage/v1/object/sign/" not in parsed.path:
+            raise HTTPException(status_code=400, detail="Invalid Supabase signed URL")
+        if "token=" not in parsed.query:
+            raise HTTPException(status_code=400, detail="Invalid signed URL token")
+
+        original_name = (payload.filename or "upload.bin").strip() or "upload.bin"
+        suffix = Path(original_name).suffix
+        temp_path = ""
+
+        try:
+            timeout = aiohttp.ClientTimeout(total=60)
+            async with (
+                aiohttp.ClientSession(timeout=timeout) as session,
+                session.get(signed_url, allow_redirects=False) as response,
+            ):
+                if response.status >= 400:
+                    raise HTTPException(
+                        status_code=400,
+                        detail=(f"Failed to download from signed URL ({response.status})"),
+                    )
+
+                file_bytes = await response.read()
+
+            if not file_bytes:
+                raise HTTPException(
+                    status_code=400,
+                    detail="File is empty",
+                )
+            if len(file_bytes) > max_bytes:
+                raise HTTPException(status_code=413, detail="File exceeds 50MB limit")
+
+            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                tmp.write(file_bytes)
+                temp_path = tmp.name
+
+            converter = MarkItDown(enable_plugins=payload.enable_plugins)
+            result = converter.convert(temp_path)
+            markdown = (getattr(result, "text_content", "") or "").strip()
+
+            if not markdown:
+                raise HTTPException(status_code=422, detail="MarkItDown returned empty markdown")
+
+            return {
+                "ok": True,
+                "markdown": markdown,
+                "title": getattr(result, "title", None),
+                "filename": original_name,
+            }
+        except HTTPException:
+            raise
+        except Exception as error:
+            print(f"🤖: markitdown conversion failed: {error}")
+            traceback.print_exc()
+            raise HTTPException(status_code=500, detail="Failed to convert file") from error
+        finally:
+            try:
+                temp_file = Path(temp_path) if temp_path else None
+                if temp_file and temp_file.exists():
+                    temp_file.unlink()
+            except Exception as cleanup_error:
+                print(f"🤖: markitdown cleanup failed: {cleanup_error}")
 
     return web_app

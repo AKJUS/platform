@@ -13,6 +13,15 @@ A Discord bot that provides information about random free, public APIs and short
 
 ## Setup
 
+### 0. Local Python Environment (uv)
+
+```bash
+cd apps/discord
+uv sync
+```
+
+This creates and manages `.venv` automatically from `pyproject.toml`/`uv.lock`.
+
 ### 1. Create a Discord Application
 
 1. Go to [Discord Developer Portal](https://discord.com/developers/applications)

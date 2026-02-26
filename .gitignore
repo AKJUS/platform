@@ -66,6 +66,8 @@ __pycache__
 *.pyzw
 *.pyzwz
 .venv
+.coverage
+coverage.xml
 
 # Supabase local files
 apps/database/supabase/.temp/project-names.json
