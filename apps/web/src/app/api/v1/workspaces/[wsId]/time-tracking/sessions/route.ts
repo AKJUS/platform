@@ -2,6 +2,7 @@ import {
   getProjectContextCategory,
   getTimeOfDayCategory,
 } from '@tuturuuu/hooks/utils/time-tracker-utils';
+import type { TypedSupabaseClient } from '@tuturuuu/supabase';
 import { createAdminClient } from '@tuturuuu/supabase/next/server';
 import {
   escapeLikePattern,
@@ -27,6 +28,277 @@ const cursorSchema = z.object({
   lastStartTime: z.iso.datetime({ offset: true }),
   lastId: z.uuid().or(z.string().regex(/^\d+$/)),
 });
+
+type SessionRequestBody = {
+  title?: string;
+  description?: string;
+  categoryId?: string;
+  taskId?: string;
+  startTime?: string;
+  endTime?: string;
+};
+
+type AdminClient = TypedSupabaseClient;
+
+type MissedEntryPermissionCheckResult =
+  | {
+      canBypass: boolean;
+      thresholdDays: number | null | undefined;
+      errorResponse?: never;
+    }
+  | {
+      canBypass?: never;
+      thresholdDays?: never;
+      errorResponse: NextResponse;
+    };
+
+async function checkMissedEntryPermission({
+  wsId,
+  request,
+  sbAdmin,
+}: {
+  wsId: string;
+  request: Request;
+  sbAdmin: AdminClient;
+}): Promise<MissedEntryPermissionCheckResult> {
+  const permissions = await getPermissions({
+    wsId,
+    request,
+  });
+
+  if (!permissions) {
+    return {
+      errorResponse: NextResponse.json({ error: 'Not found' }, { status: 404 }),
+    };
+  }
+
+  const { containsPermission } = permissions;
+  const canBypass = containsPermission('bypass_time_tracking_request_approval');
+
+  const { data: workspaceSettings } = await sbAdmin
+    .from('workspace_settings')
+    .select('missed_entry_date_threshold')
+    .eq('ws_id', wsId)
+    .maybeSingle();
+
+  return {
+    canBypass,
+    thresholdDays: workspaceSettings?.missed_entry_date_threshold,
+  };
+}
+
+async function handleManualEntry({
+  requestBody,
+  user,
+  normalizedWsId,
+  sbAdmin,
+  request,
+}: {
+  requestBody: SessionRequestBody;
+  user: { id: string };
+  normalizedWsId: string;
+  sbAdmin: AdminClient;
+  request: Request;
+}): Promise<NextResponse> {
+  const { title, description, categoryId, taskId, startTime, endTime } =
+    requestBody;
+
+  if (!startTime || !endTime) {
+    return NextResponse.json(
+      { error: 'End time must be after start time' },
+      { status: 400 }
+    );
+  }
+
+  const start = new Date(startTime);
+  const end = new Date(endTime);
+
+  if (end <= start) {
+    return NextResponse.json(
+      { error: 'End time must be after start time' },
+      { status: 400 }
+    );
+  }
+
+  const permissionCheck = await checkMissedEntryPermission({
+    wsId: normalizedWsId,
+    request,
+    sbAdmin,
+  });
+
+  if ('errorResponse' in permissionCheck && permissionCheck.errorResponse) {
+    return permissionCheck.errorResponse;
+  }
+
+  const { canBypass, thresholdDays } = permissionCheck;
+
+  if (!canBypass && thresholdDays !== null && thresholdDays !== undefined) {
+    if (thresholdDays === 0) {
+      return NextResponse.json(
+        {
+          error:
+            'All missed entries must be submitted as requests for approval',
+        },
+        { status: 400 }
+      );
+    }
+
+    const thresholdAgo = new Date();
+    thresholdAgo.setDate(thresholdAgo.getDate() - thresholdDays);
+
+    if (start < thresholdAgo) {
+      return NextResponse.json(
+        {
+          error: `Cannot add missed entries older than ${thresholdDays} day${thresholdDays !== 1 ? 's' : ''}. Please submit a request for approval if you need to add older entries.`,
+        },
+        { status: 400 }
+      );
+    }
+  }
+
+  const durationSeconds = Math.floor((end.getTime() - start.getTime()) / 1000);
+
+  if (durationSeconds < 60) {
+    return NextResponse.json(
+      { error: 'Session must be at least 1 minute long' },
+      { status: 400 }
+    );
+  }
+
+  const sessionPayload = {
+    ws_id: normalizedWsId,
+    user_id: user.id,
+    title: title?.trim() || '',
+    description: description?.trim() || null,
+    category_id: categoryId || null,
+    task_id: taskId || null,
+    start_time: start.toISOString(),
+    end_time: end.toISOString(),
+    duration_seconds: durationSeconds,
+    is_running: false,
+  };
+
+  let insertedId: string;
+
+  if (canBypass) {
+    const { data: rpcId, error: rpcError } = await sbAdmin.rpc(
+      'insert_time_tracking_session_with_bypass',
+      {
+        p_ws_id: sessionPayload.ws_id,
+        p_user_id: sessionPayload.user_id,
+        p_title: sessionPayload.title,
+        p_description: sessionPayload.description ?? undefined,
+        p_category_id: sessionPayload.category_id ?? undefined,
+        p_task_id: sessionPayload.task_id ?? undefined,
+        p_start_time: sessionPayload.start_time,
+        p_end_time: sessionPayload.end_time,
+        p_duration_seconds: sessionPayload.duration_seconds,
+        p_is_running: sessionPayload.is_running,
+      }
+    );
+
+    if (rpcError) {
+      if (rpcError.code === 'P0001') {
+        return NextResponse.json({ error: rpcError.message }, { status: 400 });
+      }
+      throw rpcError;
+    }
+
+    insertedId = rpcId;
+  } else {
+    const { data: insertData, error } = await sbAdmin
+      .from('time_tracking_sessions')
+      .insert(sessionPayload)
+      .select('id')
+      .single();
+
+    if (error) {
+      if (
+        error.message?.includes('older than one day is not allowed') ||
+        error.message?.includes('must be submitted as requests') ||
+        error.code === '23514' ||
+        error.code === 'P0001'
+      ) {
+        return NextResponse.json({ error: error.message }, { status: 400 });
+      }
+      throw error;
+    }
+
+    insertedId = insertData.id;
+  }
+
+  const { data, error: fetchError } = await sbAdmin
+    .from('time_tracking_sessions')
+    .select(
+      `
+          *,
+          category:time_tracking_categories(*),
+          task:tasks(*)
+        `
+    )
+    .eq('id', insertedId)
+    .single();
+
+  if (fetchError) {
+    throw fetchError;
+  }
+
+  return NextResponse.json({ session: data }, { status: 201 });
+}
+
+async function createRunningSession({
+  requestBody,
+  user,
+  normalizedWsId,
+  sbAdmin,
+}: {
+  requestBody: SessionRequestBody;
+  user: { id: string };
+  normalizedWsId: string;
+  sbAdmin: AdminClient;
+}): Promise<NextResponse> {
+  const { title, description, categoryId, taskId } = requestBody;
+
+  await sbAdmin
+    .from('time_tracking_sessions')
+    .update({
+      end_time: new Date().toISOString(),
+      is_running: false,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('ws_id', normalizedWsId)
+    .eq('user_id', user.id)
+    .eq('is_running', true);
+
+  const { data, error } = await sbAdmin
+    .from('time_tracking_sessions')
+    .insert({
+      ws_id: normalizedWsId,
+      user_id: user.id,
+      title: title?.trim() || '',
+      description: description?.trim() || null,
+      category_id: categoryId || null,
+      task_id: taskId || null,
+      start_time: new Date().toISOString(),
+      is_running: true,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .select(
+      `
+        *,
+        category:time_tracking_categories(*),
+        task:tasks(*)
+      `
+    )
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return NextResponse.json({ session: data }, { status: 201 });
+}
 
 export const GET = withSessionAuth<{ wsId: string }>(
   async (request, { user, supabase }, { wsId }) => {
@@ -385,8 +657,7 @@ export const POST = withSessionAuth<{ wsId: string }>(
       }
 
       const body = await request.json();
-      const { title, description, categoryId, taskId, startTime, endTime } =
-        body;
+      const { title, startTime, endTime } = body;
 
       if (!title?.trim()) {
         return NextResponse.json(
@@ -419,214 +690,21 @@ export const POST = withSessionAuth<{ wsId: string }>(
 
       // If this is a manual entry (missed entry), handle differently
       if (startTime && endTime) {
-        // Validate time range
-        const start = new Date(startTime);
-        const end = new Date(endTime);
-
-        if (end <= start) {
-          return NextResponse.json(
-            { error: 'End time must be after start time' },
-            { status: 400 }
-          );
-        }
-
-        // Check if user has permission to bypass approval
-        const permissions = await getPermissions({
-          wsId: normalizedWsId,
+        return handleManualEntry({
+          requestBody: body,
+          user,
+          normalizedWsId,
+          sbAdmin,
           request,
         });
-        if (!permissions) {
-          return NextResponse.json({ error: 'Not found' }, { status: 404 });
-        }
-        const { containsPermission } = permissions;
-        const canBypass = containsPermission(
-          'bypass_time_tracking_request_approval'
-        );
-
-        // Fetch workspace threshold setting
-        const { data: workspaceSettings } = await sbAdmin
-          .from('workspace_settings')
-          .select('missed_entry_date_threshold')
-          .eq('ws_id', normalizedWsId)
-          .maybeSingle();
-
-        // null/undefined means no approval needed - skip all threshold checks
-        const thresholdDays = workspaceSettings?.missed_entry_date_threshold;
-
-        // Only apply restrictions if threshold is explicitly set (not null)
-        // and user does NOT have bypass permission
-        if (
-          !canBypass &&
-          thresholdDays !== null &&
-          thresholdDays !== undefined
-        ) {
-          // If threshold is 0, all missed entries must go through request flow
-          if (thresholdDays === 0) {
-            return NextResponse.json(
-              {
-                error:
-                  'All missed entries must be submitted as requests for approval',
-              },
-              { status: 400 }
-            );
-          }
-
-          // Check if start time is older than threshold days
-          const thresholdAgo = new Date();
-          thresholdAgo.setDate(thresholdAgo.getDate() - thresholdDays);
-
-          if (start < thresholdAgo) {
-            return NextResponse.json(
-              {
-                error: `Cannot add missed entries older than ${thresholdDays} day${thresholdDays !== 1 ? 's' : ''}. Please submit a request for approval if you need to add older entries.`,
-              },
-              { status: 400 }
-            );
-          }
-        }
-
-        // Calculate duration in seconds
-        const durationSeconds = Math.floor(
-          (end.getTime() - start.getTime()) / 1000
-        );
-
-        if (durationSeconds < 60) {
-          return NextResponse.json(
-            { error: 'Session must be at least 1 minute long' },
-            { status: 400 }
-          );
-        }
-
-        const sessionPayload = {
-          ws_id: normalizedWsId,
-          user_id: user.id,
-          title: title.trim(),
-          description: description?.trim() || null,
-          category_id: categoryId || null,
-          task_id: taskId || null,
-          start_time: start.toISOString(),
-          end_time: end.toISOString(),
-          duration_seconds: durationSeconds,
-          is_running: false,
-        };
-
-        let insertedId: string;
-
-        if (canBypass) {
-          // Use RPC to set bypass flag and insert in the same transaction.
-          // The RPC sets time_tracking.bypass_insert_limit = 'on' before
-          // inserting, so the BEFORE INSERT trigger skips threshold checks.
-          const { data: rpcId, error: rpcError } = await sbAdmin.rpc(
-            'insert_time_tracking_session_with_bypass',
-            {
-              p_ws_id: sessionPayload.ws_id,
-              p_user_id: sessionPayload.user_id,
-              p_title: sessionPayload.title,
-              p_description: sessionPayload.description,
-              p_category_id: sessionPayload.category_id,
-              p_task_id: sessionPayload.task_id,
-              p_start_time: sessionPayload.start_time,
-              p_end_time: sessionPayload.end_time,
-              p_duration_seconds: sessionPayload.duration_seconds,
-              p_is_running: sessionPayload.is_running,
-            }
-          );
-
-          if (rpcError) {
-            if (rpcError.code === 'P0001') {
-              return NextResponse.json(
-                { error: rpcError.message },
-                { status: 400 }
-              );
-            }
-            throw rpcError;
-          }
-
-          insertedId = rpcId;
-        } else {
-          // Regular insert (trigger will enforce threshold checks)
-          const { data: insertData, error } = await sbAdmin
-            .from('time_tracking_sessions')
-            .insert(sessionPayload)
-            .select('id')
-            .single();
-
-          if (error) {
-            if (
-              error.message?.includes('older than one day is not allowed') ||
-              error.message?.includes('must be submitted as requests') ||
-              error.code === '23514' ||
-              error.code === 'P0001'
-            ) {
-              return NextResponse.json(
-                { error: error.message },
-                { status: 400 }
-              );
-            }
-            throw error;
-          }
-
-          insertedId = insertData.id;
-        }
-
-        // Fetch the full session with relations
-        const { data, error: fetchError } = await sbAdmin
-          .from('time_tracking_sessions')
-          .select(
-            `
-          *,
-          category:time_tracking_categories(*),
-          task:tasks(*)
-        `
-          )
-          .eq('id', insertedId)
-          .single();
-
-        if (fetchError) throw fetchError;
-
-        return NextResponse.json({ session: data }, { status: 201 });
       }
 
-      // Regular session creation (starts running immediately)
-      // Stop any existing running sessions
-      await sbAdmin
-        .from('time_tracking_sessions')
-        .update({
-          end_time: new Date().toISOString(),
-          is_running: false,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('ws_id', normalizedWsId)
-        .eq('user_id', user.id)
-        .eq('is_running', true);
-
-      // Create new session with server timestamp
-      const { data, error } = await sbAdmin
-        .from('time_tracking_sessions')
-        .insert({
-          ws_id: normalizedWsId,
-          user_id: user.id,
-          title: title.trim(),
-          description: description?.trim() || null,
-          category_id: categoryId || null,
-          task_id: taskId || null,
-          start_time: new Date().toISOString(),
-          is_running: true,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        })
-        .select(
-          `
-        *,
-        category:time_tracking_categories(*),
-        task:tasks(*)
-      `
-        )
-        .single();
-
-      if (error) throw error;
-
-      return NextResponse.json({ session: data }, { status: 201 });
+      return createRunningSession({
+        requestBody: body,
+        user,
+        normalizedWsId,
+        sbAdmin,
+      });
     } catch (error) {
       console.error('Error creating time tracking session:', error);
       return NextResponse.json(

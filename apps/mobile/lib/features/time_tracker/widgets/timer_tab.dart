@@ -242,7 +242,9 @@ class TimerTab extends StatelessWidget {
       return true;
     }
 
-    if (await _hasBypassTimeTrackingRequestApprovalPermission(wsId, userId)) {
+    final hasBypassPermission =
+        await _hasBypassTimeTrackingRequestApprovalPermission(wsId, userId);
+    if (hasBypassPermission) {
       return true;
     }
     if (!context.mounted) {
@@ -272,6 +274,7 @@ class TimerTab extends StatelessWidget {
     unawaited(
       _showMissedEntryDialog(
         context,
+        hasBypassPermission: hasBypassPermission,
         initialStartTime: runningSession.startTime,
         initialEndTime: DateTime.now(),
         initialTitle: runningSession.title,
@@ -352,6 +355,7 @@ class TimerTab extends StatelessWidget {
 
   Future<void> _showMissedEntryDialog(
     BuildContext context, {
+    bool? hasBypassPermission,
     DateTime? initialStartTime,
     DateTime? initialEndTime,
     String? initialTitle,
@@ -366,6 +370,7 @@ class TimerTab extends StatelessWidget {
     final userId = supabase.auth.currentUser?.id ?? '';
 
     final canBypassApproval =
+        hasBypassPermission ??
         await _hasBypassTimeTrackingRequestApprovalPermission(wsId, userId);
     if (!context.mounted) {
       return;
