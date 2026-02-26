@@ -37,20 +37,20 @@ class RequestReasonBox extends StatelessWidget {
               Text(
                 title,
                 style: theme.typography.medium.copyWith(color: color),
-          )
+              ),
+            ],
+          ),
+          const shad.Gap(4),
+          Row(
+            children: [
+              Text(
+                text,
+                style: theme.typography.small.copyWith(color: color),
+              ),
+            ],
+          ),
         ],
       ),
-      const shad.Gap(4),
-      Row(
-        children: [
-                    Text(
-            text,
-            style: theme.typography.small.copyWith(color: color),
-          ),
-        ]
-    )
-        ]
-    )
     );
   }
 }

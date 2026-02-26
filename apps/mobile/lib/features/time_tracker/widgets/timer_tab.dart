@@ -5,6 +5,7 @@ import 'package:flutter/material.dart'
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mobile/core/responsive/adaptive_sheet.dart';
 import 'package:mobile/data/models/time_tracking/session.dart';
+import 'package:mobile/data/repositories/workspace_permissions_repository.dart';
 import 'package:mobile/data/sources/supabase_client.dart';
 import 'package:mobile/features/time_tracker/cubit/time_tracker_cubit.dart';
 import 'package:mobile/features/time_tracker/cubit/time_tracker_state.dart';
@@ -62,7 +63,8 @@ class TimerTab extends StatelessWidget {
               onPause: () =>
                   unawaited(_handlePause(context, cubit, wsId, userId)),
               onResume: () => unawaited(cubit.resumeSession()),
-              onAddMissedEntry: () => _showMissedEntryDialog(context),
+              onAddMissedEntry: () =>
+                  unawaited(_showMissedEntryDialog(context)),
             ),
             const shad.Gap(24),
             // Session title input
@@ -240,8 +242,18 @@ class TimerTab extends StatelessWidget {
       return true;
     }
 
+    if (await _hasBypassTimeTrackingRequestApprovalPermission(wsId, userId)) {
+      return true;
+    }
+    if (!context.mounted) {
+      return false;
+    }
+
     final action = await _showExceededSessionActionDialog(context);
-    if (!context.mounted || action == null) {
+    if (action == null) {
+      return false;
+    }
+    if (!context.mounted) {
       return false;
     }
 
@@ -257,16 +269,38 @@ class TimerTab extends StatelessWidget {
       return false;
     }
 
-    _showMissedEntryDialog(
-      context,
-      initialStartTime: runningSession.startTime,
-      initialEndTime: DateTime.now(),
-      initialTitle: runningSession.title,
-      initialDescription: runningSession.description,
-      initialCategoryId: runningSession.categoryId,
-      discardRunningSessionOnSave: true,
+    unawaited(
+      _showMissedEntryDialog(
+        context,
+        initialStartTime: runningSession.startTime,
+        initialEndTime: DateTime.now(),
+        initialTitle: runningSession.title,
+        initialDescription: runningSession.description,
+        initialCategoryId: runningSession.categoryId,
+        discardRunningSessionOnSave: true,
+      ),
     );
     return false;
+  }
+
+  Future<bool> _hasBypassTimeTrackingRequestApprovalPermission(
+    String wsId,
+    String userId,
+  ) async {
+    if (wsId.isEmpty || userId.isEmpty) {
+      return false;
+    }
+
+    try {
+      final workspacePermissions = await WorkspacePermissionsRepository()
+          .getPermissions(wsId: wsId, userId: userId);
+
+      return workspacePermissions.containsPermission(
+        bypassTimeTrackingRequestApprovalPermission,
+      );
+    } on Exception {
+      return false;
+    }
   }
 
   void _showActionError(BuildContext context, Object error) {
@@ -316,7 +350,7 @@ class TimerTab extends StatelessWidget {
     );
   }
 
-  void _showMissedEntryDialog(
+  Future<void> _showMissedEntryDialog(
     BuildContext context, {
     DateTime? initialStartTime,
     DateTime? initialEndTime,
@@ -324,17 +358,24 @@ class TimerTab extends StatelessWidget {
     String? initialDescription,
     String? initialCategoryId,
     bool discardRunningSessionOnSave = false,
-  }) {
+  }) async {
     final cubit = context.read<TimeTrackerCubit>();
     final state = cubit.state;
     final wsId =
         context.read<WorkspaceCubit>().state.currentWorkspace?.id ?? '';
     final userId = supabase.auth.currentUser?.id ?? '';
 
+    final canBypassApproval =
+        await _hasBypassTimeTrackingRequestApprovalPermission(wsId, userId);
+    if (!context.mounted) {
+      return;
+    }
+
     showAdaptiveDrawer(
       context: context,
       builder: (_) => MissedEntryDialog(
         categories: cubit.state.categories,
+        canBypassRequestApproval: canBypassApproval,
         thresholdDays: state.thresholdDays,
         initialStartTime: initialStartTime,
         initialEndTime: initialEndTime,

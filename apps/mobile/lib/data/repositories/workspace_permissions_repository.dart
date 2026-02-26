@@ -3,6 +3,8 @@ import 'package:mobile/data/sources/supabase_client.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 const manageTimeTrackingRequestsPermission = 'manage_time_tracking_requests';
+const bypassTimeTrackingRequestApprovalPermission =
+    'bypass_time_tracking_request_approval';
 const manageWorkspaceSettingsPermission = 'manage_workspace_settings';
 const String _workspaceRolePermissionsPrefix = 'workspace_roles!inner(';
 const String _workspaceRolePermissionsSuffix =

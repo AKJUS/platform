@@ -433,6 +433,7 @@ export const POST = withSessionAuth<{ wsId: string }>(
         // Check if user has permission to bypass approval
         const permissions = await getPermissions({
           wsId: normalizedWsId,
+          request
         });
         if (!permissions) {
           return NextResponse.json({ error: 'Not found' }, { status: 404 });
