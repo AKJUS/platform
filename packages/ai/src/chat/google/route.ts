@@ -47,6 +47,7 @@ export const maxDuration = 60;
 export const preferredRegion = 'sin1';
 
 const DEFAULT_MODEL_NAME = 'google/gemini-2.5-flash';
+type ThinkingMode = 'fast' | 'thinking';
 
 async function getAllChatFiles(
   wsId: string,
@@ -191,6 +192,13 @@ function addFilesToContent(
   }>
 ): (TextPart | ImagePart | FilePart)[] {
   const contentParts: Array<TextPart | ImagePart | FilePart> = [];
+  const supportedFileMediaTypes = new Set([
+    'application/pdf',
+    'text/plain',
+    'text/csv',
+    'application/json',
+    'text/markdown',
+  ]);
 
   if (typeof existingContent === 'string') {
     contentParts.push({ type: 'text', text: existingContent });
@@ -208,7 +216,7 @@ function addFilesToContent(
   }
 
   for (const file of chatFiles) {
-    const { content, mediaType } = file;
+    const { content, mediaType, fileName } = file;
 
     if (mediaType.startsWith('image/')) {
       const imagePart: ImagePart = {
@@ -218,14 +226,21 @@ function addFilesToContent(
         mediaType,
       };
       contentParts.push(imagePart);
-    } else if (content instanceof ArrayBuffer && content.byteLength > 0) {
+    } else if (
+      supportedFileMediaTypes.has(mediaType) &&
+      content instanceof ArrayBuffer &&
+      content.byteLength > 0
+    ) {
       const filePart: FilePart = {
         type: 'file',
         data: new Uint8Array(content),
         mediaType,
       };
       contentParts.push(filePart);
-    } else if (typeof content === 'string') {
+    } else if (
+      supportedFileMediaTypes.has(mediaType) &&
+      typeof content === 'string'
+    ) {
       // For text-based files that were read as strings
       const filePart: FilePart = {
         type: 'file',
@@ -233,6 +248,13 @@ function addFilesToContent(
         mediaType,
       };
       contentParts.push(filePart);
+    } else {
+      // Prevent provider-level MIME rejection for binary formats that are
+      // uploaded to storage but not currently supported as inline model files.
+      contentParts.push({
+        type: 'text',
+        text: `Attachment available: ${fileName} (${mediaType}). This format cannot be passed directly to the model. Use convert_file_to_markdown with fileName "${fileName}" if you need to read it.`,
+      });
     }
   }
 
@@ -260,6 +282,7 @@ export function createPOST(
         wsId,
         isMiraMode,
         timezone,
+        thinkingMode: rawThinkingMode,
       } = (await req.json()) as {
         id?: string;
         model?: string;
@@ -267,7 +290,10 @@ export function createPOST(
         wsId?: string;
         isMiraMode?: boolean;
         timezone?: string;
+        thinkingMode?: ThinkingMode;
       };
+      const thinkingMode: ThinkingMode =
+        rawThinkingMode === 'thinking' ? 'thinking' : 'fast';
       if (!id) return new Response('Missing chat ID', { status: 400 });
       if (!messages) {
         console.error('Missing messages');
@@ -499,6 +525,7 @@ export function createPOST(
         const ctx: MiraToolContext = {
           userId: user.id,
           wsId,
+          chatId,
           supabase,
           timezone,
         };
@@ -527,12 +554,19 @@ export function createPOST(
         ? gateway(model)
         : gateway(`${defaultProvider}/${model}`);
 
-      // Enable thinking for models that support it (Gemini 2.5+, 3+)
+      // Reasoning mode: default to fast unless the client explicitly requests thinking.
       const modelLower = model.toLowerCase();
       const supportsThinking =
         modelLower.includes('gemini-2.5') || modelLower.includes('gemini-3');
       const thinkingConfig = supportsThinking
-        ? { thinkingConfig: { includeThoughts: true } }
+        ? thinkingMode === 'thinking'
+          ? { thinkingConfig: { includeThoughts: true } }
+          : {
+              thinkingConfig: {
+                thinkingBudget: 0,
+                includeThoughts: false,
+              },
+            }
         : {};
       const forceRenderUi =
         shouldForceRenderUiForLatestUserMessage(processedMessages);

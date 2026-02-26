@@ -29,6 +29,7 @@ import {
   executeUpdateWallet,
 } from './executors/finance';
 import { executeGenerateImage } from './executors/image';
+import { executeConvertFileToMarkdown } from './executors/markitdown';
 import {
   executeDeleteMemory,
   executeListMemories,
@@ -167,6 +168,7 @@ const toolHandlers = {
   merge_memories: executeMergeMemories,
 
   create_image: executeGenerateImage,
+  convert_file_to_markdown: executeConvertFileToMarkdown,
 
   update_my_settings: executeUpdateMySettings,
   set_default_currency: executeSetDefaultCurrency,

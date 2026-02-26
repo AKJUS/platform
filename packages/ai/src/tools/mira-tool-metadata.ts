@@ -74,6 +74,8 @@ export const MIRA_TOOL_DIRECTORY: Record<MiraToolName, string> = {
   create_image: 'Generate an image from a text description',
   google_search:
     'Search the web for real-time info (news, prices, weather, facts).',
+  convert_file_to_markdown:
+    'Convert attached files (Excel, Word, PowerPoint, PDF, etc.) into markdown via MarkItDown. Costs 100 credits per request.',
   update_my_settings: "Update the assistant's personality settings",
   set_theme: 'Switch dark mode, light mode, or system theme',
   render_ui:

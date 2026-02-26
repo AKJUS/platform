@@ -39,4 +39,34 @@ export const metaToolDefinitions = {
       query: z.string().min(1).max(500).describe('Search query for web lookup'),
     }),
   }),
+
+  convert_file_to_markdown: tool({
+    description:
+      'Convert an attached chat file (Excel, Word, PowerPoint, PDF, etc.) to markdown via MarkItDown. Each call costs 100 AI credits.',
+    inputSchema: z.object({
+      storagePath: z
+        .string()
+        .max(1024)
+        .optional()
+        .describe(
+          'Optional full storage path. If omitted, the latest file from the current chat is converted.'
+        ),
+      fileName: z
+        .string()
+        .max(255)
+        .optional()
+        .describe(
+          'Optional filename from current chat attachments (for example: "report.xlsx"). Used when storagePath is not provided.'
+        ),
+      maxCharacters: z
+        .number()
+        .int()
+        .min(2000)
+        .max(300000)
+        .optional()
+        .describe(
+          'Optional markdown output cap for token safety. Default is 120000.'
+        ),
+    }),
+  }),
 } as const;

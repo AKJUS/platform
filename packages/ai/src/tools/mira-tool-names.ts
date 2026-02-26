@@ -67,6 +67,7 @@ export const MIRA_TOOL_NAMES = [
   'merge_memories',
   'create_image',
   'google_search',
+  'convert_file_to_markdown',
   'update_my_settings',
   'set_theme',
   'render_ui',
