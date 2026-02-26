@@ -158,9 +158,12 @@ export async function executeRemember(
 ) {
   const key = args.key as string;
   const value = args.value as string;
-  const { category, error: categoryError } = parseMemoryCategory(args.category, {
-    required: true,
-  });
+  const { category, error: categoryError } = parseMemoryCategory(
+    args.category,
+    {
+      required: true,
+    }
+  );
 
   if (categoryError || !category) {
     return {

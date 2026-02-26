@@ -191,7 +191,8 @@ export const financeToolDefinitions = {
       currency: z
         .string()
         .regex(/^[A-Z]{3}$/, {
-          message: 'Currency must be a valid ISO-4217 code (3 uppercase letters)',
+          message:
+            'Currency must be a valid ISO-4217 code (3 uppercase letters)',
         })
         .describe(
           'Currency code in ISO-4217 format (exactly 3 uppercase letters, e.g. USD, VND, EUR, JPY, GBP, KRW, THB, SGD)'

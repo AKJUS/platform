@@ -34,10 +34,7 @@ export const calendarToolDefinitions = {
           .string()
           .nullish()
           .describe('Event description, or null/omit'),
-        location: z
-          .string()
-          .nullish()
-          .describe('Event location, or null/omit'),
+        location: z.string().nullish().describe('Event location, or null/omit'),
       })
       .superRefine((value, ctx) => {
         const startAt = new Date(value.startAt);
