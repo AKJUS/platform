@@ -73,8 +73,7 @@ export function CustomWhiteboard({
   const t = useTranslations('ws-presence');
   const wsPresence = useOptionalWorkspacePresenceContext();
 
-  const [excalidrawAPI, setExcalidrawAPI] =
-    useState<ExcalidrawImperativeAPI | null>(null);
+  const excalidrawAPIRef = useRef<ExcalidrawImperativeAPI | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('synced');
   const [lastSyncError, setLastSyncError] = useState<string | null>(null);
 
@@ -142,6 +141,13 @@ export function CustomWhiteboard({
 
   const cursorsEnabled = wsPresence?.cursorsEnabled ?? false;
 
+  const handleExcalidrawAPI = useCallback(
+    (api: ExcalidrawImperativeAPI | null) => {
+      excalidrawAPIRef.current = api;
+    },
+    []
+  );
+
   // Set up collaboration (cursor + element sync only — presence is handled by workspace provider)
   const {
     collaborators,
@@ -157,9 +163,10 @@ export function CustomWhiteboard({
     externalCurrentUserId: wsPresence?.currentUserId,
     onRemoteElementsChange: useCallback(
       (remoteElements: ExcalidrawElement[]) => {
-        if (!excalidrawAPI) return;
+        const api = excalidrawAPIRef.current;
+        if (!api) return;
 
-        const currentElements = excalidrawAPI.getSceneElements();
+        const currentElements = api.getSceneElements();
         const mergedElements = mergeElements(
           [...currentElements],
           remoteElements
@@ -168,9 +175,9 @@ export function CustomWhiteboard({
         previousElementsRef.current = cloneElements(mergedElements);
 
         // Update the scene with merged elements
-        excalidrawAPI.updateScene({ elements: mergedElements });
+        api.updateScene({ elements: mergedElements });
       },
-      [excalidrawAPI, cloneElements]
+      [cloneElements]
     ),
     onError: useCallback((error: Error) => {
       console.error('Collaboration error:', error);
@@ -180,9 +187,11 @@ export function CustomWhiteboard({
 
   // Update Excalidraw collaborators when they change
   useEffect(() => {
-    if (!excalidrawAPI) return;
-    excalidrawAPI.updateScene({ collaborators });
-  }, [excalidrawAPI, collaborators]);
+    const api = excalidrawAPIRef.current;
+    if (!api) return;
+
+    api.updateScene({ collaborators });
+  }, [collaborators]);
 
   // Initialize last saved state and previous elements on mount
   useEffect(() => {
@@ -201,15 +210,16 @@ export function CustomWhiteboard({
 
   // Perform the actual save to database
   const performSave = useCallback(async () => {
-    if (!excalidrawAPI) return;
+    const api = excalidrawAPIRef.current;
+    if (!api) return;
 
     setSyncStatus('syncing');
     setLastSyncError(null);
 
     try {
-      const elements = excalidrawAPI.getSceneElements();
-      const appState = excalidrawAPI.getAppState();
-      const files = excalidrawAPI.getFiles();
+      const elements = api.getSceneElements();
+      const appState = api.getAppState();
+      const files = api.getFiles();
 
       const essentialAppState: Partial<AppState> = {
         viewBackgroundColor: appState.viewBackgroundColor,
@@ -249,7 +259,7 @@ export function CustomWhiteboard({
         },
       });
     }
-  }, [excalidrawAPI, supabase, boardId]);
+  }, [supabase, boardId]);
 
   // Auto-save function with debounce
   const triggerAutoSave = useCallback(() => {
@@ -581,7 +591,7 @@ export function CustomWhiteboard({
         {/* Excalidraw Editor */}
         {resolvedTheme ? (
           <Excalidraw
-            excalidrawAPI={(api) => setExcalidrawAPI(api)}
+            excalidrawAPI={handleExcalidrawAPI}
             initialData={initialData}
             onChange={handleChange}
             onPointerUpdate={handlePointerUpdate}
