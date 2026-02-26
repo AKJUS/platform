@@ -961,6 +961,12 @@ abstract class AppLocalizations {
   /// **'Activity'**
   String get timerActivityHeatmap;
 
+  /// No description provided for @timerViewSessionDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Session details'**
+  String get timerViewSessionDetails;
+
   /// No description provided for @timerEditSession.
   ///
   /// In en, this message translates to:
@@ -972,6 +978,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Session updated'**
   String get timerSessionUpdated;
+
+  /// No description provided for @timerSessionDeleted.
+  ///
+  /// In en, this message translates to:
+  /// **'Session deleted'**
+  String get timerSessionDeleted;
 
   /// No description provided for @timerDeleteSession.
   ///
@@ -1338,6 +1350,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Reason (optional)'**
   String get timerReasonOptional;
+
+  /// No description provided for @timerInfoRequired.
+  ///
+  /// In en, this message translates to:
+  /// **'Info (required)'**
+  String get timerInfoRequired;
+
+  /// No description provided for @timerSubmitInfo.
+  ///
+  /// In en, this message translates to:
+  /// **'Submit info'**
+  String get timerSubmitInfo;
+
+  /// No description provided for @timerRequestUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Request updated'**
+  String get timerRequestUpdated;
 
   /// No description provided for @timerManagementTitle.
   ///

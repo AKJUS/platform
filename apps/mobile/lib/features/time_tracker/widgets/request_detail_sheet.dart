@@ -31,8 +31,8 @@ class RequestDetailSheet extends StatefulWidget {
 
   final TimeTrackingRequest request;
   final Future<void> Function() onApprove;
-  final ValueChanged<String?> onReject;
-  final ValueChanged<String?> onRequestInfo;
+  final Future<void> Function(String?) onReject;
+  final Future<void> Function(String) onRequestInfo;
   final String wsId;
   final ITimeTrackerRepository repository;
   final bool isManager;

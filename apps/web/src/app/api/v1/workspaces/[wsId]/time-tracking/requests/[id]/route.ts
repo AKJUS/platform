@@ -107,6 +107,7 @@ export async function PATCH(
 
     const permissions = await getPermissions({
       wsId,
+      request
     });
     if (!permissions) {
       return Response.json({ error: 'Not found' }, { status: 404 });

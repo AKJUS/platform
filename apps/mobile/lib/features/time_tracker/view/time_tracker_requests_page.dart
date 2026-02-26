@@ -389,10 +389,9 @@ class _RequestsViewState extends State<_RequestsView> {
         isManager: _canManageRequests,
         onApprove: () => cubit.approveRequest(request.id, wsId),
         onReject: (reason) =>
-            unawaited(cubit.rejectRequest(request.id, wsId, reason: reason)),
-        onRequestInfo: (reason) => unawaited(
-          cubit.requestMoreInfo(request.id, wsId, reason: reason),
-        ),
+            cubit.rejectRequest(request.id, wsId, reason: reason),
+        onRequestInfo: (reason) =>
+            cubit.requestMoreInfo(request.id, wsId, reason: reason),
         canEdit:
             request.approvalStatus == ApprovalStatus.pending ||
             request.approvalStatus == ApprovalStatus.needsInfo,

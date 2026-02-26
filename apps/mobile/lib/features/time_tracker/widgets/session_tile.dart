@@ -9,6 +9,7 @@ class SessionTile extends StatelessWidget {
   const SessionTile({
     required this.session,
     this.categoryColor,
+    this.onTap,
     this.onEdit,
     this.onDelete,
     super.key,
@@ -16,6 +17,11 @@ class SessionTile extends StatelessWidget {
 
   final TimeTrackingSession session;
   final String? categoryColor;
+
+  /// Called when the tile is tapped. Defaults to [onEdit] when not provided.
+  final VoidCallback? onTap;
+
+  /// Called when the tile is swiped right (edit gesture).
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
 
@@ -63,7 +69,7 @@ class SessionTile extends StatelessWidget {
         }
       },
       child: InkWell(
-        onTap: onEdit,
+        onTap: onTap ?? onEdit,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           child: Row(

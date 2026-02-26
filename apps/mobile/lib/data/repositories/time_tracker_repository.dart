@@ -125,7 +125,7 @@ abstract class ITimeTrackerRepository {
 
   Future<void> updateMissedEntryDateThreshold(String wsId, int? threshold);
 
-  Future<TimeTrackingRequest> updateRequestStatus(
+  Future<void> updateRequestStatus(
     String wsId,
     String requestId, {
     required ApprovalStatus status,
@@ -681,7 +681,7 @@ class TimeTrackerRepository implements ITimeTrackerRepository {
   }
 
   @override
-  Future<TimeTrackingRequest> updateRequestStatus(
+  Future<void> updateRequestStatus(
     String wsId,
     String requestId, {
     required ApprovalStatus status,
@@ -708,12 +708,22 @@ class TimeTrackerRepository implements ITimeTrackerRepository {
       body,
     );
 
+    // Some actions return the full request, others return a success envelope.
+    // Since callers ignore the return value and reload the list, we just need
+    // to ensure the response indicates success.
     final request = data['request'];
-    if (request is Map<String, dynamic>) {
-      return TimeTrackingRequest.fromJson(request);
+    final isSuccess = data['success'] == true;
+    final hasId =
+        data.containsKey('id') || (request is Map && request.containsKey('id'));
+
+    if (isSuccess || hasId || request != null) {
+      return;
     }
 
-    return TimeTrackingRequest.fromJson(data);
+    throw const ApiException(
+      message: 'Invalid response from updateRequestStatus',
+      statusCode: 0,
+    );
   }
 
   @override

@@ -450,10 +450,16 @@ class AppLocalizationsVi extends AppLocalizations {
   String get timerActivityHeatmap => 'Hoạt động';
 
   @override
+  String get timerViewSessionDetails => 'Chi tiết phiên';
+
+  @override
   String get timerEditSession => 'Sửa phiên';
 
   @override
   String get timerSessionUpdated => 'Đã cập nhật phiên';
+
+  @override
+  String get timerSessionDeleted => 'Đã xóa phiên';
 
   @override
   String get timerDeleteSession => 'Xóa phiên';
@@ -641,6 +647,15 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get timerReasonOptional => 'Lý do (không bắt buộc)';
+
+  @override
+  String get timerInfoRequired => 'Thông tin (bắt buộc)';
+
+  @override
+  String get timerSubmitInfo => 'Gửi thông tin';
+
+  @override
+  String get timerRequestUpdated => 'Đã cập nhật yêu cầu';
 
   @override
   String get timerManagementTitle => 'Quản lý';

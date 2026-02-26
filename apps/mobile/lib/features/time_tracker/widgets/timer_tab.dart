@@ -4,11 +4,13 @@ import 'package:flutter/material.dart'
     hide AlertDialog, FilledButton, TextButton, TextField;
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mobile/core/responsive/adaptive_sheet.dart';
+import 'package:mobile/data/models/time_tracking/session.dart';
 import 'package:mobile/data/sources/supabase_client.dart';
 import 'package:mobile/features/time_tracker/cubit/time_tracker_cubit.dart';
 import 'package:mobile/features/time_tracker/cubit/time_tracker_state.dart';
 import 'package:mobile/features/time_tracker/widgets/category_picker.dart';
 import 'package:mobile/features/time_tracker/widgets/missed_entry_dialog.dart';
+import 'package:mobile/features/time_tracker/widgets/session_detail_sheet.dart';
 import 'package:mobile/features/time_tracker/widgets/session_tile.dart';
 import 'package:mobile/features/time_tracker/widgets/stats_cards.dart';
 import 'package:mobile/features/time_tracker/widgets/timer_controls.dart';
@@ -120,6 +122,7 @@ class TimerTab extends StatelessWidget {
                 (session) => SessionTile(
                   session: session,
                   categoryColor: categoryColorById[session.categoryId],
+                  onTap: () => _showDetailSheet(context, session, cubit, wsId),
                   onDelete: () => unawaited(
                     cubit.deleteSession(session.id, wsId, userId),
                   ),
@@ -128,6 +131,48 @@ class TimerTab extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+
+  void _showDetailSheet(
+    BuildContext context,
+    TimeTrackingSession session,
+    TimeTrackerCubit cubit,
+    String wsId,
+  ) {
+    unawaited(
+      showAdaptiveSheet<void>(
+        context: context,
+        builder: (_) => SessionDetailSheet(
+          session: session,
+          categories: cubit.state.categories,
+          thresholdDays: cubit.state.thresholdDays,
+          onDelete: () async {
+            final userId = supabase.auth.currentUser?.id ?? '';
+            await cubit.deleteSession(session.id, wsId, userId);
+          },
+          onSave:
+              ({
+                title,
+                description,
+                categoryId,
+                startTime,
+                endTime,
+              }) async {
+                await cubit.editSession(
+                  session.id,
+                  wsId,
+                  userId: supabase.auth.currentUser?.id,
+                  title: title,
+                  description: description,
+                  categoryId: categoryId,
+                  startTime: startTime,
+                  endTime: endTime,
+                  throwOnError: true,
+                );
+              },
+        ),
+      ),
     );
   }
 

@@ -45,7 +45,6 @@ class _EditRequestDialogState extends State<EditRequestDialog> {
     final theme = shad.Theme.of(context);
 
     return shad.AlertDialog(
-      barrierColor: Colors.transparent,
       title: Text(l10n.timerRequestEditRequest),
       content: SizedBox(
         width: double.maxFinite,

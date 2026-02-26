@@ -90,6 +90,7 @@ class TimeTrackerRequestsCubit extends Cubit<TimeTrackerRequestsState> {
       await loadRequests(wsId);
     } on Exception catch (e) {
       emit(state.copyWith(error: e.toString()));
+      rethrow;
     }
   }
 
@@ -108,6 +109,7 @@ class TimeTrackerRequestsCubit extends Cubit<TimeTrackerRequestsState> {
       await loadRequests(wsId);
     } on Exception catch (e) {
       emit(state.copyWith(error: e.toString()));
+      rethrow;
     }
   }
 

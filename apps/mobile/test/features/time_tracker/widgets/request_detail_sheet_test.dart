@@ -41,8 +41,8 @@ void main() {
             repository: repository,
             isManager: true,
             onApprove: () async {},
-            onReject: (_) {},
-            onRequestInfo: (_) {},
+            onReject: (_) async {},
+            onRequestInfo: (_) async {},
           ),
         ),
       );
@@ -67,8 +67,8 @@ void main() {
             wsId: 'test_ws_id',
             repository: repository,
             onApprove: () async {},
-            onReject: (_) {},
-            onRequestInfo: (_) {},
+            onReject: (_) async {},
+            onRequestInfo: (_) async {},
           ),
         ),
       );
