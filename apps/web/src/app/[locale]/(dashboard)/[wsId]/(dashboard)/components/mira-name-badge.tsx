@@ -16,22 +16,28 @@ import { Label } from '@tuturuuu/ui/label';
 import { toast } from '@tuturuuu/ui/sonner';
 import { cn } from '@tuturuuu/utils/format';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { type ReactNode, useEffect, useState } from 'react';
 import { useUpdateMiraSoul } from '../hooks/use-mira-soul';
 
 interface MiraNameBadgeProps {
   currentName: string;
   className?: string;
+  children?: ReactNode;
 }
 
 export default function MiraNameBadge({
   currentName,
   className,
+  children,
 }: MiraNameBadgeProps) {
   const t = useTranslations('dashboard.assistant_name');
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(currentName);
   const updateSoul = useUpdateMiraSoul();
+
+  useEffect(() => {
+    setName(currentName);
+  }, [currentName]);
 
   const handleSave = () => {
     const trimmed = name.trim();
@@ -57,15 +63,27 @@ export default function MiraNameBadge({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <button
-          type="button"
-          className={cn(
-            'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-muted-foreground text-xs transition-colors hover:bg-accent hover:text-foreground',
-            className
-          )}
-        >
-          <Pencil className="h-3 w-3" />
-        </button>
+        {children ? (
+          <button
+            type="button"
+            className={cn(
+              'inline-flex items-center rounded-md transition-colors hover:opacity-90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary/60',
+              className
+            )}
+          >
+            {children}
+          </button>
+        ) : (
+          <button
+            type="button"
+            className={cn(
+              'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-muted-foreground text-xs transition-colors hover:bg-accent hover:text-foreground',
+              className
+            )}
+          >
+            <Pencil className="h-3 w-3" />
+          </button>
+        )}
       </DialogTrigger>
       <DialogContent className="sm:max-w-sm">
         <DialogHeader>

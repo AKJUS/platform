@@ -1,6 +1,7 @@
 'use client';
 
 import { ActionProvider, StateProvider } from '@json-render/react';
+import { formatForDisplay, useHotkey } from '@tanstack/react-hotkeys';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { DefaultChatTransport } from '@tuturuuu/ai/core';
 import {
@@ -226,6 +227,13 @@ const STORAGE_KEY_PREFIX = 'mira-dashboard-chat-';
 const THINKING_MODE_STORAGE_KEY_PREFIX = 'mira-dashboard-thinking-mode-';
 const INITIAL_MODEL = defaultModel!;
 type ThinkingMode = 'fast' | 'thinking';
+const HOTKEY_NEW_CHAT = 'Alt+Shift+N';
+const HOTKEY_MODEL_PICKER = 'Alt+Shift+M';
+const HOTKEY_FULLSCREEN = 'Mod+Alt+F';
+const HOTKEY_FAST_MODE = 'Mod+Alt+1';
+const HOTKEY_THINKING_MODE = 'Mod+Alt+2';
+const HOTKEY_VIEW_ONLY = 'Mod+Alt+V';
+const HOTKEY_EXPORT = 'Mod+Alt+E';
 
 type GreetingKey =
   | 'good_morning'
@@ -325,6 +333,8 @@ export default function MiraChatPanel({
   // Fullscreen only: view-only mode hides the input panel for a clean read-only view
   const [viewOnly, setViewOnly] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
+  const [isThinkingMenuOpen, setIsThinkingMenuOpen] = useState(false);
+  const [modelPickerHotkeySignal, setModelPickerHotkeySignal] = useState(0);
 
   // ── Message queue for debounced batching ──
   const messageQueueRef = useRef<string[]>([]);
@@ -1186,6 +1196,77 @@ export default function MiraChatPanel({
   const hasMessages =
     messages.length > 0 || !!pendingDisplay || hasFileOnlyPending;
 
+  const hotkeyLabels = useMemo(
+    () => ({
+      newChat: formatForDisplay(HOTKEY_NEW_CHAT),
+      modelPicker: formatForDisplay(HOTKEY_MODEL_PICKER),
+      fullscreen: formatForDisplay(HOTKEY_FULLSCREEN),
+      fastMode: formatForDisplay(HOTKEY_FAST_MODE),
+      thinkingMode: formatForDisplay(HOTKEY_THINKING_MODE),
+      viewOnly: formatForDisplay(HOTKEY_VIEW_ONLY),
+      export: formatForDisplay(HOTKEY_EXPORT),
+    }),
+    []
+  );
+
+  useHotkey(HOTKEY_NEW_CHAT, handleNewConversation, {
+    preventDefault: true,
+  });
+
+  useHotkey(
+    HOTKEY_MODEL_PICKER,
+    () => {
+      setModelPickerHotkeySignal((v) => v + 1);
+    },
+    {
+      preventDefault: true,
+    }
+  );
+
+  useHotkey(HOTKEY_FAST_MODE, () => handleThinkingModeChange('fast'), {
+    preventDefault: true,
+  });
+
+  useHotkey(HOTKEY_THINKING_MODE, () => handleThinkingModeChange('thinking'), {
+    preventDefault: true,
+  });
+
+  useHotkey(
+    HOTKEY_FULLSCREEN,
+    () => {
+      if (!onToggleFullscreen) return;
+      onToggleFullscreen();
+    },
+    {
+      enabled: Boolean(onToggleFullscreen),
+      preventDefault: true,
+    }
+  );
+
+  useHotkey(
+    HOTKEY_VIEW_ONLY,
+    () => {
+      if (!hasMessages) return;
+      setViewOnly((v) => !v);
+    },
+    {
+      enabled: hasMessages,
+      preventDefault: true,
+    }
+  );
+
+  useHotkey(
+    HOTKEY_EXPORT,
+    () => {
+      if (!hasMessages) return;
+      handleExportChat();
+    },
+    {
+      enabled: hasMessages,
+      preventDefault: true,
+    }
+  );
+
   // Hide bottom bar while scrolling; in "view only" mode, only show the input
   // panel when the user is scrolled to the bottom.
   const SCROLL_END_DELAY_MS = 700;
@@ -1270,10 +1351,15 @@ export default function MiraChatPanel({
             model={model}
             onChange={handleModelChange}
             disabled={false}
+            hotkeySignal={modelPickerHotkeySignal}
+            shortcutLabel={hotkeyLabels.modelPicker}
           />
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          <DropdownMenu>
+          <DropdownMenu
+            open={isThinkingMenuOpen}
+            onOpenChange={setIsThinkingMenuOpen}
+          >
             <DropdownMenuTrigger asChild>
               <Button
                 type="button"
@@ -1290,16 +1376,28 @@ export default function MiraChatPanel({
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-44">
               <DropdownMenuItem
-                onSelect={() => handleThinkingModeChange('fast')}
+                onSelect={() => {
+                  handleThinkingModeChange('fast');
+                  setIsThinkingMenuOpen(false);
+                }}
                 title={t('thinking_mode_fast_desc')}
               >
                 {t('thinking_mode_fast')}
+                <span className="ml-auto text-muted-foreground text-xs">
+                  {hotkeyLabels.fastMode}
+                </span>
               </DropdownMenuItem>
               <DropdownMenuItem
-                onSelect={() => handleThinkingModeChange('thinking')}
+                onSelect={() => {
+                  handleThinkingModeChange('thinking');
+                  setIsThinkingMenuOpen(false);
+                }}
                 title={t('thinking_mode_thinking_desc')}
               >
                 {t('thinking_mode_thinking')}
+                <span className="ml-auto text-muted-foreground text-xs">
+                  {hotkeyLabels.thinkingMode}
+                </span>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -1318,7 +1416,9 @@ export default function MiraChatPanel({
                 <MessageSquarePlus className="h-4 w-4" />
               </Button>
             </TooltipTrigger>
-            <TooltipContent>{t('new_conversation')}</TooltipContent>
+            <TooltipContent>
+              {`${t('new_conversation')} (${hotkeyLabels.newChat})`}
+            </TooltipContent>
           </Tooltip>
           <DropdownMenu open={isMoreMenuOpen} onOpenChange={setIsMoreMenuOpen}>
             <DropdownMenuTrigger asChild>
@@ -1342,6 +1442,9 @@ export default function MiraChatPanel({
                 >
                   <Download className="h-4 w-4" />
                   {t('export_chat')}
+                  <span className="ml-auto text-muted-foreground text-xs">
+                    {hotkeyLabels.export}
+                  </span>
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem
@@ -1358,6 +1461,9 @@ export default function MiraChatPanel({
                   <Eye className="h-4 w-4" />
                 )}
                 {viewOnly ? t('show_input_panel') : t('view_only')}
+                <span className="ml-auto text-muted-foreground text-xs">
+                  {hotkeyLabels.viewOnly}
+                </span>
               </DropdownMenuItem>
               {onToggleFullscreen && (
                 <>
@@ -1374,6 +1480,9 @@ export default function MiraChatPanel({
                       <Maximize2 className="h-4 w-4" />
                     )}
                     {isFullscreen ? t('exit_fullscreen') : t('fullscreen')}
+                    <span className="ml-auto text-muted-foreground text-xs">
+                      {hotkeyLabels.fullscreen}
+                    </span>
                   </DropdownMenuItem>
                 </>
               )}
@@ -1433,11 +1542,11 @@ export default function MiraChatPanel({
           </div>
         ) : (
           <div className="flex h-full w-full flex-col items-center justify-center px-4 py-10 sm:px-8 sm:py-14">
-            <div className="relative w-full max-w-3xl">
+            <div className="relative mx-auto w-full max-w-3xl">
               <div className="pointer-events-none absolute top-8 left-1/2 h-44 w-44 -translate-x-1/2 rounded-full bg-dynamic-purple/12 blur-3xl" />
               <div className="pointer-events-none absolute top-40 right-10 h-32 w-32 rounded-full bg-dynamic-cyan/6 blur-3xl" />
 
-              <div className="relative px-2 py-5 sm:px-6 sm:py-8">
+              <div className="relative mx-auto w-full px-2 py-5 sm:px-6 sm:py-8">
                 <div className="flex flex-col items-center text-center">
                   <div className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-linear-to-br from-dynamic-purple/20 to-dynamic-purple/5 shadow-dynamic-purple/10 shadow-lg ring-1 ring-dynamic-purple/25">
                     <div className="absolute inset-0 rounded-2xl bg-dynamic-purple/10 blur-xl" />
@@ -1449,15 +1558,16 @@ export default function MiraChatPanel({
                       {greetingT(greetingKey)}
                       {userName ? `, ${userName}` : ''}!
                     </p>
-                    <div className="inline-flex items-center justify-center gap-1.5">
-                      <h2 className="bg-linear-to-br from-foreground to-foreground/70 bg-clip-text font-bold text-2xl text-transparent tracking-tight sm:text-3xl">
-                        {assistantName}
-                      </h2>
+                    <h2 className="text-2xl tracking-tight sm:text-3xl">
                       <MiraNameBadge
                         currentName={assistantName}
-                        className="h-7 px-2 text-foreground/60 hover:text-foreground"
-                      />
-                    </div>
+                        className="px-0.5"
+                      >
+                        <span className="bg-linear-to-br from-foreground to-foreground/70 bg-clip-text font-bold text-transparent">
+                          {assistantName}
+                        </span>
+                      </MiraNameBadge>
+                    </h2>
                     <p className="font-medium text-muted-foreground text-sm sm:text-base">
                       {t('empty_state', { name: assistantName })}
                     </p>
@@ -1466,20 +1576,16 @@ export default function MiraChatPanel({
 
                 <div className="mt-7 grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {emptyStateActions.map((action) => {
-                    const Icon = action.icon;
                     return (
                       <button
                         key={action.titleKey}
                         type="button"
                         onClick={() => handleSubmit(t(action.titleKey))}
                         className={cn(
-                          'group flex min-w-0 items-start gap-3 rounded-xl border border-border/30 bg-background/20 px-3.5 py-3 text-left transition-all duration-200',
+                          'group flex min-w-0 items-center justify-center gap-3 rounded-xl border border-border/30 bg-background/20 px-3.5 py-3 text-left text-center transition-all duration-200',
                           'hover:border-dynamic-purple/30 hover:bg-dynamic-purple/5'
                         )}
                       >
-                        <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-dynamic-purple/10 text-dynamic-purple">
-                          <Icon className="h-4 w-4" />
-                        </div>
                         <div className="min-w-0">
                           <p className="truncate font-medium text-sm leading-tight">
                             {t(action.titleKey)}

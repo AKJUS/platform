@@ -1,10 +1,11 @@
 'use client';
 
+import { formatForDisplay, useHotkey } from '@tanstack/react-hotkeys';
 import { Calendar, ListTodo } from '@tuturuuu/icons';
 import { Button } from '@tuturuuu/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@tuturuuu/ui/tooltip';
 import { cn } from '@tuturuuu/utils/format';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 interface MiraInsightsDockProps {
   tasksLabel: string;
@@ -14,6 +15,8 @@ interface MiraInsightsDockProps {
 }
 
 type WidgetKey = 'tasks' | 'calendar';
+const HOTKEY_TASKS_WIDGET = 'Mod+Alt+T';
+const HOTKEY_CALENDAR_WIDGET = 'Mod+Alt+C';
 
 const widgetConfig: Record<
   WidgetKey,
@@ -41,9 +44,25 @@ export default function MiraInsightsDock({
     calendar: calendarContent,
   };
 
+  const hotkeyLabels = useMemo(
+    () => ({
+      tasks: formatForDisplay(HOTKEY_TASKS_WIDGET),
+      calendar: formatForDisplay(HOTKEY_CALENDAR_WIDGET),
+    }),
+    []
+  );
+
   const toggleWidget = (widget: WidgetKey) => {
     setActiveWidget((prev) => (prev === widget ? null : widget));
   };
+
+  useHotkey(HOTKEY_TASKS_WIDGET, () => {
+    toggleWidget('tasks');
+  });
+
+  useHotkey(HOTKEY_CALENDAR_WIDGET, () => {
+    toggleWidget('calendar');
+  });
 
   return (
     <div className="relative">
@@ -71,7 +90,9 @@ export default function MiraInsightsDock({
                   <Icon className="h-3.5 w-3.5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="bottom">{labels[widget]}</TooltipContent>
+              <TooltipContent side="bottom">
+                {`${labels[widget]} (${hotkeyLabels[widget]})`}
+              </TooltipContent>
             </Tooltip>
           );
         })}

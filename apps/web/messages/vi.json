@@ -2878,6 +2878,7 @@
       "model_in_price_label": "Vào",
       "model_max_out_label": "Ra tối đa",
       "model_out_price_label": "Ra",
+      "model_picker": "Bộ chọn mô hình",
       "model_removed_from_favorites": "Đã bỏ {model} khỏi mục yêu thích",
       "model_selector_empty": "Không tìm thấy mô hình.",
       "model_selector_search": "Tìm mô hình...",

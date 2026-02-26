@@ -2878,6 +2878,7 @@
       "model_in_price_label": "In",
       "model_max_out_label": "Max out",
       "model_out_price_label": "Out",
+      "model_picker": "Model picker",
       "model_removed_from_favorites": "Removed {model} from favorites",
       "model_selector_empty": "No models found.",
       "model_selector_search": "Search models...",

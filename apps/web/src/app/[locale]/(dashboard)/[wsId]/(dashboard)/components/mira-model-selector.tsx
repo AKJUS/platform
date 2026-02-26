@@ -93,6 +93,8 @@ interface MiraModelSelectorProps {
   model: Model;
   onChange: (model: Model) => void;
   disabled?: boolean;
+  hotkeySignal?: number;
+  shortcutLabel?: string;
 }
 
 /** Fetches enabled models from the ai_gateway_models table */
@@ -211,6 +213,8 @@ export default function MiraModelSelector({
   model,
   onChange,
   disabled,
+  hotkeySignal,
+  shortcutLabel,
 }: MiraModelSelectorProps) {
   const t = useTranslations('dashboard.mira_chat');
   const queryClient = useQueryClient();
@@ -507,20 +511,34 @@ export default function MiraModelSelector({
     }
   }, [deferredOpen, modelsToRender, accordionValue.length]);
 
+  useEffect(() => {
+    if (!hotkeySignal || disabled) return;
+    setOpen(true);
+  }, [hotkeySignal, disabled]);
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-8 min-w-0 max-w-full gap-2 rounded-full px-3 font-mono text-muted-foreground text-sm"
-          disabled={disabled}
-        >
-          <ProviderLogo provider={model.provider} size={16} />
-          <span className="min-w-0 truncate">{model.label}</span>
-          <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <PopoverTrigger asChild>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 min-w-0 max-w-full gap-2 rounded-full px-3 font-mono text-muted-foreground text-sm"
+              disabled={disabled}
+            >
+              <ProviderLogo provider={model.provider} size={16} />
+              <span className="min-w-0 truncate">{model.label}</span>
+              <ChevronDown className="h-3.5 w-3.5 shrink-0 opacity-50" />
+            </Button>
+          </PopoverTrigger>
+        </TooltipTrigger>
+        {shortcutLabel && (
+          <TooltipContent>
+            {`${t('model_picker')} (${shortcutLabel})`}
+          </TooltipContent>
+        )}
+      </Tooltip>
       <PopoverContent
         className="flex h-[min(480px,85vh)] w-[min(420px,calc(100vw-2rem))] flex-col overflow-hidden p-0"
         align="start"
