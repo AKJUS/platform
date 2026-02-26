@@ -378,7 +378,7 @@ export const dashboardCatalog = defineCatalog(schema, {
           .optional()
           .describe('Input type, defaults to text'),
         value: z
-          .unknown()
+          .union([z.string(), z.number()])
           .optional()
           .describe(
             'Input value binding; value is validated later by action schemas at submit time.'
@@ -429,7 +429,7 @@ export const dashboardCatalog = defineCatalog(schema, {
           .describe('Whether the field is required'),
         rows: z.number().optional().describe('Number of rows'),
         value: z
-          .unknown()
+          .string()
           .optional()
           .describe(
             'Textarea value binding; value is validated later by action schemas at submit time.'

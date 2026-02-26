@@ -77,6 +77,7 @@ export function useWorkspace(wsId: string): {
       return (await res.json()) as JsonRenderWorkspaceSummary;
     },
     enabled: !!wsId,
+    staleTime: 5 * 60 * 1000,
   });
 
   return {

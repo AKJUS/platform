@@ -19,22 +19,38 @@ export const calendarToolDefinitions = {
   create_event: tool({
     description:
       'Create a new calendar event. Events are automatically encrypted if E2EE is enabled.',
-    inputSchema: z.object({
-      title: z.string().describe('Event title'),
-      startAt: z
-        .string()
-        .datetime({ offset: true })
-        .describe('Start time ISO 8601'),
-      endAt: z
-        .string()
-        .datetime({ offset: true })
-        .describe('End time ISO 8601'),
-      description: z
-        .string()
-        .nullish()
-        .describe('Event description, or null/omit'),
-      location: z.string().nullish().describe('Event location, or null/omit'),
-    }),
+    inputSchema: z
+      .object({
+        title: z.string().describe('Event title'),
+        startAt: z
+          .string()
+          .datetime({ offset: true })
+          .describe('Start time ISO 8601'),
+        endAt: z
+          .string()
+          .datetime({ offset: true })
+          .describe('End time ISO 8601'),
+        description: z
+          .string()
+          .nullish()
+          .describe('Event description, or null/omit'),
+        location: z
+          .string()
+          .nullish()
+          .describe('Event location, or null/omit'),
+      })
+      .superRefine((value, ctx) => {
+        const startAt = new Date(value.startAt);
+        const endAt = new Date(value.endAt);
+
+        if (startAt >= endAt) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ['endAt'],
+            message: 'endAt must be later than startAt',
+          });
+        }
+      }),
   }),
 
   update_event: tool({

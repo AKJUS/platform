@@ -196,7 +196,7 @@ export type JsonRenderInputProps = {
   placeholder?: string;
   required?: boolean;
   type?: 'text' | 'number' | 'email' | 'password' | 'datetime-local';
-  value?: unknown;
+  value?: string | number;
 };
 
 export type JsonRenderFileAttachmentInputProps = {
@@ -216,7 +216,7 @@ export type JsonRenderTextareaProps = {
   required?: boolean;
   rows?: number;
   multiline?: boolean;
-  value?: unknown;
+  value?: string;
 };
 
 export type JsonRenderCheckboxProps = {

@@ -102,6 +102,7 @@ export const financeToolDefinitions = {
       amount: z.number().optional().describe('New amount'),
       description: z.string().optional().describe('New description'),
       categoryId: z.string().uuid().optional().describe('New category UUID'),
+      walletId: z.string().uuid().optional().describe('New wallet UUID'),
     }),
   }),
 
@@ -189,8 +190,11 @@ export const financeToolDefinitions = {
     inputSchema: z.object({
       currency: z
         .string()
+        .regex(/^[A-Z]{3}$/, {
+          message: 'Currency must be a valid ISO-4217 code (3 uppercase letters)',
+        })
         .describe(
-          'Currency code (e.g. USD, VND, EUR, JPY, GBP, KRW, THB, SGD)'
+          'Currency code in ISO-4217 format (exactly 3 uppercase letters, e.g. USD, VND, EUR, JPY, GBP, KRW, THB, SGD)'
         ),
     }),
   }),

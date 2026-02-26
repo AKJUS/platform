@@ -320,6 +320,7 @@ export async function executeUpdateTransaction(
   if (args.amount !== undefined) updates.amount = args.amount;
   if (args.description !== undefined) updates.description = args.description;
   if (args.categoryId !== undefined) updates.category_id = args.categoryId;
+  if (args.walletId !== undefined) updates.wallet_id = args.walletId;
 
   if (Object.keys(updates).length === 0) {
     return { success: true, message: 'No fields to update' };

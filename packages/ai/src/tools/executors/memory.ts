@@ -13,6 +13,35 @@ function toMemoryCategory(value: unknown): MiraMemoryCategory | undefined {
     : undefined;
 }
 
+function parseMemoryCategory(
+  categoryInput: unknown,
+  options: { fieldName?: string; required?: boolean } = {}
+): { category: MiraMemoryCategory | null; error: string | null } {
+  const { fieldName = 'category', required = false } = options;
+  const allowed = MIRA_MEMORY_CATEGORIES.join(', ');
+
+  if (categoryInput === undefined || categoryInput === null) {
+    if (!required) {
+      return { category: null, error: null };
+    }
+
+    return {
+      category: null,
+      error: `${fieldName} is required. Allowed: ${allowed}`,
+    };
+  }
+
+  const parsedCategory = toMemoryCategory(categoryInput);
+  if (!parsedCategory) {
+    return {
+      category: null,
+      error: `Invalid ${fieldName}. Allowed: ${allowed}`,
+    };
+  }
+
+  return { category: parsedCategory, error: null };
+}
+
 const MIRA_MEMORY_EMBEDDING_DIM = 3072;
 
 type EmbeddingTaskType = 'RETRIEVAL_DOCUMENT' | 'RETRIEVAL_QUERY';
@@ -129,11 +158,14 @@ export async function executeRemember(
 ) {
   const key = args.key as string;
   const value = args.value as string;
-  const category = toMemoryCategory(args.category);
+  const { category, error: categoryError } = parseMemoryCategory(args.category, {
+    required: true,
+  });
 
-  if (!category) {
+  if (categoryError || !category) {
     return {
       error:
+        categoryError ??
         'Invalid category. Allowed: preference, fact, conversation_topic, event, person',
     };
   }
@@ -192,19 +224,12 @@ export async function executeRecall(
   ctx: MiraToolContext
 ) {
   const query = (args.query as string | null | undefined) ?? null;
-  const categoryInput = args.category;
-  const parsedCategory = toMemoryCategory(categoryInput);
-  if (
-    categoryInput !== undefined &&
-    categoryInput !== null &&
-    !parsedCategory
-  ) {
+  const { category, error: categoryError } = parseMemoryCategory(args.category);
+  if (categoryError) {
     return {
-      error:
-        'Invalid category. Allowed: preference, fact, conversation_topic, event, person',
+      error: categoryError,
     };
   }
-  const category = parsedCategory ?? null;
   const maxResults = (args.maxResults as number) || 10;
 
   let memories: any[] = [];
@@ -330,19 +355,12 @@ export async function executeListMemories(
   args: Record<string, unknown>,
   ctx: MiraToolContext
 ) {
-  const categoryInput = args.category;
-  const parsedCategory = toMemoryCategory(categoryInput);
-  if (
-    categoryInput !== undefined &&
-    categoryInput !== null &&
-    !parsedCategory
-  ) {
+  const { category, error: categoryError } = parseMemoryCategory(args.category);
+  if (categoryError) {
     return {
-      error:
-        'Invalid category. Allowed: preference, fact, conversation_topic, event, person',
+      error: categoryError,
     };
   }
-  const category = parsedCategory ?? null;
 
   let dbQuery = ctx.supabase
     .from('mira_memories')
@@ -383,11 +401,18 @@ export async function executeMergeMemories(
   const keysToDelete = args.keysToDelete as string[];
   const newKey = args.newKey as string;
   const newValue = args.newValue as string;
-  const newCategory = toMemoryCategory(args.newCategory);
+  const { category: newCategory, error: categoryError } = parseMemoryCategory(
+    args.newCategory,
+    {
+      fieldName: 'newCategory',
+      required: true,
+    }
+  );
 
-  if (!newCategory) {
+  if (categoryError || !newCategory) {
     return {
       error:
+        categoryError ??
         'Invalid newCategory. Allowed: preference, fact, conversation_topic, event, person',
     };
   }

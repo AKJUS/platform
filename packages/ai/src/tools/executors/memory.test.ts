@@ -5,6 +5,7 @@ import { executeRecall, executeRemember } from './memory';
 
 vi.mock('ai', () => ({
   embed: vi.fn(),
+  tool: vi.fn((definition) => definition),
 }));
 
 function createContextWithSupabase(supabase: unknown): MiraToolContext {
