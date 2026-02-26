@@ -56,7 +56,10 @@ const checks = [
     name: 'dart-format',
     command: 'dart',
     args: ['format', '--set-exit-if-changed', 'lib', 'test'],
-    isCritical: false, // Formatting changes are auto-applied, so don't fail the build
+    allowNonZeroWhen: (code, stdout, stderr) => {
+      const output = stdout + stderr;
+      return code === 1 && output.includes('Formatted');
+    },
     parseOutput: (stdout) => {
       const clean = stripAnsi(stdout);
       const match = clean.match(/Formatted (\d+) files? \((\d+) changed\)/i);
@@ -70,7 +73,6 @@ const checks = [
     name: 'flutter-analyze',
     command: 'flutter',
     args: ['analyze'],
-    isCritical: true,
     parseOutput: (stdout) => {
       const clean = stripAnsi(stdout);
       if (clean.includes('No issues found')) {
@@ -87,7 +89,6 @@ const checks = [
     name: 'flutter-test',
     command: 'flutter',
     args: ['test'],
-    isCritical: true,
     parseOutput: (stdout) => {
       const clean = stripAnsi(stdout);
       // Match "All tests passed!" or "+N: All tests passed!"
@@ -141,7 +142,10 @@ function runCheck(check) {
 
     proc.on('close', (code) => {
       const duration = Date.now() - startTime;
-      const success = code === 0 || !check.isCritical;
+      const allowedNonZero =
+        check.allowNonZeroWhen && check.allowNonZeroWhen(code, stdout, stderr);
+      const success = code === 0 || allowedNonZero;
+
       resolve({
         name: check.name,
         success,
@@ -149,12 +153,7 @@ function runCheck(check) {
         stdout,
         stderr,
         duration,
-        status:
-          code === 0
-            ? check.parseOutput(stdout + stderr)
-            : check.isCritical
-              ? 'Failed'
-              : check.parseOutput(stdout + stderr),
+        status: success ? check.parseOutput(stdout + stderr) : 'Failed',
       });
     });
 
