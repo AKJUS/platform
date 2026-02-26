@@ -549,7 +549,7 @@ export function createPOST(
         ...(cappedMaxOutput ? { maxOutputTokens: cappedMaxOutput } : {}),
         ...(miraTools
           ? {
-              tools: { ...miraTools, ...googleSearchTool },
+              tools: miraTools,
               stopWhen: stepCountIs(25),
               toolChoice: 'auto' as const,
               // eslint-disable-next-line @typescript-eslint/no-explicit-any

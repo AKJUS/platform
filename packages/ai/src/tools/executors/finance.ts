@@ -1,4 +1,57 @@
+import type { TablesInsert, TablesUpdate } from '@tuturuuu/types';
+import { z } from 'zod';
 import type { MiraToolContext } from '../mira-tools';
+
+const createWalletArgsSchema = z.object({
+  name: z.string().trim().min(1),
+  currency: z.string().trim().min(1).optional(),
+  balance: z.coerce.number().optional(),
+  type: z.string().trim().min(1).optional(),
+});
+
+const updateWalletArgsSchema = z
+  .object({
+    walletId: z.string().uuid(),
+    name: z.string().trim().min(1).optional(),
+    currency: z.string().trim().min(1).optional(),
+    balance: z.coerce.number().optional(),
+    type: z.string().trim().min(1).optional(),
+  })
+  .refine(
+    (value) =>
+      value.name !== undefined ||
+      value.currency !== undefined ||
+      value.balance !== undefined ||
+      value.type !== undefined,
+    { message: 'At least one field to update is required' }
+  );
+
+const createTransactionTagArgsSchema = z.object({
+  name: z.string().trim().min(1),
+  color: z
+    .string()
+    .regex(/^[#][0-9a-fA-F]{3,8}$/)
+    .optional(),
+  description: z.string().trim().optional(),
+});
+
+const updateTransactionTagArgsSchema = z
+  .object({
+    tagId: z.string().uuid(),
+    name: z.string().trim().min(1).optional(),
+    color: z
+      .string()
+      .regex(/^[#][0-9a-fA-F]{3,8}$/)
+      .optional(),
+    description: z.string().trim().optional(),
+  })
+  .refine(
+    (value) =>
+      value.name !== undefined ||
+      value.color !== undefined ||
+      value.description !== undefined,
+    { message: 'At least one field to update is required' }
+  );
 
 // ── Workspace default currency ──
 
@@ -131,13 +184,19 @@ export async function executeCreateWallet(
   args: Record<string, unknown>,
   ctx: MiraToolContext
 ) {
-  const insertData: Record<string, unknown> = {
-    name: args.name as string,
+  const parsed = createWalletArgsSchema.safeParse(args);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Invalid wallet data' };
+  }
+
+  const validated = parsed.data;
+  const insertData: TablesInsert<'workspace_wallets'> = {
+    name: validated.name,
     ws_id: ctx.wsId,
   };
-  if (args.currency) insertData.currency = args.currency;
-  if (args.balance !== undefined) insertData.balance = args.balance;
-  if (args.type) insertData.type = args.type;
+  if (validated.currency) insertData.currency = validated.currency;
+  if (validated.balance !== undefined) insertData.balance = validated.balance;
+  if (validated.type) insertData.type = validated.type;
 
   const { data, error } = await ctx.supabase
     .from('workspace_wallets')
@@ -148,7 +207,7 @@ export async function executeCreateWallet(
   if (error) return { error: error.message };
   return {
     success: true,
-    message: `Wallet "${args.name}" created`,
+    message: `Wallet "${validated.name}" created`,
     wallet: data,
   };
 }
@@ -157,16 +216,19 @@ export async function executeUpdateWallet(
   args: Record<string, unknown>,
   ctx: MiraToolContext
 ) {
-  const walletId = args.walletId as string;
-  const updates: Record<string, unknown> = {};
-
-  if (args.name !== undefined) updates.name = args.name;
-  if (args.currency !== undefined) updates.currency = args.currency;
-  if (args.balance !== undefined) updates.balance = args.balance;
-
-  if (Object.keys(updates).length === 0) {
-    return { success: true, message: 'No fields to update' };
+  const parsed = updateWalletArgsSchema.safeParse(args);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? 'Invalid wallet data' };
   }
+
+  const validated = parsed.data;
+  const walletId = validated.walletId;
+  const updates: TablesUpdate<'workspace_wallets'> = {};
+
+  if (validated.name !== undefined) updates.name = validated.name;
+  if (validated.currency !== undefined) updates.currency = validated.currency;
+  if (validated.balance !== undefined) updates.balance = validated.balance;
+  if (validated.type !== undefined) updates.type = validated.type;
 
   const { error } = await ctx.supabase
     .from('workspace_wallets')
@@ -258,6 +320,7 @@ export async function executeUpdateTransaction(
   if (args.amount !== undefined) updates.amount = args.amount;
   if (args.description !== undefined) updates.description = args.description;
   if (args.categoryId !== undefined) updates.category_id = args.categoryId;
+  if (args.walletId !== undefined) updates.wallet_id = args.walletId;
 
   if (Object.keys(updates).length === 0) {
     return { success: true, message: 'No fields to update' };
@@ -379,12 +442,20 @@ export async function executeCreateTransactionTag(
   args: Record<string, unknown>,
   ctx: MiraToolContext
 ) {
-  const insertData: Record<string, unknown> = {
-    name: args.name as string,
+  const parsed = createTransactionTagArgsSchema.safeParse(args);
+  if (!parsed.success) {
+    return {
+      error: parsed.error.issues[0]?.message ?? 'Invalid transaction tag data',
+    };
+  }
+
+  const validated = parsed.data;
+  const insertData: TablesInsert<'transaction_tags'> = {
+    name: validated.name,
     ws_id: ctx.wsId,
   };
-  if (args.color) insertData.color = args.color;
-  if (args.description) insertData.description = args.description;
+  if (validated.color) insertData.color = validated.color;
+  if (validated.description) insertData.description = validated.description;
 
   const { data, error } = await ctx.supabase
     .from('transaction_tags')
@@ -393,23 +464,32 @@ export async function executeCreateTransactionTag(
     .single();
 
   if (error) return { error: error.message };
-  return { success: true, message: `Tag "${args.name}" created`, tag: data };
+  return {
+    success: true,
+    message: `Tag "${validated.name}" created`,
+    tag: data,
+  };
 }
 
 export async function executeUpdateTransactionTag(
   args: Record<string, unknown>,
   ctx: MiraToolContext
 ) {
-  const tagId = args.tagId as string;
-  const updates: Record<string, unknown> = {};
-
-  if (args.name !== undefined) updates.name = args.name;
-  if (args.color !== undefined) updates.color = args.color;
-  if (args.description !== undefined) updates.description = args.description;
-
-  if (Object.keys(updates).length === 0) {
-    return { success: true, message: 'No fields to update' };
+  const parsed = updateTransactionTagArgsSchema.safeParse(args);
+  if (!parsed.success) {
+    return {
+      error: parsed.error.issues[0]?.message ?? 'Invalid transaction tag data',
+    };
   }
+
+  const validated = parsed.data;
+  const tagId = validated.tagId;
+  const updates: TablesUpdate<'transaction_tags'> = {};
+
+  if (validated.name !== undefined) updates.name = validated.name;
+  if (validated.color !== undefined) updates.color = validated.color;
+  if (validated.description !== undefined)
+    updates.description = validated.description;
 
   const { error } = await ctx.supabase
     .from('transaction_tags')

@@ -7,6 +7,7 @@
  */
 
 import type { PermissionId } from '@tuturuuu/types';
+import type { MiraToolName } from '../tools/mira-tools';
 import {
   MIRA_TOOL_DIRECTORY,
   MIRA_TOOL_PERMISSIONS,
@@ -96,7 +97,11 @@ export function buildMiraSystemInstruction(opts?: {
   }
 
   // ── Tool directory (lightweight listing for select_tools step) ──
-  const toolDirectoryLines = Object.entries(MIRA_TOOL_DIRECTORY)
+  const directoryEntries = Object.entries(MIRA_TOOL_DIRECTORY) as Array<
+    [MiraToolName, string]
+  >;
+
+  const toolDirectoryLines = directoryEntries
     .map(([toolName, desc]) => {
       let statusStr = '';
       const requiredPerm = MIRA_TOOL_PERMISSIONS[toolName];
@@ -166,6 +171,7 @@ Call \`select_tools\` once at the start; the chosen set is cached. Reuse it (e.g
 - "Summarize my day" → \`["get_my_tasks", "render_ui"]\` (Use UI for beautiful summaries)
 - "Create a task and assign it to someone" → \`["create_task", "list_workspace_members", "add_task_assignee"]\`
 - "What's my spending this month?" → \`["get_spending_summary"]\`
+- "Show my time tracking stats this month" → \`["render_ui"]\` (Render \`TimeTrackingStats\` component)
 - "I spent 50k on food" → \`["list_wallets", "log_transaction"]\` (ALWAYS discover wallets first)
 - "What's the weather today?" → \`["google_search"]\` (Real-time info needs web search)
 - "Latest news about AI" → \`["google_search", "render_ui"]\` (Search + UI for rich results)
@@ -233,6 +239,20 @@ When someone asks for code, equations, diagrams — render directly in Markdown/
 | Button | \`label\`, \`variant?\`, \`icon?\`, \`action?\` | Interactive buttons. \`action\` triggers platform events. |
 | ListItem | \`title\`, \`subtitle?\`, \`icon?\`, \`trailing?\`, \`action?\` | Rows for lists. \`action\` makes it clickable. |
 | Callout | \`content\` (REQUIRED), \`variant?\`, \`title?\` | Colored banners for notices. |
+
+### Special components
+- **MyTasks**: Renders the complete "My Tasks" interface (summary, filters, and list).
+  - Use for user-facing task summaries and interactive displays (e.g., showing pending items, current workload).
+  - \`props\`: \`showSummary\` (boolean), \`showFilters\` (boolean).
+  - **vs. get_my_tasks tool**: Prefer MyTasks for rendering task UI; use get_my_tasks when the agent needs raw task data for filtering, processing, or logic before rendering.
+- **TimeTrackingStats**: Renders a standardized time-tracking stats dashboard and fetches period data internally.
+  - \`props\`:
+    - \`period\` (today|this_week|this_month|last_7_days|last_30_days|custom) — REQUIRED
+    - \`dateFrom\` (ISO string) — REQUIRED when period === 'custom'
+    - \`dateTo\` (ISO string) — REQUIRED when period === 'custom'
+    - \`showBreakdown\` (boolean) — Show category breakdown (default: true)
+    - \`showDailyBreakdown\` (boolean) — Show daily breakdown (default: true)
+    - \`maxItems\` (number) — Max items to display in breakdowns (default: 5)
 
 ### Advanced Interactive example
 \`\`\`json

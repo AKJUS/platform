@@ -2,6 +2,7 @@
 
 export * from './db.js';
 export * from './infrastructure-analytics.js';
+export * from './json-render-dashboard.js';
 // Re-export Wallet type from primitives
 export type { Wallet } from './primitives/Wallet.js';
 // Re-export wallet interest types from primitives

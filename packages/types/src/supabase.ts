@@ -318,6 +318,7 @@ export type Database = {
           model_id: string | null;
           output_tokens: number | null;
           reasoning_tokens: number | null;
+          search_count: number | null;
           transaction_type: string;
           user_id: string | null;
           ws_id: string | null;
@@ -337,6 +338,7 @@ export type Database = {
           model_id?: string | null;
           output_tokens?: number | null;
           reasoning_tokens?: number | null;
+          search_count?: number | null;
           transaction_type: string;
           user_id?: string | null;
           ws_id?: string | null;
@@ -356,6 +358,7 @@ export type Database = {
           model_id?: string | null;
           output_tokens?: number | null;
           reasoning_tokens?: number | null;
+          search_count?: number | null;
           transaction_type?: string;
           user_id?: string | null;
           ws_id?: string | null;
@@ -445,6 +448,7 @@ export type Database = {
           pricing_raw: Json | null;
           provider: string;
           released_at: string | null;
+          search_price: number | null;
           synced_at: string;
           tags: string[] | null;
           type: string;
@@ -468,6 +472,7 @@ export type Database = {
           pricing_raw?: Json | null;
           provider: string;
           released_at?: string | null;
+          search_price?: number | null;
           synced_at?: string;
           tags?: string[] | null;
           type?: string;
@@ -491,6 +496,7 @@ export type Database = {
           pricing_raw?: Json | null;
           provider?: string;
           released_at?: string | null;
+          search_price?: number | null;
           synced_at?: string;
           tags?: string[] | null;
           type?: string;
@@ -18992,6 +18998,7 @@ export type Database = {
           model_id: string;
           output_tokens: number;
           reasoning_tokens: number;
+          search_count: number;
           total_count: number;
           transaction_type: string;
           user_avatar_url: string;
@@ -19160,6 +19167,7 @@ export type Database = {
           p_model_id: string;
           p_output_tokens: number;
           p_reasoning_tokens?: number;
+          p_search_count?: number;
         };
         Returns: number;
       };
@@ -19304,6 +19312,7 @@ export type Database = {
               p_model_id: string;
               p_output_tokens: number;
               p_reasoning_tokens?: number;
+              p_search_count?: number;
               p_user_id?: string;
               p_ws_id: string;
             };

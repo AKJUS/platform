@@ -20,7 +20,6 @@
     ".claude": true,
     ".codex": true,
     ".continue": true,
-    ".cursor": true,
     ".gemini": true,
     "**/.idea": true,
     ".idx": true,
