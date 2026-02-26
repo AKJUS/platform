@@ -142,8 +142,7 @@ function runCheck(check) {
 
     proc.on('close', (code) => {
       const duration = Date.now() - startTime;
-      const allowedNonZero =
-        check.allowNonZeroWhen && check.allowNonZeroWhen(code, stdout, stderr);
+      const allowedNonZero = check.allowNonZeroWhen?.(code, stdout, stderr);
       const success = code === 0 || allowedNonZero;
 
       resolve({
