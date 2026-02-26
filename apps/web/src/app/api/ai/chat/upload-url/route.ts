@@ -15,6 +15,12 @@ const ALLOWED_EXTENSIONS = new Set([
   'mov',
   'txt',
   'csv',
+  'xls',
+  'xlsx',
+  'ppt',
+  'pptx',
+  'doc',
+  'docx',
   'json',
   'md',
 ]);

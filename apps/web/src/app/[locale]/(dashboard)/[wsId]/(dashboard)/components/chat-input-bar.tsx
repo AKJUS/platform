@@ -26,14 +26,39 @@ const ACCEPTED_MIME_TYPES = new Set([
   'application/pdf',
   'text/plain',
   'text/csv',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'application/json',
   'text/markdown',
 ]);
 
-const ACCEPT_STRING = [...ACCEPTED_MIME_TYPES].join(',');
+const ACCEPTED_EXTENSIONS = new Set([
+  '.xls',
+  '.xlsx',
+  '.ppt',
+  '.pptx',
+  '.doc',
+  '.docx',
+]);
+
+const ACCEPT_STRING = [...ACCEPTED_MIME_TYPES, ...ACCEPTED_EXTENSIONS].join(
+  ','
+);
+
+function isAcceptedFile(file: File): boolean {
+  const mimeType = file.type.toLowerCase();
+  if (ACCEPTED_MIME_TYPES.has(mimeType)) return true;
+
+  const fileName = file.name.toLowerCase();
+  return [...ACCEPTED_EXTENSIONS].some((ext) => fileName.endsWith(ext));
+}
 
 /**
- * Filters an array of raw `File` objects against the size, MIME-type, and
+ * Filters an array of raw `File` objects against the size, type/extension, and
  * remaining-capacity constraints. Returns only the files that pass all checks.
  */
 function filterValidFiles(candidates: File[], currentCount: number): File[] {
@@ -46,8 +71,8 @@ function filterValidFiles(candidates: File[], currentCount: number): File[] {
     // Enforce size limit
     if (file.size > MAX_FILE_SIZE) continue;
 
-    // Enforce accepted types
-    if (!ACCEPTED_MIME_TYPES.has(file.type)) continue;
+    // Enforce accepted types/extensions
+    if (!isAcceptedFile(file)) continue;
 
     valid.push(file);
   }
@@ -233,31 +258,41 @@ export default function ChatInputBar({
           )}
 
           {onVoiceToggle && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 shrink-0"
-              onClick={onVoiceToggle}
-              disabled={disabled}
-            >
-              <Mic className="h-4.5 w-4.5" />
-            </Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 shrink-0"
+                  onClick={onVoiceToggle}
+                  disabled={disabled}
+                >
+                  <Mic className="h-4.5 w-4.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{t('voice_input')}</TooltipContent>
+            </Tooltip>
           )}
 
-          <Button
-            type="submit"
-            size="icon"
-            className={cn(
-              'h-9 w-9 shrink-0 transition-all',
-              canSubmit
-                ? 'bg-dynamic-purple text-white hover:bg-dynamic-purple/90'
-                : 'bg-muted text-muted-foreground'
-            )}
-            disabled={!canSubmit || disabled}
-          >
-            <Send className="h-4.5 w-4.5" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="submit"
+                size="icon"
+                className={cn(
+                  'h-9 w-9 shrink-0 transition-all',
+                  canSubmit
+                    ? 'bg-dynamic-purple text-white hover:bg-dynamic-purple/90'
+                    : 'bg-muted text-muted-foreground'
+                )}
+                disabled={!canSubmit || disabled}
+              >
+                <Send className="h-4.5 w-4.5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('send_message')}</TooltipContent>
+          </Tooltip>
         </div>
       </div>
 

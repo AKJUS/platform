@@ -13,6 +13,7 @@ import type { UIMessage } from '@tuturuuu/ai/types';
 import {
   Calendar,
   Download,
+  Ellipsis,
   Eye,
   ListTodo,
   Maximize2,
@@ -25,7 +26,15 @@ import {
 import { createClient } from '@tuturuuu/supabase/next/client';
 import type { AIChat } from '@tuturuuu/types';
 import { Button } from '@tuturuuu/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@tuturuuu/ui/dropdown-menu';
 import { toast } from '@tuturuuu/ui/sonner';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@tuturuuu/ui/tooltip';
 import { cn } from '@tuturuuu/utils/format';
 import { generateRandomUUID } from '@tuturuuu/utils/uuid-helper';
 import { getToolName, isToolUIPart } from 'ai';
@@ -60,6 +69,21 @@ interface MiraChatPanelProps {
   onVoiceToggle?: () => void;
   isFullscreen?: boolean;
   onToggleFullscreen?: () => void;
+}
+
+const OFFICE_MIME_TYPES = new Set([
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+]);
+
+function getUploadContentType(file: File): string {
+  const mime = file.type.toLowerCase();
+  if (OFFICE_MIME_TYPES.has(mime)) return 'application/octet-stream';
+  return mime || 'application/octet-stream';
 }
 
 /** Upload a file to Supabase Storage via a server-generated signed upload URL.
@@ -125,20 +149,48 @@ async function uploadChatFileViaSignedUrl(
       path: string;
     };
 
-    // 2. Upload the file directly to Supabase Storage
-    const uploadRes = await fetch(signedUrl, {
-      method: 'PUT',
-      headers: {
+    const tryUpload = async (contentType: string, forceBinaryBlob = false) => {
+      const headers: HeadersInit = {
         Authorization: `Bearer ${token}`,
-        'Content-Type': file.type || 'application/octet-stream',
-      },
-      body: file,
-    });
+        'Content-Type': contentType,
+      };
+
+      const shouldUseBlob =
+        forceBinaryBlob || contentType === 'application/octet-stream';
+      const body = shouldUseBlob
+        ? new Blob([file], { type: contentType })
+        : file;
+
+      return fetch(signedUrl, {
+        method: 'PUT',
+        headers,
+        body,
+      });
+    };
+
+    // 2. Upload the file directly to Supabase Storage
+    let uploadRes = await tryUpload(getUploadContentType(file));
+    let uploadErrorText = '';
 
     if (!uploadRes.ok) {
-      const text = await uploadRes.text().catch(() => '');
-      console.error('[Mira Chat] Signed upload failed:', text);
-      return { path: null, error: `Upload failed (${uploadRes.status})` };
+      uploadErrorText = await uploadRes.text().catch(() => '');
+
+      // Some Supabase buckets reject specific MIME values for Office docs.
+      // Retry once with a forced binary blob and octet-stream content type.
+      if (/unsupported mime type/i.test(uploadErrorText)) {
+        uploadRes = await tryUpload('application/octet-stream', true);
+      }
+    }
+
+    if (!uploadRes.ok) {
+      if (!uploadErrorText) {
+        uploadErrorText = await uploadRes.text().catch(() => '');
+      }
+      console.error('[Mira Chat] Signed upload failed:', uploadErrorText);
+      return {
+        path: null,
+        error: uploadErrorText || `Upload failed (${uploadRes.status})`,
+      };
     }
 
     return { path, error: null };
@@ -151,8 +203,29 @@ async function uploadChatFileViaSignedUrl(
   }
 }
 
+/** Delete a previously uploaded chat file from Supabase Storage.
+ *  Best-effort helper used when users remove an attachment before sending. */
+async function deleteChatFileFromStorage(
+  wsId: string,
+  path: string
+): Promise<boolean> {
+  try {
+    const res = await fetch('/api/ai/chat/delete-file', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ wsId, path }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 const STORAGE_KEY_PREFIX = 'mira-dashboard-chat-';
+const THINKING_MODE_STORAGE_KEY_PREFIX = 'mira-dashboard-thinking-mode-';
 const INITIAL_MODEL = defaultModel!;
+type ThinkingMode = 'fast' | 'thinking';
 
 type GreetingKey =
   | 'good_morning'
@@ -197,6 +270,7 @@ export default function MiraChatPanel({
   const greetingT = useTranslations('dashboard.greeting');
   const [chat, setChat] = useState<Partial<AIChat> | undefined>();
   const [model, setModel] = useState<Model>(INITIAL_MODEL);
+  const [thinkingMode, setThinkingMode] = useState<ThinkingMode>('fast');
   const [input, setInput] = useState('');
   const greetingKey = useMemo(() => getGreetingKey(), []);
 
@@ -250,6 +324,7 @@ export default function MiraChatPanel({
   const [bottomBarVisible, setBottomBarVisible] = useState(true);
   // Fullscreen only: view-only mode hides the input panel for a clean read-only view
   const [viewOnly, setViewOnly] = useState(false);
+  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
 
   // ── Message queue for debounced batching ──
   const messageQueueRef = useRef<string[]>([]);
@@ -258,6 +333,8 @@ export default function MiraChatPanel({
 
   // ── File attachment state ──
   const [attachedFiles, setAttachedFiles] = useState<ChatFile[]>([]);
+  const attachedFilesRef = useRef(attachedFiles);
+  attachedFilesRef.current = attachedFiles;
   // Maps message IDs → file metadata so chat-message-list can render previews
   const [messageAttachments, setMessageAttachments] = useState<
     Map<string, MessageFileAttachment[]>
@@ -315,19 +392,28 @@ export default function MiraChatPanel({
     [userCalendarSettings, workspaceCalendarSettings]
   );
 
+  const chatRequestBody = useMemo(
+    () => ({
+      wsId,
+      model: gatewayModelId,
+      isMiraMode: true,
+      timezone: timezoneForChat,
+      thinkingMode,
+    }),
+    [wsId, gatewayModelId, timezoneForChat, thinkingMode]
+  );
+  const chatRequestBodyRef = useRef(chatRequestBody);
+  chatRequestBodyRef.current = chatRequestBody;
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
         api: '/api/ai/chat',
         credentials: 'include',
-        body: {
-          wsId,
-          model: gatewayModelId,
-          isMiraMode: true,
-          timezone: timezoneForChat,
-        },
+        // useChat keeps a stable Chat instance for a stable id. Supplying a
+        // resolver here guarantees each request uses the latest model/mode.
+        body: () => chatRequestBodyRef.current,
       }),
-    [wsId, gatewayModelId, timezoneForChat]
+    []
   );
 
   // Use the server-assigned chat ID when available, otherwise use the stable
@@ -337,6 +423,23 @@ export default function MiraChatPanel({
 
   const queryClient = useQueryClient();
   const router = useRouter();
+
+  useEffect(() => {
+    const key = `${THINKING_MODE_STORAGE_KEY_PREFIX}${wsId}`;
+    const stored = localStorage.getItem(key);
+    if (stored === 'fast' || stored === 'thinking') {
+      setThinkingMode(stored);
+    } else {
+      setThinkingMode('fast');
+    }
+  }, [wsId]);
+
+  useEffect(() => {
+    localStorage.setItem(
+      `${THINKING_MODE_STORAGE_KEY_PREFIX}${wsId}`,
+      thinkingMode
+    );
+  }, [wsId, thinkingMode]);
 
   const {
     id: chatId,
@@ -369,8 +472,45 @@ export default function MiraChatPanel({
     }
   }, [status, queryClient, router]);
 
+  // IMPORTANT: useChat keeps the same Chat instance for a stable id and does
+  // not recreate it when `transport` changes. Inject per-request body values
+  // so model/thinking switches apply on the very next message.
+  const sendMessageWithCurrentConfig: typeof sendMessage = useCallback(
+    (message, options) =>
+      sendMessage(message, {
+        ...options,
+        body: {
+          ...(options?.body ?? {}),
+          ...chatRequestBody,
+        },
+      }),
+    [sendMessage, chatRequestBody]
+  );
+
   // Keep ref in sync so callbacks always use the latest sendMessage
-  sendMessageRef.current = sendMessage;
+  sendMessageRef.current = sendMessageWithCurrentConfig;
+
+  const handleModelChange = useCallback(
+    (nextModel: Model) => {
+      if (
+        nextModel.value === model.value &&
+        nextModel.provider === model.provider
+      )
+        return;
+      setModel(nextModel);
+      if (status === 'submitted' || status === 'streaming') stop();
+    },
+    [model.value, model.provider, status, stop]
+  );
+
+  const handleThinkingModeChange = useCallback(
+    (nextMode: ThinkingMode) => {
+      if (nextMode === thinkingMode) return;
+      setThinkingMode(nextMode);
+      if (status === 'submitted' || status === 'streaming') stop();
+    },
+    [thinkingMode, status, stop]
+  );
 
   // Invalidate the mira-soul query when Mira updates its own settings via tool.
   // This ensures the UI (name in header, placeholder, etc.) refreshes immediately.
@@ -604,6 +744,7 @@ export default function MiraChatPanel({
             message: userInput,
             isMiraMode: true,
             timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+            thinkingMode,
           }),
         });
 
@@ -624,7 +765,7 @@ export default function MiraChatPanel({
           localStorage.setItem(`${STORAGE_KEY_PREFIX}${wsId}`, id);
 
           // Send message directly via ref — bypasses stale closure issues
-          sendMessageRef.current({
+          sendMessageWithCurrentConfig({
             role: 'user',
             parts: [{ type: 'text', text: userInput }],
           });
@@ -635,7 +776,14 @@ export default function MiraChatPanel({
         setPendingPrompt(null);
       }
     },
-    [chatId, wsId, t, gatewayModelId]
+    [
+      chatId,
+      wsId,
+      t,
+      gatewayModelId,
+      thinkingMode,
+      sendMessageWithCurrentConfig,
+    ]
   );
 
   // Flush queued messages: deduplicate, combine, send as one user turn.
@@ -684,6 +832,15 @@ export default function MiraChatPanel({
         }
 
         // Fetch a signed read URL so the preview survives blob URL revocation
+        // If user removed this chip while upload was in-flight, clean up storage.
+        const stillAttached = attachedFilesRef.current.some(
+          (f) => f.id === chatFile.id
+        );
+        if (!stillAttached) {
+          void deleteChatFileFromStorage(wsId, path);
+          continue;
+        }
+
         const readUrls = await fetchSignedReadUrls([path]);
         const signedUrl = readUrls.get(path) ?? null;
 
@@ -701,8 +858,10 @@ export default function MiraChatPanel({
 
   const handleFileRemove = useCallback(
     (id: string) => {
+      let removedStoragePath: string | null = null;
       setAttachedFiles((prev) => {
         const file = prev.find((f) => f.id === id);
+        removedStoragePath = file?.storagePath ?? null;
         // Revoke preview URL to avoid memory leaks — but only if NOT already
         // snapshotted into messageAttachments (otherwise the chat display breaks).
         // Read from ref to avoid stale closure issues.
@@ -716,8 +875,18 @@ export default function MiraChatPanel({
         }
         return prev.filter((f) => f.id !== id);
       });
+
+      if (removedStoragePath) {
+        void deleteChatFileFromStorage(wsId, removedStoragePath).then(
+          (deleted) => {
+            if (!deleted) {
+              toast.error(t('delete_file_failed'));
+            }
+          }
+        );
+      }
     },
-    [] // Reads from ref — no stale closure
+    [wsId, t] // Reads messageAttachments from ref — no stale closure
   );
 
   /** Snapshot the current attached files as serializable metadata and associate
@@ -810,7 +979,7 @@ export default function MiraChatPanel({
     } else {
       // Snapshot under a stable key for re-keying to the real message ID
       snapshotAttachmentsForMessage('__latest_user_upload');
-      sendMessage({
+      sendMessageWithCurrentConfig({
         role: 'user',
         parts: [{ type: 'text', text: combined }],
       });
@@ -822,7 +991,7 @@ export default function MiraChatPanel({
     chat?.id,
     attachedFiles,
     createChat,
-    sendMessage,
+    sendMessageWithCurrentConfig,
     clearAttachedFiles,
     snapshotAttachmentsForMessage,
   ]);
@@ -964,6 +1133,7 @@ export default function MiraChatPanel({
         fallbackChatId,
         status,
         model,
+        thinkingMode,
         chat: chat ?? null,
         messages,
         messageAttachments: Object.fromEntries(messageAttachments.entries()),
@@ -1000,6 +1170,7 @@ export default function MiraChatPanel({
     fallbackChatId,
     status,
     model,
+    thinkingMode,
     chat,
     messageAttachments,
     t,
@@ -1090,22 +1261,6 @@ export default function MiraChatPanel({
     }
   }, [hasMessages]);
 
-  const viewOnlyButtonTitle = viewOnly
-    ? (() => {
-        try {
-          return t('show_input_panel');
-        } catch {
-          return 'Show input panel';
-        }
-      })()
-    : (() => {
-        try {
-          return t('view_only');
-        } catch {
-          return 'View only';
-        }
-      })();
-
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 pb-2">
@@ -1113,62 +1268,117 @@ export default function MiraChatPanel({
           <MiraModelSelector
             wsId={wsId}
             model={model}
-            onChange={setModel}
-            disabled={isBusy}
+            onChange={handleModelChange}
+            disabled={false}
           />
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          <MiraCreditBar wsId={wsId} />
-          {hasMessages && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={handleExportChat}
-              title={t('export_chat')}
-            >
-              <Download className="h-4 w-4" />
-            </Button>
-          )}
-          {hasMessages && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={handleNewConversation}
-              title={t('new_conversation')}
-            >
-              <MessageSquarePlus className="h-4 w-4" />
-            </Button>
-          )}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8"
-            onClick={() => setViewOnly((v) => !v)}
-            title={viewOnlyButtonTitle}
-          >
-            {viewOnly ? (
-              <PanelBottomOpen className="h-4 w-4" />
-            ) : (
-              <Eye className="h-4 w-4" />
-            )}
-          </Button>
-          {onToggleFullscreen && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={onToggleFullscreen}
-              title={isFullscreen ? t('exit_fullscreen') : t('fullscreen')}
-            >
-              {isFullscreen ? (
-                <Minimize2 className="h-4 w-4" />
-              ) : (
-                <Maximize2 className="h-4 w-4" />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 px-2 text-xs"
+                title={t('thinking_mode_label')}
+                aria-label={t('thinking_mode_label')}
+              >
+                {thinkingMode === 'thinking'
+                  ? t('thinking_mode_thinking')
+                  : t('thinking_mode_fast')}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem
+                onSelect={() => handleThinkingModeChange('fast')}
+                title={t('thinking_mode_fast_desc')}
+              >
+                {t('thinking_mode_fast')}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => handleThinkingModeChange('thinking')}
+                title={t('thinking_mode_thinking_desc')}
+              >
+                {t('thinking_mode_thinking')}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <div className="ml-2">
+            <MiraCreditBar wsId={wsId} />
+          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={handleNewConversation}
+                aria-label={t('new_conversation')}
+              >
+                <MessageSquarePlus className="h-4 w-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('new_conversation')}</TooltipContent>
+          </Tooltip>
+          <DropdownMenu open={isMoreMenuOpen} onOpenChange={setIsMoreMenuOpen}>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 gap-1.5 px-2"
+                title={t('more_actions')}
+              >
+                <Ellipsis className="h-4 w-4" />
+                <span className="text-xs">{t('more_actions')}</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              {hasMessages && (
+                <DropdownMenuItem
+                  onSelect={() => {
+                    handleExportChat();
+                    setIsMoreMenuOpen(false);
+                  }}
+                >
+                  <Download className="h-4 w-4" />
+                  {t('export_chat')}
+                </DropdownMenuItem>
               )}
-            </Button>
-          )}
+              <DropdownMenuItem
+                disabled={!hasMessages}
+                onSelect={() => {
+                  if (!hasMessages) return;
+                  setViewOnly((v) => !v);
+                  setIsMoreMenuOpen(false);
+                }}
+              >
+                {viewOnly ? (
+                  <PanelBottomOpen className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+                {viewOnly ? t('show_input_panel') : t('view_only')}
+              </DropdownMenuItem>
+              {onToggleFullscreen && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      onToggleFullscreen();
+                      setIsMoreMenuOpen(false);
+                    }}
+                  >
+                    {isFullscreen ? (
+                      <Minimize2 className="h-4 w-4" />
+                    ) : (
+                      <Maximize2 className="h-4 w-4" />
+                    )}
+                    {isFullscreen ? t('exit_fullscreen') : t('fullscreen')}
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
           {insightsDock && <div className="shrink-0">{insightsDock}</div>}
         </div>
       </div>
@@ -1222,7 +1432,7 @@ export default function MiraChatPanel({
             </StateProvider>
           </div>
         ) : (
-          <div className="m-auto flex w-full max-w-4xl flex-col items-center justify-center px-4 py-10 sm:px-8 sm:py-14">
+          <div className="flex h-full w-full flex-col items-center justify-center px-4 py-10 sm:px-8 sm:py-14">
             <div className="relative w-full max-w-3xl">
               <div className="pointer-events-none absolute top-8 left-1/2 h-44 w-44 -translate-x-1/2 rounded-full bg-dynamic-purple/12 blur-3xl" />
               <div className="pointer-events-none absolute top-40 right-10 h-32 w-32 rounded-full bg-dynamic-cyan/6 blur-3xl" />

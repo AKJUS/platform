@@ -2,6 +2,7 @@
 
 import { Calendar, ListTodo } from '@tuturuuu/icons';
 import { Button } from '@tuturuuu/ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@tuturuuu/ui/tooltip';
 import { cn } from '@tuturuuu/utils/format';
 import { useState } from 'react';
 
@@ -52,23 +53,26 @@ export default function MiraInsightsDock({
           const isActive = activeWidget === widget;
 
           return (
-            <Button
-              key={widget}
-              type="button"
-              size="icon"
-              variant="ghost"
-              onClick={() => toggleWidget(widget)}
-              aria-label={labels[widget]}
-              title={labels[widget]}
-              className={cn(
-                'h-7 w-7 rounded-md border border-transparent',
-                isActive
-                  ? 'border-border/60 bg-card text-foreground shadow-sm'
-                  : 'text-muted-foreground hover:text-foreground'
-              )}
-            >
-              <Icon className="h-3.5 w-3.5" />
-            </Button>
+            <Tooltip key={widget}>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  onClick={() => toggleWidget(widget)}
+                  aria-label={labels[widget]}
+                  className={cn(
+                    'h-7 w-7 rounded-md border border-transparent',
+                    isActive
+                      ? 'border-border/60 bg-card text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground'
+                  )}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="bottom">{labels[widget]}</TooltipContent>
+            </Tooltip>
           );
         })}
       </div>

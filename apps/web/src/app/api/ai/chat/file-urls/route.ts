@@ -136,6 +136,12 @@ function extensionToMime(ext: string): string {
     mov: 'video/quicktime',
     txt: 'text/plain',
     csv: 'text/csv',
+    xls: 'application/vnd.ms-excel',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ppt: 'application/vnd.ms-powerpoint',
+    pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    doc: 'application/msword',
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
     json: 'application/json',
     md: 'text/markdown',
   };
