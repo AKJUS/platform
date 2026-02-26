@@ -30,6 +30,10 @@ import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { handlers as jsonRenderHandlers } from '@/components/json-render/dashboard-registry';
 import {
+  type CreateTransactionInput,
+  useCreateTransaction,
+} from '@/components/json-render/dashboard-registry/shared';
+import {
   createGenerativeUIAdapter,
   resetGenerativeUIStore,
   useGenerativeUIStore,
@@ -178,6 +182,13 @@ export default function MiraChatPanel({
 
   const sendMessageRef = useRef<typeof sendMessage>(null!);
   const submitTextRef = useRef<((value: string) => void) | null>(null);
+  const createTransactionMutation = useCreateTransaction();
+  const createTransactionRef = useRef<
+    ((params: CreateTransactionInput) => Promise<void>) | null
+  >(null);
+  createTransactionRef.current = async (params) => {
+    await createTransactionMutation.mutateAsync(params);
+  };
 
   // json-render action handlers factory expecting state accessors
   const actionHandlers = useMemo(
@@ -195,6 +206,7 @@ export default function MiraChatPanel({
           ...useGenerativeUIStore.getState().ui,
           submitText: submitTextRef.current,
           sendMessage: sendMessageRef.current,
+          createTransaction: createTransactionRef.current,
         })
       ),
     [] // Stable handlers
