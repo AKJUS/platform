@@ -9,8 +9,6 @@ export function isRenderableRenderUiSpec(
     return false;
   }
 
-  const elementEntries = Object.entries(elements);
-  if (elementEntries.length === 0) return false;
   if (!(value.root in elements)) return false;
 
   const rootElement = (elements as Record<string, unknown>)[value.root];

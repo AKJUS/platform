@@ -104,6 +104,7 @@ export type JsonRenderMetricProps = {
 export type JsonRenderTab = {
   id: string;
   label: string;
+  content?: string;
 };
 
 export type JsonRenderTabsProps = {

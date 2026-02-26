@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import { tool } from '../core';
-import { MIRA_TOOL_DIRECTORY } from '../mira-tool-metadata';
+import { MIRA_TOOL_NAMES } from '../mira-tool-names';
 
-const validToolSet = new Set(Object.keys(MIRA_TOOL_DIRECTORY));
+const validToolSet = new Set<string>(MIRA_TOOL_NAMES);
 
 export const metaToolDefinitions = {
   select_tools: tool({

@@ -2,6 +2,7 @@ import type { PermissionId } from '@tuturuuu/types';
 import type { Tool, ToolSet } from 'ai';
 import { miraToolDefinitions } from './mira-tool-definitions';
 import { executeMiraTool } from './mira-tool-dispatcher';
+import type { MiraToolName } from './mira-tool-names';
 import {
   MIRA_TOOL_DIRECTORY,
   MIRA_TOOL_PERMISSIONS,
@@ -19,8 +20,7 @@ export {
   executeMiraTool,
 };
 export type { MiraToolContext } from './mira-tool-types';
-
-export type MiraToolName = keyof typeof miraToolDefinitions;
+export type { MiraToolName };
 
 export function createMiraStreamTools(
   ctx: MiraToolContext,
@@ -28,8 +28,11 @@ export function createMiraStreamTools(
 ): ToolSet {
   const tools: ToolSet = {};
   let renderUiInvalidAttempts = 0;
+  const definitionEntries = Object.entries(miraToolDefinitions) as Array<
+    [keyof typeof miraToolDefinitions, (typeof miraToolDefinitions)[keyof typeof miraToolDefinitions]]
+  >;
 
-  for (const [name, def] of Object.entries(miraToolDefinitions)) {
+  for (const [name, def] of definitionEntries) {
     const requiredPerm = MIRA_TOOL_PERMISSIONS[name];
     let isMissingPermission = false;
     let missingPermissionsStr = '';

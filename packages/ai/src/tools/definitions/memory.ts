@@ -1,6 +1,14 @@
 import { z } from 'zod';
 import { tool } from '../core';
 
+export const MEMORY_CATEGORY = z.enum([
+  'preference',
+  'fact',
+  'conversation_topic',
+  'event',
+  'person',
+]);
+
 export const memoryToolDefinitions = {
   remember: tool({
     description:
@@ -10,9 +18,7 @@ export const memoryToolDefinitions = {
         .string()
         .describe('Short label (e.g. "user_birthday", "person_quoc")'),
       value: z.string().describe('Detailed contextual content to remember'),
-      category: z
-        .enum(['preference', 'fact', 'conversation_topic', 'event', 'person'])
-        .describe('Memory category'),
+      category: MEMORY_CATEGORY.describe('Memory category'),
     }),
   }),
 
@@ -24,10 +30,9 @@ export const memoryToolDefinitions = {
         .string()
         .nullish()
         .describe('Search keywords, or null/omit for all'),
-      category: z
-        .enum(['preference', 'fact', 'conversation_topic', 'event', 'person'])
-        .nullish()
-        .describe('Filter by category, or null/omit'),
+      category: MEMORY_CATEGORY.nullish().describe(
+        'Filter by category, or null/omit'
+      ),
       maxResults: z
         .number()
         .int()
@@ -51,10 +56,9 @@ export const memoryToolDefinitions = {
     description:
       'List all stored memories, optionally filtered by category. Used for memory hygiene and review.',
     inputSchema: z.object({
-      category: z
-        .enum(['preference', 'fact', 'conversation_topic', 'event', 'person'])
-        .nullish()
-        .describe('Category to filter memories by'),
+      category: MEMORY_CATEGORY.nullish().describe(
+        'Category to filter memories by'
+      ),
     }),
   }),
 
@@ -69,9 +73,7 @@ export const memoryToolDefinitions = {
       newValue: z
         .string()
         .describe('The value for the new consolidated memory'),
-      newCategory: z
-        .enum(['preference', 'fact', 'conversation_topic', 'event', 'person'])
-        .describe('Category for the new memory'),
+      newCategory: MEMORY_CATEGORY.describe('Category for the new memory'),
     }),
   }),
 } as const;

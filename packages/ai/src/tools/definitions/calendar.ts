@@ -31,6 +31,32 @@ export const calendarToolDefinitions = {
     }),
   }),
 
+  update_event: tool({
+    description:
+      'Update an existing calendar event. Updated fields are encrypted automatically if E2EE is enabled.',
+    inputSchema: z.object({
+      eventId: z.string().describe('Event UUID'),
+      title: z.string().optional().describe('Updated event title'),
+      startAt: z.string().optional().describe('Updated start time ISO 8601'),
+      endAt: z.string().optional().describe('Updated end time ISO 8601'),
+      description: z
+        .string()
+        .nullish()
+        .describe('Updated event description, or null/omit'),
+      location: z
+        .string()
+        .nullish()
+        .describe('Updated event location, or null/omit'),
+    }),
+  }),
+
+  delete_event: tool({
+    description: 'Delete a calendar event by ID.',
+    inputSchema: z.object({
+      eventId: z.string().describe('Event UUID'),
+    }),
+  }),
+
   check_e2ee_status: tool({
     description:
       'Check whether end-to-end encryption is enabled for calendar events in this workspace.',

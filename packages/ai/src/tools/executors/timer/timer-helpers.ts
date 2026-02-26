@@ -49,50 +49,61 @@ export function parseFlexibleDateTime(
   }
 
   const trimmed = value.trim();
-  const parsed = new Date(trimmed);
-  if (Number.isNaN(parsed.getTime())) {
-    const dateTimeWithSpaceMatch = trimmed.match(
-      /^(\d{4}-\d{2}-\d{2})\s+([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/
-    );
-    if (dateTimeWithSpaceMatch) {
-      const [, datePart, hours, minutes, seconds = '00'] =
-        dateTimeWithSpaceMatch;
-      const combined = new Date(`${datePart}T${hours}:${minutes}:${seconds}`);
-      if (!Number.isNaN(combined.getTime())) {
-        return { ok: true, value: combined };
-      }
+  const isoDateTimeMatch = trimmed.match(
+    /^(\d{4}-\d{2}-\d{2})T([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d)(?:\.\d{1,3})?)?(?:Z|[+-][01]\d:[0-5]\d)?$/
+  );
+  if (isoDateTimeMatch) {
+    const [, datePart] = isoDateTimeMatch;
+    const dateParsed = parseDateOnly(datePart, fieldName);
+    if (!dateParsed.ok) {
+      return { ok: false, error: dateParsed.error };
     }
 
-    const timeOnlyMatch = trimmed.match(
-      /^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/
-    );
-    if (timeOnlyMatch) {
-      const dateParsed = parseDateOnly(options?.date, 'date');
-      if (!dateParsed.ok) {
-        return {
-          ok: false,
-          error: `${fieldName} must be a valid ISO datetime, or HH:mm/HH:mm:ss when date is provided in YYYY-MM-DD format`,
-        };
-      }
-
-      const [, hours, minutes, seconds = '00'] = timeOnlyMatch;
-      const combined = new Date(
-        `${dateParsed.value}T${hours}:${minutes}:${seconds}`
-      );
-      if (!Number.isNaN(combined.getTime())) {
-        return { ok: true, value: combined };
-      }
+    const parsed = new Date(trimmed);
+    if (!Number.isNaN(parsed.getTime())) {
+      return { ok: true, value: parsed };
     }
-
-    return {
-      ok: false,
-      error:
-        `${fieldName} must be a valid ISO datetime, YYYY-MM-DD HH:mm, ` +
-        `or HH:mm/HH:mm:ss when date is provided in YYYY-MM-DD format`,
-    };
   }
 
-  return { ok: true, value: parsed };
+  const dateTimeWithSpaceMatch = trimmed.match(
+    /^(\d{4}-\d{2}-\d{2})\s+([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/
+  );
+  if (dateTimeWithSpaceMatch) {
+    const [, datePart, hours, minutes, seconds = '00'] = dateTimeWithSpaceMatch;
+    const dateParsed = parseDateOnly(datePart, fieldName);
+    if (!dateParsed.ok) {
+      return { ok: false, error: dateParsed.error };
+    }
+
+    const combined = new Date(`${datePart}T${hours}:${minutes}:${seconds}`);
+    if (!Number.isNaN(combined.getTime())) {
+      return { ok: true, value: combined };
+    }
+  }
+
+  const timeOnlyMatch = trimmed.match(/^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/);
+  if (timeOnlyMatch) {
+    const dateParsed = parseDateOnly(options?.date, 'date');
+    if (!dateParsed.ok) {
+      return {
+        ok: false,
+        error: `${fieldName} must be a valid ISO datetime, or HH:mm/HH:mm:ss when date is provided in YYYY-MM-DD format`,
+      };
+    }
+
+    const [, hours, minutes, seconds = '00'] = timeOnlyMatch;
+    const combined = new Date(`${dateParsed.value}T${hours}:${minutes}:${seconds}`);
+    if (!Number.isNaN(combined.getTime())) {
+      return { ok: true, value: combined };
+    }
+  }
+
+  return {
+    ok: false,
+    error:
+      `${fieldName} must be a valid ISO datetime, YYYY-MM-DD HH:mm, ` +
+      `or HH:mm/HH:mm:ss when date is provided in YYYY-MM-DD format`,
+  };
 }
 
 export function normalizeCursor(cursor: unknown):
@@ -171,8 +182,13 @@ export async function shouldRequireApproval(
     return { requiresApproval: true };
   }
 
-  const thresholdDays = settings?.missed_entry_date_threshold;
-  if (thresholdDays === null || thresholdDays === undefined) {
+  const rawThresholdDays = settings?.missed_entry_date_threshold;
+  if (rawThresholdDays === null || rawThresholdDays === undefined) {
+    return { requiresApproval: false };
+  }
+
+  const thresholdDays = Number(rawThresholdDays);
+  if (!Number.isFinite(thresholdDays) || thresholdDays < 0) {
     return { requiresApproval: false };
   }
 

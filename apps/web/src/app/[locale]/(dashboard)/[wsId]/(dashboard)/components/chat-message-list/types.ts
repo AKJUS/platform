@@ -13,7 +13,11 @@ export interface ChatMessageListProps {
   messageAttachments?: Map<string, MessageFileAttachment[]>;
 }
 
-export type ToolPartData = { type: string; [key: string]: unknown };
+type ToolMessagePart = UIMessage['parts'][number];
+
+export type ToolPartData =
+  | Extract<ToolMessagePart, { type: 'dynamic-tool' }>
+  | Extract<ToolMessagePart, { type: `tool-${string}` }>;
 
 export type JsonObject = Record<string, unknown>;
 
@@ -25,8 +29,8 @@ export type ApprovalRequestUiData = {
 };
 
 export type RenderGroup =
-  | { kind: 'text'; text: string | unknown; index: number }
-  | { kind: 'reasoning'; text: string | unknown; index: number }
+  | { kind: 'text'; text: string; index: number }
+  | { kind: 'reasoning'; text: string; index: number }
   | {
       kind: 'tool';
       toolName: string;

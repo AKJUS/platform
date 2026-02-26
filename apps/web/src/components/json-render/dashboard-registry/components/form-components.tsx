@@ -58,10 +58,46 @@ type JsonRenderCheckboxBinding = { checked?: string };
 type JsonRenderStringArrayBinding = { values?: string };
 type JsonRenderSubmitBinding = { onSubmit?: string };
 
+type JsonRenderFormComponentProps = Omit<JsonRenderFormProps, 'onSubmit'> & {
+  onSubmit?: unknown;
+};
+
+type JsonRenderFileAttachmentInputComponentProps = Omit<
+  JsonRenderFileAttachmentInputProps,
+  'value'
+> & {
+  value?: unknown;
+};
+
+type JsonRenderCheckboxComponentProps = Omit<
+  JsonRenderCheckboxProps,
+  'checked'
+> & {
+  checked?: unknown;
+};
+
+type JsonRenderCheckboxGroupComponentProps = Omit<
+  JsonRenderCheckboxGroupProps,
+  'values'
+> & {
+  values?: unknown;
+};
+
+type JsonRenderRadioGroupComponentProps = Omit<
+  JsonRenderRadioGroupProps,
+  'value'
+> & {
+  value?: unknown;
+};
+
+type JsonRenderSelectComponentProps = Omit<JsonRenderSelectProps, 'value'> & {
+  value?: unknown;
+};
+
 const EMPTY_FILES: File[] = [];
 
 type FormSubmitParams = {
-  props: JsonRenderFormProps;
+  props: JsonRenderFormComponentProps;
   state: Record<string, unknown>;
   submitParams: Record<string, unknown>;
   wsId: string;
@@ -75,6 +111,22 @@ type FormSubmitParams = {
 type FormSubmitResult = {
   actionName: string;
   message: string;
+};
+
+type ActionErrorResult = {
+  success?: boolean;
+  error: string;
+};
+
+const isActionError = (value: unknown): value is ActionErrorResult => {
+  if (!value || typeof value !== 'object') return false;
+
+  const candidate = value as Record<string, unknown>;
+  if (typeof candidate.error !== 'string') return false;
+
+  return (
+    candidate.success === undefined || typeof candidate.success === 'boolean'
+  );
 };
 
 const handleFormSubmit = async ({
@@ -129,22 +181,10 @@ const handleFormSubmit = async ({
   }
 
   if (
-    actionResult &&
-    typeof actionResult === 'object' &&
-    'success' in (actionResult as Record<string, unknown>) &&
-    (actionResult as Record<string, unknown>).success === false &&
-    typeof (actionResult as Record<string, unknown>).error === 'string'
+    isActionError(actionResult) &&
+    (actionResult.success === undefined || actionResult.success === false)
   ) {
-    throw new Error((actionResult as Record<string, unknown>).error as string);
-  }
-
-  if (
-    actionResult &&
-    typeof actionResult === 'object' &&
-    'error' in (actionResult as Record<string, unknown>) &&
-    typeof (actionResult as Record<string, unknown>).error === 'string'
-  ) {
-    throw new Error((actionResult as Record<string, unknown>).error as string);
+    throw new Error(actionResult.error);
   }
 
   return {
@@ -162,7 +202,7 @@ export const dashboardFormComponents = {
     children,
     bindings,
   }: JsonRenderComponentContext<
-    JsonRenderFormProps,
+    JsonRenderFormComponentProps,
     JsonRenderSubmitBinding
   >) => {
     const params = useParams();
@@ -174,10 +214,13 @@ export const dashboardFormComponents = {
     const [error, setError] = useState<string | null>(null);
     const [message, setMessage] = useState<string | null>(null);
     const createTimeTrackingRequestMutation = useCreateTimeTrackingRequest();
+    const submitBindingPath =
+      bindings?.onSubmit ||
+      (typeof props.onSubmit === 'string' ? props.onSubmit : undefined);
 
     const [, setOnSubmit] = useBoundProp<unknown>(
       null,
-      bindings?.onSubmit || props.onSubmit
+      submitBindingPath
     );
 
     return (
@@ -288,12 +331,15 @@ export const dashboardFormComponents = {
     props,
     bindings,
   }: JsonRenderComponentContext<
-    JsonRenderFileAttachmentInputProps,
+    JsonRenderFileAttachmentInputComponentProps,
     JsonRenderStringBinding
   >) => {
     const maxFiles = props.maxFiles || 5;
+    const initialFiles = Array.isArray(props.value)
+      ? props.value.filter((file): file is File => file instanceof File)
+      : EMPTY_FILES;
     const [files, setFiles] = useComponentValue<File[]>(
-      props.value,
+      initialFiles,
       bindings?.value,
       props.name,
       []
@@ -446,11 +492,12 @@ export const dashboardFormComponents = {
     props,
     bindings,
   }: JsonRenderComponentContext<
-    JsonRenderCheckboxProps,
+    JsonRenderCheckboxComponentProps,
     JsonRenderCheckboxBinding
   >) => {
+    const initialChecked = typeof props.checked === 'boolean' ? props.checked : false;
     const [checked, setChecked] = useComponentValue<boolean>(
-      props.checked,
+      initialChecked,
       bindings?.checked,
       props.name,
       false
@@ -483,11 +530,14 @@ export const dashboardFormComponents = {
     props,
     bindings,
   }: JsonRenderComponentContext<
-    JsonRenderCheckboxGroupProps,
+    JsonRenderCheckboxGroupComponentProps,
     JsonRenderStringArrayBinding
   >) => {
+    const initialValues = Array.isArray(props.values)
+      ? props.values.filter((value): value is string => typeof value === 'string')
+      : [];
     const [values, setValues] = useComponentValue<string[]>(
-      props.values,
+      initialValues,
       bindings?.values,
       props.name,
       []
@@ -529,11 +579,12 @@ export const dashboardFormComponents = {
     props,
     bindings,
   }: JsonRenderComponentContext<
-    JsonRenderRadioGroupProps,
+    JsonRenderRadioGroupComponentProps,
     JsonRenderStringBinding
   >) => {
+    const initialValue = typeof props.value === 'string' ? props.value : '';
     const [value, setValue] = useComponentValue<string>(
-      props.value,
+      initialValue,
       bindings?.value,
       props.name,
       ''
@@ -569,15 +620,63 @@ export const dashboardFormComponents = {
     props,
     bindings,
   }: JsonRenderComponentContext<
-    JsonRenderSelectProps,
+    JsonRenderSelectComponentProps,
     JsonRenderStringBinding
   >) => {
+    if (props.name === 'categoryId') {
+      return <CategorySelectField props={props} bindings={bindings} />;
+    }
+
+    const initialValue = typeof props.value === 'string' ? props.value : '';
+    const [value, setValue] = useComponentValue<string>(
+      initialValue,
+      bindings?.value,
+      props.name,
+      ''
+    );
+
+    const handleValueChange = (newVal: string) => {
+      setValue(newVal);
+    };
+
+    return (
+      <div className="flex flex-col gap-2">
+        <Label htmlFor={props.name}>{props.label}</Label>
+        <Select
+          value={value}
+          onValueChange={handleValueChange}
+          required={props.required}
+        >
+          <SelectTrigger id={props.name} className="w-full">
+            <SelectValue placeholder={props.placeholder} />
+          </SelectTrigger>
+          <SelectContent>
+            {props.options?.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    );
+  },
+};
+
+function CategorySelectField({
+  props,
+  bindings,
+}: JsonRenderComponentContext<
+  JsonRenderSelectComponentProps,
+  JsonRenderStringBinding
+>) {
     const params = useParams();
     const wsId = params.wsId as string;
     const { set } = useStateStore();
 
+    const initialValue = typeof props.value === 'string' ? props.value : '';
     const [value, setValue] = useComponentValue<string>(
-      props.value,
+      initialValue,
       bindings?.value,
       props.name,
       ''
@@ -595,7 +694,7 @@ export const dashboardFormComponents = {
         if (!res.ok) return [];
         return (await res.json()) as JsonRenderTransactionCategory[];
       },
-      enabled: !!wsId && props.name === 'categoryId',
+      enabled: !!wsId,
     });
 
     const handleValueChange = (newVal: string) => {
@@ -631,5 +730,4 @@ export const dashboardFormComponents = {
         </Select>
       </div>
     );
-  },
-};
+}

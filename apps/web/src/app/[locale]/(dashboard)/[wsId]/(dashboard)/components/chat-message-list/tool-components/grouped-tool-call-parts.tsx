@@ -8,14 +8,10 @@ import {
 import { cn } from '@tuturuuu/utils/format';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
+import { humanizeToolName } from '../helpers';
 import type { ToolPartData } from '../types';
 import { JsonHighlight } from './json-highlight';
 import { getToolPartStatus } from './tool-status';
-
-function humanizeToolName(name: string): string {
-  const words = name.replace(/[-_]/g, ' ');
-  return words.charAt(0).toUpperCase() + words.slice(1);
-}
 
 export function GroupedToolCallParts({
   parts,
@@ -30,27 +26,40 @@ export function GroupedToolCallParts({
 
   const humanName = humanizeToolName(toolName);
   const count = parts.length;
+  const partsWithStatus = parts.map((part) => ({
+    part,
+    status: getToolPartStatus(part),
+  }));
 
-  const allDone = parts.every((p) => getToolPartStatus(p).isDone);
-  const anyError = parts.some((p) => getToolPartStatus(p).isError);
-  const anyRunning = parts.some((p) => getToolPartStatus(p).isRunning);
+  const allDone = partsWithStatus.every(({ status }) => status.isDone);
+  const anyError = partsWithStatus.some(({ status }) => status.isError);
+  const anyRunning = partsWithStatus.some(({ status }) => status.isRunning);
   const hasOutput = allDone || anyError;
 
-  const combinedOutput = parts
-    .map((p, i) => {
-      const { isError } = getToolPartStatus(p);
-      const output = (p as { output?: unknown }).output;
-      const errorText = (p as { errorText?: string }).errorText;
-      const text = isError
+  const combinedOutput = partsWithStatus
+    .map(({ part, status }, i) => {
+      const output = (part as { output?: unknown }).output;
+      const errorText = (part as { errorText?: string }).errorText;
+      const text = status.isError
         ? (errorText ?? 'Unknown error')
         : JSON.stringify(output, null, 2);
       return `--- Call ${i + 1} ---\n${text}`;
     })
     .join('\n\n');
 
-  const handleCopy = useCallback(() => {
-    void navigator.clipboard.writeText(combinedOutput);
-    setCopied(true);
+  const handleCopy = useCallback(async () => {
+    if (!navigator.clipboard?.writeText) {
+      setCopied(false);
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(combinedOutput);
+      setCopied(true);
+    } catch (error) {
+      console.error('Failed to copy tool output:', error);
+      setCopied(false);
+    }
   }, [combinedOutput]);
 
   useEffect(() => {

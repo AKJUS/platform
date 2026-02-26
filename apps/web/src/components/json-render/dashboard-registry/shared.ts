@@ -3,7 +3,7 @@
 import { useStateStore, useStateValue } from '@json-render/react';
 import { useMutation } from '@tanstack/react-query';
 import type { JsonRenderMultiQuizItem } from '@tuturuuu/types';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { z } from 'zod';
 
 export const SignedUploadResponseSchema = z.object({
@@ -16,6 +16,45 @@ export const SignedUploadResponseSchema = z.object({
     })
   ),
 });
+
+const MAX_FILES_PER_REQUEST = 5;
+const SIGNED_UPLOAD_PATH_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\/[A-Za-z0-9._-]+$/i;
+
+function isValidSignedUploadPath(path: unknown): path is string {
+  return (
+    typeof path === 'string' &&
+    SIGNED_UPLOAD_PATH_PATTERN.test(path) &&
+    !path.includes('..')
+  );
+}
+
+type CreateTransactionInput = {
+  amount: unknown;
+  description: unknown;
+  walletId: unknown;
+};
+
+export function useCreateTransaction() {
+  return useMutation<void, Error, CreateTransactionInput>({
+    mutationFn: async (params) => {
+      const res = await fetch('/api/v1/finance/transactions', {
+        method: 'POST',
+        cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: params.amount,
+          description: params.description,
+          wallet_id: params.walletId,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to log transaction');
+      }
+    },
+  });
+}
 
 type CreateTimeTrackingRequestInput = Record<string, unknown>;
 
@@ -57,15 +96,16 @@ export const useComponentValue = <T>(
   const path = bindingPath || fallbackPath;
   const safePath = path || '/__json_render_unbound__';
   const boundValue = useStateValue<T>(safePath);
+  const stableDefault = useRef(defaultValue);
   const [localValue, setLocalValue] = useState<T>(
-    (propValue ?? defaultValue) as T
+    (propValue ?? stableDefault.current) as T
   );
 
   useEffect(() => {
     if (!path) {
-      setLocalValue((propValue ?? defaultValue) as T);
+      setLocalValue((propValue ?? stableDefault.current) as T);
     }
-  }, [path, propValue, defaultValue]);
+  }, [path, propValue]);
 
   const setValue = useCallback(
     (val: T) => {
@@ -79,7 +119,7 @@ export const useComponentValue = <T>(
   );
 
   if (!path) return [localValue, setValue];
-  return [(boundValue ?? propValue ?? defaultValue) as T, setValue];
+  return [(boundValue ?? propValue ?? stableDefault.current) as T, setValue];
 };
 
 export function formatDurationLabel(seconds: number): string {
@@ -288,11 +328,11 @@ export function useCreateTimeTrackingRequest() {
       const files = [
         ...collectFilesFromValue(rawEvidence),
         ...collectFilesFromValue(rawAttachments),
-      ].slice(0, 5);
+      ].slice(0, MAX_FILES_PER_REQUEST);
 
       const preUploadedPaths = Array.isArray(params.imagePaths)
         ? params.imagePaths.filter(
-            (path): path is string => typeof path === 'string'
+            (path): path is string => isValidSignedUploadPath(path)
           )
         : [];
 
@@ -310,17 +350,16 @@ export function useCreateTimeTrackingRequest() {
           }
         );
 
+        const uploadUrlBody = await uploadUrlRes.json().catch(() => ({}));
+
         if (!uploadUrlRes.ok) {
-          const body = await uploadUrlRes.json().catch(() => ({}));
           throw new Error(
-            (body as { error?: string }).error ||
+            (uploadUrlBody as { error?: string }).error ||
               'Failed to prepare file upload'
           );
         }
 
-        const uploadData = SignedUploadResponseSchema.parse(
-          await uploadUrlRes.json()
-        );
+        const uploadData = SignedUploadResponseSchema.parse(uploadUrlBody);
         if (uploadData.uploads.length !== files.length) {
           throw new Error('Upload URL response is invalid');
         }
@@ -345,10 +384,15 @@ export function useCreateTimeTrackingRequest() {
           })
         );
 
-        uploadedPaths = uploadData.uploads.map((upload) => upload.path);
+        uploadedPaths = uploadData.uploads
+          .map((upload) => upload.path)
+          .filter((path) => isValidSignedUploadPath(path));
       }
 
-      const imagePaths = [...preUploadedPaths, ...uploadedPaths];
+      const imagePaths = [...preUploadedPaths, ...uploadedPaths].slice(
+        0,
+        MAX_FILES_PER_REQUEST
+      );
 
       if (imagePaths.length === 0) {
         throw new Error(

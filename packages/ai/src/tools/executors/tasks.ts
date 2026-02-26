@@ -447,7 +447,7 @@ export async function executeListTaskLabels(
   ctx: MiraToolContext
 ) {
   const { data, error } = await ctx.supabase
-    .from('task_labels')
+    .from('workspace_task_labels')
     .select('id, name, color, ws_id')
     .eq('ws_id', ctx.wsId);
 
@@ -525,8 +525,41 @@ export async function executeAddTaskLabels(
 ) {
   const taskId = args.taskId as string;
   const labelIds = args.labelIds as string[];
+  const uniqueLabelIds = [...new Set(labelIds)];
 
-  const rows: TablesInsert<'task_labels'>[] = labelIds.map((labelId) => ({
+  if (uniqueLabelIds.length === 0) {
+    return { success: true, message: 'No labels provided' };
+  }
+
+  const { data: task, error: taskError } = await ctx.supabase
+    .from('tasks')
+    .select('id')
+    .eq('id', taskId)
+    .eq('ws_id', ctx.wsId)
+    .maybeSingle();
+
+  if (taskError) return { error: taskError.message };
+  if (!task) {
+    return {
+      error: 'Authorization failed: task does not belong to this workspace',
+    };
+  }
+
+  const { data: labels, error: labelsError } = await ctx.supabase
+    .from('workspace_task_labels')
+    .select('id')
+    .eq('ws_id', ctx.wsId)
+    .in('id', uniqueLabelIds);
+
+  if (labelsError) return { error: labelsError.message };
+  if ((labels?.length ?? 0) !== uniqueLabelIds.length) {
+    return {
+      error:
+        'Authorization failed: one or more labels do not belong to this workspace',
+    };
+  }
+
+  const rows: TablesInsert<'task_labels'>[] = uniqueLabelIds.map((labelId) => ({
     task_id: taskId,
     label_id: labelId,
   }));
@@ -538,7 +571,7 @@ export async function executeAddTaskLabels(
   if (error) return { error: error.message };
   return {
     success: true,
-    message: `${labelIds.length} label(s) added to task`,
+    message: `${uniqueLabelIds.length} label(s) added to task`,
   };
 }
 
@@ -548,17 +581,50 @@ export async function executeRemoveTaskLabels(
 ) {
   const taskId = args.taskId as string;
   const labelIds = args.labelIds as string[];
+  const uniqueLabelIds = [...new Set(labelIds)];
+
+  if (uniqueLabelIds.length === 0) {
+    return { success: true, message: 'No labels provided' };
+  }
+
+  const { data: task, error: taskError } = await ctx.supabase
+    .from('tasks')
+    .select('id')
+    .eq('id', taskId)
+    .eq('ws_id', ctx.wsId)
+    .maybeSingle();
+
+  if (taskError) return { error: taskError.message };
+  if (!task) {
+    return {
+      error: 'Authorization failed: task does not belong to this workspace',
+    };
+  }
+
+  const { data: labels, error: labelsError } = await ctx.supabase
+    .from('workspace_task_labels')
+    .select('id')
+    .eq('ws_id', ctx.wsId)
+    .in('id', uniqueLabelIds);
+
+  if (labelsError) return { error: labelsError.message };
+  if ((labels?.length ?? 0) !== uniqueLabelIds.length) {
+    return {
+      error:
+        'Authorization failed: one or more labels do not belong to this workspace',
+    };
+  }
 
   const { error } = await ctx.supabase
     .from('task_labels')
     .delete()
     .eq('task_id', taskId)
-    .in('label_id', labelIds);
+    .in('label_id', uniqueLabelIds);
 
   if (error) return { error: error.message };
   return {
     success: true,
-    message: `${labelIds.length} label(s) removed from task`,
+    message: `${uniqueLabelIds.length} label(s) removed from task`,
   };
 }
 

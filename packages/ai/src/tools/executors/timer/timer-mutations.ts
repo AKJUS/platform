@@ -23,12 +23,77 @@ import {
 
 type MutationError = { error: string };
 
+type TimerRelatedEntity = {
+  id?: string;
+  name?: string | null;
+  color?: string | null;
+} | null;
+
+export interface TimerSession {
+  id: string;
+  title: string | null;
+  startedAt: string | number;
+  endedAt?: string | number | null;
+  pausedAt?: string | number | null;
+  elapsedMs?: number;
+  durationSeconds?: number | null;
+  durationFormatted?: string;
+  description?: string | null;
+  categoryId?: string | null;
+  taskId?: string | null;
+  isRunning?: boolean;
+  pendingApproval?: boolean;
+  wsId?: string;
+  category?: TimerRelatedEntity;
+  task?: TimerRelatedEntity;
+}
+
+function toTimerSession(
+  row: Record<string, unknown>,
+  overrides: Partial<TimerSession> = {}
+): TimerSession {
+  const startedAt =
+    typeof row.start_time === 'string' || typeof row.start_time === 'number'
+      ? row.start_time
+      : '';
+
+  const baseSession: TimerSession = {
+    id: typeof row.id === 'string' ? row.id : '',
+    title: typeof row.title === 'string' ? row.title : null,
+    startedAt,
+    endedAt:
+      typeof row.end_time === 'string' || typeof row.end_time === 'number'
+        ? row.end_time
+        : null,
+    durationSeconds:
+      typeof row.duration_seconds === 'number' ? row.duration_seconds : null,
+    description: typeof row.description === 'string' ? row.description : null,
+    categoryId: typeof row.category_id === 'string' ? row.category_id : null,
+    taskId: typeof row.task_id === 'string' ? row.task_id : null,
+    isRunning:
+      typeof row.is_running === 'boolean' ? row.is_running : undefined,
+    pendingApproval:
+      typeof row.pending_approval === 'boolean' ? row.pending_approval : undefined,
+    wsId: typeof row.ws_id === 'string' ? row.ws_id : undefined,
+    category:
+      row.category && typeof row.category === 'object'
+        ? (row.category as TimerRelatedEntity)
+        : null,
+    task:
+      row.task && typeof row.task === 'object'
+        ? (row.task as TimerRelatedEntity)
+        : null,
+  };
+
+  return { ...baseSession, ...overrides };
+}
+
 type StartTimerResult =
   | MutationError
   | {
       success: true;
       message: string;
-      session: unknown;
+      session: TimerSession;
     };
 
 type StopTimerResult =
@@ -36,12 +101,7 @@ type StopTimerResult =
   | {
       success: true;
       message: string;
-      session: {
-        id: string;
-        title: string;
-        durationSeconds: number;
-        durationFormatted: string;
-      };
+      session: TimerSession;
     };
 
 type CreateTimeTrackingEntryResult =
@@ -50,7 +110,7 @@ type CreateTimeTrackingEntryResult =
       success: true;
       requiresApproval: false;
       message: string;
-      session: unknown;
+      session: TimerSession;
     }
   | {
       success: true;
@@ -71,7 +131,7 @@ type UpdateTimeTrackingSessionResult =
   | {
       success: true;
       message: string;
-      session?: unknown;
+      session?: TimerSession;
     };
 
 type DeleteTimeTrackingSessionResult =
@@ -86,7 +146,7 @@ type MoveTimeTrackingSessionResult =
   | {
       success: true;
       message: string;
-      session: unknown;
+      session: TimerSession;
     };
 
 export async function executeStartTimer(
@@ -163,7 +223,11 @@ export async function executeStartTimer(
     .single();
 
   if (error) return { error: error.message };
-  return { success: true, message: `Timer started: "${title}"`, session };
+  return {
+    success: true,
+    message: `Timer started: "${title}"`,
+    session: toTimerSession(session as Record<string, unknown>),
+  };
 }
 
 export async function executeStopTimer(
@@ -188,10 +252,10 @@ export async function executeStopTimer(
 
   if (sessionId) query = query.eq('id', sessionId);
 
-  const { data: session, error: sessionError } = await query.limit(1).single();
+  const { data: session, error: sessionError } =
+    await query.limit(1).maybeSingle();
 
   if (sessionError) return { error: sessionError.message };
-
   if (!session) return { error: 'No running timer found' };
 
   const endTime = new Date();
@@ -222,12 +286,10 @@ export async function executeStopTimer(
   return {
     success: true,
     message: `Timer stopped: "${session.title}" — ${hours}h ${minutes}m`,
-    session: {
-      id: session.id,
-      title: session.title,
+    session: toTimerSession(session as Record<string, unknown>, {
       durationSeconds,
       durationFormatted: `${hours}h ${minutes}m`,
-    },
+    }),
   };
 }
 
@@ -316,7 +378,7 @@ export async function executeCreateTimeTrackingEntry(
     success: true,
     requiresApproval: false,
     message: 'Time tracking entry created.',
-    session: data,
+    session: toTimerSession(data as Record<string, unknown>),
   };
 }
 
@@ -349,7 +411,15 @@ export async function executeUpdateTimeTrackingSession(
 
   const updates: Record<string, unknown> = {};
   if (parsedArgs.title !== undefined) {
-    updates.title = coerceOptionalString(parsedArgs.title);
+    if (typeof parsedArgs.title !== 'string') {
+      return { error: 'title must be a string' };
+    }
+
+    const normalizedTitle = parsedArgs.title.trim();
+    if (normalizedTitle.length === 0) {
+      return { error: 'title cannot be blank' };
+    }
+    updates.title = normalizedTitle;
   }
   if (parsedArgs.description !== undefined) {
     updates.description = coerceOptionalString(parsedArgs.description);
@@ -422,7 +492,11 @@ export async function executeUpdateTimeTrackingSession(
     .single();
 
   if (error) return { error: error.message };
-  return { success: true, message: 'Session updated', session: data };
+  return {
+    success: true,
+    message: 'Session updated',
+    session: toTimerSession(data as Record<string, unknown>),
+  };
 }
 
 export async function executeDeleteTimeTrackingSession(
@@ -471,23 +545,31 @@ export async function executeMoveTimeTrackingSession(
   if (!sessionId) return { error: 'sessionId is required' };
   if (!targetWorkspaceId) return { error: 'targetWorkspaceId is required' };
 
-  const { data: sourceMembership } = await ctx.supabase
+  const { data: sourceMembership, error: sourceMembershipError } = await ctx.supabase
     .from('workspace_members')
     .select('user_id')
     .eq('ws_id', ctx.wsId)
     .eq('user_id', ctx.userId)
     .maybeSingle();
 
+  if (sourceMembershipError) {
+    return { error: sourceMembershipError.message };
+  }
+
   if (!sourceMembership) {
     return { error: 'Source workspace access denied' };
   }
 
-  const { data: targetMembership } = await ctx.supabase
+  const { data: targetMembership, error: targetMembershipError } = await ctx.supabase
     .from('workspace_members')
     .select('user_id')
     .eq('ws_id', targetWorkspaceId)
     .eq('user_id', ctx.userId)
     .maybeSingle();
+
+  if (targetMembershipError) {
+    return { error: targetMembershipError.message };
+  }
 
   if (!targetMembership) {
     return { error: 'Target workspace access denied' };
@@ -561,6 +643,6 @@ export async function executeMoveTimeTrackingSession(
   return {
     success: true,
     message: 'Session moved successfully',
-    session: movedSession,
+    session: toTimerSession(movedSession as Record<string, unknown>),
   };
 }

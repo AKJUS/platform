@@ -1,14 +1,13 @@
 'use client';
 
 import {
-  Check,
   ChevronLeft,
   ChevronRight,
   Dices,
+  Lightbulb,
   Maximize2,
-  Minimize2,
+  PartyPopper,
   RotateCcw,
-  X,
 } from '@tuturuuu/icons';
 import type {
   JsonRenderComponentContext,
@@ -19,13 +18,12 @@ import type {
 } from '@tuturuuu/types';
 import { Button } from '@tuturuuu/ui/button';
 import { Card } from '@tuturuuu/ui/card';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@tuturuuu/ui/dialog';
 import { useMemo, useState } from 'react';
+import {
+  FullscreenLearningDialog,
+  QuizOptionList,
+} from './learning-shared';
+import { shuffleArray } from './learning-utils';
 
 type LearningQuizProps = JsonRenderQuizProps;
 type LearningMultiQuizProps = JsonRenderMultiQuizProps;
@@ -63,12 +61,7 @@ export const dashboardLearningComponents = {
     const options = useMemo(() => {
       const original = props.options || [];
       if (!props.randomize && randomizeCount === 0) return original;
-      const shuffled = [...original];
-      for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [shuffled[i], shuffled[j]] = [shuffled[j]!, shuffled[i]!];
-      }
-      return shuffled;
+      return shuffleArray(original);
     }, [props.options, props.randomize, randomizeCount]);
 
     const answer = String(props.answer || props.correctAnswer || '');
@@ -105,49 +98,13 @@ export const dashboardLearningComponents = {
             )}
           </div>
         </div>
-        <div className="flex flex-col gap-3">
-          {options.map((option) => {
-            const isSelected = selected === option;
-            const isTheAnswer = option === answer;
-
-            let btnClasses =
-              'h-auto justify-start whitespace-normal px-5 py-4 text-left transition-all border-2';
-            if (selected !== null) {
-              if (isTheAnswer) {
-                btnClasses +=
-                  ' border-dynamic-green/50 bg-dynamic-green/10 text-dynamic-green hover:bg-dynamic-green/10';
-              } else if (isSelected && !isCorrect) {
-                btnClasses +=
-                  ' border-dynamic-red/50 bg-dynamic-red/10 text-dynamic-red hover:bg-dynamic-red/10';
-              } else {
-                btnClasses +=
-                  ' opacity-50 border-transparent bg-transparent hover:bg-transparent';
-              }
-            } else {
-              btnClasses += ' border-transparent hover:border-primary/20';
-            }
-
-            return (
-              <Button
-                key={option}
-                variant={selected === null ? 'secondary' : 'ghost'}
-                className={btnClasses}
-                onClick={() => !selected && setSelected(option)}
-                disabled={selected !== null && !isTheAnswer && !isSelected}
-              >
-                <div className="flex w-full items-center justify-between gap-4">
-                  <span className="flex-1">{option}</span>
-                  {selected !== null && isTheAnswer && (
-                    <Check className="h-5 w-5 shrink-0 text-dynamic-green" />
-                  )}
-                  {selected !== null && isSelected && !isCorrect && (
-                    <X className="h-5 w-5 shrink-0 text-dynamic-red" />
-                  )}
-                </div>
-              </Button>
-            );
-          })}
-        </div>
+        <QuizOptionList
+          options={options}
+          selected={selected}
+          answer={answer}
+          isCorrect={isCorrect}
+          onSelect={setSelected}
+        />
         {selected !== null && (
           <div
             className={`mt-2 rounded-lg p-5 ${
@@ -157,8 +114,18 @@ export const dashboardLearningComponents = {
             }`}
           >
             <div className="mb-2 flex items-center justify-between">
-              <p className="font-bold text-lg">
-                {isCorrect ? '🎉 Correct!' : '💡 Incorrect'}
+              <p className="flex items-center gap-2 font-bold text-lg">
+                {isCorrect ? (
+                  <>
+                    <PartyPopper className="h-5 w-5" aria-hidden="true" />
+                    <span>Correct!</span>
+                  </>
+                ) : (
+                  <>
+                    <Lightbulb className="h-5 w-5" aria-hidden="true" />
+                    <span>Incorrect</span>
+                  </>
+                )}
               </p>
               <Button
                 size="sm"
@@ -185,26 +152,13 @@ export const dashboardLearningComponents = {
 
     if (isFullscreen) {
       return (
-        <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
-          <DialogContent className="max-w-2xl gap-4 p-6 sm:p-10">
-            <DialogHeader>
-              <div className="flex items-center justify-between gap-2">
-                <DialogTitle className="font-bold text-2xl tracking-tight">
-                  Quiz Immersion
-                </DialogTitle>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-10 w-10 rounded-full"
-                  onClick={() => setIsFullscreen(false)}
-                >
-                  <Minimize2 className="h-5 w-5" />
-                </Button>
-              </div>
-            </DialogHeader>
+        <FullscreenLearningDialog
+          open={isFullscreen}
+          onOpenChange={setIsFullscreen}
+          title="Quiz Immersion"
+        >
             {quizContent}
-          </DialogContent>
-        </Dialog>
+        </FullscreenLearningDialog>
       );
     }
 
@@ -228,12 +182,7 @@ export const dashboardLearningComponents = {
     const quizzes = useMemo(() => {
       const original = Array.isArray(props.quizzes) ? props.quizzes : [];
       if (!props.randomize && quizRandomizeCount === 0) return original;
-      const shuffled = [...original];
-      for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [shuffled[i], shuffled[j]] = [shuffled[j]!, shuffled[i]!];
-      }
-      return shuffled;
+      return shuffleArray(original);
     }, [props.quizzes, props.randomize, quizRandomizeCount]);
 
     const currentQuiz = quizzes[currentIndex];
@@ -247,12 +196,7 @@ export const dashboardLearningComponents = {
         optionRandomizeCount === 0
       )
         return original;
-      const shuffled = [...original];
-      for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [shuffled[i], shuffled[j]] = [shuffled[j]!, shuffled[i]!];
-      }
-      return shuffled;
+      return shuffleArray(original);
     }, [currentQuiz, props.randomize, optionRandomizeCount]);
 
     if (!currentQuiz && !showScore) return null;
@@ -325,26 +269,14 @@ export const dashboardLearningComponents = {
 
       if (isFullscreen) {
         return (
-          <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
-            <DialogContent className="max-w-2xl gap-4 p-10 sm:p-12">
-              <DialogHeader>
-                <div className="flex items-center justify-between gap-2">
-                  <DialogTitle className="font-bold text-2xl tracking-tight">
-                    Quiz Immersion
-                  </DialogTitle>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-10 w-10 rounded-full"
-                    onClick={() => setIsFullscreen(false)}
-                  >
-                    <Minimize2 className="h-5 w-5" />
-                  </Button>
-                </div>
-              </DialogHeader>
+          <FullscreenLearningDialog
+            open={isFullscreen}
+            onOpenChange={setIsFullscreen}
+            title="Quiz Immersion"
+            contentClassName="max-w-2xl gap-4 p-10 sm:p-12"
+          >
               {scoreContent}
-            </DialogContent>
-          </Dialog>
+          </FullscreenLearningDialog>
         );
       }
 
@@ -415,51 +347,15 @@ export const dashboardLearningComponents = {
           <h4 className="font-semibold text-xl leading-snug">
             {currentQuiz.question}
           </h4>
-          <div className="flex flex-col gap-3">
-            {options.map((option: string) => {
-              const isSelected = selected === option;
-              const isTheAnswer =
-                option === (currentQuiz.answer || currentQuiz.correctAnswer);
-
-              let btnClasses =
-                'h-auto justify-start whitespace-normal px-5 py-4 text-left transition-all border-2';
-              if (isAnswered) {
-                if (isTheAnswer) {
-                  btnClasses +=
-                    ' border-dynamic-green/50 bg-dynamic-green/10 text-dynamic-green hover:bg-dynamic-green/10';
-                } else if (isSelected && !isCorrect) {
-                  btnClasses +=
-                    ' border-dynamic-red/50 bg-dynamic-red/10 text-dynamic-red hover:bg-dynamic-red/10';
-                } else {
-                  btnClasses +=
-                    ' opacity-50 border-transparent bg-transparent hover:bg-transparent';
-                }
-              } else {
-                btnClasses +=
-                  ' border-transparent hover:border-primary/20 bg-secondary/40';
-              }
-
-              return (
-                <Button
-                  key={option}
-                  variant={!isAnswered ? 'secondary' : 'ghost'}
-                  className={btnClasses}
-                  onClick={() => !isAnswered && handleSelect(option)}
-                  disabled={isAnswered && !isTheAnswer && !isSelected}
-                >
-                  <div className="flex w-full items-center justify-between gap-4">
-                    <span className="flex-1 font-medium">{option}</span>
-                    {isAnswered && isTheAnswer && (
-                      <Check className="h-5 w-5 shrink-0 text-dynamic-green" />
-                    )}
-                    {isAnswered && isSelected && !isCorrect && (
-                      <X className="h-5 w-5 shrink-0 text-dynamic-red" />
-                    )}
-                  </div>
-                </Button>
-              );
-            })}
-          </div>
+          <QuizOptionList
+            options={options}
+            selected={selected ?? null}
+            answer={String(currentQuiz.answer || currentQuiz.correctAnswer || '')}
+            isCorrect={isCorrect}
+            onSelect={handleSelect}
+            unansweredExtraClassName="bg-secondary/40"
+            optionLabelClassName="flex-1 font-medium"
+          />
 
           {isAnswered && currentQuiz.explanation && (
             <div
@@ -469,8 +365,18 @@ export const dashboardLearningComponents = {
                   : 'bg-dynamic-red/10 text-dynamic-red'
               }`}
             >
-              <p className="mb-1 font-bold">
-                {isCorrect ? '🎉 Correct!' : '💡 Explanation'}
+              <p className="mb-1 flex items-center gap-2 font-bold">
+                {isCorrect ? (
+                  <>
+                    <PartyPopper className="h-5 w-5" aria-hidden="true" />
+                    <span>Correct!</span>
+                  </>
+                ) : (
+                  <>
+                    <Lightbulb className="h-5 w-5" aria-hidden="true" />
+                    <span>Incorrect</span>
+                  </>
+                )}
               </p>
               <p className="text-sm leading-relaxed opacity-90">
                 {currentQuiz.explanation}
@@ -512,26 +418,13 @@ export const dashboardLearningComponents = {
 
     if (isFullscreen) {
       return (
-        <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
-          <DialogContent className="max-w-2xl gap-4 p-6 sm:p-10">
-            <DialogHeader>
-              <div className="flex items-center justify-between gap-2">
-                <DialogTitle className="font-bold text-2xl tracking-tight">
-                  Quiz Immersion
-                </DialogTitle>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-10 w-10 rounded-full"
-                  onClick={() => setIsFullscreen(false)}
-                >
-                  <Minimize2 className="h-5 w-5" />
-                </Button>
-              </div>
-            </DialogHeader>
+        <FullscreenLearningDialog
+          open={isFullscreen}
+          onOpenChange={setIsFullscreen}
+          title="Quiz Immersion"
+        >
             {quizContent}
-          </DialogContent>
-        </Dialog>
+        </FullscreenLearningDialog>
       );
     }
 
@@ -553,12 +446,7 @@ export const dashboardLearningComponents = {
     const flashcards = useMemo(() => {
       const original = props.flashcards || [];
       if (!props.randomize && randomizeCount === 0) return original;
-      const shuffled = [...original];
-      for (let i = shuffled.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [shuffled[i], shuffled[j]] = [shuffled[j]!, shuffled[i]!];
-      }
-      return shuffled;
+      return shuffleArray(original);
     }, [props.flashcards, props.randomize, randomizeCount]);
 
     const currentCard = flashcards[currentIndex];
@@ -709,26 +597,13 @@ export const dashboardLearningComponents = {
 
     if (isFullscreen) {
       return (
-        <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
-          <DialogContent className="max-w-2xl gap-4 p-6 sm:p-10">
-            <DialogHeader>
-              <div className="flex items-center justify-between gap-2">
-                <DialogTitle className="font-bold text-2xl tracking-tight">
-                  Quiz Immersion
-                </DialogTitle>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-10 w-10 rounded-full"
-                  onClick={() => setIsFullscreen(false)}
-                >
-                  <Minimize2 className="h-5 w-5" />
-                </Button>
-              </div>
-            </DialogHeader>
+        <FullscreenLearningDialog
+          open={isFullscreen}
+          onOpenChange={setIsFullscreen}
+          title="Flashcard Immersion"
+        >
             {flashcardContent}
-          </DialogContent>
-        </Dialog>
+        </FullscreenLearningDialog>
       );
     }
 

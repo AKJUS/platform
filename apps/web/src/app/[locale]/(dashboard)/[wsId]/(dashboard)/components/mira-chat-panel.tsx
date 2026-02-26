@@ -34,6 +34,7 @@ import {
   resetGenerativeUIStore,
   useGenerativeUIStore,
 } from '@/components/json-render/generative-ui-store';
+import { useCreateTransaction } from '@/components/json-render/dashboard-registry/shared';
 import { resolveTimezone } from '@/lib/calendar-settings-resolver';
 import ChatInputBar from './chat-input-bar';
 import ChatMessageList from './chat-message-list';
@@ -178,6 +179,17 @@ export default function MiraChatPanel({
 
   const sendMessageRef = useRef<typeof sendMessage>(null!);
   const submitTextRef = useRef<((value: string) => void) | null>(null);
+  const createTransactionMutation = useCreateTransaction();
+  const createTransactionRef = useRef<
+    ((params: {
+      amount: unknown;
+      description: unknown;
+      walletId: unknown;
+    }) => Promise<void>) | null
+  >(null);
+  createTransactionRef.current = async (params) => {
+    await createTransactionMutation.mutateAsync(params);
+  };
 
   // json-render action handlers factory expecting state accessors
   const actionHandlers = useMemo(
@@ -195,6 +207,7 @@ export default function MiraChatPanel({
           ...useGenerativeUIStore.getState().ui,
           submitText: submitTextRef.current,
           sendMessage: sendMessageRef.current,
+          createTransaction: createTransactionRef.current,
         })
       ),
     [] // Stable handlers

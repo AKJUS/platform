@@ -11,6 +11,7 @@ import {
   MIRA_TOOL_DIRECTORY,
   MIRA_TOOL_PERMISSIONS,
 } from '../tools/mira-tools';
+import type { MiraToolName } from '../tools/mira-tools';
 
 export type MiraSoulConfig = {
   name?: string;
@@ -96,7 +97,11 @@ export function buildMiraSystemInstruction(opts?: {
   }
 
   // ── Tool directory (lightweight listing for select_tools step) ──
-  const toolDirectoryLines = Object.entries(MIRA_TOOL_DIRECTORY)
+  const directoryEntries = Object.entries(MIRA_TOOL_DIRECTORY) as Array<
+    [MiraToolName, string]
+  >;
+
+  const toolDirectoryLines = directoryEntries
     .map(([toolName, desc]) => {
       let statusStr = '';
       const requiredPerm = MIRA_TOOL_PERMISSIONS[toolName];
@@ -237,9 +242,17 @@ When someone asks for code, equations, diagrams — render directly in Markdown/
 
 ### Special components
 - **MyTasks**: Renders the complete "My Tasks" interface (summary, filters, and list).
+  - Use for user-facing task summaries and interactive displays (e.g., showing pending items, current workload).
   - \`props\`: \`showSummary\` (boolean), \`showFilters\` (boolean).
+  - **vs. get_my_tasks tool**: Prefer MyTasks for rendering task UI; use get_my_tasks when the agent needs raw task data for filtering, processing, or logic before rendering.
 - **TimeTrackingStats**: Renders a standardized time-tracking stats dashboard and fetches period data internally.
-  - \`props\`: \`period\` (today|this_week|this_month|last_7_days|last_30_days|custom), optional \`dateFrom\`/\`dateTo\` for custom, \`showBreakdown\`, \`showDailyBreakdown\`, \`maxItems\`.
+  - \`props\`:
+    - \`period\` (today|this_week|this_month|last_7_days|last_30_days|custom) — REQUIRED
+    - \`dateFrom\` (ISO string) — REQUIRED when period === 'custom'
+    - \`dateTo\` (ISO string) — REQUIRED when period === 'custom'
+    - \`showBreakdown\` (boolean) — Show category breakdown (default: true)
+    - \`showDailyBreakdown\` (boolean) — Show daily breakdown (default: true)
+    - \`maxItems\` (number) — Max items to display in breakdowns (default: 5)
 
 ### Advanced Interactive example
 \`\`\`json

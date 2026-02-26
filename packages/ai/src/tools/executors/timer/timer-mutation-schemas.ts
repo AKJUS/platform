@@ -1,5 +1,21 @@
 import { z } from 'zod';
 
+const dateOnlyStringSchema = z
+  .string()
+  .trim()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, 'date must use YYYY-MM-DD format');
+
+const flexibleDateTimeStringSchema = z
+  .string()
+  .trim()
+  .regex(
+    /^(?:\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d(?:\.\d{1,3})?)?(?:Z|[+-][01]\d:[0-5]\d)?|\d{4}-\d{2}-\d{2}\s+(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?|(?:[01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?)$/,
+    'must be a valid ISO datetime, YYYY-MM-DD HH:mm, or HH:mm/HH:mm:ss'
+  );
+
+const temporalDateTimeInputSchema = z.union([z.date(), flexibleDateTimeStringSchema]);
+const temporalDateInputSchema = z.union([z.date(), dateOnlyStringSchema]);
+
 export const startTimerArgsSchema = z.object({
   title: z.string().trim().min(1, 'title is required'),
   description: z.union([z.string(), z.null()]).optional(),
@@ -18,9 +34,9 @@ export const createTimeTrackingEntryArgsSchema = z.object({
   description: z.union([z.string(), z.null()]).optional(),
   categoryId: z.union([z.string(), z.null()]).optional(),
   taskId: z.union([z.string(), z.null()]).optional(),
-  startTime: z.unknown(),
-  endTime: z.unknown(),
-  date: z.unknown().optional(),
+  startTime: temporalDateTimeInputSchema,
+  endTime: temporalDateTimeInputSchema,
+  date: temporalDateInputSchema.optional(),
 });
 
 export type CreateTimeTrackingEntryArgs = z.infer<
@@ -34,9 +50,9 @@ export const updateTimeTrackingSessionArgsSchema = z.object({
   description: z.unknown().optional(),
   categoryId: z.unknown().optional(),
   taskId: z.unknown().optional(),
-  startTime: z.unknown().optional(),
-  endTime: z.unknown().optional(),
-  date: z.unknown().optional(),
+  startTime: temporalDateTimeInputSchema.optional(),
+  endTime: temporalDateTimeInputSchema.optional(),
+  date: temporalDateInputSchema.optional(),
 });
 
 export type UpdateTimeTrackingSessionArgs = z.infer<
@@ -55,7 +71,7 @@ export type DeleteTimeTrackingSessionArgs = z.infer<
 export const moveTimeTrackingSessionArgsSchema = z.object({
   sessionId: z.union([z.string(), z.null()]).optional(),
   id: z.union([z.string(), z.null()]).optional(),
-  targetWorkspaceId: z.union([z.string(), z.null()]),
+  targetWorkspaceId: z.string().trim().min(1, 'targetWorkspaceId is required'),
 });
 
 export type MoveTimeTrackingSessionArgs = z.infer<

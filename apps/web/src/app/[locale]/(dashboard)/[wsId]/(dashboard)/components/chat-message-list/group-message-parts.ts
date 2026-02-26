@@ -35,31 +35,21 @@ export function groupMessageParts(parts: UIMessage['parts']): RenderGroup[] {
         groups.push({ kind: 'tool', ...currentToolGroup });
         currentToolGroup = null;
       }
-      if (
-        part.type === 'text' &&
-        (typeof (part as { text: string }).text === 'string'
-          ? (part as { text: string }).text.trim()
-          : true)
-      ) {
-        groups.push({
-          kind: 'text',
-          text: (part as { text: string }).text,
-          index: i,
-        });
-      } else if (
-        part.type === 'reasoning' &&
-        (typeof (part as { text: string }).text === 'string'
-          ? (part as { text: string }).text.trim()
-          : true)
-      ) {
-        groups.push({
-          kind: 'reasoning',
-          text: (part as { text: string }).text,
-          index: i,
-        });
-      } else {
-        groups.push({ kind: 'other', index: i });
+      if (part.type === 'text' || part.type === 'reasoning') {
+        if (
+          typeof (part as { text?: unknown }).text === 'string' &&
+          (part as { text: string }).text.trim().length > 0
+        ) {
+          groups.push({
+            kind: part.type,
+            text: (part as { text: string }).text,
+            index: i,
+          });
+        }
+        continue;
       }
+
+      groups.push({ kind: 'other', index: i });
     }
   }
 

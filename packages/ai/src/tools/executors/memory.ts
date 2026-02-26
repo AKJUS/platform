@@ -62,6 +62,10 @@ function toMemoryEmbeddingInput(key: string, value: string): string {
   return `${key}: ${value}`;
 }
 
+function toStoredEmbedding(embedding: number[] | null): string | null {
+  return embedding ? JSON.stringify(embedding) : null;
+}
+
 async function regenerateMissingMemoryEmbeddings(
   ctx: MiraToolContext,
   options: MemoryEmbeddingBackfillOptions = {}
@@ -108,7 +112,7 @@ async function regenerateMissingMemoryEmbeddings(
 
     const { error: updateError } = await ctx.supabase
       .from('mira_memories')
-      .update({ embedding: embedding as any })
+      .update({ embedding: toStoredEmbedding(embedding) })
       .eq('id', memory.id)
       .eq('user_id', ctx.userId);
 
@@ -154,7 +158,7 @@ export async function executeRemember(
     const updatePayload: TablesUpdate<'mira_memories'> = {
       value,
       category,
-      embedding: embedding ? (embedding as any) : undefined,
+      embedding: toStoredEmbedding(embedding),
       updated_at: new Date().toISOString(),
       last_referenced_at: new Date().toISOString(),
     };
@@ -177,7 +181,7 @@ export async function executeRemember(
     key,
     value,
     category,
-    embedding: embedding ? (embedding as any) : undefined,
+    embedding: toStoredEmbedding(embedding),
     source: 'mira_chat',
   };
 
@@ -194,7 +198,19 @@ export async function executeRecall(
   ctx: MiraToolContext
 ) {
   const query = (args.query as string | null | undefined) ?? null;
-  const category = toMemoryCategory(args.category) ?? null;
+  const categoryInput = args.category;
+  const parsedCategory = toMemoryCategory(categoryInput);
+  if (
+    categoryInput !== undefined &&
+    categoryInput !== null &&
+    !parsedCategory
+  ) {
+    return {
+      error:
+        'Invalid category. Allowed: preference, fact, conversation_topic, event, person',
+    };
+  }
+  const category = parsedCategory ?? null;
   const maxResults = (args.maxResults as number) || 10;
 
   let memories: any[] = [];
@@ -320,7 +336,19 @@ export async function executeListMemories(
   args: Record<string, unknown>,
   ctx: MiraToolContext
 ) {
-  const category = toMemoryCategory(args.category) ?? null;
+  const categoryInput = args.category;
+  const parsedCategory = toMemoryCategory(categoryInput);
+  if (
+    categoryInput !== undefined &&
+    categoryInput !== null &&
+    !parsedCategory
+  ) {
+    return {
+      error:
+        'Invalid category. Allowed: preference, fact, conversation_topic, event, person',
+    };
+  }
+  const category = parsedCategory ?? null;
 
   let dbQuery = ctx.supabase
     .from('mira_memories')
@@ -389,7 +417,7 @@ export async function executeMergeMemories(
     const updatePayload: TablesUpdate<'mira_memories'> = {
       value: newValue,
       category: newCategory,
-      embedding: embedding ? (embedding as any) : undefined,
+      embedding: toStoredEmbedding(embedding),
       updated_at: new Date().toISOString(),
     };
 
@@ -405,7 +433,7 @@ export async function executeMergeMemories(
       key: newKey,
       value: newValue,
       category: newCategory,
-      embedding: embedding ? (embedding as any) : undefined,
+      embedding: toStoredEmbedding(embedding),
       source: 'mira_chat',
     };
 

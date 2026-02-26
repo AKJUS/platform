@@ -8,8 +8,20 @@ export function isApprovalRequestUiData(
 ): value is ApprovalRequestUiData {
   if (!isObjectRecord(value)) return false;
 
+  const hasValidTitleHint =
+    value.titleHint === undefined ||
+    value.titleHint === null ||
+    typeof value.titleHint === 'string';
+  const hasValidDescriptionHint =
+    value.descriptionHint === undefined ||
+    value.descriptionHint === null ||
+    typeof value.descriptionHint === 'string';
+
   return (
-    typeof value.startTime === 'string' && typeof value.endTime === 'string'
+    typeof value.startTime === 'string' &&
+    typeof value.endTime === 'string' &&
+    hasValidTitleHint &&
+    hasValidDescriptionHint
   );
 }
 
@@ -29,8 +41,8 @@ export function buildApprovalRequestSpec(
   const startTimeValue = toDateTimeLocalValue(approval.startTime);
   const endTimeValue = toDateTimeLocalValue(approval.endTime);
   const detailLine = t('approval_request.helper_time', {
-    startTime: approval.startTime,
-    endTime: approval.endTime,
+    startTime: startTimeValue,
+    endTime: endTimeValue,
   });
   const titleLine = approval.titleHint
     ? t('approval_request.helper_title', { title: approval.titleHint })

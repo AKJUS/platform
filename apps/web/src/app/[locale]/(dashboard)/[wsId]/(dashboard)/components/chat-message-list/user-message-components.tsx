@@ -32,7 +32,7 @@ export function UserMessage({ text }: { text: string }) {
             <div>
               <div className="font-bold text-sm tracking-tight">{title}</div>
               <div className="font-medium text-background/50 text-xs uppercase tracking-wider">
-                Submission
+                {t('submission')}
               </div>
             </div>
           </div>
@@ -53,7 +53,7 @@ export function UserMessage({ text }: { text: string }) {
           </div>
           <div className="mt-1 flex items-center justify-end gap-1.5 font-bold text-[10px] text-background/40 uppercase tracking-widest">
             <CheckCircle2 className="h-3 w-3" />
-            Form Submitted
+            {t('form_submitted')}
           </div>
         </div>
       );
@@ -94,6 +94,7 @@ export function UserMessageContent({
   displayText: string;
   attachments?: MessageFileAttachment[];
 }) {
+  const t = useTranslations('dashboard.mira_chat');
   const hasDisplayText = displayText.trim().length > 0;
   const hasAttachments = (attachments?.length ?? 0) > 0;
 
@@ -104,8 +105,7 @@ export function UserMessageContent({
         <div className="flex items-center gap-1.5 px-0.5 text-background/60">
           <Paperclip className="h-3 w-3" />
           <span className="text-[11px]">
-            {attachments!.length} file{attachments!.length > 1 ? 's' : ''}{' '}
-            attached
+            {t('files_attached', { count: attachments!.length })}
           </span>
         </div>
       </>

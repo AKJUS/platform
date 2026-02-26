@@ -152,7 +152,11 @@ export const financeToolDefinitions = {
     description: 'Create a transaction tag.',
     inputSchema: z.object({
       name: z.string().describe('Tag name'),
-      color: z.string().optional().describe('Color hex'),
+      color: z
+        .string()
+        .regex(/^[#][0-9a-fA-F]{3,8}$/)
+        .optional()
+        .describe('Color hex'),
       description: z.string().optional().describe('Tag description'),
     }),
   }),
@@ -162,7 +166,11 @@ export const financeToolDefinitions = {
     inputSchema: z.object({
       tagId: z.string().uuid().describe('Tag UUID'),
       name: z.string().optional().describe('New name'),
-      color: z.string().optional().describe('New color'),
+      color: z
+        .string()
+        .regex(/^[#][0-9a-fA-F]{3,8}$/)
+        .optional()
+        .describe('New color'),
       description: z.string().optional().describe('New description'),
     }),
   }),

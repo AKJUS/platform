@@ -10,7 +10,7 @@ import {
 } from '@tuturuuu/icons';
 import { Dialog, DialogContent, DialogTitle } from '@tuturuuu/ui/dialog';
 import { cn } from '@tuturuuu/utils/format';
-import { getToolName } from 'ai';
+import { getToolName, isToolUIPart } from 'ai';
 import { useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
 import { useCallback, useEffect, useState } from 'react';
@@ -25,6 +25,20 @@ import {
 import { JsonHighlight } from './json-highlight';
 import { getToolPartStatus } from './tool-status';
 
+type ToolNamePart = Parameters<typeof getToolName>[0];
+
+function isToolNamePart(part: ToolPartData): part is ToolPartData & ToolNamePart {
+  return isToolUIPart(part);
+}
+
+function getPartOutput(part: ToolPartData): unknown {
+  return 'output' in part ? part.output : undefined;
+}
+
+function getPartErrorText(part: ToolPartData): string | undefined {
+  return typeof part.errorText === 'string' ? part.errorText : undefined;
+}
+
 export function ToolCallPart({ part }: { part: ToolPartData }) {
   const t = useTranslations('dashboard.mira_chat');
   const [expanded, setExpanded] = useState(false);
@@ -33,10 +47,14 @@ export function ToolCallPart({ part }: { part: ToolPartData }) {
     null
   );
 
-  const rawToolName = getToolName(part as never);
+  if (!isToolNamePart(part)) {
+    return null;
+  }
+
+  const rawToolName = getToolName(part);
   const toolName = humanizeToolName(rawToolName);
-  const output = (part as { output?: unknown }).output;
-  const errorText = (part as { errorText?: string }).errorText;
+  const output = getPartOutput(part);
+  const errorText = getPartErrorText(part);
   const outputRecord = isObjectRecord(output) ? output : null;
 
   const { isDone, isError, isRunning, logicalError } = getToolPartStatus(part);
@@ -69,8 +87,19 @@ export function ToolCallPart({ part }: { part: ToolPartData }) {
     : null;
 
   const handleCopy = useCallback(() => {
-    void navigator.clipboard.writeText(outputText);
-    setCopied(true);
+    if (!navigator.clipboard?.writeText) {
+      setCopied(false);
+      return;
+    }
+
+    void navigator.clipboard
+      .writeText(outputText)
+      .then(() => {
+        setCopied(true);
+      })
+      .catch(() => {
+        setCopied(false);
+      });
   }, [outputText]);
 
   useEffect(() => {
@@ -190,7 +219,7 @@ export function ToolCallPart({ part }: { part: ToolPartData }) {
             <span className="text-muted-foreground">{t('tool_done')}</span>
           </div>
           <div className="rounded-lg border border-dynamic-yellow/30 bg-dynamic-yellow/5 p-3 text-muted-foreground text-sm">
-            The generated UI could not be rendered. Please try again.
+            {t('tool_render_error')}
           </div>
         </div>
       );

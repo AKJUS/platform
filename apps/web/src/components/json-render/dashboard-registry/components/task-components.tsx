@@ -25,6 +25,42 @@ import { useMyTasksState } from '@tuturuuu/ui/tu-do/my-tasks/use-my-tasks-state'
 import { useParams } from 'next/navigation';
 import { formatDurationLabel, resolveStatsRange } from '../shared';
 
+const timeTrackingLabels = {
+  en: {
+    statsTitle: 'Time Tracking Stats',
+    noStatsAvailable: 'No stats available yet.',
+    overviewTitle: 'Overview',
+    totalTime: 'Total time',
+    sessions: 'Sessions',
+    avgSession: 'Average session',
+    bestTimeOfDay: 'Best time of day',
+    notAvailable: 'N/A',
+    topCategories: 'Top categories',
+    noCategoryData: 'No category data available.',
+    dailyBreakdown: 'Daily breakdown',
+    noDailyData: 'No daily data available.',
+  },
+  vi: {
+    statsTitle: 'Thống kê theo dõi thời gian',
+    noStatsAvailable: 'Chưa có dữ liệu thống kê.',
+    overviewTitle: 'Tổng quan',
+    totalTime: 'Tổng thời gian',
+    sessions: 'Số phiên',
+    avgSession: 'Phiên trung bình',
+    bestTimeOfDay: 'Khung giờ hiệu quả nhất',
+    notAvailable: 'Không có',
+    topCategories: 'Danh mục hàng đầu',
+    noCategoryData: 'Chưa có dữ liệu theo danh mục.',
+    dailyBreakdown: 'Phân tích theo ngày',
+    noDailyData: 'Chưa có dữ liệu theo ngày.',
+  },
+} as const;
+
+const resolveLocale = (locale: string | undefined): keyof typeof timeTrackingLabels => {
+  if (!locale) return 'en';
+  return locale.toLowerCase().startsWith('vi') ? 'vi' : 'en';
+};
+
 export const dashboardTaskComponents = {
   MyTasks: ({ props }: JsonRenderComponentContext<JsonRenderMyTasksProps>) => {
     const params = useParams();
@@ -119,6 +155,12 @@ export const dashboardTaskComponents = {
   }: JsonRenderComponentContext<JsonRenderTimeTrackingStatsProps>) => {
     const params = useParams();
     const wsId = params.wsId as string;
+    const labels =
+      timeTrackingLabels[
+        resolveLocale(
+          typeof params.locale === 'string' ? params.locale : undefined
+        )
+      ];
     const maxItems = props.maxItems || 5;
     const showBreakdown = props.showBreakdown !== false;
     const showDailyBreakdown = props.showDailyBreakdown !== false;
@@ -127,7 +169,7 @@ export const dashboardTaskComponents = {
 
     const { data: workspace, isLoading: workspaceLoading } =
       useQuery<JsonRenderWorkspaceSummary | null>({
-        queryKey: ['workspace', wsId, 'time-tracking-stats-widget'],
+        queryKey: ['workspace', wsId],
         queryFn: async () => {
           const res = await fetch(`/api/workspaces/${wsId}`, {
             cache: 'no-store',
@@ -136,6 +178,7 @@ export const dashboardTaskComponents = {
           return (await res.json()) as JsonRenderWorkspaceSummary;
         },
         enabled: !!wsId,
+        staleTime: 60_000,
       });
 
     const range = resolveStatsRange(props.period, props.dateFrom, props.dateTo);
@@ -155,10 +198,13 @@ export const dashboardTaskComponents = {
         queryFn: async () => {
           if (!user?.id) return null;
 
+          const timezone =
+            Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+
           const query = new URLSearchParams({
             dateFrom: range.from.toISOString(),
             dateTo: range.to.toISOString(),
-            timezone: 'UTC',
+            timezone,
             userId: user.id,
           });
 
@@ -185,9 +231,9 @@ export const dashboardTaskComponents = {
       return (
         <Card className="my-2 border border-border/60 bg-card/60">
           <CardHeader>
-            <CardTitle className="text-lg">Time Tracking Stats</CardTitle>
+            <CardTitle className="text-lg">{labels.statsTitle}</CardTitle>
             <CardDescription>
-              No stats available for this period.
+              {labels.noStatsAvailable}
             </CardDescription>
           </CardHeader>
         </Card>
@@ -216,43 +262,45 @@ export const dashboardTaskComponents = {
       <div className="flex flex-col gap-4">
         <Card className="my-2 border border-border/60 bg-card/60">
           <CardHeader>
-            <CardTitle className="text-lg">Time Tracking Overview</CardTitle>
+            <CardTitle className="text-lg">{labels.overviewTitle}</CardTitle>
             <CardDescription>{range.label}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <div className="rounded-lg border bg-surface p-4">
-                <p className="text-muted-foreground text-sm">Total Time</p>
+                <p className="text-muted-foreground text-sm">{labels.totalTime}</p>
                 <p className="font-bold text-xl">
                   {formatDurationLabel(totalDuration)}
                 </p>
               </div>
               <div className="rounded-lg border bg-surface p-4">
-                <p className="text-muted-foreground text-sm">Sessions</p>
+                <p className="text-muted-foreground text-sm">{labels.sessions}</p>
                 <p className="font-bold text-xl">{sessionCount}</p>
               </div>
               <div className="rounded-lg border bg-surface p-4">
-                <p className="text-muted-foreground text-sm">Avg Session</p>
+                <p className="text-muted-foreground text-sm">{labels.avgSession}</p>
                 <p className="font-bold text-xl">
                   {formatDurationLabel(averageDuration)}
                 </p>
               </div>
               <div className="rounded-lg border bg-surface p-4">
                 <p className="text-muted-foreground text-sm">
-                  Best Time of Day
+                  {labels.bestTimeOfDay}
                 </p>
                 <p className="font-bold text-xl capitalize">
-                  {bestTimeOfDayLabel}
+                  {bestTimeOfDayLabel !== 'N/A'
+                    ? bestTimeOfDayLabel
+                    : labels.notAvailable}
                 </p>
               </div>
             </div>
 
             {showBreakdown && (
               <div className="space-y-2">
-                <p className="font-medium text-sm">Top Categories</p>
+                <p className="font-medium text-sm">{labels.topCategories}</p>
                 {topBreakdown.length === 0 && (
                   <p className="text-muted-foreground text-sm">
-                    No category data for this period.
+                    {labels.noCategoryData}
                   </p>
                 )}
                 {topBreakdown.map((item, index: number) => {
@@ -282,10 +330,10 @@ export const dashboardTaskComponents = {
 
             {showDailyBreakdown && (
               <div className="space-y-2">
-                <p className="font-medium text-sm">Daily Breakdown</p>
+                <p className="font-medium text-sm">{labels.dailyBreakdown}</p>
                 {topDaily.length === 0 && (
                   <p className="text-muted-foreground text-sm">
-                    No daily data for this period.
+                    {labels.noDailyData}
                   </p>
                 )}
                 {topDaily.map((item, index: number) => (

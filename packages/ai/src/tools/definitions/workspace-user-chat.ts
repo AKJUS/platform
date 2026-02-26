@@ -1,6 +1,29 @@
 import { z } from 'zod';
 import { tool } from '../core';
 
+type SettingsLikeData = {
+  name?: unknown;
+  tone?: unknown;
+  personality?: unknown;
+  boundaries?: unknown;
+  vibe?: unknown;
+  chat_tone?: unknown;
+  displayName?: unknown;
+  fullName?: unknown;
+};
+
+const hasAtLeastOneFieldProvided = (data: SettingsLikeData): boolean =>
+  [
+    data.name,
+    data.tone,
+    data.personality,
+    data.boundaries,
+    data.vibe,
+    data.chat_tone,
+    data.displayName,
+    data.fullName,
+  ].some((value) => value !== null && value !== undefined);
+
 export const workspaceUserChatToolDefinitions = {
   update_my_settings: tool({
     description:
@@ -48,15 +71,7 @@ export const workspaceUserChatToolDefinitions = {
           .describe('Response verbosity'),
       })
       .refine(
-        (data) =>
-          [
-            data.name,
-            data.tone,
-            data.personality,
-            data.boundaries,
-            data.vibe,
-            data.chat_tone,
-          ].some((value) => value !== null && value !== undefined),
+        (data) => hasAtLeastOneFieldProvided(data),
         {
           message: 'At least one field must be provided',
         }
@@ -83,15 +98,9 @@ export const workspaceUserChatToolDefinitions = {
         displayName: z.string().nullish().describe('New display name'),
         fullName: z.string().nullish().describe('New full name'),
       })
-      .refine(
-        (data) =>
-          [data.displayName, data.fullName].some(
-            (value) => value !== null && value !== undefined
-          ),
-        {
-          message: 'At least one field must be provided',
-        }
-      ),
+      .refine((data) => hasAtLeastOneFieldProvided(data), {
+        message: 'At least one field must be provided',
+      }),
   }),
 
   set_immersive_mode: tool({

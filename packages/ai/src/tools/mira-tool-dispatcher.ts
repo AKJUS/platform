@@ -83,6 +83,7 @@ import {
   buildRenderUiRecoverySpec,
   isRenderableRenderUiSpec,
 } from './mira-tool-render-ui';
+import type { DefinedMiraToolName } from './mira-tool-definitions';
 import type { MiraToolContext } from './mira-tool-types';
 
 type ToolHandler = (
@@ -90,7 +91,7 @@ type ToolHandler = (
   ctx: MiraToolContext
 ) => Promise<unknown> | unknown;
 
-const toolHandlers: Record<string, ToolHandler> = {
+const toolHandlers = {
   select_tools: (args) => ({ ok: true, selectedTools: args.tools }),
   no_action_needed: () => ({ ok: true }),
 
@@ -171,7 +172,7 @@ const toolHandlers: Record<string, ToolHandler> = {
   list_workspace_members: executeListWorkspaceMembers,
   update_user_name: executeUpdateUserName,
   set_immersive_mode: executeSetImmersiveMode,
-};
+} satisfies Record<Exclude<DefinedMiraToolName, 'render_ui'>, ToolHandler>;
 
 export async function executeMiraTool(
   toolName: string,
@@ -190,8 +191,9 @@ export async function executeMiraTool(
     return { spec: args };
   }
 
-  const handler = toolHandlers[toolName];
-  if (!handler) return { error: `Unknown tool: ${toolName}` };
+  if (!(toolName in toolHandlers)) return { error: `Unknown tool: ${toolName}` };
+
+  const handler = toolHandlers[toolName as keyof typeof toolHandlers];
 
   return handler(args, ctx);
 }

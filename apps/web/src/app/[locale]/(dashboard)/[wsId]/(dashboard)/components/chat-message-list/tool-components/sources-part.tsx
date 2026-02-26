@@ -1,6 +1,6 @@
 import { ChevronRight, ExternalLink, Globe } from '@tuturuuu/icons';
 import { cn } from '@tuturuuu/utils/format';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 export function SourcesPart({
   parts,
@@ -10,12 +10,14 @@ export function SourcesPart({
   const [expanded, setExpanded] = useState(false);
   if (parts.length === 0) return null;
 
-  const seen = new Set<string>();
-  const unique = parts.filter((p) => {
-    if (seen.has(p.url)) return false;
-    seen.add(p.url);
-    return true;
-  });
+  const unique = useMemo(() => {
+    const seen = new Set<string>();
+    return parts.filter((p) => {
+      if (seen.has(p.url)) return false;
+      seen.add(p.url);
+      return true;
+    });
+  }, [parts]);
 
   return (
     <div className="mt-2 flex flex-col gap-1.5">

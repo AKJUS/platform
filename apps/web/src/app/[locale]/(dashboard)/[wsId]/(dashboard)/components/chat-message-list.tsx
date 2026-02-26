@@ -177,7 +177,7 @@ export default function ChatMessageList({
         const isContinuation = prevMessage?.role === message.role;
 
         const messageText = isUser
-          ? getDisplayText(message, isAutoMermaidRepairPrompt)
+          ? displayText
           : getMessageText(message);
 
         return (

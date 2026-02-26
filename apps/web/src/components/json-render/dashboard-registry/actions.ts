@@ -15,7 +15,40 @@ type RegistryContext = {
     role: 'user';
     parts: Array<{ type: 'text'; text: string }>;
   }) => Promise<void>;
+  createTransaction?: (params: {
+    amount: unknown;
+    description: unknown;
+    walletId: unknown;
+  }) => Promise<void>;
 };
+
+async function deliverMessage(
+  context: RegistryContext,
+  messageText: string
+): Promise<void> {
+  const { submitText, sendMessage } = context || {};
+
+  if (submitText) {
+    submitText(messageText);
+    return;
+  }
+
+  if (!sendMessage) {
+    throw new Error('Internal error: sendMessage not found');
+  }
+
+  try {
+    await sendMessage({
+      role: 'user',
+      parts: [{ type: 'text', text: messageText }],
+    });
+  } catch (error) {
+    console.error('Failed to deliver dashboard action message:', error);
+    throw error instanceof Error
+      ? error
+      : new Error('Failed to deliver message');
+  }
+}
 
 export const dashboardActions = {
   submit_form: async (
@@ -41,14 +74,7 @@ export const dashboardActions = {
         values: params.values,
       });
 
-      if (submitText) {
-        submitText(messageText);
-      } else if (sendMessage) {
-        await sendMessage({
-          role: 'user',
-          parts: [{ type: 'text', text: messageText }],
-        });
-      }
+      await deliverMessage(context, messageText);
 
       setState((prev) => ({
         ...prev,
@@ -83,14 +109,7 @@ export const dashboardActions = {
         source: params?.source,
       });
 
-      if (submitText) {
-        submitText(messageText);
-      } else if (sendMessage) {
-        await sendMessage({
-          role: 'user',
-          parts: [{ type: 'text', text: messageText }],
-        });
-      }
+      await deliverMessage(context, messageText);
 
       setState((prev) => ({
         ...prev,
@@ -114,23 +133,24 @@ export const dashboardActions = {
     context: RegistryContext
   ) => {
     if (!params) return;
-    const { submitText, sendMessage } = context || {};
+    const { submitText, sendMessage, createTransaction } = context || {};
+    if (!createTransaction) {
+      setState((prev) => ({
+        ...prev,
+        submitting: false,
+        success: false,
+        error: 'Internal error: createTransaction not found',
+      }));
+      return;
+    }
     setState((prev) => ({ ...prev, submitting: true }));
 
     try {
-      const res = await fetch('/api/v1/finance/transactions', {
-        method: 'POST',
-        body: JSON.stringify({
-          amount: params.amount,
-          description: params.description,
-          wallet_id: params.walletId,
-        }),
-        headers: { 'Content-Type': 'application/json' },
+      await createTransaction({
+        amount: params.amount,
+        description: params.description,
+        walletId: params.walletId,
       });
-
-      if (!res.ok) {
-        throw new Error('Failed to log transaction');
-      }
 
       if (submitText || sendMessage) {
         const messageText = `### Transaction Logged\n\n**Amount**: ${params.amount}\n**Description**: ${typeof params.description === 'string' ? params.description : 'N/A'}`;
@@ -185,14 +205,7 @@ export const dashboardActions = {
         values: params,
       });
 
-      if (submitText) {
-        submitText(messageText);
-      } else if (sendMessage) {
-        await sendMessage({
-          role: 'user',
-          parts: [{ type: 'text', text: messageText }],
-        });
-      }
+      await deliverMessage(context, messageText);
 
       setState((prev) => ({
         ...prev,

@@ -2,6 +2,11 @@ import { defineCatalog } from '@json-render/core';
 import { schema } from '@json-render/react/schema';
 import { z } from 'zod';
 
+const isIsoDateTimeString = (value: string) => {
+  const parsed = Date.parse(value);
+  return !Number.isNaN(parsed) && value.includes('T');
+};
+
 export const dashboardCatalog = defineCatalog(schema, {
   components: {
     Card: {
@@ -269,46 +274,78 @@ export const dashboardCatalog = defineCatalog(schema, {
       description: "A component that renders the user's current task list.",
     },
     TimeTrackingStats: {
-      props: z.object({
-        period: z
-          .enum([
-            'today',
-            'this_week',
-            'this_month',
-            'last_7_days',
-            'last_30_days',
-            'custom',
-          ])
-          .optional()
-          .describe('Stats period preset. Defaults to last_7_days.'),
-        dateFrom: z
-          .string()
-          .optional()
-          .describe(
-            'Custom period start ISO datetime (required when period=custom).'
-          ),
-        dateTo: z
-          .string()
-          .optional()
-          .describe(
-            'Custom period end ISO datetime (required when period=custom).'
-          ),
-        showBreakdown: z
-          .boolean()
-          .optional()
-          .describe('Show category breakdown list (default true).'),
-        showDailyBreakdown: z
-          .boolean()
-          .optional()
-          .describe('Show daily breakdown list (default true).'),
-        maxItems: z
-          .number()
-          .int()
-          .min(1)
-          .max(10)
-          .optional()
-          .describe('Maximum rows for breakdown sections (default 5).'),
-      }),
+      props: z
+        .object({
+          period: z
+            .enum([
+              'today',
+              'this_week',
+              'this_month',
+              'last_7_days',
+              'last_30_days',
+              'custom',
+            ])
+            .optional()
+            .describe('Stats period preset. Defaults to last_7_days.'),
+          dateFrom: z
+            .string()
+            .optional()
+            .describe(
+              'Custom period start ISO datetime (required when period=custom).'
+            ),
+          dateTo: z
+            .string()
+            .optional()
+            .describe(
+              'Custom period end ISO datetime (required when period=custom).'
+            ),
+          showBreakdown: z
+            .boolean()
+            .optional()
+            .describe('Show category breakdown list (default true).'),
+          showDailyBreakdown: z
+            .boolean()
+            .optional()
+            .describe('Show daily breakdown list (default true).'),
+          maxItems: z
+            .number()
+            .int()
+            .min(1)
+            .max(10)
+            .optional()
+            .describe('Maximum rows for breakdown sections (default 5).'),
+        })
+        .superRefine((data, ctx) => {
+          if (data.period !== 'custom') return;
+
+          if (!data.dateFrom) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ['dateFrom'],
+              message: 'dateFrom is required when period is custom',
+            });
+          } else if (!isIsoDateTimeString(data.dateFrom)) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ['dateFrom'],
+              message: 'dateFrom must be a valid ISO datetime string',
+            });
+          }
+
+          if (!data.dateTo) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ['dateTo'],
+              message: 'dateTo is required when period is custom',
+            });
+          } else if (!isIsoDateTimeString(data.dateTo)) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ['dateTo'],
+              message: 'dateTo must be a valid ISO datetime string',
+            });
+          }
+        }),
       hasChildren: false,
       description:
         'A standardized time-tracking stats dashboard that fetches and displays period metrics and breakdowns.',
@@ -331,7 +368,12 @@ export const dashboardCatalog = defineCatalog(schema, {
           .record(z.string(), z.unknown())
           .optional()
           .describe('Optional static params merged into submit payload'),
-        onSubmit: z.any().optional().describe('Binding for the submit action'),
+        onSubmit: z
+          .unknown()
+          .optional()
+          .describe(
+            'Binding for the submit action; value is validated later by action schemas at submit time.'
+          ),
       }),
       hasChildren: true,
       description:
@@ -350,7 +392,12 @@ export const dashboardCatalog = defineCatalog(schema, {
           .enum(['text', 'number', 'email', 'password', 'datetime-local'])
           .optional()
           .describe('Input type, defaults to text'),
-        value: z.any().optional().describe('Input value binding'),
+        value: z
+          .unknown()
+          .optional()
+          .describe(
+            'Input value binding; value is validated later by action schemas at submit time.'
+          ),
       }),
       hasChildren: false,
       description: 'A text or number input field for a Form.',
@@ -375,7 +422,12 @@ export const dashboardCatalog = defineCatalog(schema, {
           .string()
           .optional()
           .describe('Accepted mime types or extensions'),
-        value: z.any().optional().describe('Attachment value binding'),
+        value: z
+          .unknown()
+          .optional()
+          .describe(
+            'Attachment value binding; value is validated later by action schemas at submit time.'
+          ),
       }),
       hasChildren: false,
       description:
@@ -391,7 +443,12 @@ export const dashboardCatalog = defineCatalog(schema, {
           .optional()
           .describe('Whether the field is required'),
         rows: z.number().optional().describe('Number of rows'),
-        value: z.any().optional().describe('Textarea value binding'),
+        value: z
+          .unknown()
+          .optional()
+          .describe(
+            'Textarea value binding; value is validated later by action schemas at submit time.'
+          ),
       }),
       hasChildren: false,
       description: 'A multi-line text input field for a Form.',
@@ -405,7 +462,12 @@ export const dashboardCatalog = defineCatalog(schema, {
           .boolean()
           .optional()
           .describe('Whether the field is required'),
-        checked: z.any().optional().describe('Checkbox checked binding'),
+        checked: z
+          .unknown()
+          .optional()
+          .describe(
+            'Checkbox checked binding; value is validated later by action schemas at submit time.'
+          ),
       }),
       hasChildren: false,
       description: 'A single checkbox component.',
@@ -426,7 +488,12 @@ export const dashboardCatalog = defineCatalog(schema, {
           .boolean()
           .optional()
           .describe('Whether at least one option is required'),
-        values: z.any().optional().describe('Checkbox group values binding'),
+        values: z
+          .unknown()
+          .optional()
+          .describe(
+            'Checkbox group values binding; value is validated later by action schemas at submit time.'
+          ),
       }),
       hasChildren: false,
       description: 'A group of checkboxes for multiple selection.',
@@ -447,7 +514,12 @@ export const dashboardCatalog = defineCatalog(schema, {
           .boolean()
           .optional()
           .describe('Whether an option is required'),
-        value: z.any().optional().describe('Radio group value binding'),
+        value: z
+          .unknown()
+          .optional()
+          .describe(
+            'Radio group value binding; value is validated later by action schemas at submit time.'
+          ),
       }),
       hasChildren: false,
       description: 'A group of radio buttons for single selection.',
@@ -469,7 +541,12 @@ export const dashboardCatalog = defineCatalog(schema, {
           .boolean()
           .optional()
           .describe('Whether the field is required'),
-        value: z.any().optional().describe('Select value binding'),
+        value: z
+          .unknown()
+          .optional()
+          .describe(
+            'Select value binding; value is validated later by action schemas at submit time.'
+          ),
       }),
       hasChildren: false,
       description: 'A dropdown select component.',
@@ -617,40 +694,71 @@ export const dashboardCatalog = defineCatalog(schema, {
         'Log a financial transaction directly from a generated UI form.',
     },
     create_time_tracking_request: {
-      params: z.object({
-        wsId: z.string().describe('Workspace ID slug or UUID'),
-        requestId: z
-          .string()
-          .uuid()
-          .optional()
-          .describe('Request UUID used for storage prefix'),
-        title: z.string().describe('Request title'),
-        description: z.string().optional().describe('Optional request details'),
-        categoryId: z
-          .string()
-          .nullable()
-          .optional()
-          .describe('Category UUID or null'),
-        taskId: z.string().nullable().optional().describe('Task UUID or null'),
-        date: z
-          .string()
-          .optional()
-          .describe('Optional base date (YYYY-MM-DD) when using HH:mm inputs'),
-        startTime: z
-          .string()
-          .describe(
-            'Start time (ISO 8601, YYYY-MM-DD HH:mm, or HH:mm with date)'
-          ),
-        endTime: z
-          .string()
-          .describe(
-            'End time (ISO 8601, YYYY-MM-DD HH:mm, or HH:mm with date)'
-          ),
-        imagePaths: z
-          .array(z.string())
-          .optional()
-          .describe('Optional pre-uploaded storage paths'),
-      }),
+      params: z
+        .object({
+          wsId: z.string().describe('Workspace ID slug or UUID'),
+          requestId: z
+            .string()
+            .uuid()
+            .optional()
+            .describe('Request UUID used for storage prefix'),
+          title: z.string().describe('Request title'),
+          description: z.string().optional().describe('Optional request details'),
+          categoryId: z
+            .string()
+            .nullable()
+            .optional()
+            .describe('Category UUID or null'),
+          taskId: z
+            .string()
+            .nullable()
+            .optional()
+            .describe('Task UUID or null'),
+          date: z
+            .string()
+            .optional()
+            .describe('Optional base date (YYYY-MM-DD) when using HH:mm inputs'),
+          startTime: z
+            .string()
+            .describe(
+              'Start time (ISO 8601, YYYY-MM-DD HH:mm, or HH:mm with date)'
+            ),
+          endTime: z
+            .string()
+            .describe(
+              'End time (ISO 8601, YYYY-MM-DD HH:mm, or HH:mm with date)'
+            ),
+          imagePaths: z
+            .array(z.string())
+            .max(5)
+            .optional()
+            .describe('Optional pre-uploaded storage paths (max 5).'),
+        })
+        .superRefine((data, ctx) => {
+          const paths = data.imagePaths ?? [];
+          if (paths.length === 0) return;
+
+          if (!data.requestId) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ['requestId'],
+              message: 'requestId is required when imagePaths are provided',
+            });
+            return;
+          }
+
+          for (let index = 0; index < paths.length; index++) {
+            const path = paths[index];
+            if (!path?.startsWith(`${data.requestId}/`)) {
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                path: ['imagePaths', index],
+                message:
+                  'Each image path must start with `${requestId}/` when requestId is provided',
+              });
+            }
+          }
+        }),
       description:
         'Submit a time tracking missed-entry request with optional evidence attachments.',
     },

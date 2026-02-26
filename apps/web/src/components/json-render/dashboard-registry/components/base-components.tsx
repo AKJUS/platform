@@ -1,7 +1,6 @@
 'use client';
 
 import { useActions, useStateBinding, useStateStore } from '@json-render/react';
-import * as Icons from '@tuturuuu/icons';
 import type {
   JsonRenderBadgeProps,
   JsonRenderBarChartProps,
@@ -34,7 +33,13 @@ import { Progress } from '@tuturuuu/ui/progress';
 import { Separator } from '@tuturuuu/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@tuturuuu/ui/tabs';
 import { cn } from '@tuturuuu/utils/format';
-import { Children, type ComponentType, createElement, useId } from 'react';
+import {
+  Children,
+  type ComponentType,
+  type ReactNode,
+  createElement,
+  useId,
+} from 'react';
 import { dispatchUiAction } from '../../action-dispatch';
 import {
   isStructuredSubmitAction,
@@ -44,14 +49,9 @@ import type { IconProps, StatDisplayProps } from '../shared';
 
 type IconComponent = ComponentType<IconProps>;
 
-const iconRegistry = Icons as unknown as Record<
-  string,
-  IconComponent | undefined
->;
-
 function resolveRegistryIcon(name?: string): IconComponent | null {
   if (!name) return null;
-  return getIconComponentByKey(name) ?? iconRegistry[name] ?? null;
+  return getIconComponentByKey(name) ?? null;
 }
 
 type LegacyTextProps = JsonRenderTextProps;
@@ -452,11 +452,29 @@ export const dashboardBaseComponents = {
             </TabsTrigger>
           ))}
         </TabsList>
-        {props.tabs?.map((tab) => (
-          <TabsContent key={tab.id} value={tab.id}>
-            {children}
-          </TabsContent>
-        ))}
+        {props.tabs?.map((tab) => {
+          const tabAwareChildren =
+            typeof children === 'function'
+              ? (children as (context: {
+                  tabId: string;
+                  activeTab: string;
+                }) => ReactNode)({
+                  tabId: tab.id,
+                  activeTab: currentTab,
+                })
+              : tab.id === currentTab
+                ? children
+                : null;
+
+          const tabContent =
+            typeof tab.content === 'string' ? tab.content : tabAwareChildren;
+
+          return (
+            <TabsContent key={tab.id} value={tab.id}>
+              {tabContent}
+            </TabsContent>
+          );
+        })}
       </Tabs>
     );
   },

@@ -2892,12 +2892,31 @@
       "tool_search_failed": "Search failed",
       "tool_searched_web": "Searched the web",
       "tool_searching_web": "Searching the web...",
+      "tool_render_error": "The generated UI could not be rendered. Please try again.",
       "using_tools": "Working on it...",
       "view_only": "View only",
-      "you": "You"
+      "you": "You",
+      "submission": "Submission",
+      "form_submitted": "Form Submitted"
     },
     "multiple_tasks_attention": "{count} tasks need your attention",
     "my_tasks": "My Tasks",
+    "json_render": {
+      "time_tracking": {
+        "stats_title": "Time Tracking Stats",
+        "no_stats_available": "No stats available for this period.",
+        "overview_title": "Time Tracking Overview",
+        "total_time": "Total Time",
+        "sessions": "Sessions",
+        "avg_session": "Avg Session",
+        "best_time_of_day": "Best Time of Day",
+        "top_categories": "Top Categories",
+        "no_category_data": "No category data for this period.",
+        "daily_breakdown": "Daily Breakdown",
+        "no_daily_data": "No daily data for this period.",
+        "not_available": "N/A"
+      }
+    },
     "next_up_on_calendar": "Next up on Calendar",
     "no_data_description": "Start tracking your time to unlock detailed insights about your work patterns, productivity trends, and goal progress.",
     "no_data_title": "Ready to boost your productivity?",

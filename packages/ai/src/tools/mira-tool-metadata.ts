@@ -1,6 +1,7 @@
 import type { PermissionId } from '@tuturuuu/types';
+import type { MiraToolName } from './mira-tool-names';
 
-export const MIRA_TOOL_DIRECTORY: Record<string, string> = {
+export const MIRA_TOOL_DIRECTORY: Record<MiraToolName, string> = {
   select_tools: 'Present user with tool selection options',
   get_my_tasks: 'Get your tasks by status (overdue, today, upcoming)',
   create_task: 'Create a new task',
@@ -31,6 +32,8 @@ export const MIRA_TOOL_DIRECTORY: Record<string, string> = {
   remove_task_assignee: 'Remove a user from a task',
   get_upcoming_events: 'Get calendar events for the next N days',
   create_event: 'Create a calendar event',
+  update_event: 'Update a calendar event',
+  delete_event: 'Delete a calendar event',
   check_e2ee_status: 'Check E2EE encryption status for calendar',
   enable_e2ee: 'Enable end-to-end encryption for calendar events',
   log_transaction: 'Log an income or expense transaction',
@@ -82,7 +85,7 @@ export const MIRA_TOOL_DIRECTORY: Record<string, string> = {
 };
 
 export const MIRA_TOOL_PERMISSIONS: Partial<
-  Record<string, PermissionId | PermissionId[]>
+  Record<MiraToolName, PermissionId | PermissionId[]>
 > = {
   create_task: 'manage_projects',
   complete_task: 'manage_projects',
@@ -108,6 +111,8 @@ export const MIRA_TOOL_PERMISSIONS: Partial<
   remove_task_assignee: 'manage_projects',
   get_upcoming_events: 'manage_calendar',
   create_event: 'manage_calendar',
+  update_event: 'manage_calendar',
+  delete_event: 'manage_calendar',
   check_e2ee_status: 'manage_calendar',
   enable_e2ee: 'manage_calendar',
   log_transaction: 'manage_finance',

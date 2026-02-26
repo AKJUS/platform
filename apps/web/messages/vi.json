@@ -2892,12 +2892,31 @@
       "tool_search_failed": "Tìm kiếm thất bại",
       "tool_searched_web": "Đã tìm kiếm trên web",
       "tool_searching_web": "Đang tìm kiếm trên web...",
+      "tool_render_error": "Giao diện được tạo không thể được hiển thị. Vui lòng thử lại.",
       "using_tools": "Đang xử lý...",
       "view_only": "Chỉ xem",
-      "you": "Bạn"
+      "you": "Bạn",
+      "submission": "Gửi",
+      "form_submitted": "Biểu mẫu đã gửi"
     },
     "multiple_tasks_attention": "{count} nhiệm vụ cần sự chú ý của bạn",
     "my_tasks": "Tác vụ của mình",
+    "json_render": {
+      "time_tracking": {
+        "stats_title": "Thống kê theo dõi thời gian",
+        "no_stats_available": "Không có thống kê nào cho khoảng thời gian này.",
+        "overview_title": "Tổng quan theo dõi thời gian",
+        "total_time": "Tổng thời gian",
+        "sessions": "Phiên",
+        "avg_session": "Phiên trung bình",
+        "best_time_of_day": "Thời gian tốt nhất trong ngày",
+        "top_categories": "Danh mục hàng đầu",
+        "no_category_data": "Không có dữ liệu danh mục cho khoảng thời gian này.",
+        "daily_breakdown": "Phân tích hàng ngày",
+        "no_daily_data": "Không có dữ liệu hàng ngày cho khoảng thời gian này.",
+        "not_available": "N/A"
+      }
+    },
     "next_up_on_calendar": "Tiếp theo trên Lịch",
     "no_data_description": "Bắt đầu theo dõi thời gian của bạn để mở khóa những hiểu biết chi tiết về mô hình công việc, xu hướng năng suất và tiến độ mục tiêu của bạn.",
     "no_data_title": "Sẵn sàng để tăng năng suất của bạn?",
