@@ -54,10 +54,16 @@ export function useExcalidrawCursor({
   const throttleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const errorCountRef = useRef(0);
   const destroyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const targetPositionRef = useRef({ x: -1000, y: -1000 });
+  const currentPositionRef = useRef({ x: -1000, y: -1000 });
+  const currentToolRef = useRef<string | undefined>(undefined);
+  const animationFrameRef = useRef<number | null>(null);
   const pageVisibleRef = useRef(pageVisible);
   pageVisibleRef.current = pageVisible;
 
   const MAX_ERROR_COUNT = 3;
+  const ANIMATION_FACTOR = 0.2;
+  const MOVEMENT_THRESHOLD = 5;
 
   const handleError = useCallback((err: unknown) => {
     errorCountRef.current++;
@@ -69,8 +75,8 @@ export function useExcalidrawCursor({
     }
   }, []);
 
-  // Broadcast cursor position with throttling
-  const broadcastCursor = useCallback(
+  // Send cursor position with throttling
+  const sendCursor = useCallback(
     async (x: number, y: number, tool?: string) => {
       if (!channelRef.current || !enabled) return;
       if (errorCountRef.current >= MAX_ERROR_COUNT) return;
@@ -114,6 +120,65 @@ export function useExcalidrawCursor({
     },
     [enabled, throttleMs, user, handleError]
   );
+
+  const smoothAnimate = useCallback(() => {
+    if (!enabled || !user.id) {
+      animationFrameRef.current = requestAnimationFrame(smoothAnimate);
+      return;
+    }
+
+    currentPositionRef.current.x +=
+      (targetPositionRef.current.x - currentPositionRef.current.x) *
+      ANIMATION_FACTOR;
+    currentPositionRef.current.y +=
+      (targetPositionRef.current.y - currentPositionRef.current.y) *
+      ANIMATION_FACTOR;
+
+    const distance = Math.hypot(
+      targetPositionRef.current.x - currentPositionRef.current.x,
+      targetPositionRef.current.y - currentPositionRef.current.y
+    );
+
+    if (distance > MOVEMENT_THRESHOLD && pageVisibleRef.current) {
+      void sendCursor(
+        currentPositionRef.current.x,
+        currentPositionRef.current.y,
+        currentToolRef.current
+      );
+    }
+
+    animationFrameRef.current = requestAnimationFrame(smoothAnimate);
+  }, [enabled, user.id, sendCursor]);
+
+  const broadcastCursor = useCallback(
+    (x: number, y: number, tool?: string) => {
+      if (!enabled || !user.id) return;
+
+      currentToolRef.current = tool;
+
+      const shouldHideCursor = x <= -1000 || y <= -1000;
+      if (shouldHideCursor) {
+        targetPositionRef.current = { x, y };
+        currentPositionRef.current = { x, y };
+        void sendCursor(x, y, tool);
+        return;
+      }
+
+      targetPositionRef.current = { x, y };
+    },
+    [enabled, user.id, sendCursor]
+  );
+
+  useEffect(() => {
+    animationFrameRef.current = requestAnimationFrame(smoothAnimate);
+
+    return () => {
+      if (animationFrameRef.current !== null) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
+    };
+  }, [smoothAnimate]);
 
   // Clean up stale cursors
   useEffect(() => {

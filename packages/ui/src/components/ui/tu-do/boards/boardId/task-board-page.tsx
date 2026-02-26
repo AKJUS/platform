@@ -26,7 +26,7 @@ export default async function TaskBoardPage({
 
   let resolvedWorkspace = workspace ?? null;
   if (!resolvedWorkspace) {
-    resolvedWorkspace = await getWorkspace(wsId);
+    resolvedWorkspace = await getWorkspace(wsId, { useAdmin: true });
   }
   if (!resolvedWorkspace) {
     notFound();
