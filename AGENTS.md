@@ -86,6 +86,11 @@ Foundational mandates here take absolute precedence. **NEVER** invent ad-hoc beh
 - **Dashboard Overlay UX**: For compact+expandable dashboard widgets near chat actions, avoid icon-only rails; use labeled compact triggers and reserve layout space to prevent overlap at desktop breakpoints.
 - **Render UI Text Fidelity**: Components that display AI-authored prose in `render_ui` (for example `KeyPoints`, `InsightSection` summaries) must render markdown semantics (bold, emphasis, inline code, links) instead of showing raw markdown tokens.
 - **Markdown Table Priority**: For tabular assistant answers, prefer native markdown tables in normal assistant text. Do not attempt unsupported `render_ui` table components, and do not wrap markdown tables in fenced code blocks.
+- **Chat Attachment Type Parity**: When adding a new attachment type for Mira chat, update all three surfaces together: `chat-input-bar.tsx` accept list, `/api/ai/chat/upload-url` extension allowlist, and `/api/ai/chat/file-urls` extension→MIME mapping.
+- **Office/Binary Attachment Handling**: For chat uploads that may be rejected by storage MIME checks (for example `.xlsx`/`.docx`), use a safe upload MIME fallback (`application/octet-stream`) and retry once without explicit `Content-Type`. In AI provider routes, never pass unsupported binary MIME types as inline `file` parts; convert them into explicit text notices instead.
+- **MarkItDown Conversions**: For binary office/docs ingestion in Mira, route through the Discord `/markitdown` endpoint with plugins enabled, enforce fixed per-request credit charging in the tool executor, and pass files via Supabase signed read URLs (never raw multipart upload bytes to the endpoint).
+- **Discord Python Tooling**: In `apps/discord`, use `uv` as the local environment/package workflow (`uv sync`, `uv run ...`) with `pyproject.toml` + `uv.lock` as the source of truth for local development.
+- **Discord CI Parity**: Keep `.github/workflows/discord-python-ci.yml` aligned with the `uv` workflow and install dependencies via `uv sync --locked` so CI reproducibly uses `apps/discord/uv.lock`.
 
 ## 7. Continuous Improvement (Session Retrospective)
 At the **END** of every session, you MUST:
