@@ -9,12 +9,15 @@ class RequestReasonBox extends StatelessWidget {
   const RequestReasonBox({
     required this.text,
     required this.color,
+    required this.title,
+    required this.icon,
     super.key,
   });
 
   final String text;
   final Color color;
-
+  final String title;
+  final IconData icon;
   @override
   Widget build(BuildContext context) {
     final theme = shad.Theme.of(context);
@@ -24,10 +27,30 @@ class RequestReasonBox extends StatelessWidget {
         color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Text(
-        text,
-        style: theme.typography.small.copyWith(color: color),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 12, color: color),
+              const shad.Gap(8),
+              Text(
+                title,
+                style: theme.typography.medium.copyWith(color: color),
+          )
+        ],
       ),
+      const shad.Gap(4),
+      Row(
+        children: [
+                    Text(
+            text,
+            style: theme.typography.small.copyWith(color: color),
+          ),
+        ]
+    )
+        ]
+    )
     );
   }
 }

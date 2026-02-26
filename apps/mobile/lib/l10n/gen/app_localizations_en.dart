@@ -531,6 +531,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get timerRequestInfo => 'Request info';
 
   @override
+  String get timerRequestResubmit => 'Resubmit request';
+
+  @override
   String get timerRequestEdit => 'Edit';
 
   @override
@@ -677,6 +680,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get timerRequestSubmittedContent => 'Your time entry has been submitted for approval.';
+
+  @override
+  String get timerRequestRejectionReason => 'Rejection reason';
+
+  @override
+  String get timerRequestNeedsInfoReason => 'Requested Information';
 
   @override
   String get timerMissedEntrySavedTitle => 'Entry saved';

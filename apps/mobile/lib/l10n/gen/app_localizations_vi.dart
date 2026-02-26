@@ -531,6 +531,9 @@ class AppLocalizationsVi extends AppLocalizations {
   String get timerRequestInfo => 'Yêu cầu thông tin';
 
   @override
+  String get timerRequestResubmit => 'Gửi lại yêu cầu';
+
+  @override
   String get timerRequestEdit => 'Chỉnh sửa';
 
   @override
@@ -677,6 +680,12 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String get timerRequestSubmittedContent => 'Mục thời gian của bạn đã được gửi để duyệt.';
+
+  @override
+  String get timerRequestRejectionReason => 'Lý do từ chối';
+
+  @override
+  String get timerRequestNeedsInfoReason => 'Lý do cần thêm thông tin';
 
   @override
   String get timerMissedEntrySavedTitle => 'Đã lưu mục';

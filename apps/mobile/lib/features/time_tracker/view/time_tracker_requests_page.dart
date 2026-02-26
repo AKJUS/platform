@@ -392,6 +392,7 @@ class _RequestsViewState extends State<_RequestsView> {
             cubit.rejectRequest(request.id, wsId, reason: reason),
         onRequestInfo: (reason) =>
             cubit.requestMoreInfo(request.id, wsId, reason: reason),
+        onResubmit: () => cubit.resubmitRequest(request.id, wsId),
         canEdit:
             request.approvalStatus == ApprovalStatus.pending ||
             request.approvalStatus == ApprovalStatus.needsInfo,

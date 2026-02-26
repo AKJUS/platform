@@ -1123,6 +1123,12 @@ abstract class AppLocalizations {
   /// **'Request info'**
   String get timerRequestInfo;
 
+  /// No description provided for @timerRequestResubmit.
+  ///
+  /// In en, this message translates to:
+  /// **'Resubmit request'**
+  String get timerRequestResubmit;
+
   /// No description provided for @timerRequestEdit.
   ///
   /// In en, this message translates to:
@@ -1410,6 +1416,18 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Your time entry has been submitted for approval.'**
   String get timerRequestSubmittedContent;
+
+  /// No description provided for @timerRequestRejectionReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Rejection reason'**
+  String get timerRequestRejectionReason;
+
+  /// No description provided for @timerRequestNeedsInfoReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Requested Information'**
+  String get timerRequestNeedsInfoReason;
 
   /// No description provided for @timerMissedEntrySavedTitle.
   ///

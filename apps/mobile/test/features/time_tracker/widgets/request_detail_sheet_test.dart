@@ -43,6 +43,7 @@ void main() {
             onApprove: () async {},
             onReject: (_) async {},
             onRequestInfo: (_) async {},
+            onResubmit: () async {},
           ),
         ),
       );
@@ -69,6 +70,7 @@ void main() {
             onApprove: () async {},
             onReject: (_) async {},
             onRequestInfo: (_) async {},
+            onResubmit: () async {},
           ),
         ),
       );
@@ -77,5 +79,91 @@ void main() {
       expect(find.text('Approve'), findsNothing);
       expect(find.text('Reject'), findsNothing);
     });
+
+    testWidgets('updates request details immediately after reject action', (
+      tester,
+    ) async {
+      String? submittedReason;
+
+      await tester.pumpApp(
+        Scaffold(
+          body: RequestDetailSheet(
+            request: request,
+            wsId: 'test_ws_id',
+            repository: repository,
+            isManager: true,
+            onApprove: () async {},
+            onReject: (reason) async {
+              submittedReason = reason;
+            },
+            onRequestInfo: (_) async {},
+            onResubmit: () async {},
+          ),
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.text('Reject').first);
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(EditableText), 'Need more details');
+      await tester.tap(find.text('Reject').last);
+      await tester.pumpAndSettle();
+
+      expect(submittedReason, 'Need more details');
+      expect(find.text('Need more details'), findsOneWidget);
+      expect(find.text('Rejected'), findsOneWidget);
+      expect(find.text('Approve'), findsNothing);
+
+      await tester.pump(const Duration(seconds: 6));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets(
+      'shows feedback and allows owner to resubmit needs-info request',
+      (
+        tester,
+      ) async {
+        var didResubmit = false;
+
+        final needsInfoRequest = TimeTrackingRequest(
+          id: 'req_2',
+          userId: 'user_1',
+          title: 'Fix this request',
+          startTime: DateTime(2026, 2, 10, 9),
+          endTime: DateTime(2026, 2, 10, 10, 30),
+          approvalStatus: ApprovalStatus.needsInfo,
+          needsInfoReason: 'Please provide more context.',
+        );
+
+        await tester.pumpApp(
+          Scaffold(
+            body: RequestDetailSheet(
+              request: needsInfoRequest,
+              wsId: 'test_ws_id',
+              repository: repository,
+              currentUserId: 'user_1',
+              onApprove: () async {},
+              onReject: (_) async {},
+              onRequestInfo: (_) async {},
+              onResubmit: () async {
+                didResubmit = true;
+              },
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.text('Please provide more context.'), findsOneWidget);
+        expect(find.text('Resubmit request'), findsOneWidget);
+
+        await tester.tap(find.text('Resubmit request'));
+        await tester.pumpAndSettle();
+
+        expect(didResubmit, isTrue);
+        expect(find.text('Pending'), findsOneWidget);
+        expect(find.text('Resubmit request'), findsNothing);
+      },
+    );
   });
 }
