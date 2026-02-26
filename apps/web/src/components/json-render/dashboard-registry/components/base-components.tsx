@@ -36,8 +36,8 @@ import { cn } from '@tuturuuu/utils/format';
 import {
   Children,
   type ComponentType,
-  type ReactNode,
   createElement,
+  type ReactNode,
   useId,
 } from 'react';
 import { dispatchUiAction } from '../../action-dispatch';
@@ -455,10 +455,12 @@ export const dashboardBaseComponents = {
         {props.tabs?.map((tab) => {
           const tabAwareChildren =
             typeof children === 'function'
-              ? (children as (context: {
-                  tabId: string;
-                  activeTab: string;
-                }) => ReactNode)({
+              ? (
+                  children as (context: {
+                    tabId: string;
+                    activeTab: string;
+                  }) => ReactNode
+                )({
                   tabId: tab.id,
                   activeTab: currentTab,
                 })

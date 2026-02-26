@@ -331,8 +331,8 @@ export function useCreateTimeTrackingRequest() {
       ].slice(0, MAX_FILES_PER_REQUEST);
 
       const preUploadedPaths = Array.isArray(params.imagePaths)
-        ? params.imagePaths.filter(
-            (path): path is string => isValidSignedUploadPath(path)
+        ? params.imagePaths.filter((path): path is string =>
+            isValidSignedUploadPath(path)
           )
         : [];
 

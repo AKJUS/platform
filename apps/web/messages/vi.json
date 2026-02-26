@@ -2814,6 +2814,22 @@
       "ultimate_goal": "Mục Tiêu Cuối Cùng",
       "ultimate_goal_desc": "Làm cho Tuturuuu có lợi nhuận và bền vững"
     },
+    "json_render": {
+      "time_tracking": {
+        "avg_session": "Phiên trung bình",
+        "best_time_of_day": "Thời gian tốt nhất trong ngày",
+        "daily_breakdown": "Phân tích hàng ngày",
+        "no_category_data": "Không có dữ liệu danh mục cho khoảng thời gian này.",
+        "no_daily_data": "Không có dữ liệu hàng ngày cho khoảng thời gian này.",
+        "no_stats_available": "Không có thống kê nào cho khoảng thời gian này.",
+        "not_available": "N/A",
+        "overview_title": "Tổng quan theo dõi thời gian",
+        "sessions": "Phiên",
+        "stats_title": "Thống kê theo dõi thời gian",
+        "top_categories": "Danh mục hàng đầu",
+        "total_time": "Tổng thời gian"
+      }
+    },
     "keep_it_up": "Cố gắng lên!",
     "mira_chat": {
       "approval_request": {
@@ -2845,6 +2861,7 @@
       "error": "Đã xảy ra lỗi. Vui lòng thử lại.",
       "exit_fullscreen": "Thoát toàn màn hình",
       "files_attached": "{count, plural, one {# tệp đính kèm} other {# tệp đính kèm}}",
+      "form_submitted": "Biểu mẫu đã gửi",
       "fullscreen": "Trò chuyện toàn màn hình",
       "generated_image": "Hình ảnh được tạo",
       "max_files_reached": "Đã đạt giới hạn tệp",
@@ -2883,40 +2900,23 @@
       "show_input_panel": "Hiện khung nhập",
       "show_less": "Thu gọn",
       "show_more": "Hiện thêm",
+      "submission": "Gửi",
       "thinking": "Đang suy nghĩ...",
       "tool_done": "Hoàn tất",
       "tool_error": "Lỗi",
       "tool_generating_image": "Đang tạo hình ảnh...",
       "tool_generating_ui": "Đang tạo giao diện...",
+      "tool_render_error": "Giao diện được tạo không thể được hiển thị. Vui lòng thử lại.",
       "tool_running": "Đang chạy...",
       "tool_search_failed": "Tìm kiếm thất bại",
       "tool_searched_web": "Đã tìm kiếm trên web",
       "tool_searching_web": "Đang tìm kiếm trên web...",
-      "tool_render_error": "Giao diện được tạo không thể được hiển thị. Vui lòng thử lại.",
       "using_tools": "Đang xử lý...",
       "view_only": "Chỉ xem",
-      "you": "Bạn",
-      "submission": "Gửi",
-      "form_submitted": "Biểu mẫu đã gửi"
+      "you": "Bạn"
     },
     "multiple_tasks_attention": "{count} nhiệm vụ cần sự chú ý của bạn",
     "my_tasks": "Tác vụ của mình",
-    "json_render": {
-      "time_tracking": {
-        "stats_title": "Thống kê theo dõi thời gian",
-        "no_stats_available": "Không có thống kê nào cho khoảng thời gian này.",
-        "overview_title": "Tổng quan theo dõi thời gian",
-        "total_time": "Tổng thời gian",
-        "sessions": "Phiên",
-        "avg_session": "Phiên trung bình",
-        "best_time_of_day": "Thời gian tốt nhất trong ngày",
-        "top_categories": "Danh mục hàng đầu",
-        "no_category_data": "Không có dữ liệu danh mục cho khoảng thời gian này.",
-        "daily_breakdown": "Phân tích hàng ngày",
-        "no_daily_data": "Không có dữ liệu hàng ngày cho khoảng thời gian này.",
-        "not_available": "N/A"
-      }
-    },
     "next_up_on_calendar": "Tiếp theo trên Lịch",
     "no_data_description": "Bắt đầu theo dõi thời gian của bạn để mở khóa những hiểu biết chi tiết về mô hình công việc, xu hướng năng suất và tiến độ mục tiêu của bạn.",
     "no_data_title": "Sẵn sàng để tăng năng suất của bạn?",

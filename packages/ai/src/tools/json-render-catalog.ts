@@ -703,7 +703,10 @@ export const dashboardCatalog = defineCatalog(schema, {
             .optional()
             .describe('Request UUID used for storage prefix'),
           title: z.string().describe('Request title'),
-          description: z.string().optional().describe('Optional request details'),
+          description: z
+            .string()
+            .optional()
+            .describe('Optional request details'),
           categoryId: z
             .string()
             .nullable()
@@ -717,7 +720,9 @@ export const dashboardCatalog = defineCatalog(schema, {
           date: z
             .string()
             .optional()
-            .describe('Optional base date (YYYY-MM-DD) when using HH:mm inputs'),
+            .describe(
+              'Optional base date (YYYY-MM-DD) when using HH:mm inputs'
+            ),
           startTime: z
             .string()
             .describe(
@@ -753,8 +758,7 @@ export const dashboardCatalog = defineCatalog(schema, {
               ctx.addIssue({
                 code: z.ZodIssueCode.custom,
                 path: ['imagePaths', index],
-                message:
-                  'Each image path must start with `${requestId}/` when requestId is provided',
+                message: `Each image path must start with \`${data.requestId}/\` when requestId is provided`,
               });
             }
           }

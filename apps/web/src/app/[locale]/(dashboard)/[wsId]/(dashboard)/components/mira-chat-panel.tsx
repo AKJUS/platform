@@ -29,12 +29,12 @@ import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { handlers as jsonRenderHandlers } from '@/components/json-render/dashboard-registry';
+import { useCreateTransaction } from '@/components/json-render/dashboard-registry/shared';
 import {
   createGenerativeUIAdapter,
   resetGenerativeUIStore,
   useGenerativeUIStore,
 } from '@/components/json-render/generative-ui-store';
-import { useCreateTransaction } from '@/components/json-render/dashboard-registry/shared';
 import { resolveTimezone } from '@/lib/calendar-settings-resolver';
 import ChatInputBar from './chat-input-bar';
 import ChatMessageList from './chat-message-list';
@@ -181,11 +181,12 @@ export default function MiraChatPanel({
   const submitTextRef = useRef<((value: string) => void) | null>(null);
   const createTransactionMutation = useCreateTransaction();
   const createTransactionRef = useRef<
-    ((params: {
-      amount: unknown;
-      description: unknown;
-      walletId: unknown;
-    }) => Promise<void>) | null
+    | ((params: {
+        amount: unknown;
+        description: unknown;
+        walletId: unknown;
+      }) => Promise<void>)
+    | null
   >(null);
   createTransactionRef.current = async (params) => {
     await createTransactionMutation.mutateAsync(params);

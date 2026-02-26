@@ -70,12 +70,9 @@ export const workspaceUserChatToolDefinitions = {
           .nullish()
           .describe('Response verbosity'),
       })
-      .refine(
-        (data) => hasAtLeastOneFieldProvided(data),
-        {
-          message: 'At least one field must be provided',
-        }
-      ),
+      .refine((data) => hasAtLeastOneFieldProvided(data), {
+        message: 'At least one field must be provided',
+      }),
   }),
 
   set_theme: tool({

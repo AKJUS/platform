@@ -2,11 +2,11 @@ import type { PermissionId } from '@tuturuuu/types';
 import type { Tool, ToolSet } from 'ai';
 import { miraToolDefinitions } from './mira-tool-definitions';
 import { executeMiraTool } from './mira-tool-dispatcher';
-import type { MiraToolName } from './mira-tool-names';
 import {
   MIRA_TOOL_DIRECTORY,
   MIRA_TOOL_PERMISSIONS,
 } from './mira-tool-metadata';
+import type { MiraToolName } from './mira-tool-names';
 import {
   buildRenderUiFailsafeSpec,
   isRenderableRenderUiSpec,
@@ -29,7 +29,10 @@ export function createMiraStreamTools(
   const tools: ToolSet = {};
   let renderUiInvalidAttempts = 0;
   const definitionEntries = Object.entries(miraToolDefinitions) as Array<
-    [keyof typeof miraToolDefinitions, (typeof miraToolDefinitions)[keyof typeof miraToolDefinitions]]
+    [
+      keyof typeof miraToolDefinitions,
+      (typeof miraToolDefinitions)[keyof typeof miraToolDefinitions],
+    ]
   >;
 
   for (const [name, def] of definitionEntries) {

@@ -70,10 +70,11 @@ function toTimerSession(
     description: typeof row.description === 'string' ? row.description : null,
     categoryId: typeof row.category_id === 'string' ? row.category_id : null,
     taskId: typeof row.task_id === 'string' ? row.task_id : null,
-    isRunning:
-      typeof row.is_running === 'boolean' ? row.is_running : undefined,
+    isRunning: typeof row.is_running === 'boolean' ? row.is_running : undefined,
     pendingApproval:
-      typeof row.pending_approval === 'boolean' ? row.pending_approval : undefined,
+      typeof row.pending_approval === 'boolean'
+        ? row.pending_approval
+        : undefined,
     wsId: typeof row.ws_id === 'string' ? row.ws_id : undefined,
     category:
       row.category && typeof row.category === 'object'
@@ -252,8 +253,9 @@ export async function executeStopTimer(
 
   if (sessionId) query = query.eq('id', sessionId);
 
-  const { data: session, error: sessionError } =
-    await query.limit(1).maybeSingle();
+  const { data: session, error: sessionError } = await query
+    .limit(1)
+    .maybeSingle();
 
   if (sessionError) return { error: sessionError.message };
   if (!session) return { error: 'No running timer found' };
@@ -545,12 +547,13 @@ export async function executeMoveTimeTrackingSession(
   if (!sessionId) return { error: 'sessionId is required' };
   if (!targetWorkspaceId) return { error: 'targetWorkspaceId is required' };
 
-  const { data: sourceMembership, error: sourceMembershipError } = await ctx.supabase
-    .from('workspace_members')
-    .select('user_id')
-    .eq('ws_id', ctx.wsId)
-    .eq('user_id', ctx.userId)
-    .maybeSingle();
+  const { data: sourceMembership, error: sourceMembershipError } =
+    await ctx.supabase
+      .from('workspace_members')
+      .select('user_id')
+      .eq('ws_id', ctx.wsId)
+      .eq('user_id', ctx.userId)
+      .maybeSingle();
 
   if (sourceMembershipError) {
     return { error: sourceMembershipError.message };
@@ -560,12 +563,13 @@ export async function executeMoveTimeTrackingSession(
     return { error: 'Source workspace access denied' };
   }
 
-  const { data: targetMembership, error: targetMembershipError } = await ctx.supabase
-    .from('workspace_members')
-    .select('user_id')
-    .eq('ws_id', targetWorkspaceId)
-    .eq('user_id', ctx.userId)
-    .maybeSingle();
+  const { data: targetMembership, error: targetMembershipError } =
+    await ctx.supabase
+      .from('workspace_members')
+      .select('user_id')
+      .eq('ws_id', targetWorkspaceId)
+      .eq('user_id', ctx.userId)
+      .maybeSingle();
 
   if (targetMembershipError) {
     return { error: targetMembershipError.message };

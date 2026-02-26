@@ -2814,6 +2814,22 @@
       "ultimate_goal": "Ultimate Goal",
       "ultimate_goal_desc": "Make Tuturuuu profitable and sustainable"
     },
+    "json_render": {
+      "time_tracking": {
+        "avg_session": "Avg Session",
+        "best_time_of_day": "Best Time of Day",
+        "daily_breakdown": "Daily Breakdown",
+        "no_category_data": "No category data for this period.",
+        "no_daily_data": "No daily data for this period.",
+        "no_stats_available": "No stats available for this period.",
+        "not_available": "N/A",
+        "overview_title": "Time Tracking Overview",
+        "sessions": "Sessions",
+        "stats_title": "Time Tracking Stats",
+        "top_categories": "Top Categories",
+        "total_time": "Total Time"
+      }
+    },
     "keep_it_up": "Keep it up!",
     "mira_chat": {
       "approval_request": {
@@ -2845,6 +2861,7 @@
       "error": "Something went wrong. Please try again.",
       "exit_fullscreen": "Exit fullscreen",
       "files_attached": "{count, plural, one {# file attached} other {# files attached}}",
+      "form_submitted": "Form Submitted",
       "fullscreen": "Fullscreen chat",
       "generated_image": "Generated image",
       "max_files_reached": "Maximum files reached",
@@ -2883,40 +2900,23 @@
       "show_input_panel": "Show input panel",
       "show_less": "Show less",
       "show_more": "Show more",
+      "submission": "Submission",
       "thinking": "Thinking...",
       "tool_done": "Done",
       "tool_error": "Error",
       "tool_generating_image": "Generating image...",
       "tool_generating_ui": "Generating interface...",
+      "tool_render_error": "The generated UI could not be rendered. Please try again.",
       "tool_running": "Running...",
       "tool_search_failed": "Search failed",
       "tool_searched_web": "Searched the web",
       "tool_searching_web": "Searching the web...",
-      "tool_render_error": "The generated UI could not be rendered. Please try again.",
       "using_tools": "Working on it...",
       "view_only": "View only",
-      "you": "You",
-      "submission": "Submission",
-      "form_submitted": "Form Submitted"
+      "you": "You"
     },
     "multiple_tasks_attention": "{count} tasks need your attention",
     "my_tasks": "My Tasks",
-    "json_render": {
-      "time_tracking": {
-        "stats_title": "Time Tracking Stats",
-        "no_stats_available": "No stats available for this period.",
-        "overview_title": "Time Tracking Overview",
-        "total_time": "Total Time",
-        "sessions": "Sessions",
-        "avg_session": "Avg Session",
-        "best_time_of_day": "Best Time of Day",
-        "top_categories": "Top Categories",
-        "no_category_data": "No category data for this period.",
-        "daily_breakdown": "Daily Breakdown",
-        "no_daily_data": "No daily data for this period.",
-        "not_available": "N/A"
-      }
-    },
     "next_up_on_calendar": "Next up on Calendar",
     "no_data_description": "Start tracking your time to unlock detailed insights about your work patterns, productivity trends, and goal progress.",
     "no_data_title": "Ready to boost your productivity?",

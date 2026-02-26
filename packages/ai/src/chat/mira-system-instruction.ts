@@ -7,11 +7,11 @@
  */
 
 import type { PermissionId } from '@tuturuuu/types';
+import type { MiraToolName } from '../tools/mira-tools';
 import {
   MIRA_TOOL_DIRECTORY,
   MIRA_TOOL_PERMISSIONS,
 } from '../tools/mira-tools';
-import type { MiraToolName } from '../tools/mira-tools';
 
 export type MiraSoulConfig = {
   name?: string;

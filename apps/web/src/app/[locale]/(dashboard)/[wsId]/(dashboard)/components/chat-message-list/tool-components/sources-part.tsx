@@ -8,8 +8,6 @@ export function SourcesPart({
   parts: Array<{ url: string; title?: string; sourceId: string }>;
 }) {
   const [expanded, setExpanded] = useState(false);
-  if (parts.length === 0) return null;
-
   const unique = useMemo(() => {
     const seen = new Set<string>();
     return parts.filter((p) => {
@@ -18,6 +16,8 @@ export function SourcesPart({
       return true;
     });
   }, [parts]);
+
+  if (parts.length === 0) return null;
 
   return (
     <div className="mt-2 flex flex-col gap-1.5">

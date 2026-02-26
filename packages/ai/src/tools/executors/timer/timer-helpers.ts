@@ -81,7 +81,9 @@ export function parseFlexibleDateTime(
     }
   }
 
-  const timeOnlyMatch = trimmed.match(/^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/);
+  const timeOnlyMatch = trimmed.match(
+    /^([01]\d|2[0-3]):([0-5]\d)(?::([0-5]\d))?$/
+  );
   if (timeOnlyMatch) {
     const dateParsed = parseDateOnly(options?.date, 'date');
     if (!dateParsed.ok) {
@@ -92,7 +94,9 @@ export function parseFlexibleDateTime(
     }
 
     const [, hours, minutes, seconds = '00'] = timeOnlyMatch;
-    const combined = new Date(`${dateParsed.value}T${hours}:${minutes}:${seconds}`);
+    const combined = new Date(
+      `${dateParsed.value}T${hours}:${minutes}:${seconds}`
+    );
     if (!Number.isNaN(combined.getTime())) {
       return { ok: true, value: combined };
     }

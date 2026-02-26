@@ -51,9 +51,8 @@ export function hasToolParts(message: UIMessage): boolean {
 
 export function hasOutputText(message: UIMessage): boolean {
   return (
-    message.parts?.some(
-      (p) => isTextPart(p) && p.text.trim().length > 0
-    ) ?? false
+    message.parts?.some((p) => isTextPart(p) && p.text.trim().length > 0) ??
+    false
   );
 }
 

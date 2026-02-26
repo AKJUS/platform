@@ -218,10 +218,7 @@ export const dashboardFormComponents = {
       bindings?.onSubmit ||
       (typeof props.onSubmit === 'string' ? props.onSubmit : undefined);
 
-    const [, setOnSubmit] = useBoundProp<unknown>(
-      null,
-      submitBindingPath
-    );
+    const [, setOnSubmit] = useBoundProp<unknown>(null, submitBindingPath);
 
     return (
       <div className="my-4 flex flex-col gap-4 rounded-xl border bg-card p-6 shadow-sm">
@@ -495,7 +492,8 @@ export const dashboardFormComponents = {
     JsonRenderCheckboxComponentProps,
     JsonRenderCheckboxBinding
   >) => {
-    const initialChecked = typeof props.checked === 'boolean' ? props.checked : false;
+    const initialChecked =
+      typeof props.checked === 'boolean' ? props.checked : false;
     const [checked, setChecked] = useComponentValue<boolean>(
       initialChecked,
       bindings?.checked,
@@ -534,7 +532,9 @@ export const dashboardFormComponents = {
     JsonRenderStringArrayBinding
   >) => {
     const initialValues = Array.isArray(props.values)
-      ? props.values.filter((value): value is string => typeof value === 'string')
+      ? props.values.filter(
+          (value): value is string => typeof value === 'string'
+        )
       : [];
     const [values, setValues] = useComponentValue<string[]>(
       initialValues,
@@ -627,41 +627,51 @@ export const dashboardFormComponents = {
       return <CategorySelectField props={props} bindings={bindings} />;
     }
 
-    const initialValue = typeof props.value === 'string' ? props.value : '';
-    const [value, setValue] = useComponentValue<string>(
-      initialValue,
-      bindings?.value,
-      props.name,
-      ''
-    );
-
-    const handleValueChange = (newVal: string) => {
-      setValue(newVal);
-    };
-
-    return (
-      <div className="flex flex-col gap-2">
-        <Label htmlFor={props.name}>{props.label}</Label>
-        <Select
-          value={value}
-          onValueChange={handleValueChange}
-          required={props.required}
-        >
-          <SelectTrigger id={props.name} className="w-full">
-            <SelectValue placeholder={props.placeholder} />
-          </SelectTrigger>
-          <SelectContent>
-            {props.options?.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-    );
+    return <StandardSelectField props={props} bindings={bindings} />;
   },
 };
+
+function StandardSelectField({
+  props,
+  bindings,
+}: JsonRenderComponentContext<
+  JsonRenderSelectComponentProps,
+  JsonRenderStringBinding
+>) {
+  const initialValue = typeof props.value === 'string' ? props.value : '';
+  const [value, setValue] = useComponentValue<string>(
+    initialValue,
+    bindings?.value,
+    props.name,
+    ''
+  );
+
+  const handleValueChange = (newVal: string) => {
+    setValue(newVal);
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      <Label htmlFor={props.name}>{props.label}</Label>
+      <Select
+        value={value}
+        onValueChange={handleValueChange}
+        required={props.required}
+      >
+        <SelectTrigger id={props.name} className="w-full">
+          <SelectValue placeholder={props.placeholder} />
+        </SelectTrigger>
+        <SelectContent>
+          {props.options?.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
 
 function CategorySelectField({
   props,
@@ -670,64 +680,64 @@ function CategorySelectField({
   JsonRenderSelectComponentProps,
   JsonRenderStringBinding
 >) {
-    const params = useParams();
-    const wsId = params.wsId as string;
-    const { set } = useStateStore();
+  const params = useParams();
+  const wsId = params.wsId as string;
+  const { set } = useStateStore();
 
-    const initialValue = typeof props.value === 'string' ? props.value : '';
-    const [value, setValue] = useComponentValue<string>(
-      initialValue,
-      bindings?.value,
-      props.name,
-      ''
-    );
+  const initialValue = typeof props.value === 'string' ? props.value : '';
+  const [value, setValue] = useComponentValue<string>(
+    initialValue,
+    bindings?.value,
+    props.name,
+    ''
+  );
 
-    const { data: categories } = useQuery({
-      queryKey: ['workspaces', wsId, 'finance', 'transactions', 'categories'],
-      queryFn: async (): Promise<JsonRenderTransactionCategory[]> => {
-        const res = await fetch(
-          `/api/workspaces/${wsId}/transactions/categories`,
-          {
-            cache: 'no-store',
-          }
-        );
-        if (!res.ok) return [];
-        return (await res.json()) as JsonRenderTransactionCategory[];
-      },
-      enabled: !!wsId,
-    });
-
-    const handleValueChange = (newVal: string) => {
-      setValue(newVal);
-
-      if (props.name === 'categoryId' && categories) {
-        const category = categories.find((c) => c.id === newVal);
-        if (category) {
-          const type = category.is_expense ? 'expense' : 'income';
-          set('/type', type);
+  const { data: categories } = useQuery({
+    queryKey: ['workspaces', wsId, 'finance', 'transactions', 'categories'],
+    queryFn: async (): Promise<JsonRenderTransactionCategory[]> => {
+      const res = await fetch(
+        `/api/workspaces/${wsId}/transactions/categories`,
+        {
+          cache: 'no-store',
         }
-      }
-    };
+      );
+      if (!res.ok) return [];
+      return (await res.json()) as JsonRenderTransactionCategory[];
+    },
+    enabled: !!wsId,
+  });
 
-    return (
-      <div className="flex flex-col gap-2">
-        <Label htmlFor={props.name}>{props.label}</Label>
-        <Select
-          value={value}
-          onValueChange={handleValueChange}
-          required={props.required}
-        >
-          <SelectTrigger id={props.name} className="w-full">
-            <SelectValue placeholder={props.placeholder} />
-          </SelectTrigger>
-          <SelectContent>
-            {props.options?.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-    );
+  const handleValueChange = (newVal: string) => {
+    setValue(newVal);
+
+    if (props.name === 'categoryId' && categories) {
+      const category = categories.find((c) => c.id === newVal);
+      if (category) {
+        const type = category.is_expense ? 'expense' : 'income';
+        set('/type', type);
+      }
+    }
+  };
+
+  return (
+    <div className="flex flex-col gap-2">
+      <Label htmlFor={props.name}>{props.label}</Label>
+      <Select
+        value={value}
+        onValueChange={handleValueChange}
+        required={props.required}
+      >
+        <SelectTrigger id={props.name} className="w-full">
+          <SelectValue placeholder={props.placeholder} />
+        </SelectTrigger>
+        <SelectContent>
+          {props.options?.map((option) => (
+            <SelectItem key={option.value} value={option.value}>
+              {option.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
 }

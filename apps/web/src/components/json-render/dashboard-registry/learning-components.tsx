@@ -19,10 +19,7 @@ import type {
 import { Button } from '@tuturuuu/ui/button';
 import { Card } from '@tuturuuu/ui/card';
 import { useMemo, useState } from 'react';
-import {
-  FullscreenLearningDialog,
-  QuizOptionList,
-} from './learning-shared';
+import { FullscreenLearningDialog, QuizOptionList } from './learning-shared';
 import { shuffleArray } from './learning-utils';
 
 type LearningQuizProps = JsonRenderQuizProps;
@@ -157,7 +154,7 @@ export const dashboardLearningComponents = {
           onOpenChange={setIsFullscreen}
           title="Quiz Immersion"
         >
-            {quizContent}
+          {quizContent}
         </FullscreenLearningDialog>
       );
     }
@@ -275,7 +272,7 @@ export const dashboardLearningComponents = {
             title="Quiz Immersion"
             contentClassName="max-w-2xl gap-4 p-10 sm:p-12"
           >
-              {scoreContent}
+            {scoreContent}
           </FullscreenLearningDialog>
         );
       }
@@ -350,7 +347,9 @@ export const dashboardLearningComponents = {
           <QuizOptionList
             options={options}
             selected={selected ?? null}
-            answer={String(currentQuiz.answer || currentQuiz.correctAnswer || '')}
+            answer={String(
+              currentQuiz.answer || currentQuiz.correctAnswer || ''
+            )}
             isCorrect={isCorrect}
             onSelect={handleSelect}
             unansweredExtraClassName="bg-secondary/40"
@@ -423,7 +422,7 @@ export const dashboardLearningComponents = {
           onOpenChange={setIsFullscreen}
           title="Quiz Immersion"
         >
-            {quizContent}
+          {quizContent}
         </FullscreenLearningDialog>
       );
     }
@@ -602,7 +601,7 @@ export const dashboardLearningComponents = {
           onOpenChange={setIsFullscreen}
           title="Flashcard Immersion"
         >
-            {flashcardContent}
+          {flashcardContent}
         </FullscreenLearningDialog>
       );
     }

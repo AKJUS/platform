@@ -1,5 +1,5 @@
-import type { MiraToolContext } from '../mira-tools';
 import type { Tables } from '@tuturuuu/types';
+import type { MiraToolContext } from '../mira-tools';
 
 interface WorkspaceMemberWithUsers
   extends Pick<Tables<'workspace_members'>, 'user_id' | 'created_at'> {

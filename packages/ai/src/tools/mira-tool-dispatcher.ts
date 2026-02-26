@@ -79,11 +79,11 @@ import {
 } from './executors/timer';
 import { executeUpdateUserName } from './executors/user';
 import { executeListWorkspaceMembers } from './executors/workspace';
+import type { DefinedMiraToolName } from './mira-tool-definitions';
 import {
   buildRenderUiRecoverySpec,
   isRenderableRenderUiSpec,
 } from './mira-tool-render-ui';
-import type { DefinedMiraToolName } from './mira-tool-definitions';
 import type { MiraToolContext } from './mira-tool-types';
 
 type ToolHandler = (
@@ -191,7 +191,8 @@ export async function executeMiraTool(
     return { spec: args };
   }
 
-  if (!(toolName in toolHandlers)) return { error: `Unknown tool: ${toolName}` };
+  if (!(toolName in toolHandlers))
+    return { error: `Unknown tool: ${toolName}` };
 
   const handler = toolHandlers[toolName as keyof typeof toolHandlers];
 

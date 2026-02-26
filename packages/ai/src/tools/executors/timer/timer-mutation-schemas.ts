@@ -13,7 +13,10 @@ const flexibleDateTimeStringSchema = z
     'must be a valid ISO datetime, YYYY-MM-DD HH:mm, or HH:mm/HH:mm:ss'
   );
 
-const temporalDateTimeInputSchema = z.union([z.date(), flexibleDateTimeStringSchema]);
+const temporalDateTimeInputSchema = z.union([
+  z.date(),
+  flexibleDateTimeStringSchema,
+]);
 const temporalDateInputSchema = z.union([z.date(), dateOnlyStringSchema]);
 
 export const startTimerArgsSchema = z.object({

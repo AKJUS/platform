@@ -176,9 +176,7 @@ export default function ChatMessageList({
         const prevMessage = messages[index - 1];
         const isContinuation = prevMessage?.role === message.role;
 
-        const messageText = isUser
-          ? displayText
-          : getMessageText(message);
+        const messageText = isUser ? displayText : getMessageText(message);
 
         return (
           <div

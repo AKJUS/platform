@@ -27,7 +27,9 @@ import { getToolPartStatus } from './tool-status';
 
 type ToolNamePart = Parameters<typeof getToolName>[0];
 
-function isToolNamePart(part: ToolPartData): part is ToolPartData & ToolNamePart {
+function isToolNamePart(
+  part: ToolPartData
+): part is ToolPartData & ToolNamePart {
   return isToolUIPart(part);
 }
 
@@ -47,14 +49,11 @@ export function ToolCallPart({ part }: { part: ToolPartData }) {
     null
   );
 
-  if (!isToolNamePart(part)) {
-    return null;
-  }
-
-  const rawToolName = getToolName(part);
-  const toolName = humanizeToolName(rawToolName);
-  const output = getPartOutput(part);
-  const errorText = getPartErrorText(part);
+  const isToolPart = isToolNamePart(part);
+  const rawToolName = isToolPart ? getToolName(part) : '';
+  const toolName = isToolPart ? humanizeToolName(rawToolName) : '';
+  const output = isToolPart ? getPartOutput(part) : undefined;
+  const errorText = isToolPart ? getPartErrorText(part) : undefined;
   const outputRecord = isObjectRecord(output) ? output : null;
 
   const { isDone, isError, isRunning, logicalError } = getToolPartStatus(part);
@@ -62,14 +61,16 @@ export function ToolCallPart({ part }: { part: ToolPartData }) {
   const hasOutput = isDone || isError;
   const isImageTool = rawToolName === 'create_image';
 
-  const outputText = isError
-    ? errorText ||
-      (typeof outputRecord?.error === 'string' ? outputRecord.error : null) ||
-      (typeof outputRecord?.message === 'string'
-        ? outputRecord.message
-        : null) ||
-      'Unknown error'
-    : JSON.stringify(output, null, 2);
+  const outputText = isToolPart
+    ? isError
+      ? errorText ||
+        (typeof outputRecord?.error === 'string' ? outputRecord.error : null) ||
+        (typeof outputRecord?.message === 'string'
+          ? outputRecord.message
+          : null) ||
+        'Unknown error'
+      : JSON.stringify(output, null, 2)
+    : '';
 
   const approvalSpecRaw =
     outputRecord && 'approvalRequest' in outputRecord
@@ -110,13 +111,18 @@ export function ToolCallPart({ part }: { part: ToolPartData }) {
 
   const { setTheme } = useTheme();
   useEffect(() => {
+    if (!isToolPart) return;
     if (rawToolName !== 'set_theme' || !isDone || logicalError) return;
     const action = (output as { action?: string } | undefined)?.action;
     const theme = (output as { theme?: string } | undefined)?.theme;
     if (action === 'set_theme' && theme) {
       setTheme(theme);
     }
-  }, [rawToolName, isDone, logicalError, output, setTheme]);
+  }, [isToolPart, rawToolName, isDone, logicalError, output, setTheme]);
+
+  if (!isToolPart) {
+    return null;
+  }
 
   if (rawToolName === 'select_tools') {
     const selected = (output as { selectedTools?: string[] } | undefined)

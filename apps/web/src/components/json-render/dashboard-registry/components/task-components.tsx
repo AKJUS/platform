@@ -56,7 +56,9 @@ const timeTrackingLabels = {
   },
 } as const;
 
-const resolveLocale = (locale: string | undefined): keyof typeof timeTrackingLabels => {
+const resolveLocale = (
+  locale: string | undefined
+): keyof typeof timeTrackingLabels => {
   if (!locale) return 'en';
   return locale.toLowerCase().startsWith('vi') ? 'vi' : 'en';
 };
@@ -232,9 +234,7 @@ export const dashboardTaskComponents = {
         <Card className="my-2 border border-border/60 bg-card/60">
           <CardHeader>
             <CardTitle className="text-lg">{labels.statsTitle}</CardTitle>
-            <CardDescription>
-              {labels.noStatsAvailable}
-            </CardDescription>
+            <CardDescription>{labels.noStatsAvailable}</CardDescription>
           </CardHeader>
         </Card>
       );
@@ -268,17 +268,23 @@ export const dashboardTaskComponents = {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
               <div className="rounded-lg border bg-surface p-4">
-                <p className="text-muted-foreground text-sm">{labels.totalTime}</p>
+                <p className="text-muted-foreground text-sm">
+                  {labels.totalTime}
+                </p>
                 <p className="font-bold text-xl">
                   {formatDurationLabel(totalDuration)}
                 </p>
               </div>
               <div className="rounded-lg border bg-surface p-4">
-                <p className="text-muted-foreground text-sm">{labels.sessions}</p>
+                <p className="text-muted-foreground text-sm">
+                  {labels.sessions}
+                </p>
                 <p className="font-bold text-xl">{sessionCount}</p>
               </div>
               <div className="rounded-lg border bg-surface p-4">
-                <p className="text-muted-foreground text-sm">{labels.avgSession}</p>
+                <p className="text-muted-foreground text-sm">
+                  {labels.avgSession}
+                </p>
                 <p className="font-bold text-xl">
                   {formatDurationLabel(averageDuration)}
                 </p>
