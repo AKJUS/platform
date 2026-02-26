@@ -183,5 +183,5 @@
     "undici": "^7.22.0",
     "vitest": "^4.0.18"
   },
-  "packageManager": "bun@1.3.9"
+  "packageManager": "bun@1.3.10"
 }
