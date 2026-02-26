@@ -19,5 +19,5 @@
   "overrides": {
     "@polar-sh/sdk": "^0.43.0"
   },
-  "packageManager": "bun@1.3.9"
+  "packageManager": "bun@1.3.10"
 }
