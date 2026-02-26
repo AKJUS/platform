@@ -11,7 +11,7 @@ This document is the **single source of truth** for all AI agents (Claude Code, 
 ### 2.1 Hard Prohibitions (NEVER DO)
 - **Long-Running / Build Commands**: NEVER run `bun dev`, `bun run build`, `bun build`, or equivalent build/compile/bundling operations unless the user **explicitly requests** it.
 - **Supabase Production Push**: NEVER run `bun sb:push` or `bun sb:linkpush`. Prepare migrations; the user applies them.
-- **Auto-Fixing & Verification**: Assistants may run `bun type-check`, `bun check`, `bun format`, and `bun ff` ONLY when the user **explicitly requests** it. Otherwise, suggest edits and let the user execute the tools.
+- **Auto-Fixing & Verification**: During implementation, assistants may run `bun type-check`, `bun check`, `bun format`, and `bun ff` ONLY when the user **explicitly requests** it. However, the end-of-session `bun check` defined in section 2.2 is a **standing mandate** and MUST be executed autonomously before sign-off.
 - **Sensitive Data**: NEVER commit secrets, API keys, tokens, or credentials. Reference environment variables by name only.
 - **Manual Dependency Edits**: NEVER manually edit `package.json` to add or update dependencies. Always use the CLI.
 - **UI Antipatterns**: NEVER use native browser dialogs (`alert`, `confirm`), hard-coded color classes (use `dynamic-*`), or emojis in UI code (use lucide-react via `@tuturuuu/icons`).
