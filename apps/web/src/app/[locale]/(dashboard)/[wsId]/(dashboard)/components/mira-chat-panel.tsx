@@ -11,12 +11,16 @@ import {
 import { useChat } from '@tuturuuu/ai/react';
 import type { UIMessage } from '@tuturuuu/ai/types';
 import {
+  Calendar,
+  Download,
   Eye,
+  ListTodo,
   Maximize2,
   MessageSquarePlus,
   Minimize2,
   PanelBottomOpen,
   Sparkles,
+  Target,
 } from '@tuturuuu/icons';
 import { createClient } from '@tuturuuu/supabase/next/client';
 import type { AIChat } from '@tuturuuu/types';
@@ -44,6 +48,7 @@ import ChatMessageList from './chat-message-list';
 import type { ChatFile, MessageFileAttachment } from './file-preview-chips';
 import MiraCreditBar from './mira-credit-bar';
 import MiraModelSelector from './mira-model-selector';
+import MiraNameBadge from './mira-name-badge';
 import QuickActionChips from './quick-action-chips';
 
 interface MiraChatPanelProps {
@@ -51,6 +56,7 @@ interface MiraChatPanelProps {
   assistantName: string;
   userName?: string;
   userAvatarUrl?: string | null;
+  insightsDock?: React.ReactNode;
   onVoiceToggle?: () => void;
   isFullscreen?: boolean;
   onToggleFullscreen?: () => void;
@@ -148,6 +154,31 @@ async function uploadChatFileViaSignedUrl(
 const STORAGE_KEY_PREFIX = 'mira-dashboard-chat-';
 const INITIAL_MODEL = defaultModel!;
 
+type GreetingKey =
+  | 'good_morning'
+  | 'good_afternoon'
+  | 'good_evening'
+  | 'good_night';
+
+const emptyStateActions = [
+  {
+    titleKey: 'quick_calendar',
+    descKey: 'quick_calendar_desc',
+    icon: Calendar,
+  },
+  { titleKey: 'quick_tasks', descKey: 'quick_tasks_desc', icon: ListTodo },
+  { titleKey: 'quick_focus', descKey: 'quick_focus_desc', icon: Target },
+  { titleKey: 'quick_log', descKey: 'quick_log_desc', icon: Sparkles },
+] as const;
+
+function getGreetingKey(): GreetingKey {
+  const hour = new Date().getHours();
+  if (hour >= 5 && hour < 12) return 'good_morning';
+  if (hour >= 12 && hour < 17) return 'good_afternoon';
+  if (hour >= 17 && hour < 24) return 'good_evening';
+  return 'good_night';
+}
+
 /** Debounce window for message queueing (ms). Messages sent within this window
  *  after the last one are batched into a single user turn. */
 const QUEUE_DEBOUNCE_MS = 500;
@@ -157,14 +188,17 @@ export default function MiraChatPanel({
   assistantName,
   userName,
   userAvatarUrl,
+  insightsDock,
   onVoiceToggle,
   isFullscreen,
   onToggleFullscreen,
 }: MiraChatPanelProps) {
   const t = useTranslations('dashboard.mira_chat');
+  const greetingT = useTranslations('dashboard.greeting');
   const [chat, setChat] = useState<Partial<AIChat> | undefined>();
   const [model, setModel] = useState<Model>(INITIAL_MODEL);
   const [input, setInput] = useState('');
+  const greetingKey = useMemo(() => getGreetingKey(), []);
 
   const supportsFileInput = useMemo(() => {
     const tags = (model as any).tags as string[] | undefined;
@@ -918,6 +952,59 @@ export default function MiraChatPanel({
     setFallbackChatId(generateRandomUUID());
   }, [wsId, clearAttachedFiles]);
 
+  const handleExportChat = useCallback(() => {
+    if (messages.length === 0) return;
+
+    try {
+      const timestamp = new Date().toISOString();
+      const payload = {
+        exportedAt: timestamp,
+        wsId,
+        chatId,
+        fallbackChatId,
+        status,
+        model,
+        chat: chat ?? null,
+        messages,
+        messageAttachments: Object.fromEntries(messageAttachments.entries()),
+      };
+
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {
+        type: 'application/json',
+      });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      const safeWs = wsId.replace(/[^a-zA-Z0-9_-]/g, '_');
+      const safeChat = (chatId ?? fallbackChatId).replace(
+        /[^a-zA-Z0-9_-]/g,
+        '_'
+      );
+      const safeTimestamp = timestamp.replace(/[:.]/g, '-');
+
+      anchor.href = url;
+      anchor.download = `mira-chat-${safeWs}-${safeChat}-${safeTimestamp}.json`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+
+      toast.success(t('export_chat_success'));
+    } catch (error) {
+      console.error('[Mira Chat] Failed to export chat:', error);
+      toast.error(t('export_chat_failed'));
+    }
+  }, [
+    messages,
+    wsId,
+    chatId,
+    fallbackChatId,
+    status,
+    model,
+    chat,
+    messageAttachments,
+    t,
+  ]);
+
   const isStreaming = status === 'streaming';
   const isBusy = status === 'submitted' || isStreaming;
   // queuedText = messages accumulating during debounce (not yet sent)
@@ -1021,9 +1108,8 @@ export default function MiraChatPanel({
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-      {/* Header: model selector + new conversation; wraps on narrow screens */}
-      <div className="flex min-w-0 flex-wrap items-center gap-2 pb-2">
-        <div className="min-w-0 flex-1 sm:min-w-0">
+      <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 pb-2">
+        <div className="w-full min-w-0 max-w-md">
           <MiraModelSelector
             wsId={wsId}
             model={model}
@@ -1031,9 +1117,19 @@ export default function MiraChatPanel({
             disabled={isBusy}
           />
         </div>
-        {isFullscreen && <MiraCreditBar wsId={wsId} />}
-        <div className="hidden flex-1 sm:block" />
-        <div className="flex shrink-0 items-center gap-0.5">
+        <div className="flex shrink-0 items-center gap-1">
+          <MiraCreditBar wsId={wsId} />
+          {hasMessages && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={handleExportChat}
+              title={t('export_chat')}
+            >
+              <Download className="h-4 w-4" />
+            </Button>
+          )}
           {hasMessages && (
             <Button
               variant="ghost"
@@ -1073,6 +1169,7 @@ export default function MiraChatPanel({
               )}
             </Button>
           )}
+          {insightsDock && <div className="shrink-0">{insightsDock}</div>}
         </div>
       </div>
 
@@ -1125,27 +1222,67 @@ export default function MiraChatPanel({
             </StateProvider>
           </div>
         ) : (
-          <div className="m-auto flex w-full max-w-2xl flex-col items-center justify-center gap-8 px-4 py-12 sm:px-8 sm:py-16">
-            <div className="flex w-full flex-col items-center gap-5 text-center">
-              <div className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-linear-to-br from-dynamic-purple/20 to-dynamic-purple/5 shadow-dynamic-purple/10 shadow-lg ring-1 ring-dynamic-purple/20">
-                <div className="absolute inset-0 rounded-2xl bg-dynamic-purple/10 blur-xl" />
-                <Sparkles className="relative z-10 h-8 w-8 animate-pulse text-dynamic-purple duration-2000" />
+          <div className="m-auto flex w-full max-w-4xl flex-col items-center justify-center px-4 py-10 sm:px-8 sm:py-14">
+            <div className="relative w-full max-w-3xl">
+              <div className="pointer-events-none absolute top-8 left-1/2 h-44 w-44 -translate-x-1/2 rounded-full bg-dynamic-purple/12 blur-3xl" />
+              <div className="pointer-events-none absolute top-40 right-10 h-32 w-32 rounded-full bg-dynamic-cyan/6 blur-3xl" />
+
+              <div className="relative px-2 py-5 sm:px-6 sm:py-8">
+                <div className="flex flex-col items-center text-center">
+                  <div className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-linear-to-br from-dynamic-purple/20 to-dynamic-purple/5 shadow-dynamic-purple/10 shadow-lg ring-1 ring-dynamic-purple/25">
+                    <div className="absolute inset-0 rounded-2xl bg-dynamic-purple/10 blur-xl" />
+                    <Sparkles className="relative z-10 h-8 w-8 animate-pulse text-dynamic-purple duration-2000" />
+                  </div>
+
+                  <div className="mt-4 max-w-xl space-y-2">
+                    <p className="font-semibold text-muted-foreground text-sm tracking-tight sm:text-base">
+                      {greetingT(greetingKey)}
+                      {userName ? `, ${userName}` : ''}!
+                    </p>
+                    <div className="inline-flex items-center justify-center gap-1.5">
+                      <h2 className="bg-linear-to-br from-foreground to-foreground/70 bg-clip-text font-bold text-2xl text-transparent tracking-tight sm:text-3xl">
+                        {assistantName}
+                      </h2>
+                      <MiraNameBadge
+                        currentName={assistantName}
+                        className="h-7 px-2 text-foreground/60 hover:text-foreground"
+                      />
+                    </div>
+                    <p className="font-medium text-muted-foreground text-sm sm:text-base">
+                      {t('empty_state', { name: assistantName })}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-7 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {emptyStateActions.map((action) => {
+                    const Icon = action.icon;
+                    return (
+                      <button
+                        key={action.titleKey}
+                        type="button"
+                        onClick={() => handleSubmit(t(action.titleKey))}
+                        className={cn(
+                          'group flex min-w-0 items-start gap-3 rounded-xl border border-border/30 bg-background/20 px-3.5 py-3 text-left transition-all duration-200',
+                          'hover:border-dynamic-purple/30 hover:bg-dynamic-purple/5'
+                        )}
+                      >
+                        <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-dynamic-purple/10 text-dynamic-purple">
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="truncate font-medium text-sm leading-tight">
+                            {t(action.titleKey)}
+                          </p>
+                          <p className="mt-1 line-clamp-1 text-muted-foreground text-xs leading-relaxed">
+                            {t(action.descKey)}
+                          </p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="max-w-lg space-y-1.5">
-                <h2 className="bg-linear-to-br from-foreground to-foreground/70 bg-clip-text font-bold text-2xl text-transparent tracking-tight sm:text-3xl">
-                  {assistantName}
-                </h2>
-                <p className="font-medium text-muted-foreground text-sm sm:text-base">
-                  {t('empty_state', { name: assistantName })}
-                </p>
-              </div>
-            </div>
-            <div className="flex w-full justify-center">
-              <QuickActionChips
-                onSend={handleSubmit}
-                disabled={false}
-                variant="cards"
-              />
             </div>
           </div>
         )}

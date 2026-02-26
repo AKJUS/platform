@@ -23,6 +23,7 @@ import {
   isApprovalRequestUiData,
 } from './approval-request';
 import { JsonHighlight } from './json-highlight';
+import { SourcesPart } from './sources-part';
 import { getToolPartStatus } from './tool-status';
 
 type ToolNamePart = Parameters<typeof getToolName>[0];
@@ -55,6 +56,29 @@ export function ToolCallPart({ part }: { part: ToolPartData }) {
   const output = isToolPart ? getPartOutput(part) : undefined;
   const errorText = isToolPart ? getPartErrorText(part) : undefined;
   const outputRecord = isObjectRecord(output) ? output : null;
+  const googleSearchSources = Array.isArray(outputRecord?.sources)
+    ? outputRecord.sources
+        .map((item, index) => {
+          if (!item || typeof item !== 'object') return null;
+          const source = item as Record<string, unknown>;
+          const url =
+            typeof source.url === 'string' ? source.url.trim() : undefined;
+          if (!url) return null;
+          const title =
+            typeof source.title === 'string' ? source.title.trim() : undefined;
+          const sourceId =
+            typeof source.sourceId === 'string' && source.sourceId.length > 0
+              ? source.sourceId
+              : `google-search-${index}`;
+          return { sourceId, url, ...(title ? { title } : {}) };
+        })
+        .filter(
+          (
+            source
+          ): source is { sourceId: string; url: string; title?: string } =>
+            source !== null
+        )
+    : [];
 
   const { isDone, isError, isRunning, logicalError } = getToolPartStatus(part);
 
@@ -150,23 +174,28 @@ export function ToolCallPart({ part }: { part: ToolPartData }) {
 
   if (rawToolName === 'google_search') {
     return (
-      <div className="flex items-start gap-2 rounded-lg border border-dynamic-cyan/30 bg-dynamic-cyan/5 px-3 py-2 text-xs">
-        {isRunning ? (
-          <Loader2 className="mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin text-dynamic-cyan" />
-        ) : isError ? (
-          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-dynamic-red" />
-        ) : (
-          <Globe className="mt-0.5 h-3.5 w-3.5 shrink-0 text-dynamic-cyan" />
-        )}
-        <span className="flex items-center gap-1.5">
-          <span className="font-medium text-dynamic-cyan">
-            {isRunning
-              ? t('tool_searching_web')
-              : isError
-                ? t('tool_search_failed')
-                : t('tool_searched_web')}
+      <div className="flex flex-col gap-1.5">
+        <div className="flex items-start gap-2 rounded-lg border border-dynamic-cyan/30 bg-dynamic-cyan/5 px-3 py-2 text-xs">
+          {isRunning ? (
+            <Loader2 className="mt-0.5 h-3.5 w-3.5 shrink-0 animate-spin text-dynamic-cyan" />
+          ) : isError ? (
+            <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-dynamic-red" />
+          ) : (
+            <Globe className="mt-0.5 h-3.5 w-3.5 shrink-0 text-dynamic-cyan" />
+          )}
+          <span className="flex items-center gap-1.5">
+            <span className="font-medium text-dynamic-cyan">
+              {isRunning
+                ? t('tool_searching_web')
+                : isError
+                  ? t('tool_search_failed')
+                  : t('tool_searched_web')}
+            </span>
           </span>
-        </span>
+        </div>
+        {isDone && !isError && googleSearchSources.length > 0 && (
+          <SourcesPart parts={googleSearchSources} />
+        )}
       </div>
     );
   }

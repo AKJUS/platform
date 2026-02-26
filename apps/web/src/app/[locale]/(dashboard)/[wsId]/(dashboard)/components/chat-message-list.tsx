@@ -261,6 +261,40 @@ export default function ChatMessageList({
                     <div className="flex min-w-0 max-w-full flex-col gap-2 overflow-hidden *:min-w-0 *:max-w-full">
                       {(() => {
                         const groups = groupMessageParts(message.parts);
+                        const validRenderUiSpecs = groups.flatMap((group) => {
+                          if (
+                            group.kind !== 'tool' ||
+                            group.toolName !== 'render_ui'
+                          ) {
+                            return [];
+                          }
+                          return group.parts
+                            .map((part) => {
+                              const output = (
+                                part as {
+                                  output?: {
+                                    recoveredFromInvalidSpec?: boolean;
+                                    autoRecoveredFromInvalidSpec?: boolean;
+                                    forcedFromRecoveryLoop?: boolean;
+                                  };
+                                }
+                              ).output;
+
+                              const spec =
+                                resolveRenderUiSpecFromOutput(output);
+                              const recovered =
+                                output?.recoveredFromInvalidSpec === true ||
+                                output?.autoRecoveredFromInvalidSpec === true ||
+                                output?.forcedFromRecoveryLoop === true;
+
+                              return spec && !recovered ? spec : null;
+                            })
+                            .filter(
+                              (spec): spec is NonNullable<typeof spec> =>
+                                spec !== null
+                            );
+                        });
+                        const hasValidRenderUi = validRenderUiSpecs.length > 0;
                         const lastReasoningIdx = groups.findLastIndex(
                           (g) => g.kind === 'reasoning'
                         );
@@ -286,14 +320,14 @@ export default function ChatMessageList({
                             );
                           }
                           if (group.kind === 'text') {
+                            const text =
+                              typeof group.text === 'string'
+                                ? group.text
+                                : JSON.stringify(group.text);
                             return (
                               <AssistantMarkdown
                                 key={`text-${group.index}`}
-                                text={
-                                  typeof group.text === 'string'
-                                    ? group.text
-                                    : JSON.stringify(group.text)
-                                }
+                                text={text}
                                 isAnimating={isStreaming && isLastAssistant}
                               />
                             );
@@ -309,18 +343,24 @@ export default function ChatMessageList({
                                     !!resolveRenderUiSpecFromOutput(
                                       (part as { output?: unknown }).output
                                     ),
-                                  recoveredFromInvalidSpec: !!(
-                                    (part as { output?: unknown }).output &&
-                                    typeof (part as { output?: unknown })
-                                      .output === 'object' &&
-                                    (
+                                  recoveredFromInvalidSpec: !!(() => {
+                                    const output = (
                                       part as {
                                         output?: {
                                           recoveredFromInvalidSpec?: boolean;
+                                          autoRecoveredFromInvalidSpec?: boolean;
+                                          forcedFromRecoveryLoop?: boolean;
                                         };
                                       }
-                                    ).output?.recoveredFromInvalidSpec === true
-                                  ),
+                                    ).output;
+                                    return (
+                                      output?.recoveredFromInvalidSpec ===
+                                        true ||
+                                      output?.autoRecoveredFromInvalidSpec ===
+                                        true ||
+                                      output?.forcedFromRecoveryLoop === true
+                                    );
+                                  })(),
                                 })
                               );
                               const hasAnyRenderable = partsWithValidity.some(
@@ -361,6 +401,30 @@ export default function ChatMessageList({
                                       .slice(-1)
                                       .map((entry) => entry.part)
                                   : group.parts;
+
+                              if (
+                                hasValidRenderUi &&
+                                visibleParts.every((part) => {
+                                  const output = (
+                                    part as {
+                                      output?: {
+                                        recoveredFromInvalidSpec?: boolean;
+                                        autoRecoveredFromInvalidSpec?: boolean;
+                                        forcedFromRecoveryLoop?: boolean;
+                                      };
+                                    }
+                                  ).output;
+
+                                  return (
+                                    output?.recoveredFromInvalidSpec === true ||
+                                    output?.autoRecoveredFromInvalidSpec ===
+                                      true ||
+                                    output?.forcedFromRecoveryLoop === true
+                                  );
+                                })
+                              ) {
+                                return null;
+                              }
 
                               if (
                                 shouldDeferRecoveredPlaceholder &&

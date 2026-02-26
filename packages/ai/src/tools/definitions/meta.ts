@@ -7,7 +7,7 @@ const validToolSet = new Set<string>(MIRA_TOOL_NAMES);
 export const metaToolDefinitions = {
   select_tools: tool({
     description:
-      'Pick which tools you need for this request. You MUST call this as your FIRST action every turn. Choose from the available tool names listed in the system prompt. For pure conversation, pick no_action_needed.',
+      'Pick which tools you need for this request. You MUST call this as your FIRST action every turn. Choose from the available tool names listed in the system prompt. Use no_action_needed ONLY for truly conversational turns with no durable info to save and no real-world lookup needed.',
     inputSchema: z.object({
       tools: z
         .array(z.string())
@@ -26,9 +26,17 @@ export const metaToolDefinitions = {
 
   no_action_needed: tool({
     description:
-      'Call when the message is purely conversational and requires NO real action.',
+      'Call only when the message is purely conversational and requires NO real action (no settings/memory updates, no search, no data/tool operation).',
     inputSchema: z.object({
       reason: z.string().describe('Brief reason (e.g. "user said thanks")'),
+    }),
+  }),
+
+  google_search: tool({
+    description:
+      'Search the public web for current, real-time information such as news, pricing, weather, and up-to-date facts.',
+    inputSchema: z.object({
+      query: z.string().min(1).max(500).describe('Search query for web lookup'),
     }),
   }),
 } as const;

@@ -14,15 +14,20 @@ import {
 import { Input } from '@tuturuuu/ui/input';
 import { Label } from '@tuturuuu/ui/label';
 import { toast } from '@tuturuuu/ui/sonner';
+import { cn } from '@tuturuuu/utils/format';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { useUpdateMiraSoul } from '../hooks/use-mira-soul';
 
 interface MiraNameBadgeProps {
   currentName: string;
+  className?: string;
 }
 
-export default function MiraNameBadge({ currentName }: MiraNameBadgeProps) {
+export default function MiraNameBadge({
+  currentName,
+  className,
+}: MiraNameBadgeProps) {
   const t = useTranslations('dashboard.assistant_name');
   const [open, setOpen] = useState(false);
   const [name, setName] = useState(currentName);
@@ -54,7 +59,10 @@ export default function MiraNameBadge({ currentName }: MiraNameBadgeProps) {
       <DialogTrigger asChild>
         <button
           type="button"
-          className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-muted-foreground text-xs transition-colors hover:bg-accent hover:text-foreground"
+          className={cn(
+            'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-muted-foreground text-xs transition-colors hover:bg-accent hover:text-foreground',
+            className
+          )}
         >
           <Pencil className="h-3 w-3" />
         </button>

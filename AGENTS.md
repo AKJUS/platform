@@ -21,6 +21,7 @@ Foundational mandates here take absolute precedence. **NEVER** invent ad-hoc beh
 - **Navigation Parity**: ALWAYS update `navigation.tsx` in the relevant app when adding new routes (aliases + children + icons + permissions).
 - **Proactive Refactoring**: Evaluate files >400 LOC and components >200 LOC for extraction into smaller, focused units.
 - **Unified Verification**: Always end your session with a `bun check`. Ensure all checks pass (you may ignore ones that were not introduced by you). For mobile-only changes, run `bun check:mobile`.
+- **UI Preflight Hygiene**: For newly added/edited UI files, normalize import ordering and Tailwind class ordering before full checks to reduce avoidable `biome` failures.
 - **Formatting Workflow**: For fixing formatting issues, try `bun ff` first before making manual edits.
 - **Session Retrospective**: Conduct a retrospective at the end of every session to document mistakes and update these guidelines.
 
@@ -82,10 +83,13 @@ Foundational mandates here take absolute precedence. **NEVER** invent ad-hoc beh
 - **Admin Client**: Use `createAdminClient` (sbAdmin) to bypass triggers checking `auth.uid()`. Validate permissions with user client first.
 - **User Email**: Never query `public.users.email` (it doesn't exist). Use `public.user_private_details`.
 - **Windows Paths**: Use workspace-relative paths in `apply_patch` to avoid drive-letter resolution issues.
+- **Dashboard Overlay UX**: For compact+expandable dashboard widgets near chat actions, avoid icon-only rails; use labeled compact triggers and reserve layout space to prevent overlap at desktop breakpoints.
+- **Render UI Text Fidelity**: Components that display AI-authored prose in `render_ui` (for example `KeyPoints`, `InsightSection` summaries) must render markdown semantics (bold, emphasis, inline code, links) instead of showing raw markdown tokens.
+- **Markdown Table Priority**: For tabular assistant answers, prefer native markdown tables in normal assistant text. Do not attempt unsupported `render_ui` table components, and do not wrap markdown tables in fenced code blocks.
 
 ## 7. Continuous Improvement (Session Retrospective)
 At the **END** of every session, you MUST:
 1. Review mistakes, edge cases, or ambiguities encountered.
-2. Update `AGENTS.md` with concrete examples and new rules.
+2. Update `AGENTS.md` with durable standards/rules (no chronological logs).
 3. Eliminate redundancy—ensure new knowledge isn't already covered by specialized skills.
 4. Propose future improvements to the human partner.

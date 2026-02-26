@@ -35,7 +35,10 @@ import {
   buildActiveToolsFromSelected,
   extractSelectedToolsFromSteps,
   hasRenderableRenderUiInSteps,
+  hasToolCallInSteps,
+  shouldForceGoogleSearchForLatestUserMessage,
   shouldForceRenderUiForLatestUserMessage,
+  shouldPreferMarkdownTablesForLatestUserMessage,
   wasToolEverSelectedInSteps,
 } from '../mira-render-ui-policy';
 import { buildMiraSystemInstruction } from '../mira-system-instruction';
@@ -533,8 +536,12 @@ export function createPOST(
         : {};
       const forceRenderUi =
         shouldForceRenderUiForLatestUserMessage(processedMessages);
+      const forceGoogleSearch =
+        shouldForceGoogleSearchForLatestUserMessage(processedMessages);
+      const preferMarkdownTables =
+        shouldPreferMarkdownTablesForLatestUserMessage(processedMessages);
 
-      // Google Search tool — always available for grounding with web results
+      // Provider-native Google Search tool for non-Mira mode.
       const googleSearchTool = {
         google_search: google.tools.googleSearch({}),
       };
@@ -558,22 +565,58 @@ export function createPOST(
                   // Step 0: ALWAYS route through select_tools first.
                   // The model reads the tool directory from the system prompt
                   // and picks which tools it needs via select_tools.
-                  // google_search is always available as a provider-native tool.
                   return {
                     toolChoice: 'required' as const,
-                    activeTools: ['select_tools', 'google_search'],
+                    activeTools: ['select_tools'],
                   };
                 }
 
                 // Step 1+: use latest select_tools result as cached set; keep select_tools
                 // available to add/change tools.
                 const selectedTools = extractSelectedToolsFromSteps(steps);
+                const filterRenderUiForMarkdownTables =
+                  preferMarkdownTables && !forceRenderUi;
+                const filterSearchForMarkdownTables =
+                  preferMarkdownTables && !forceGoogleSearch;
+                const normalizedSelectedTools = selectedTools.filter(
+                  (toolName) =>
+                    !(
+                      filterRenderUiForMarkdownTables &&
+                      toolName === 'render_ui'
+                    ) &&
+                    !(
+                      filterSearchForMarkdownTables &&
+                      toolName === 'google_search'
+                    )
+                );
+
+                // If the latest user request appears to require web grounding,
+                // force at least one Google Search call before plain-text completion.
+                if (
+                  forceGoogleSearch &&
+                  !hasToolCallInSteps(steps, 'google_search')
+                ) {
+                  const active = buildActiveToolsFromSelected(
+                    normalizedSelectedTools
+                  )
+                    .filter((toolName) => toolName !== 'no_action_needed')
+                    .concat('google_search', 'select_tools');
+
+                  return {
+                    toolChoice: 'required' as const,
+                    activeTools: Array.from(new Set(active)),
+                  };
+                }
 
                 // If the user explicitly insists on render_ui, require at least one
                 // render_ui tool call before allowing no_action_needed escape-hatch.
-                if (forceRenderUi && !hasRenderableRenderUiInSteps(steps)) {
+                if (
+                  forceRenderUi &&
+                  !preferMarkdownTables &&
+                  !hasRenderableRenderUiInSteps(steps)
+                ) {
                   const active = [
-                    ...selectedTools.filter(
+                    ...normalizedSelectedTools.filter(
                       (toolName) =>
                         toolName !== 'select_tools' &&
                         toolName !== 'no_action_needed'
@@ -584,52 +627,50 @@ export function createPOST(
 
                   return {
                     toolChoice: 'required' as const,
-                    activeTools: Array.from(
-                      new Set([...active, 'google_search'])
-                    ),
+                    activeTools: Array.from(new Set(active)),
                   };
                 }
 
                 // If render_ui was selected, it MUST be called at least once before
                 // the model can exit into plain text-only completion.
                 const renderUiSelectedEver =
-                  selectedTools.includes('render_ui') ||
+                  normalizedSelectedTools.includes('render_ui') ||
                   wasToolEverSelectedInSteps(steps, 'render_ui');
                 if (
                   renderUiSelectedEver &&
+                  !preferMarkdownTables &&
                   !hasRenderableRenderUiInSteps(steps)
                 ) {
-                  const active = buildActiveToolsFromSelected(selectedTools)
+                  const active = buildActiveToolsFromSelected(
+                    normalizedSelectedTools
+                  )
                     .filter((toolName) => toolName !== 'no_action_needed')
                     .concat('render_ui', 'select_tools');
                   return {
                     toolChoice: 'required' as const,
-                    activeTools: Array.from(
-                      new Set([...active, 'google_search'])
-                    ),
+                    activeTools: Array.from(new Set(active)),
                   };
                 }
 
                 // Once a non-recovered render_ui output exists for this turn,
                 // do not allow additional render_ui calls in the same turn.
                 if (hasRenderableRenderUiInSteps(steps)) {
-                  const active = buildActiveToolsFromSelected(selectedTools)
+                  const active = buildActiveToolsFromSelected(
+                    normalizedSelectedTools
+                  )
                     .filter((toolName) => toolName !== 'render_ui')
                     .concat('select_tools');
                   return {
-                    activeTools: Array.from(
-                      new Set([...active, 'google_search'])
-                    ),
+                    activeTools: Array.from(new Set(active)),
                   };
                 }
 
                 // Current cached set + select_tools so the model can reuse cache or change tools when needed.
                 // no_action_needed is only active if it was selected by select_tools.
                 return {
-                  activeTools: [
-                    ...buildActiveToolsFromSelected(selectedTools),
-                    'google_search',
-                  ],
+                  activeTools: buildActiveToolsFromSelected(
+                    normalizedSelectedTools
+                  ),
                 };
               },
             }
@@ -827,21 +868,27 @@ export function createPOST(
           }
           // === END DEBUG ===
 
-          // Count Google Search queries from grounding metadata.
-          // google.tools.googleSearch() is a provider-native grounding tool
-          // that runs on Google's infrastructure — it does NOT appear in
-          // allToolCalls. Search usage is exposed via:
-          //   1. response.providerMetadata.google.groundingMetadata.webSearchQueries
-          //   2. Per-step providerMetadata (same path)
-          //   3. response.sources (fallback — at least 1 search occurred)
+          // Count Google Search queries from:
+          //   1. Mira custom tool calls (`google_search`)
+          //   2. Provider grounding metadata (non-Mira mode)
+          //   3. Sources fallback (if available)
           // See: https://ai-sdk.dev/providers/ai-sdk-providers/google-generative-ai#google-search
           let searchCount = 0;
 
+          const customGoogleSearchCalls = allToolCalls.filter(
+            (toolCall) => toolCall.toolName === 'google_search'
+          ).length;
+          if (customGoogleSearchCalls > 0) {
+            searchCount = customGoogleSearchCalls;
+          }
+
           // Method 1: Top-level providerMetadata (primary — aggregated result)
-          const topQueries = resp.providerMetadata?.google?.groundingMetadata
-            ?.webSearchQueries as string[] | undefined;
-          if (topQueries?.length) {
-            searchCount = topQueries.length;
+          if (searchCount === 0) {
+            const topQueries = resp.providerMetadata?.google?.groundingMetadata
+              ?.webSearchQueries as string[] | undefined;
+            if (topQueries?.length) {
+              searchCount = topQueries.length;
+            }
           }
 
           // Method 2: Per-step providerMetadata (multi-step conversations)

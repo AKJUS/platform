@@ -36,6 +36,7 @@ import {
   executeRecall,
   executeRemember,
 } from './executors/memory';
+import { executeGoogleSearch } from './executors/search';
 import { executeUpdateMySettings } from './executors/settings';
 import {
   executeAddTaskAssignee,
@@ -94,6 +95,7 @@ type ToolHandler = (
 const toolHandlers = {
   select_tools: (args) => ({ ok: true, selectedTools: args.tools }),
   no_action_needed: () => ({ ok: true }),
+  google_search: executeGoogleSearch,
 
   get_my_tasks: executeGetMyTasks,
   create_task: executeCreateTask,

@@ -3,7 +3,6 @@
 import { cn } from '@tuturuuu/utils/format';
 import { useState } from 'react';
 import { useMiraSoul } from '../hooks/use-mira-soul';
-import GreetingHeader from './greeting-header';
 import MiraChatPanel from './mira-chat-panel';
 
 interface MiraDashboardClientProps {
@@ -66,35 +65,26 @@ export default function MiraDashboardClient({
   return (
     <div
       className={cn(
-        'relative flex flex-col gap-4 overflow-hidden sm:gap-6',
+        'relative flex flex-col overflow-hidden',
         isFullscreen
           ? 'fixed inset-0 z-50 bg-background p-3 sm:p-4'
-          : 'h-[calc(100vh-4rem)] min-h-0 xl:h-[calc(100vh-2rem)]'
+          : 'h-[calc(100vh-5rem)] min-h-0 xl:h-[calc(100vh-2rem)]'
       )}
     >
       {/* Animated gradient backdrop in fullscreen */}
       {isFullscreen && <FullscreenGradientBg />}
 
-      {/* Greeting header — hidden in fullscreen */}
-      {!isFullscreen && (
-        <GreetingHeader
-          currentUser={currentUser}
-          assistantName={assistantName}
-          wsId={wsId}
-        />
-      )}
-
-      {/* Main layout: chat + insights */}
+      {/* Main layout: semi-fullscreen chat with an in-panel insight dock */}
       <div
         className={cn(
-          'relative z-10 flex min-h-0 min-w-0 flex-1 flex-col gap-4 sm:gap-6 xl:flex-row',
+          'relative z-10 flex min-h-0 min-w-0 flex-1 flex-col gap-3 sm:gap-4',
           !isFullscreen && 'xl:h-full'
         )}
       >
-        {/* Chat panel — hero element; strict containment so content wraps inside on mobile */}
+        {/* Chat panel — hero element with desktop overlay slot for compact widgets */}
         <div
           className={cn(
-            'flex min-h-0 min-w-0 max-w-full flex-1 flex-col overflow-hidden rounded-xl border p-3 pb-0 shadow-sm backdrop-blur-sm sm:p-4',
+            'relative flex min-h-0 min-w-0 max-w-full flex-1 flex-col overflow-hidden rounded-xl border p-3 pb-0 shadow-sm backdrop-blur-sm sm:p-4',
             isFullscreen
               ? 'border-border/30 bg-card/40'
               : 'border-border/60 bg-card/50'
@@ -111,16 +101,10 @@ export default function MiraDashboardClient({
             }
             userAvatarUrl={currentUser.avatar_url}
             isFullscreen={isFullscreen}
+            insightsDock={!isFullscreen ? children : undefined}
             onToggleFullscreen={() => setIsFullscreen((prev) => !prev)}
           />
         </div>
-
-        {/* Insight sidebar — hidden in fullscreen; full width on mobile, constrained on xl+ */}
-        {!isFullscreen && (
-          <div className="w-full min-w-0 shrink-0 xl:max-w-xs 2xl:max-w-sm">
-            {children}
-          </div>
-        )}
       </div>
     </div>
   );

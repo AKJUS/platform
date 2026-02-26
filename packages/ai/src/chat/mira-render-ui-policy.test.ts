@@ -5,7 +5,9 @@ import {
   extractSelectedToolsFromSteps,
   hasRenderableRenderUiInSteps,
   hasToolCallInSteps,
+  shouldForceGoogleSearchForLatestUserMessage,
   shouldForceRenderUiForLatestUserMessage,
+  shouldPreferMarkdownTablesForLatestUserMessage,
   wasToolEverSelectedInSteps,
 } from './mira-render-ui-policy';
 
@@ -32,6 +34,52 @@ describe('mira render_ui policy', () => {
     ];
 
     expect(shouldForceRenderUiForLatestUserMessage(messages)).toBe(false);
+  });
+
+  it('forces google_search for explicit web lookup requests', () => {
+    const messages: ModelMessage[] = [
+      { role: 'user', content: 'Search saigonsniper pricing for me' },
+    ];
+
+    expect(shouldForceGoogleSearchForLatestUserMessage(messages)).toBe(true);
+  });
+
+  it('forces google_search for realtime external info requests', () => {
+    const messages: ModelMessage[] = [
+      { role: 'user', content: 'What is the latest AI news today?' },
+    ];
+
+    expect(shouldForceGoogleSearchForLatestUserMessage(messages)).toBe(true);
+  });
+
+  it('does not force google_search for workspace-internal requests', () => {
+    const messages: ModelMessage[] = [
+      { role: 'user', content: "What's my task agenda today?" },
+    ];
+
+    expect(shouldForceGoogleSearchForLatestUserMessage(messages)).toBe(false);
+  });
+
+  it('prefers native markdown tables for generic table requests', () => {
+    const messages: ModelMessage[] = [
+      { role: 'user', content: 'show me a table of useful content' },
+    ];
+
+    expect(shouldPreferMarkdownTablesForLatestUserMessage(messages)).toBe(true);
+  });
+
+  it('does not force markdown tables when user explicitly asks for visual ui', () => {
+    const messages: ModelMessage[] = [
+      {
+        role: 'user',
+        content:
+          'show the data in a table but render_ui card dashboard style please',
+      },
+    ];
+
+    expect(shouldPreferMarkdownTablesForLatestUserMessage(messages)).toBe(
+      false
+    );
   });
 
   it('extracts selected tools from latest select_tools call', () => {

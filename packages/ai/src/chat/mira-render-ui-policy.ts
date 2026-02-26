@@ -159,6 +159,62 @@ export function shouldForceRenderUiForLatestUserMessage(
   return false;
 }
 
+export function shouldForceGoogleSearchForLatestUserMessage(
+  messages: ModelMessage[]
+): boolean {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i];
+    if (!message || message.role !== 'user') continue;
+
+    const text = extractTextFromUserMessage(message).toLowerCase();
+    if (!text) return false;
+
+    const hasExplicitWebLookupRequest =
+      /\b(google|search|look up|lookup|find online|web|internet)\b/.test(text);
+
+    const hasRealtimeExternalCue =
+      /\b(latest|current|right now|up[- ]?to[- ]?date|news|weather|forecast|price|pricing|cost|stock|stocks|exchange rate|score|scores|standings)\b/.test(
+        text
+      );
+
+    const hasWorkspaceAppCue =
+      /\b(my tasks?|task|agenda|calendar|event|events|wallet|transaction|spending|finance|timer|time tracking|workspace|board|project|assignee)\b/.test(
+        text
+      );
+
+    if (hasExplicitWebLookupRequest) return true;
+    if (hasRealtimeExternalCue && !hasWorkspaceAppCue) return true;
+    return false;
+  }
+
+  return false;
+}
+
+export function shouldPreferMarkdownTablesForLatestUserMessage(
+  messages: ModelMessage[]
+): boolean {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i];
+    if (!message || message.role !== 'user') continue;
+
+    const text = extractTextFromUserMessage(message).toLowerCase();
+    if (!text) return false;
+
+    const requestsTable =
+      /\b(table|tabular|rows?|columns?|markdown table)\b/.test(text) ||
+      /\|\s*[^|\n]+\s*\|/.test(text);
+
+    if (!requestsTable) return false;
+
+    const explicitlyVisualUi =
+      /\b(render_ui|dashboard|card|chart|graph|widget|visual ui)\b/.test(text);
+
+    return !explicitlyVisualUi;
+  }
+
+  return false;
+}
+
 export function extractSelectedToolsFromSteps(steps: unknown[]): string[] {
   for (let i = steps.length - 1; i >= 0; i--) {
     const step = steps[i] as ToolStepLike | undefined;

@@ -73,11 +73,11 @@ export const MIRA_TOOL_DIRECTORY: Record<MiraToolName, string> = {
   merge_memories: 'Merge multiple memories into one',
   create_image: 'Generate an image from a text description',
   google_search:
-    '[ALWAYS ACTIVE — do NOT select] Built-in Google web search for real-time info (news, prices, weather, facts). Called automatically when grounding is needed.',
+    'Search the web for real-time info (news, prices, weather, facts).',
   update_my_settings: "Update the assistant's personality settings",
   set_theme: 'Switch dark mode, light mode, or system theme',
   render_ui:
-    'Generate an interactive, actionable UI component or widget instead of plain text when it significantly improves user experience (e.g. for forms, dashboards, or data visualization).',
+    'Generate an interactive, actionable UI component or widget instead of plain text when it significantly improves user experience (e.g. for forms, dashboards, blog-like insight layouts, or data visualization).',
   list_workspace_members: 'List all members of the workspace',
   update_user_name: "Update the user's display name or full name",
   set_immersive_mode: 'Enter or exit immersive fullscreen mode for the chat',

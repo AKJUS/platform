@@ -77,4 +77,4 @@ export const MIRA_TOOL_NAMES = [
 ] as const;
 
 export type MiraToolName = (typeof MIRA_TOOL_NAMES)[number];
-export type DefinedMiraToolName = Exclude<MiraToolName, 'google_search'>;
+export type DefinedMiraToolName = MiraToolName;
