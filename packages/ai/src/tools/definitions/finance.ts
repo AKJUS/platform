@@ -51,6 +51,7 @@ export const financeToolDefinitions = {
       name: z.string().optional().describe('New name'),
       currency: z.string().optional().describe('New currency'),
       balance: z.number().optional().describe('New balance'),
+      type: z.string().optional().describe('New wallet type'),
     }),
   }),
 

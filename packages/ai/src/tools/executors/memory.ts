@@ -1,16 +1,10 @@
-import type { Enums, TablesInsert, TablesUpdate } from '@tuturuuu/types';
+import type { TablesInsert, TablesUpdate } from '@tuturuuu/types';
 import { embed } from 'ai';
+import {
+  MIRA_MEMORY_CATEGORIES,
+  type MiraMemoryCategory,
+} from '../definitions/memory';
 import type { MiraToolContext } from '../mira-tools';
-
-type MiraMemoryCategory = Enums<'mira_memory_category'>;
-
-const MIRA_MEMORY_CATEGORIES: MiraMemoryCategory[] = [
-  'preference',
-  'fact',
-  'conversation_topic',
-  'event',
-  'person',
-];
 
 function toMemoryCategory(value: unknown): MiraMemoryCategory | undefined {
   if (typeof value !== 'string') return undefined;

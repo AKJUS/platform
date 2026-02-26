@@ -7,9 +7,10 @@ export type JsonRenderBindings = Partial<Record<string, string>>;
 export type JsonRenderComponentContext<
   TProps,
   TBindings extends JsonRenderBindings = JsonRenderBindings,
+  TChildren extends ReactNode | ((...args: never[]) => ReactNode) = ReactNode,
 > = {
   props: TProps;
-  children?: ReactNode;
+  children?: TChildren;
   bindings?: TBindings;
 };
 

@@ -2,11 +2,6 @@ import { defineCatalog } from '@json-render/core';
 import { schema } from '@json-render/react/schema';
 import { z } from 'zod';
 
-const isIsoDateTimeString = (value: string) => {
-  const parsed = Date.parse(value);
-  return !Number.isNaN(parsed) && value.includes('T');
-};
-
 export const dashboardCatalog = defineCatalog(schema, {
   components: {
     Card: {
@@ -289,12 +284,14 @@ export const dashboardCatalog = defineCatalog(schema, {
             .describe('Stats period preset. Defaults to last_7_days.'),
           dateFrom: z
             .string()
+            .datetime({ offset: true })
             .optional()
             .describe(
               'Custom period start ISO datetime (required when period=custom).'
             ),
           dateTo: z
             .string()
+            .datetime({ offset: true })
             .optional()
             .describe(
               'Custom period end ISO datetime (required when period=custom).'
@@ -324,12 +321,6 @@ export const dashboardCatalog = defineCatalog(schema, {
               path: ['dateFrom'],
               message: 'dateFrom is required when period is custom',
             });
-          } else if (!isIsoDateTimeString(data.dateFrom)) {
-            ctx.addIssue({
-              code: z.ZodIssueCode.custom,
-              path: ['dateFrom'],
-              message: 'dateFrom must be a valid ISO datetime string',
-            });
           }
 
           if (!data.dateTo) {
@@ -337,12 +328,6 @@ export const dashboardCatalog = defineCatalog(schema, {
               code: z.ZodIssueCode.custom,
               path: ['dateTo'],
               message: 'dateTo is required when period is custom',
-            });
-          } else if (!isIsoDateTimeString(data.dateTo)) {
-            ctx.addIssue({
-              code: z.ZodIssueCode.custom,
-              path: ['dateTo'],
-              message: 'dateTo must be a valid ISO datetime string',
             });
           }
         }),

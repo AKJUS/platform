@@ -1,13 +1,17 @@
 import { z } from 'zod';
 import { tool } from '../core';
 
-export const MEMORY_CATEGORY = z.enum([
+export const MIRA_MEMORY_CATEGORIES = [
   'preference',
   'fact',
   'conversation_topic',
   'event',
   'person',
-]);
+] as const;
+
+export type MiraMemoryCategory = (typeof MIRA_MEMORY_CATEGORIES)[number];
+
+export const MEMORY_CATEGORY = z.enum(MIRA_MEMORY_CATEGORIES);
 
 export const memoryToolDefinitions = {
   remember: tool({

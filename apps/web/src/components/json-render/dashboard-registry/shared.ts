@@ -29,10 +29,10 @@ function isValidSignedUploadPath(path: unknown): path is string {
   );
 }
 
-type CreateTransactionInput = {
-  amount: unknown;
-  description: unknown;
-  walletId: unknown;
+export type CreateTransactionInput = {
+  amount: number;
+  description: string;
+  walletId: string;
 };
 
 export function useCreateTransaction() {

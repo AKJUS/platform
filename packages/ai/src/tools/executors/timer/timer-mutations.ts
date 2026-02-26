@@ -517,14 +517,16 @@ export async function executeDeleteTimeTrackingSession(
     coerceOptionalString(parsedArgs.id);
   if (!sessionId) return { error: 'sessionId is required' };
 
-  const { error } = await ctx.supabase
+  const { data, error } = await ctx.supabase
     .from('time_tracking_sessions')
     .delete()
     .eq('id', sessionId)
     .eq('ws_id', ctx.wsId)
-    .eq('user_id', ctx.userId);
+    .eq('user_id', ctx.userId)
+    .select('id');
 
   if (error) return { error: error.message };
+  if (!data?.length) return { error: 'Session not found' };
   return { success: true, message: 'Session deleted' };
 }
 

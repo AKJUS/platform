@@ -4,6 +4,7 @@ import {
   buildFormSubmissionMessage,
   buildUiActionSubmissionMessage,
 } from '../action-submission';
+import type { CreateTransactionInput } from './shared';
 
 type RegistrySetState = (
   updater: (prev: Record<string, unknown>) => Record<string, unknown>
@@ -15,11 +16,7 @@ type RegistryContext = {
     role: 'user';
     parts: Array<{ type: 'text'; text: string }>;
   }) => Promise<void>;
-  createTransaction?: (params: {
-    amount: unknown;
-    description: unknown;
-    walletId: unknown;
-  }) => Promise<void>;
+  createTransaction?: (params: CreateTransactionInput) => Promise<void>;
 };
 
 async function deliverMessage(
@@ -146,11 +143,21 @@ export const dashboardActions = {
     setState((prev) => ({ ...prev, submitting: true }));
 
     try {
-      await createTransaction({
+      if (
+        typeof params.amount !== 'number' ||
+        typeof params.description !== 'string' ||
+        typeof params.walletId !== 'string'
+      ) {
+        throw new Error('Invalid transaction payload');
+      }
+
+      const typedPayload: CreateTransactionInput = {
         amount: params.amount,
         description: params.description,
         walletId: params.walletId,
-      });
+      };
+
+      await createTransaction(typedPayload);
 
       if (submitText || sendMessage) {
         const messageText = `### Transaction Logged\n\n**Amount**: ${params.amount}\n**Description**: ${typeof params.description === 'string' ? params.description : 'N/A'}`;

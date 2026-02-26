@@ -63,24 +63,35 @@ const resolveLocale = (
   return locale.toLowerCase().startsWith('vi') ? 'vi' : 'en';
 };
 
+export function useWorkspace(wsId: string): {
+  data: JsonRenderWorkspaceSummary | null;
+  isLoading: boolean;
+} {
+  const { data, isLoading } = useQuery<JsonRenderWorkspaceSummary | null>({
+    queryKey: ['workspace', wsId],
+    queryFn: async () => {
+      const res = await fetch(`/api/workspaces/${wsId}`, {
+        cache: 'no-store',
+      });
+      if (!res.ok) return null;
+      return (await res.json()) as JsonRenderWorkspaceSummary;
+    },
+    enabled: !!wsId,
+  });
+
+  return {
+    data: data ?? null,
+    isLoading,
+  };
+}
+
 export const dashboardTaskComponents = {
   MyTasks: ({ props }: JsonRenderComponentContext<JsonRenderMyTasksProps>) => {
     const params = useParams();
     const wsId = params.wsId as string;
     const { data: user, isLoading: userLoading } = useWorkspaceUser();
 
-    const { data: workspace, isLoading: workspaceLoading } =
-      useQuery<JsonRenderWorkspaceSummary | null>({
-        queryKey: ['workspace', wsId],
-        queryFn: async () => {
-          const res = await fetch(`/api/workspaces/${wsId}`, {
-            cache: 'no-store',
-          });
-          if (!res.ok) return null;
-          return (await res.json()) as JsonRenderWorkspaceSummary;
-        },
-        enabled: !!wsId,
-      });
+    const { data: workspace, isLoading: workspaceLoading } = useWorkspace(wsId);
 
     const state = useMyTasksState({
       wsId,
@@ -169,19 +180,7 @@ export const dashboardTaskComponents = {
 
     const { data: user, isLoading: userLoading } = useWorkspaceUser();
 
-    const { data: workspace, isLoading: workspaceLoading } =
-      useQuery<JsonRenderWorkspaceSummary | null>({
-        queryKey: ['workspace', wsId],
-        queryFn: async () => {
-          const res = await fetch(`/api/workspaces/${wsId}`, {
-            cache: 'no-store',
-          });
-          if (!res.ok) return null;
-          return (await res.json()) as JsonRenderWorkspaceSummary;
-        },
-        enabled: !!wsId,
-        staleTime: 60_000,
-      });
+    const { data: workspace, isLoading: workspaceLoading } = useWorkspace(wsId);
 
     const range = resolveStatsRange(props.period, props.dateFrom, props.dateTo);
 

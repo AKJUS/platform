@@ -431,7 +431,11 @@ export const dashboardBaseComponents = {
   Tabs: ({
     props,
     children,
-  }: JsonRenderComponentContext<JsonRenderTabsProps>) => {
+  }: JsonRenderComponentContext<
+    JsonRenderTabsProps,
+    Record<string, string>,
+    ReactNode | ((ctx: { tabId: string; activeTab: boolean }) => ReactNode)
+  >) => {
     const instanceId = useId();
     const tabStateKey = `activeTab-${instanceId.replace(/:/g, '_')}`;
     const [activeTab, setActiveTab] = useStateBinding<string>(tabStateKey);
@@ -458,11 +462,11 @@ export const dashboardBaseComponents = {
               ? (
                   children as (context: {
                     tabId: string;
-                    activeTab: string;
+                    activeTab: boolean;
                   }) => ReactNode
                 )({
                   tabId: tab.id,
-                  activeTab: currentTab,
+                  activeTab: tab.id === currentTab,
                 })
               : tab.id === currentTab
                 ? children

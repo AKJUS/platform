@@ -21,8 +21,14 @@ export const calendarToolDefinitions = {
       'Create a new calendar event. Events are automatically encrypted if E2EE is enabled.',
     inputSchema: z.object({
       title: z.string().describe('Event title'),
-      startAt: z.string().describe('Start time ISO 8601'),
-      endAt: z.string().describe('End time ISO 8601'),
+      startAt: z
+        .string()
+        .datetime({ offset: true })
+        .describe('Start time ISO 8601'),
+      endAt: z
+        .string()
+        .datetime({ offset: true })
+        .describe('End time ISO 8601'),
       description: z
         .string()
         .nullish()
@@ -34,26 +40,44 @@ export const calendarToolDefinitions = {
   update_event: tool({
     description:
       'Update an existing calendar event. Updated fields are encrypted automatically if E2EE is enabled.',
-    inputSchema: z.object({
-      eventId: z.string().describe('Event UUID'),
-      title: z.string().optional().describe('Updated event title'),
-      startAt: z.string().optional().describe('Updated start time ISO 8601'),
-      endAt: z.string().optional().describe('Updated end time ISO 8601'),
-      description: z
-        .string()
-        .nullish()
-        .describe('Updated event description, or null/omit'),
-      location: z
-        .string()
-        .nullish()
-        .describe('Updated event location, or null/omit'),
-    }),
+    inputSchema: z
+      .object({
+        eventId: z.string().uuid().describe('Event UUID'),
+        title: z.string().optional().describe('Updated event title'),
+        startAt: z
+          .string()
+          .datetime({ offset: true })
+          .optional()
+          .describe('Updated start time ISO 8601'),
+        endAt: z
+          .string()
+          .datetime({ offset: true })
+          .optional()
+          .describe('Updated end time ISO 8601'),
+        description: z
+          .string()
+          .nullish()
+          .describe('Updated event description, or null/omit'),
+        location: z
+          .string()
+          .nullish()
+          .describe('Updated event location, or null/omit'),
+      })
+      .refine(
+        (value) =>
+          value.title !== undefined ||
+          value.startAt !== undefined ||
+          value.endAt !== undefined ||
+          value.description !== undefined ||
+          value.location !== undefined,
+        { message: 'At least one field to update is required' }
+      ),
   }),
 
   delete_event: tool({
     description: 'Delete a calendar event by ID.',
     inputSchema: z.object({
-      eventId: z.string().describe('Event UUID'),
+      eventId: z.string().uuid().describe('Event UUID'),
     }),
   }),
 

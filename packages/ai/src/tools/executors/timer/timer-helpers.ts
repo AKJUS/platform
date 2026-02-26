@@ -135,15 +135,19 @@ export function normalizeCursor(cursor: unknown):
 async function hasBypassApprovalPermission(
   ctx: MiraToolContext
 ): Promise<boolean> {
-  const { data: workspace } = await ctx.supabase
+  const { data: workspace, error: workspaceError } = await ctx.supabase
     .from('workspaces')
     .select('creator_id')
     .eq('id', ctx.wsId)
     .maybeSingle();
 
+  if (workspaceError) {
+    throw new Error(workspaceError.message);
+  }
+
   if (workspace?.creator_id === ctx.userId) return true;
 
-  const { data: defaults } = await ctx.supabase
+  const { data: defaults, error: defaultsError } = await ctx.supabase
     .from('workspace_default_permissions')
     .select('permission')
     .eq('ws_id', ctx.wsId)
@@ -151,15 +155,24 @@ async function hasBypassApprovalPermission(
     .eq('permission', 'bypass_time_tracking_request_approval')
     .limit(1);
 
+  if (defaultsError) {
+    throw new Error(defaultsError.message);
+  }
+
   if (defaults?.length) return true;
 
-  const { data: rolePermissions } = await ctx.supabase
-    .from('workspace_role_members')
-    .select(
-      'workspace_roles!inner(ws_id, workspace_role_permissions(permission, enabled))'
-    )
-    .eq('user_id', ctx.userId)
-    .eq('workspace_roles.ws_id', ctx.wsId);
+  const { data: rolePermissions, error: rolePermissionsError } =
+    await ctx.supabase
+      .from('workspace_role_members')
+      .select(
+        'workspace_roles!inner(ws_id, workspace_role_permissions(permission, enabled))'
+      )
+      .eq('user_id', ctx.userId)
+      .eq('workspace_roles.ws_id', ctx.wsId);
+
+  if (rolePermissionsError) {
+    throw new Error(rolePermissionsError.message);
+  }
 
   if (!rolePermissions?.length) return false;
 
@@ -197,7 +210,12 @@ export async function shouldRequireApproval(
   }
 
   if (ENABLE_APPROVAL_BYPASS_CHECK) {
-    const bypassAllowed = await hasBypassApprovalPermission(ctx);
+    let bypassAllowed = false;
+    try {
+      bypassAllowed = await hasBypassApprovalPermission(ctx);
+    } catch {
+      return { requiresApproval: true };
+    }
     if (bypassAllowed) return { requiresApproval: false };
   }
 
