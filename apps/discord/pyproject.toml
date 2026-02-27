@@ -16,7 +16,11 @@ dependencies = [
   "nanoid",
   "pytz",
   "python-dotenv",
-  "markitdown[all]",
+  "markitdown[all]>=0.1.5",
+]
+
+[dependency-groups]
+dev = [
   "pytest",
   "pytest-asyncio",
   "pytest-cov",
@@ -25,4 +29,3 @@ dependencies = [
   "types-requests",
   "types-pytz",
 ]
-

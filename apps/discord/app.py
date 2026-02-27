@@ -1243,29 +1243,42 @@ def web_app():
 
         try:
             timeout = aiohttp.ClientTimeout(total=60)
-            async with (
-                aiohttp.ClientSession(timeout=timeout) as session,
-                session.get(signed_url, allow_redirects=False) as response,
-            ):
-                if response.status >= 400:
-                    raise HTTPException(
-                        status_code=400,
-                        detail=(f"Failed to download from signed URL ({response.status})"),
-                    )
+            downloaded_bytes = 0
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.get(signed_url) as response:
+                    if response.status >= 400:
+                        raise HTTPException(
+                            status_code=400,
+                            detail=(f"Failed to download from signed URL ({response.status})"),
+                        )
 
-                file_bytes = await response.read()
+                    content_length_raw = response.headers.get("Content-Length")
+                    if content_length_raw:
+                        try:
+                            content_length = int(content_length_raw)
+                        except ValueError as error:
+                            raise HTTPException(
+                                status_code=400,
+                                detail="Invalid Content-Length from signed URL",
+                            ) from error
+                        if content_length > max_bytes:
+                            raise HTTPException(status_code=413, detail="File exceeds 50MB limit")
 
-            if not file_bytes:
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                        temp_path = tmp.name
+                        async for chunk in response.content.iter_chunked(1024 * 256):
+                            if not chunk:
+                                continue
+                            downloaded_bytes += len(chunk)
+                            if downloaded_bytes > max_bytes:
+                                raise HTTPException(status_code=413, detail="File exceeds 50MB limit")
+                            tmp.write(chunk)
+
+            if downloaded_bytes == 0:
                 raise HTTPException(
                     status_code=400,
                     detail="File is empty",
                 )
-            if len(file_bytes) > max_bytes:
-                raise HTTPException(status_code=413, detail="File exceeds 50MB limit")
-
-            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-                tmp.write(file_bytes)
-                temp_path = tmp.name
 
             converter = MarkItDown(enable_plugins=payload.enable_plugins)
             result = converter.convert(temp_path)

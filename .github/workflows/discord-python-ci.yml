@@ -211,7 +211,7 @@ jobs:
         run: uv sync --locked
 
       - name: Run security audit with Safety
-        run: uv tool run safety check --json || true
+        run: uv tool run safety check --json
         continue-on-error: true
 
   matrix-test:

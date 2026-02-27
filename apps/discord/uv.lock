@@ -2268,44 +2268,52 @@ dependencies = [
     { name = "fastapi" },
     { name = "markitdown", extra = ["all"] },
     { name = "modal" },
-    { name = "mypy" },
     { name = "nanoid" },
     { name = "postgrest" },
     { name = "pynacl" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "pytest-cov" },
     { name = "python-dotenv" },
     { name = "pytz" },
     { name = "requests" },
-    { name = "ruff" },
     { name = "supabase" },
+    { name = "uvicorn", extra = ["standard"] },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "mypy" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+    { name = "ruff" },
     { name = "types-pytz" },
     { name = "types-requests" },
-    { name = "uvicorn", extra = ["standard"] },
 ]
 
 [package.metadata]
 requires-dist = [
     { name = "aiohttp" },
     { name = "fastapi" },
-    { name = "markitdown", extras = ["all"] },
+    { name = "markitdown", extras = ["all"], specifier = ">=0.1.5" },
     { name = "modal" },
-    { name = "mypy" },
     { name = "nanoid" },
     { name = "postgrest" },
     { name = "pynacl" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "pytest-cov" },
     { name = "python-dotenv" },
     { name = "pytz" },
     { name = "requests" },
-    { name = "ruff" },
     { name = "supabase" },
+    { name = "uvicorn", extras = ["standard"] },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "mypy" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+    { name = "ruff" },
     { name = "types-pytz" },
     { name = "types-requests" },
-    { name = "uvicorn", extras = ["standard"] },
 ]
 
 [[package]]

@@ -93,7 +93,7 @@ Verifies Python syntax and module imports.
 uv run python -m py_compile *.py
 
 # Verify imports
-uv run python -c "import daily_report; import commands"
+uv run python -c "import daily_report; import commands; import discord_client; import wol_reminder"
 ```
 
 #### 6. **Security Audit**

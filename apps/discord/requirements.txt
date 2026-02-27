@@ -20,7 +20,7 @@ pynacl
 nanoid
 pytz
 python-dotenv
-markitdown[all]
+markitdown[all]>=0.1.5
 
 # Testing
 pytest
