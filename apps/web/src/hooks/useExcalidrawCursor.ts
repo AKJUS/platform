@@ -2,7 +2,11 @@ import { createClient } from '@tuturuuu/supabase/next/client';
 import type { RealtimeChannel } from '@tuturuuu/supabase/next/realtime';
 import { usePageVisibility } from '@tuturuuu/ui/hooks/use-page-visibility';
 import { DEV_MODE } from '@tuturuuu/utils/constants';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  type SelectedElementIds,
+  sanitizeSelectedElementIds,
+} from '@/utils/excalidraw-selection';
 
 export interface ExcalidrawCursorUser {
   id: string;
@@ -28,9 +32,16 @@ export interface ExcalidrawCursorConfig {
 
 export interface ExcalidrawCursorResult {
   remoteCursors: Map<string, ExcalidrawCursorPosition>;
+  remoteSelections: Map<string, SelectedElementIds>;
   broadcastCursor: (x: number, y: number, tool?: string) => void;
+  broadcastSelection: (selectedElementIds: SelectedElementIds) => void;
   isConnected: boolean;
   error: boolean;
+}
+
+interface RemoteSelectionState {
+  selectedElementIds: SelectedElementIds;
+  lastUpdatedAt: number;
 }
 
 export function useExcalidrawCursor({
@@ -42,6 +53,9 @@ export function useExcalidrawCursor({
 }: ExcalidrawCursorConfig): ExcalidrawCursorResult {
   const [remoteCursors, setRemoteCursors] = useState<
     Map<string, ExcalidrawCursorPosition>
+  >(new Map());
+  const [remoteSelectionStates, setRemoteSelectionStates] = useState<
+    Map<string, RemoteSelectionState>
   >(new Map());
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState(false);
@@ -121,6 +135,30 @@ export function useExcalidrawCursor({
     [enabled, throttleMs, user, handleError]
   );
 
+  const sendSelection = useCallback(
+    async (selectedElementIds: SelectedElementIds) => {
+      if (!channelRef.current || !enabled) return;
+      if (errorCountRef.current >= MAX_ERROR_COUNT) return;
+
+      try {
+        await channelRef.current.send({
+          type: 'broadcast',
+          event: 'selection-change',
+          payload: {
+            senderId: user.id,
+            selectedElementIds,
+            timestamp: Date.now(),
+          },
+        });
+
+        errorCountRef.current = 0;
+      } catch (err) {
+        handleError(err);
+      }
+    },
+    [enabled, user.id, handleError]
+  );
+
   const smoothAnimate = useCallback(() => {
     if (!enabled || !user.id) {
       animationFrameRef.current = requestAnimationFrame(smoothAnimate);
@@ -169,6 +207,17 @@ export function useExcalidrawCursor({
     [enabled, user.id, sendCursor]
   );
 
+  const broadcastSelection = useCallback(
+    (selectedElementIds: SelectedElementIds) => {
+      if (!enabled || !user.id) return;
+
+      const normalizedSelection =
+        sanitizeSelectedElementIds(selectedElementIds);
+      void sendSelection(normalizedSelection ?? {});
+    },
+    [enabled, user.id, sendSelection]
+  );
+
   useEffect(() => {
     animationFrameRef.current = requestAnimationFrame(smoothAnimate);
 
@@ -192,6 +241,20 @@ export function useExcalidrawCursor({
 
         for (const [userId, cursor] of updated.entries()) {
           if (now - cursor.lastUpdatedAt > cursorTimeoutMs) {
+            updated.delete(userId);
+            hasChanges = true;
+          }
+        }
+
+        return hasChanges ? updated : prev;
+      });
+
+      setRemoteSelectionStates((prev) => {
+        const updated = new Map(prev);
+        let hasChanges = false;
+
+        for (const [userId, selectionState] of updated.entries()) {
+          if (now - selectionState.lastUpdatedAt > cursorTimeoutMs) {
             updated.delete(userId);
             hasChanges = true;
           }
@@ -236,6 +299,16 @@ export function useExcalidrawCursor({
                     type: 'broadcast',
                     event: 'cursor-move',
                     payload: { x: -1000, y: -1000, user },
+                  });
+
+                  channel.send({
+                    type: 'broadcast',
+                    event: 'selection-change',
+                    payload: {
+                      senderId: user.id,
+                      selectedElementIds: {},
+                      timestamp: Date.now(),
+                    },
                   });
                 } catch {
                   // Ignore errors during cleanup
@@ -305,6 +378,45 @@ export function useExcalidrawCursor({
           }
         }
       )
+      .on(
+        'broadcast',
+        { event: 'selection-change' },
+        (payload: {
+          payload: {
+            senderId: string;
+            selectedElementIds?: Record<string, boolean | undefined>;
+            timestamp: number;
+          };
+        }) => {
+          try {
+            const { senderId, selectedElementIds, timestamp } = payload.payload;
+
+            if (senderId === user.id) return;
+
+            const normalizedSelection =
+              sanitizeSelectedElementIds(selectedElementIds);
+
+            setRemoteSelectionStates((prev) => {
+              const updated = new Map(prev);
+
+              if (!normalizedSelection) {
+                updated.delete(senderId);
+              } else {
+                updated.set(senderId, {
+                  selectedElementIds: normalizedSelection,
+                  lastUpdatedAt: timestamp || Date.now(),
+                });
+              }
+
+              return updated;
+            });
+
+            errorCountRef.current = 0;
+          } catch (err) {
+            handleError(err);
+          }
+        }
+      )
       .subscribe((status) => {
         if (DEV_MODE) {
           console.log('Cursor channel status:', status);
@@ -325,6 +437,8 @@ export function useExcalidrawCursor({
             break;
           case 'CLOSED':
             setIsConnected(false);
+            setRemoteCursors(new Map());
+            setRemoteSelectionStates(new Map());
             break;
         }
       });
@@ -348,6 +462,16 @@ export function useExcalidrawCursor({
                 event: 'cursor-move',
                 payload: { x: -1000, y: -1000, user },
               });
+
+              ch.send({
+                type: 'broadcast',
+                event: 'selection-change',
+                payload: {
+                  senderId: user.id,
+                  selectedElementIds: {},
+                  timestamp: Date.now(),
+                },
+              });
             } catch {
               // Ignore errors during cleanup
             }
@@ -359,9 +483,22 @@ export function useExcalidrawCursor({
     };
   }, [channelName, user, enabled, handleError]);
 
+  const remoteSelections = useMemo(() => {
+    return new Map(
+      Array.from(remoteSelectionStates.entries()).map(
+        ([userId, selectionState]) => [
+          userId,
+          selectionState.selectedElementIds,
+        ]
+      )
+    );
+  }, [remoteSelectionStates]);
+
   return {
     remoteCursors,
+    remoteSelections,
     broadcastCursor,
+    broadcastSelection,
     isConnected,
     error,
   };

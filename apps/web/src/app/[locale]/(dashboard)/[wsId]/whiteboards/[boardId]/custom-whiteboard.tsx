@@ -3,6 +3,7 @@
 import type { ExcalidrawElement } from '@excalidraw/excalidraw/element/types';
 import { useWhiteboardCollaboration } from '@/hooks/useWhiteboardCollaboration';
 import { mergeElements } from '@/utils/excalidraw-helper';
+import { getSelectionSignature } from '@/utils/excalidraw-selection';
 import '@excalidraw/excalidraw/index.css';
 import type {
   AppState,
@@ -84,6 +85,7 @@ export function CustomWhiteboard({
   const titleSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const lastSavedRef = useRef<string | null>(null);
+  const lastSelectionSignatureRef = useRef('');
   const previousElementsRef = useRef<readonly ExcalidrawElement[]>([]);
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pendingChangesRef = useRef(false);
@@ -155,6 +157,7 @@ export function CustomWhiteboard({
     currentUserId,
     broadcastElementChanges,
     broadcastCursorPosition,
+    broadcastSelectionChange,
   } = useWhiteboardCollaboration({
     boardId,
     wsId,
@@ -308,7 +311,7 @@ export function CustomWhiteboard({
   const handleChange = useCallback(
     (
       elements: readonly ExcalidrawElement[],
-      _appState: AppState,
+      appState: AppState,
       files: BinaryFiles
     ) => {
       // Only compare elements and files (not appState which changes frequently)
@@ -323,6 +326,14 @@ export function CustomWhiteboard({
         broadcastElementChanges(previousElementsRef.current, elements);
       }
 
+      const selectionSignature = getSelectionSignature(
+        appState.selectedElementIds
+      );
+      if (selectionSignature !== lastSelectionSignatureRef.current) {
+        lastSelectionSignatureRef.current = selectionSignature;
+        broadcastSelectionChange(appState.selectedElementIds);
+      }
+
       // Update previous elements reference with deep clone
       previousElementsRef.current = cloneElements(elements);
 
@@ -331,7 +342,12 @@ export function CustomWhiteboard({
         triggerAutoSave();
       }
     },
-    [broadcastElementChanges, triggerAutoSave, cloneElements]
+    [
+      broadcastElementChanges,
+      broadcastSelectionChange,
+      triggerAutoSave,
+      cloneElements,
+    ]
   );
 
   // Handle pointer/cursor updates
