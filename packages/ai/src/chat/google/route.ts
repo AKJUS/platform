@@ -49,6 +49,7 @@ export const preferredRegion = 'sin1';
 
 const DEFAULT_MODEL_NAME = 'google/gemini-2.5-flash';
 type ThinkingMode = 'fast' | 'thinking';
+type CreditSource = 'workspace' | 'personal';
 
 const ChatRoleSchema = z
   .string()
@@ -81,6 +82,8 @@ const ChatRequestBodySchema = z.object({
   isMiraMode: z.boolean().optional(),
   timezone: z.string().optional(),
   thinkingMode: z.enum(['thinking', 'fast']).optional(),
+  creditSource: z.enum(['workspace', 'personal']).optional(),
+  creditWsId: z.string().optional(),
 });
 
 async function getAllChatFiles(
@@ -328,6 +331,8 @@ export function createPOST(
         isMiraMode,
         timezone,
         thinkingMode: rawThinkingMode,
+        creditSource: requestedCreditSourceRaw,
+        creditWsId: requestedCreditWsId,
       } = parsedBody.data;
       const thinkingMode: ThinkingMode =
         rawThinkingMode === 'thinking' ? 'thinking' : 'fast';
@@ -345,6 +350,94 @@ export function createPOST(
       if (!user) {
         console.error('Unauthorized');
         return new Response('Unauthorized', { status: 401 });
+      }
+
+      if (wsId) {
+        const { data: contextMembership } = await sbAdmin
+          .from('workspace_members')
+          .select('user_id')
+          .eq('ws_id', wsId)
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (!contextMembership) {
+          return NextResponse.json(
+            { error: 'Workspace access denied' },
+            { status: 403 }
+          );
+        }
+      }
+
+      const requestedCreditSource: CreditSource =
+        requestedCreditSourceRaw ?? 'workspace';
+      let billingWsId: string | null = wsId ?? null;
+
+      if (requestedCreditSource === 'personal') {
+        const { data: personalWorkspace, error: personalWorkspaceError } =
+          await sbAdmin
+            .from('workspaces')
+            .select('id, workspace_members!inner(user_id)')
+            .eq('personal', true)
+            .eq('workspace_members.user_id', user.id)
+            .maybeSingle();
+
+        if (personalWorkspaceError || !personalWorkspace?.id) {
+          return NextResponse.json(
+            {
+              error:
+                'Personal workspace not found. Please ensure your account has a personal workspace.',
+              code: 'PERSONAL_WORKSPACE_NOT_FOUND',
+            },
+            { status: 403 }
+          );
+        }
+
+        if (
+          requestedCreditWsId &&
+          requestedCreditWsId !== personalWorkspace.id
+        ) {
+          return NextResponse.json(
+            {
+              error:
+                'Invalid credit workspace for personal credit source selection.',
+              code: 'INVALID_CREDIT_SOURCE',
+            },
+            { status: 403 }
+          );
+        }
+
+        billingWsId = personalWorkspace.id;
+      } else if (requestedCreditWsId) {
+        if (wsId && requestedCreditWsId !== wsId) {
+          return NextResponse.json(
+            {
+              error: 'Invalid credit workspace for workspace source selection.',
+              code: 'INVALID_CREDIT_SOURCE',
+            },
+            { status: 403 }
+          );
+        }
+
+        if (!wsId) {
+          const { data: billingMembership } = await sbAdmin
+            .from('workspace_members')
+            .select('user_id')
+            .eq('ws_id', requestedCreditWsId)
+            .eq('user_id', user.id)
+            .maybeSingle();
+
+          if (!billingMembership) {
+            return NextResponse.json(
+              {
+                error: 'Workspace access denied for selected credit workspace.',
+                code: 'INVALID_CREDIT_SOURCE',
+              },
+              { status: 403 }
+            );
+          }
+
+          billingWsId = requestedCreditWsId;
+        }
       }
 
       let chatId = id;
@@ -503,8 +596,8 @@ export function createPOST(
       }
 
       // Pre-flight AI credit check
-      const creditCheck = wsId
-        ? await checkAiCredits(wsId, model, 'chat', { userId: user.id })
+      const creditCheck = billingWsId
+        ? await checkAiCredits(billingWsId, model, 'chat', { userId: user.id })
         : null;
       if (creditCheck && !creditCheck.allowed) {
         return NextResponse.json(
@@ -557,6 +650,7 @@ export function createPOST(
         const ctx: MiraToolContext = {
           userId: user.id,
           wsId,
+          creditWsId: billingWsId ?? wsId,
           chatId,
           supabase,
           timezone,
@@ -983,14 +1077,14 @@ export function createPOST(
           }
 
           if (
-            wsId &&
+            billingWsId &&
             (inputTokens > 0 ||
               outputTokens > 0 ||
               reasoningTokens > 0 ||
               searchCount > 0)
           ) {
             deductAiCredits({
-              wsId,
+              wsId: billingWsId,
               userId: user.id,
               modelId: model,
               inputTokens,
@@ -998,6 +1092,10 @@ export function createPOST(
               reasoningTokens,
               feature: 'chat',
               chatMessageId: msgData?.id,
+              metadata: {
+                creditSource: requestedCreditSource,
+                contextWsId: wsId ?? null,
+              },
               ...(searchCount > 0 ? { searchCount } : {}),
             }).catch((err) =>
               console.error('Failed to deduct AI credits:', err)

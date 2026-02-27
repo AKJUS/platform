@@ -5,7 +5,7 @@ import { cn } from '@tuturuuu/utils/format';
 import { useTranslations } from 'next-intl';
 
 interface MiraCreditBarProps {
-  wsId: string;
+  wsId?: string;
 }
 
 interface CreditData {
@@ -31,6 +31,7 @@ export default function MiraCreditBar({ wsId }: MiraCreditBarProps) {
       }),
     staleTime: 60_000, // Re-fetch at most once per minute
     refetchOnWindowFocus: false,
+    enabled: !!wsId,
   });
 
   if (!data || data.totalAllocated + data.bonusCredits === 0) return null;

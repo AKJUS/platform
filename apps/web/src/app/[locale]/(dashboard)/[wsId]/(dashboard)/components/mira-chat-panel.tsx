@@ -34,6 +34,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@tuturuuu/ui/dropdown-menu';
+import { useAiCredits } from '@tuturuuu/ui/hooks/use-ai-credits';
 import { toast } from '@tuturuuu/ui/sonner';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@tuturuuu/ui/tooltip';
 import { cn } from '@tuturuuu/utils/format';
@@ -225,8 +226,10 @@ async function deleteChatFileFromStorage(
 
 const STORAGE_KEY_PREFIX = 'mira-dashboard-chat-';
 const THINKING_MODE_STORAGE_KEY_PREFIX = 'mira-dashboard-thinking-mode-';
+const CREDIT_SOURCE_STORAGE_KEY_PREFIX = 'mira-dashboard-credit-source-';
 const INITIAL_MODEL = defaultModel!;
 type ThinkingMode = 'fast' | 'thinking';
+type CreditSource = 'workspace' | 'personal';
 const HOTKEY_NEW_CHAT = 'Alt+Shift+N';
 const HOTKEY_MODEL_PICKER = 'Alt+Shift+M';
 const HOTKEY_FULLSCREEN = 'Mod+Alt+F';
@@ -279,6 +282,7 @@ export default function MiraChatPanel({
   const [chat, setChat] = useState<Partial<AIChat> | undefined>();
   const [model, setModel] = useState<Model>(INITIAL_MODEL);
   const [thinkingMode, setThinkingMode] = useState<ThinkingMode>('fast');
+  const [creditSource, setCreditSource] = useState<CreditSource>('workspace');
   const [input, setInput] = useState('');
   const greetingKey = useMemo(() => getGreetingKey(), []);
 
@@ -334,6 +338,7 @@ export default function MiraChatPanel({
   const [viewOnly, setViewOnly] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [isThinkingMenuOpen, setIsThinkingMenuOpen] = useState(false);
+  const [isCreditSourceMenuOpen, setIsCreditSourceMenuOpen] = useState(false);
   const [modelPickerHotkeySignal, setModelPickerHotkeySignal] = useState(0);
 
   // ── Message queue for debounced batching ──
@@ -402,6 +407,37 @@ export default function MiraChatPanel({
     [userCalendarSettings, workspaceCalendarSettings]
   );
 
+  const { data: contextCredits } = useAiCredits(wsId);
+
+  const { data: personalWorkspaceId } = useQuery<string | null>({
+    queryKey: ['personal-workspace-id'],
+    queryFn: async () => {
+      const res = await fetch('/api/v1/infrastructure/resolve-workspace-id', {
+        method: 'POST',
+        cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wsId: 'personal' }),
+      });
+
+      if (!res.ok) return null;
+      const payload = (await res.json()) as { workspaceId?: string };
+      return payload.workspaceId ?? null;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const isPersonalDashboardWorkspace =
+    !!personalWorkspaceId && personalWorkspaceId === wsId;
+  const workspaceCreditLocked =
+    isPersonalDashboardWorkspace || contextCredits?.tier === 'FREE';
+
+  const activeCreditSource: CreditSource = workspaceCreditLocked
+    ? 'personal'
+    : creditSource;
+  const creditWsId =
+    activeCreditSource === 'personal'
+      ? (personalWorkspaceId ?? undefined)
+      : wsId;
   const chatRequestBody = useMemo(
     () => ({
       wsId,
@@ -409,8 +445,17 @@ export default function MiraChatPanel({
       isMiraMode: true,
       timezone: timezoneForChat,
       thinkingMode,
+      creditSource: activeCreditSource,
+      ...(creditWsId ? { creditWsId } : {}),
     }),
-    [wsId, gatewayModelId, timezoneForChat, thinkingMode]
+    [
+      wsId,
+      gatewayModelId,
+      timezoneForChat,
+      thinkingMode,
+      activeCreditSource,
+      creditWsId,
+    ]
   );
   const chatRequestBodyRef = useRef(chatRequestBody);
   chatRequestBodyRef.current = chatRequestBody;
@@ -450,6 +495,30 @@ export default function MiraChatPanel({
       thinkingMode
     );
   }, [wsId, thinkingMode]);
+
+  useEffect(() => {
+    const key = `${CREDIT_SOURCE_STORAGE_KEY_PREFIX}${wsId}`;
+    const stored = localStorage.getItem(key);
+    if (stored === 'workspace' || stored === 'personal') {
+      setCreditSource(stored);
+      return;
+    }
+    setCreditSource('workspace');
+  }, [wsId]);
+
+  useEffect(() => {
+    localStorage.setItem(
+      `${CREDIT_SOURCE_STORAGE_KEY_PREFIX}${wsId}`,
+      creditSource
+    );
+  }, [wsId, creditSource]);
+
+  useEffect(() => {
+    if (!workspaceCreditLocked) return;
+    if (creditSource !== 'personal') {
+      setCreditSource('personal');
+    }
+  }, [workspaceCreditLocked, creditSource]);
 
   const {
     id: chatId,
@@ -520,6 +589,16 @@ export default function MiraChatPanel({
       if (status === 'submitted' || status === 'streaming') stop();
     },
     [thinkingMode, status, stop]
+  );
+
+  const handleCreditSourceChange = useCallback(
+    (nextSource: CreditSource) => {
+      if (nextSource === creditSource) return;
+      if (nextSource === 'workspace' && workspaceCreditLocked) return;
+      setCreditSource(nextSource);
+      if (status === 'submitted' || status === 'streaming') stop();
+    },
+    [creditSource, workspaceCreditLocked, status, stop]
   );
 
   // Invalidate the mira-soul query when Mira updates its own settings via tool.
@@ -1357,6 +1436,64 @@ export default function MiraChatPanel({
         </div>
         <div className="flex shrink-0 items-center gap-1">
           <DropdownMenu
+            open={isCreditSourceMenuOpen}
+            onOpenChange={setIsCreditSourceMenuOpen}
+          >
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 px-2 text-xs"
+                title={t('credit_source_label')}
+                aria-label={t('credit_source_label')}
+              >
+                {activeCreditSource === 'personal'
+                  ? t('credit_source_personal')
+                  : t('credit_source_workspace')}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-64">
+              <DropdownMenuItem
+                className="items-start"
+                disabled={workspaceCreditLocked}
+                onSelect={() => {
+                  handleCreditSourceChange('workspace');
+                  setIsCreditSourceMenuOpen(false);
+                }}
+                title={
+                  workspaceCreditLocked
+                    ? t('credit_source_workspace_locked_free')
+                    : t('credit_source_workspace_desc')
+                }
+              >
+                <div className="flex flex-col gap-0.5">
+                  <span>{t('credit_source_workspace')}</span>
+                  <span className="text-muted-foreground text-xs">
+                    {workspaceCreditLocked
+                      ? t('credit_source_workspace_locked_free')
+                      : t('credit_source_workspace_desc')}
+                  </span>
+                </div>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="items-start"
+                onSelect={() => {
+                  handleCreditSourceChange('personal');
+                  setIsCreditSourceMenuOpen(false);
+                }}
+                title={t('credit_source_personal_desc')}
+              >
+                <div className="flex flex-col gap-0.5">
+                  <span>{t('credit_source_personal')}</span>
+                  <span className="text-muted-foreground text-xs">
+                    {t('credit_source_personal_desc')}
+                  </span>
+                </div>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <DropdownMenu
             open={isThinkingMenuOpen}
             onOpenChange={setIsThinkingMenuOpen}
           >
@@ -1402,7 +1539,7 @@ export default function MiraChatPanel({
             </DropdownMenuContent>
           </DropdownMenu>
           <div className="ml-2">
-            <MiraCreditBar wsId={wsId} />
+            <MiraCreditBar wsId={creditWsId} />
           </div>
           <Tooltip>
             <TooltipTrigger asChild>

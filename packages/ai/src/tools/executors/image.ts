@@ -7,6 +7,7 @@ export async function executeGenerateImage(
   args: Record<string, unknown>,
   ctx: MiraToolContext
 ): Promise<unknown> {
+  const billingWsId = ctx.creditWsId ?? ctx.wsId;
   const prompt = args.prompt as string;
   const aspectRatio = (args.aspectRatio as string) ?? '1:1';
 
@@ -23,7 +24,7 @@ export async function executeGenerateImage(
 
   const { checkAiCredits } = await import('../../credits/check-credits');
   const creditCheck = await checkAiCredits(
-    ctx.wsId,
+    billingWsId,
     selectedModel,
     'image_generation',
     { userId: ctx.userId }
@@ -82,7 +83,7 @@ export async function executeGenerateImage(
 
   const { deductAiCredits } = await import('../../credits/check-credits');
   void deductAiCredits({
-    wsId: ctx.wsId,
+    wsId: billingWsId,
     userId: ctx.userId,
     modelId: selectedModel,
     inputTokens: 0,

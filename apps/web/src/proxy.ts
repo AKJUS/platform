@@ -280,6 +280,8 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
 
   // Rate-limit API routes at the edge BEFORE any serverless execution
   if (req.nextUrl.pathname.startsWith('/api')) {
+    if (isDev) return NextResponse.next(); // Skip rate limiting in development for easier testing
+
     initRateLimiters();
     const ip = extractIPFromRequest(req.headers);
 

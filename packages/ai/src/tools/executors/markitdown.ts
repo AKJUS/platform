@@ -65,6 +65,7 @@ async function deductFixedMarkitdownCredits(
 ): Promise<
   { ok: true; remainingCredits: number } | { ok: false; error: string }
 > {
+  const billingWsId = ctx.creditWsId ?? ctx.wsId;
   const sbAdmin = await createAdminClient();
   const { data, error } = await (
     sbAdmin.rpc as unknown as (
@@ -72,7 +73,7 @@ async function deductFixedMarkitdownCredits(
       params: Record<string, unknown>
     ) => Promise<{ data: unknown; error: { message: string } | null }>
   )('deduct_fixed_ai_credits', {
-    p_ws_id: ctx.wsId,
+    p_ws_id: billingWsId,
     p_user_id: ctx.userId,
     p_amount: MARKITDOWN_COST_CREDITS,
     p_model_id: MARKITDOWN_LEDGER_MODEL,
@@ -115,6 +116,7 @@ export async function executeConvertFileToMarkdown(
   args: Record<string, unknown>,
   ctx: MiraToolContext
 ) {
+  const billingWsId = ctx.creditWsId ?? ctx.wsId;
   const markitdownUrl = resolveDiscordMarkitdownUrl();
   const markitdownSecret = resolveDiscordMarkitdownSecret();
 
@@ -209,7 +211,7 @@ export async function executeConvertFileToMarkdown(
   }
 
   const creditCheck = await checkAiCredits(
-    ctx.wsId,
+    billingWsId,
     CREDIT_CHECK_MODEL,
     CREDIT_FEATURE,
     { userId: ctx.userId }
