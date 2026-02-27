@@ -112,6 +112,17 @@ async function fetchWithTimeout(
   timeoutMs = DEFAULT_FETCH_TIMEOUT_MS
 ) {
   const controller = new AbortController();
+  const callerSignal = init.signal;
+  const abortFromCaller = () => controller.abort();
+  if (callerSignal) {
+    if (callerSignal.aborted) {
+      controller.abort();
+    } else {
+      callerSignal.addEventListener('abort', abortFromCaller, {
+        once: true,
+      });
+    }
+  }
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
@@ -121,6 +132,7 @@ async function fetchWithTimeout(
     });
   } finally {
     clearTimeout(timeoutId);
+    callerSignal?.removeEventListener('abort', abortFromCaller);
   }
 }
 
@@ -170,7 +182,9 @@ async function fetchGatewayModels(timeoutMs = DEFAULT_FETCH_TIMEOUT_MS) {
   const json = await response.json();
   if (Array.isArray(json)) return json;
   if (json && Array.isArray(json.data)) return json.data;
-  return [];
+  throw new Error(
+    `Unexpected gateway models payload (${response.status}): ${JSON.stringify(json)}`
+  );
 }
 
 function mapGatewayModel(model) {
@@ -293,7 +307,7 @@ async function main() {
   console.log(`✅ Synced ${syncedCount} gateway models`);
   console.log('✅ Enabled all gateway models');
   console.log(
-    `✅ Normalized all plan allocations: monthly=${ONE_MILLION_CREDITS}, daily=${ONE_MILLION_CREDITS}, max_output_tokens>=${MIN_MAX_OUTPUT_TOKENS}, allowed_models=ALL`
+    `✅ Normalized all plan allocations: monthly=${ONE_MILLION_CREDITS}, daily=${ONE_MILLION_CREDITS}, max_output_tokens=${MIN_MAX_OUTPUT_TOKENS}, allowed_models=ALL`
   );
   console.log('\n✅ Post-reset AI credits bootstrap complete.\n');
 }
