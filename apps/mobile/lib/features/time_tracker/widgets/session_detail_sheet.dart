@@ -334,11 +334,11 @@ class _DeleteConfirmationDialogState extends State<_DeleteConfirmationDialog> {
         children: [
           Text(widget.message),
           const shad.Gap(24),
-                    shad.OutlineButton(
+          shad.OutlineButton(
             onPressed: _isDeleting ? null : () => Navigator.of(context).pop(),
             child: Text(widget.cancelLabel),
           ),
-                    const shad.Gap(8),
+          const shad.Gap(8),
           shad.DestructiveButton(
             onPressed: _isDeleting ? null : _handleConfirm,
             child: _isDeleting
@@ -349,8 +349,6 @@ class _DeleteConfirmationDialogState extends State<_DeleteConfirmationDialog> {
                   )
                 : Text(widget.confirmLabel),
           ),
-
-
         ],
       ),
     );
