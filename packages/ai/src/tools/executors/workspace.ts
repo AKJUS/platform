@@ -16,6 +16,15 @@ export async function executeListWorkspaceMembers(
   ctx: MiraToolContext
 ) {
   const workspaceId = getWorkspaceContextWorkspaceId(ctx);
+  const currentWorkspaceContext =
+    ctx.workspaceContext ??
+    (await resolveWorkspaceContextState({
+      supabase: ctx.supabase,
+      userId: ctx.userId,
+      requestedWorkspaceContextId: workspaceId,
+      fallbackWorkspaceId: ctx.wsId,
+    }));
+
   const { data, error } = await ctx.supabase
     .from('workspace_members')
     .select(
@@ -34,7 +43,9 @@ export async function executeListWorkspaceMembers(
   if (error) return { error: error.message };
 
   return {
+    currentWorkspaceContext,
     count: data?.length ?? 0,
+    note: `These members are from the current workspace context: ${currentWorkspaceContext.name}.`,
     members: ((data ?? []) as WorkspaceMemberWithUsers[]).map((m) => {
       const user = Array.isArray(m.users) ? (m.users[0] ?? null) : m.users;
       return {
