@@ -1,4 +1,5 @@
 import { deductAiCredits } from '@tuturuuu/ai/credits/check-credits';
+import type { CreditDeductionResult } from '../../credits/types';
 
 type UsageLike = {
   inputTokens?: number;
@@ -136,6 +137,10 @@ function collectSerializableSources(response: StreamFinishResponseLike) {
 }
 
 function logGoogleSearchDebug(response: StreamFinishResponseLike): void {
+  if (process.env.GOOGLE_SEARCH_DEBUG !== 'true') {
+    return;
+  }
+
   console.log('[Google Search Debug] response keys:', Object.keys(response));
   console.log(
     '[Google Search Debug] providerMetadata:',
@@ -265,16 +270,50 @@ export async function persistAssistantResponse({
       reasoningTokens > 0 ||
       searchCount > 0)
   ) {
-    deductAiCredits({
+    let deductionResult: CreditDeductionResult;
+    try {
+      deductionResult = await deductAiCredits({
+        wsId,
+        userId,
+        modelId: model,
+        inputTokens,
+        outputTokens,
+        reasoningTokens,
+        feature: 'chat',
+        chatMessageId: messageData?.id,
+        ...(searchCount > 0 ? { searchCount } : {}),
+      });
+    } catch (error) {
+      console.error('Failed to deduct AI credits after assistant response.', {
+        wsId,
+        userId,
+        chatMessageId: messageData?.id,
+        model,
+        ...(searchCount > 0 ? { searchCount } : {}),
+        error,
+      });
+      return;
+    }
+
+    if (!deductionResult.success) {
+      console.error('AI credit deduction returned unsuccessful result.', {
+        wsId,
+        userId,
+        chatMessageId: messageData?.id,
+        model,
+        ...(searchCount > 0 ? { searchCount } : {}),
+        deductionResult,
+      });
+      return;
+    }
+
+    console.info('AI credits deducted for assistant response.', {
       wsId,
       userId,
-      modelId: model,
-      inputTokens,
-      outputTokens,
-      reasoningTokens,
-      feature: 'chat',
       chatMessageId: messageData?.id,
+      model,
       ...(searchCount > 0 ? { searchCount } : {}),
-    }).catch((error) => console.error('Failed to deduct AI credits:', error));
+      deductionResult,
+    });
   }
 }

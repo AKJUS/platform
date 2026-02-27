@@ -18,7 +18,6 @@ import {
   stepCountIs,
   streamText,
   type TextPart,
-  type UIMessage,
 } from 'ai';
 import { type NextRequest, NextResponse } from 'next/server';
 import { buildMiraContext } from '../../tools/context-builder';
@@ -32,7 +31,7 @@ import {
   shouldPreferMarkdownTablesForLatestUserMessage,
 } from '../mira-render-ui-policy';
 import { buildMiraSystemInstruction } from '../mira-system-instruction';
-import { ChatRequestBodySchema } from './chat-request-schema';
+import { ChatRequestBodySchema, mapToUIMessages } from './chat-request-schema';
 import { systemInstruction } from './default-system-instruction';
 import { processMessagesWithFiles } from './message-file-processing';
 import { prepareMiraToolStep } from './mira-step-preparation';
@@ -163,7 +162,7 @@ export function createPOST(
         }
       }
 
-      const normalizedMessages = messages as unknown as UIMessage[];
+      const normalizedMessages = mapToUIMessages(messages);
 
       // Convert UIMessages to ModelMessages
       const modelMessages = await convertToModelMessages(normalizedMessages);

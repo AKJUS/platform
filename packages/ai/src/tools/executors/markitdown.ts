@@ -9,6 +9,30 @@ const MARKITDOWN_LEDGER_MODEL = 'markitdown/conversion';
 const DEFAULT_MARKITDOWN_TIMEOUT_MS = 30_000;
 const MIN_MARKITDOWN_TIMEOUT_MS = 1_000;
 
+type DeductFixedCreditsRpcParams = {
+  p_ws_id: string;
+  p_user_id: string;
+  p_amount: number;
+  p_model_id: string;
+  p_feature: string;
+  p_metadata: Record<string, unknown>;
+};
+
+type DeductFixedCreditsRpcRow = {
+  success?: boolean;
+  remaining_credits?: number | string;
+  error_code?: string | null;
+};
+
+type DeductFixedCreditsRpcResult = {
+  data: DeductFixedCreditsRpcRow[] | null;
+  error: { message: string } | null;
+};
+
+type DeductFixedCreditsRpcCaller = {
+  rpc: unknown;
+};
+
 function stripTimestampPrefix(name: string): string {
   const match = name.match(/^\d+_(.+)$/);
   return match?.[1] ?? name;
@@ -66,12 +90,8 @@ async function deductFixedMarkitdownCredits(
   { ok: true; remainingCredits: number } | { ok: false; error: string }
 > {
   const sbAdmin = await createAdminClient();
-  const { data, error } = await (
-    sbAdmin.rpc as unknown as (
-      fn: string,
-      params: Record<string, unknown>
-    ) => Promise<{ data: unknown; error: { message: string } | null }>
-  )('deduct_fixed_ai_credits', {
+
+  const { data, error } = await callDeductFixedCreditsRpc(sbAdmin, {
     p_ws_id: ctx.wsId,
     p_user_id: ctx.userId,
     p_amount: MARKITDOWN_COST_CREDITS,
@@ -89,11 +109,7 @@ async function deductFixedMarkitdownCredits(
     return { ok: false, error: 'Failed to deduct AI credits.' };
   }
 
-  const row = (Array.isArray(data) ? data[0] : data) as {
-    success?: boolean;
-    remaining_credits?: number | string;
-    error_code?: string | null;
-  } | null;
+  const row = data?.[0] ?? null;
 
   if (!row?.success) {
     if (row?.error_code === 'INSUFFICIENT_CREDITS') {
@@ -108,6 +124,24 @@ async function deductFixedMarkitdownCredits(
   return {
     ok: true,
     remainingCredits: Number(row.remaining_credits ?? 0),
+  };
+}
+
+async function callDeductFixedCreditsRpc(
+  sbAdmin: DeductFixedCreditsRpcCaller,
+  params: DeductFixedCreditsRpcParams
+): Promise<DeductFixedCreditsRpcResult> {
+  const rpc = sbAdmin.rpc as (
+    fn: 'deduct_fixed_ai_credits',
+    params: DeductFixedCreditsRpcParams
+  ) => Promise<{
+    data: DeductFixedCreditsRpcRow[] | null;
+    error: { message: string } | null;
+  }>;
+  const result = await rpc('deduct_fixed_ai_credits', params);
+  return {
+    data: result.data,
+    error: result.error ? { message: result.error.message } : null,
   };
 }
 

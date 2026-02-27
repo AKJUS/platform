@@ -1,3 +1,5 @@
+import { generateRandomUUID } from '@tuturuuu/utils/uuid-helper';
+import type { UIMessage } from 'ai';
 import { z } from 'zod';
 
 const ChatRoleSchema = z
@@ -34,3 +36,19 @@ export const ChatRequestBodySchema = z.object({
 });
 
 export type ChatRequestBody = z.infer<typeof ChatRequestBodySchema>;
+
+export function mapToUIMessages(
+  messages: ChatRequestBody['messages']
+): UIMessage[] {
+  if (!messages) return [];
+
+  return messages.map(
+    (message): UIMessage => ({
+      id: message.id ?? generateRandomUUID(),
+      role: message.role,
+      parts: message.parts.map((part) => ({ ...part })) as UIMessage['parts'],
+      ...(message.name ? { name: message.name } : {}),
+      ...(message.metadata ? { metadata: message.metadata } : {}),
+    })
+  );
+}

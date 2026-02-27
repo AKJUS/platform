@@ -30,6 +30,15 @@ export const metaToolDefinitions = {
             message: 'Invalid tool name(s)',
           }
         )
+        .refine((tools) => new Set(tools).size === tools.length, {
+          message: 'Duplicate tools are not allowed',
+        })
+        .refine(
+          (tools) => !tools.includes('no_action_needed') || tools.length === 1,
+          {
+            message: 'no_action_needed must be selected by itself',
+          }
+        )
         .describe(
           'Array of tool names to activate (e.g. ["get_my_tasks", "create_task"]). Include all tools you expect to call.'
         ),
@@ -40,7 +49,11 @@ export const metaToolDefinitions = {
     description:
       'Call only when the message is purely conversational and requires NO real action (no settings/memory updates, no search, no data/tool operation).',
     inputSchema: z.object({
-      reason: z.string().describe('Brief reason (e.g. "user said thanks")'),
+      reason: z
+        .string()
+        .trim()
+        .min(1, 'reason cannot be blank')
+        .describe('Brief reason (e.g. "user said thanks")'),
     }),
   }),
 

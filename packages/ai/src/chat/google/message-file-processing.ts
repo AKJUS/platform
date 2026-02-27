@@ -10,6 +10,11 @@ type ChatFile = {
   mediaType: string;
 };
 
+function maskIdentifier(value: string): string {
+  if (value.length <= 8) return value;
+  return `${value.slice(0, 4)}...${value.slice(-4)}`;
+}
+
 async function getAllChatFiles(
   wsId: string,
   chatId: string
@@ -24,57 +29,60 @@ async function getAllChatFiles(
         sortBy: { column: 'created_at', order: 'asc' },
       });
 
-    console.log(`Listed files for chat ${chatId}. ${wsId}:`, files);
-
     if (listError) {
       console.error('Error listing files:', listError);
       return [];
     }
 
+    console.info('[Google Chat Files] listed chat files', {
+      wsId: maskIdentifier(wsId),
+      chatId: maskIdentifier(chatId),
+      fileCount: files?.length ?? 0,
+    });
+
     if (!files || files.length === 0) {
-      console.log(`No files found in chat ${chatId}`);
       return [];
     }
 
-    const fileContents: ChatFile[] = [];
     const supabase = await createClient();
+    const fileContents = (
+      await Promise.all(
+        files.map(async (file) => {
+          const fileName = file.name || 'unknown';
+          const mediaType =
+            file.metadata?.mediaType ||
+            file.metadata?.mimetype ||
+            'application/octet-stream';
 
-    for (const file of files) {
-      const fileName = file.name || 'unknown';
-      const mediaType =
-        file.metadata?.mediaType ||
-        file.metadata?.mimetype ||
-        'application/octet-stream';
-      let content: string | ArrayBuffer;
+          const { data: fileData, error: downloadError } =
+            await supabase.storage
+              .from('workspaces')
+              .download(`${storagePath}/${file.name}`);
 
-      const { data: fileData, error: downloadError } = await supabase.storage
-        .from('workspaces')
-        .download(`${storagePath}/${file.name}`);
+          if (downloadError) {
+            console.error(`Error downloading file ${fileName}:`, downloadError);
+            return null;
+          }
 
-      if (downloadError) {
-        console.error(`Error downloading file ${fileName}:`, downloadError);
-        continue;
-      }
+          if (!fileData) {
+            console.error(`No data received for file ${fileName}`);
+            return null;
+          }
 
-      if (!fileData) {
-        console.error(`No data received for file ${fileName}`);
-        continue;
-      }
+          const content =
+            mediaType.startsWith('text/') || mediaType === 'application/json'
+              ? await fileData.text()
+              : await fileData.arrayBuffer();
 
-      if (mediaType.startsWith('text/') || mediaType === 'application/json') {
-        content = await fileData.text();
-      } else {
-        content = await fileData.arrayBuffer();
-      }
+          return {
+            fileName,
+            content,
+            mediaType,
+          } satisfies ChatFile;
+        })
+      )
+    ).filter((file): file is ChatFile => file !== null);
 
-      fileContents.push({
-        fileName,
-        content,
-        mediaType,
-      });
-    }
-
-    console.log('File contents:', fileContents);
     return fileContents;
   } catch (error) {
     console.error('Error getting all chat files:', error);
@@ -176,12 +184,7 @@ export async function processMessagesWithFiles(
   }
 
   const processedMessages = [...messages];
-  const lastUserMessage = processedMessages[lastUserMessageIndex];
-
-  if (!lastUserMessage) {
-    return messages;
-  }
-
+  const lastUserMessage = processedMessages[lastUserMessageIndex]!;
   const newContent = addFilesToContent(lastUserMessage.content, chatFiles);
 
   processedMessages[lastUserMessageIndex] = {
@@ -192,13 +195,12 @@ export async function processMessagesWithFiles(
   if (Array.isArray(newContent) && newContent.length > 0) {
     const lastPart = newContent[newContent.length - 1];
     if (lastPart?.type === 'file') {
-      console.log('Last file part:', {
+      console.info('[Google Chat Files] appended file part metadata', {
         type: 'file',
         mediaType: lastPart.mediaType,
       });
     }
   }
 
-  console.log('Processed messages:', processedMessages[0]?.content);
   return processedMessages;
 }
