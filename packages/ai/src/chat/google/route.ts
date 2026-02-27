@@ -81,6 +81,7 @@ export function createPOST(
         model = DEFAULT_MODEL_NAME,
         messages,
         wsId,
+        workspaceContextId,
         isMiraMode,
         timezone,
         thinkingMode: rawThinkingMode,
@@ -169,6 +170,7 @@ export function createPOST(
       const { miraSystemPrompt, miraTools } = await prepareMiraRuntime({
         isMiraMode,
         wsId,
+        workspaceContextId,
         request: req,
         userId: user.id,
         chatId,

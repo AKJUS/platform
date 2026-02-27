@@ -6,6 +6,8 @@ import {
   createMiraStreamTools,
   type MiraToolContext,
 } from '../../tools/mira-tools';
+import type { MiraWorkspaceContextState } from '../../tools/workspace-context';
+import { resolveWorkspaceContextState } from '../../tools/workspace-context';
 import { buildMiraSystemInstruction } from '../mira-system-instruction';
 
 type PermissionResultLike = {
@@ -17,6 +19,7 @@ type SupabaseClientLike = TypedSupabaseClient;
 type PrepareMiraRuntimeParams = {
   isMiraMode?: boolean;
   wsId?: string;
+  workspaceContextId?: string;
   request: NextRequest;
   userId: string;
   chatId: string;
@@ -27,6 +30,7 @@ type PrepareMiraRuntimeParams = {
 export async function prepareMiraRuntime({
   isMiraMode,
   wsId,
+  workspaceContextId,
   request,
   userId,
   chatId,
@@ -40,10 +44,32 @@ export async function prepareMiraRuntime({
     return {};
   }
 
+  let resolvedWorkspaceContext: MiraWorkspaceContextState;
+  try {
+    resolvedWorkspaceContext = await resolveWorkspaceContextState({
+      supabase,
+      userId,
+      requestedWorkspaceContextId: workspaceContextId,
+      fallbackWorkspaceId: wsId,
+    });
+  } catch (workspaceContextErr) {
+    console.error(
+      'Failed to resolve Mira workspace context, falling back to current workspace:',
+      workspaceContextErr
+    );
+    resolvedWorkspaceContext = {
+      workspaceContextId: wsId,
+      wsId,
+      name: 'Current workspace',
+      personal: false,
+      memberCount: 0,
+    };
+  }
+
   let withoutPermission: PermissionResultLike['withoutPermission'];
   try {
     const permissionsResult = (await getPermissions({
-      wsId,
+      wsId: resolvedWorkspaceContext.wsId,
       request,
     })) as PermissionResultLike | null;
     if (permissionsResult) {
@@ -56,6 +82,7 @@ export async function prepareMiraRuntime({
   const ctx: MiraToolContext = {
     userId,
     wsId,
+    workspaceContext: resolvedWorkspaceContext,
     chatId,
     supabase,
     timezone,
@@ -70,7 +97,8 @@ export async function prepareMiraRuntime({
       isFirstInteraction,
       withoutPermission,
     });
-    miraSystemPrompt = `${contextString}\n\n${dynamicInstruction}`;
+    const workspaceContextInstruction = `## Workspace Context\n\nCurrent task/calendar/finance workspace context: ${resolvedWorkspaceContext.name} (${resolvedWorkspaceContext.personal ? 'personal' : 'shared'} workspace).\nUse the personal workspace by default for "my tasks", "my calendar", and "my finance". Only switch to another workspace when the user explicitly asks or clearly approves it.`;
+    miraSystemPrompt = `${contextString}\n\n${workspaceContextInstruction}\n\n${dynamicInstruction}`;
   } catch (ctxErr) {
     console.error(
       'Failed to build Mira context (continuing with default instruction):',

@@ -30,6 +30,7 @@ export const ChatRequestBodySchema = z.object({
   model: z.string().optional(),
   messages: z.array(UIMessageSchema).optional(),
   wsId: z.string().optional(),
+  workspaceContextId: z.string().optional(),
   isMiraMode: z.boolean().optional(),
   timezone: z.string().optional(),
   thinkingMode: z.enum(['thinking', 'fast']).optional(),

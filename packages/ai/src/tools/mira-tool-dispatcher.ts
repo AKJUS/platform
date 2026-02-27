@@ -80,7 +80,12 @@ import {
   executeUpdateTimeTrackingSession,
 } from './executors/timer';
 import { executeUpdateUserName } from './executors/user';
-import { executeListWorkspaceMembers } from './executors/workspace';
+import {
+  executeGetWorkspaceContext,
+  executeListAccessibleWorkspaces,
+  executeListWorkspaceMembers,
+  executeSetWorkspaceContext,
+} from './executors/workspace';
 import type { DefinedMiraToolName } from './mira-tool-definitions';
 import {
   buildRenderUiRecoverySpec,
@@ -169,6 +174,9 @@ const toolHandlers = {
 
   create_image: executeGenerateImage,
   convert_file_to_markdown: executeConvertFileToMarkdown,
+  list_accessible_workspaces: executeListAccessibleWorkspaces,
+  get_workspace_context: executeGetWorkspaceContext,
+  set_workspace_context: executeSetWorkspaceContext,
 
   update_my_settings: executeUpdateMySettings,
   set_default_currency: executeSetDefaultCurrency,
