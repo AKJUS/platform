@@ -90,7 +90,7 @@ export const dashboardBaseDataComponents = {
     );
   },
   Stat: ({ props }: JsonRenderComponentContext<StatDisplayProps>) => {
-    const stat = props as StatDisplayProps;
+    const stat = props;
     const IconComp = resolveRegistryIcon(stat.icon);
     const colorClass =
       stat.variant === 'success'

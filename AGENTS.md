@@ -79,26 +79,38 @@ Foundational mandates here take absolute precedence. **NEVER** invent ad-hoc beh
 - **Widget Consistency**: Preserve per-field validation when refactoring into shared editable widgets.
 
 ## 6. Known Gotchas & Patterns
+
+### 6.1 Database & Supabase
 - **PostgREST URL Limit**: Use .eq() or batching instead of .in() with >1000 IDs to avoid 8KB proxy limits.
 - **Admin Client**: Use `createAdminClient` (sbAdmin) to bypass triggers checking `auth.uid()`. Validate permissions with user client first.
 - **User Email**: Never query `public.users.email` (it doesn't exist). Use `public.user_private_details`.
-- **Windows Paths**: Use workspace-relative paths in `apply_patch` to avoid drive-letter resolution issues.
+- **Reset-Only Local Defaults**: If behavior should apply only after `bun sb:reset` (local dev bootstrap), implement it in `apps/database/scripts/*` and wire it into the reset script; do not encode reset-only behavior in migrations.
+
+### 6.2 UI & Rendering Patterns
 - **Dashboard Overlay UX**: For compact+expandable dashboard widgets near chat actions, avoid icon-only rails; use labeled compact triggers and reserve layout space to prevent overlap at desktop breakpoints.
 - **Render UI Text Fidelity**: Components that display AI-authored prose in `render_ui` (for example `KeyPoints`, `InsightSection` summaries) must render Markdown semantics (bold, emphasis, inline code, links) instead of showing raw markdown tokens.
 - **Markdown Table Priority**: For tabular assistant answers, prefer native Markdown tables in normal assistant text. Do not attempt unsupported `render_ui` table components, and do not wrap Markdown tables in fenced code blocks.
-- **Special Tag Prompt Rules**: When prompt instructions describe custom tags such as `@<FOLLOWUP>`, scope whitespace rules precisely. Forbid whitespace inside tags or tightly-coupled tag payloads, but do not add blanket “no whitespace between tags” rules that conflict with required blank-line separators between distinct prompts.
+- **Special Tag Prompt Rules**: Custom tags like `@<FOLLOWUP>` must not contain internal whitespace, but blank lines between distinct prompt sections are required.
 - **PR Maintainability Fixes**: When reviewers flag oversized files, prioritize extracting cohesive submodules (for example `render_ui` blog components or tool-step decision helpers) while keeping the original external APIs and behavior intact.
+
+### 6.3 Security & Validation
 - **External URL Safety**: Any URL coming from model/tool output must be validated as `http(s)` before rendering clickable anchors (`href`) in web UI components; never trust raw tool-returned URLs.
 - **Chat Attachment Type Parity**: When adding a new attachment type for Mira chat, update all three surfaces together: `chat-input-bar.tsx` accept list, `/api/ai/chat/upload-url` extension allowlist, and `/api/ai/chat/file-urls` extension→MIME mapping.
 - **Office/Binary Attachment Handling**: For chat uploads that may be rejected by storage MIME checks (for example `.xlsx`/`.docx`), use a safe upload MIME fallback (`application/octet-stream`) and retry once without explicit `Content-Type`. In AI provider routes, never pass unsupported binary MIME types as inline `file` parts; convert them into explicit text notices instead.
 - **Client Upload Mutations**: In client components, wrap signed upload/delete flows for chat attachments in TanStack Query `useMutation` handlers instead of ad-hoc inline `fetch` control flow so retries, errors, and cache effects stay centralized.
+- **Mira Chat Decomposition**: When `mira-chat-panel.tsx` or similar chat containers exceed size limits, extract by concern: config/transport, attachment mutations, persistence/restore, side-effect watchers, and presentational header/body components. Do not collapse the code into one replacement mega-hook.
 - **MarkItDown Conversions**: For binary office/docs ingestion in Mira, route through the Discord `/markitdown` endpoint with plugins enabled, enforce fixed per-request credit charging in the tool executor, and pass files via Supabase signed read URLs (never raw multipart upload bytes to the endpoint).
 - **AI/File Logging Hygiene**: In AI chat and file-processing code, never log raw uploaded file contents, full processed message bodies, or other user-provided payload text. Log only minimal metadata needed for debugging (counts, MIME types, masked identifiers, status).
+
+### 6.4 Tooling & CI
 - **Discord Python Tooling**: In `apps/discord`, use `uv` as the local environment/package workflow (`uv sync`, `uv run ...`) with `pyproject.toml` + `uv.lock` as the source of truth for local development.
 - **Discord CI Parity**: Keep the GitHub Actions workflow `.github/workflows/discord-python-ci.yml` aligned with the `uv` workflow and install dependencies via `uv sync --locked` so CI reproducibly uses `apps/discord/uv.lock`.
-- **Supabase Helper Extraction**: When moving Supabase DB writes into shared helper modules, prefer structural interfaces (or thin generic adapters) over concrete `createAdminClient` return types to avoid cross-package generic incompatibilities during type-check.
+- **Discord Modal Deploys**: For `apps/discord` continuous deployment, trigger Modal deploys from GitHub Actions only after the Discord-specific CI workflow succeeds, authenticate with `MODAL_TOKEN_ID` / `MODAL_TOKEN_SECRET`, and run the deploy via `uv run modal deploy ...`.
 - **Discord Service Logging**: In `apps/discord`, use module-level `logging` (`logger.exception` / `logger.error(..., exc_info=True)`) for error paths. Avoid ad-hoc `print()` for operational failures.
-- **Reset-Only Local Defaults**: If behavior should apply only after `bun sb:reset` (local dev bootstrap), implement it in `apps/database/scripts/*` and wire it into the reset script; do not encode reset-only behavior in migrations.
+
+### 6.5 Type Safety & Platform Details
+- **Windows Paths**: Use workspace-relative paths in `apply_patch` to avoid drive-letter resolution issues.
+- **Supabase Helper Extraction**: When moving Supabase DB writes into shared helper modules, prefer structural interfaces (or thin generic adapters) over concrete `createAdminClient` return types to avoid cross-package generic incompatibilities during type-check.
 - **Type-Safe Group Iteration**: In strict TS files with discriminated unions and `noUncheckedIndexedAccess`, avoid `array[index]` iteration for render groups. Prefer `for (const [i, item] of array.entries())` plus `switch (item.kind)` to preserve narrowing and prevent `"possibly undefined"` regressions.
 
 ## 7. Continuous Improvement (Session Retrospective)
