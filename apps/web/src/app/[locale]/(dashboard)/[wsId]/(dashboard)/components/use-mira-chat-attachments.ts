@@ -44,7 +44,7 @@ export function useMiraChatAttachments({
   const deleteChatFileFromStorageMutation = useMutation({
     mutationFn: deleteChatFileMutationFn,
     onSuccess: async (deleted, variables) => {
-      if (!deleted) return;
+      if (!deleted.path) return;
       await queryClient.invalidateQueries({
         queryKey: ['chatFiles', variables.wsId],
       });
@@ -107,11 +107,31 @@ export function useMiraChatAttachments({
           (file) => file.id === chatFile.id
         );
         if (!stillAttached) {
-          void deleteChatFileFromStorageMutation.mutateAsync({ wsId, path });
+          const deleted = await deleteChatFileFromStorageMutation.mutateAsync({
+            wsId,
+            path,
+          });
+          if (deleted.error) {
+            toast.error(deleteFileFailedMessage);
+          }
           continue;
         }
 
-        const readUrls = await fetchSignedReadUrlsMutation.mutateAsync([path]);
+        let readUrls: Map<string, string>;
+        try {
+          readUrls = await fetchSignedReadUrlsMutation.mutateAsync([path]);
+        } catch (error) {
+          console.error('[Mira Chat] Failed to fetch signed read URLs:', error);
+          setAttachedFiles((prev) =>
+            prev.map((file) =>
+              file.id === chatFile.id
+                ? { ...file, storagePath: path, status: 'error' }
+                : file
+            )
+          );
+          toast.error(`Failed to prepare ${chatFile.file.name}`);
+          continue;
+        }
         const signedUrl = readUrls.get(path) ?? null;
 
         setAttachedFiles((prev) =>
@@ -126,6 +146,7 @@ export function useMiraChatAttachments({
     [
       chatId,
       deleteChatFileFromStorageMutation,
+      deleteFileFailedMessage,
       fetchSignedReadUrlsMutation,
       uploadChatFileMutation,
       wsId,
@@ -162,38 +183,36 @@ export function useMiraChatAttachments({
           path: removedStoragePath,
         })
         .then((deleted) => {
-          if (!deleted) toast.error(deleteFileFailedMessage);
+          if (deleted.error) toast.error(deleteFileFailedMessage);
         });
     },
     [deleteChatFileFromStorageMutation, deleteFileFailedMessage, wsId]
   );
 
-  const snapshotAttachmentsForMessage = useCallback(
-    (messageId: string) => {
-      if (attachedFiles.length === 0) return;
+  const snapshotAttachmentsForMessage = useCallback((messageId: string) => {
+    const currentAttachedFiles = attachedFilesRef.current;
+    if (currentAttachedFiles.length === 0) return;
 
-      const meta: MessageFileAttachment[] = attachedFiles
-        .filter((file) => file.status === 'uploaded')
-        .map((file) => ({
-          id: file.id,
-          name: file.file.name,
-          size: file.file.size,
-          type: file.file.type,
-          previewUrl: file.previewUrl,
-          storagePath: file.storagePath,
-          signedUrl: file.signedUrl ?? null,
-        }));
+    const meta: MessageFileAttachment[] = currentAttachedFiles
+      .filter((file) => file.status === 'uploaded')
+      .map((file) => ({
+        id: file.id,
+        name: file.file.name,
+        size: file.file.size,
+        type: file.file.type,
+        previewUrl: file.previewUrl,
+        storagePath: file.storagePath,
+        signedUrl: file.signedUrl ?? null,
+      }));
 
-      if (meta.length === 0) return;
+    if (meta.length === 0) return;
 
-      setMessageAttachments((prev) => {
-        const next = new Map(prev).set(messageId, meta);
-        messageAttachmentsRef.current = next;
-        return next;
-      });
-    },
-    [attachedFiles]
-  );
+    setMessageAttachments((prev) => {
+      const next = new Map(prev).set(messageId, meta);
+      messageAttachmentsRef.current = next;
+      return next;
+    });
+  }, []);
 
   const clearAttachedFiles = useCallback(() => {
     setAttachedFiles((prev) => {

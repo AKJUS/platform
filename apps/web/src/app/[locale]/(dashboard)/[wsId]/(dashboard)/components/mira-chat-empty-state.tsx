@@ -54,26 +54,32 @@ export function MiraChatEmptyState({
           </div>
 
           <div className="mt-7 grid grid-cols-1 gap-2 sm:grid-cols-2">
-            {emptyStateActions.map((action) => (
-              <button
-                key={action.titleKey}
-                type="button"
-                onClick={() => onQuickAction(t(action.titleKey))}
-                className={cn(
-                  'group flex min-w-0 items-center justify-center gap-3 rounded-xl border border-border/30 bg-background/20 px-3.5 py-3 text-left text-center transition-all duration-200',
-                  'hover:border-dynamic-purple/30 hover:bg-dynamic-purple/5'
-                )}
-              >
-                <div className="min-w-0">
-                  <p className="truncate font-medium text-sm leading-tight">
-                    {t(action.titleKey)}
-                  </p>
-                  <p className="mt-1 line-clamp-1 text-muted-foreground text-xs leading-relaxed">
-                    {t(action.descKey)}
-                  </p>
-                </div>
-              </button>
-            ))}
+            {emptyStateActions.map((action) => {
+              const Icon = action.icon;
+              return (
+                <button
+                  key={action.titleKey}
+                  type="button"
+                  onClick={() => onQuickAction(t(action.titleKey))}
+                  className={cn(
+                    'group flex min-w-0 items-center justify-center gap-3 rounded-xl border border-border/30 bg-background/20 px-3.5 py-3 text-left text-center transition-all duration-200',
+                    'hover:border-dynamic-purple/30 hover:bg-dynamic-purple/5'
+                  )}
+                >
+                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-dynamic-purple/10 text-dynamic-purple">
+                    <Icon className="h-4 w-4" aria-hidden />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-sm leading-tight">
+                      {t(action.titleKey)}
+                    </p>
+                    <p className="mt-1 line-clamp-1 text-muted-foreground text-xs leading-relaxed">
+                      {t(action.descKey)}
+                    </p>
+                  </div>
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>

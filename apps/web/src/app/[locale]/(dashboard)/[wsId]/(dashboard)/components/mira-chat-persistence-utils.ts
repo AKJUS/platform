@@ -19,6 +19,12 @@ export function restoreMessages(
     metadata: unknown;
   }>
 ): UIMessage[] {
+  const normalizeRestoredRole = (role: string): 'assistant' | 'user' => {
+    const normalized = role.toLowerCase();
+    if (normalized === 'user') return 'user';
+    return 'assistant';
+  };
+
   return messagesData
     .filter((message) => {
       const metadata = message.metadata as Record<string, unknown> | null;
@@ -99,7 +105,7 @@ export function restoreMessages(
 
       return {
         id: message.id,
-        role: message.role.toLowerCase() as 'assistant' | 'user',
+        role: normalizeRestoredRole(message.role),
         parts,
       };
     });

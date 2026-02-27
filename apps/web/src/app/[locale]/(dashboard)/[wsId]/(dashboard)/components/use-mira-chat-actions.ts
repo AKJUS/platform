@@ -79,6 +79,10 @@ export function useMiraChatActions({
         const res = await fetch('/api/ai/chat/new', {
           credentials: 'include',
           method: 'POST',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+          },
           body: JSON.stringify({
             id: stableChatId,
             model: gatewayModelId,
@@ -99,7 +103,15 @@ export function useMiraChatActions({
           id: string;
           title?: string;
         };
-        if (!id) return;
+        if (!id) {
+          console.error('[Mira Chat] Chat creation returned no id', {
+            stableChatId,
+            gatewayModelId,
+          });
+          toast.error(t('error'));
+          setPendingPrompt(null);
+          return;
+        }
 
         setChat({
           id,

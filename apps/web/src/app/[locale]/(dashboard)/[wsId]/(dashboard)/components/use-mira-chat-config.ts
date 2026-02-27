@@ -20,7 +20,7 @@ export function useMiraChatConfig({ wsId }: UseMiraChatConfigParams) {
   const [thinkingMode, setThinkingMode] = useState<ThinkingMode>('fast');
 
   const supportsFileInput = useMemo(() => {
-    const tags = (model as { tags?: string[] }).tags;
+    const tags = model.tags;
     return Array.isArray(tags) && tags.includes('file-input');
   }, [model]);
 

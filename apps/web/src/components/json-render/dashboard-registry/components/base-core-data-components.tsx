@@ -16,10 +16,11 @@ export const dashboardBaseDataComponents = {
   Progress: ({
     props,
   }: JsonRenderComponentContext<JsonRenderProgressProps>) => {
+    const clampedValue = Math.max(0, Math.min(100, props.value ?? 0));
     const resolveColor = () => {
       if (props.color && props.color !== 'default') return props.color;
-      if (props.value > 66) return 'success';
-      if (props.value > 33) return 'warning';
+      if (clampedValue > 66) return 'success';
+      if (clampedValue > 33) return 'warning';
       return 'error';
     };
     const color = resolveColor();
@@ -39,13 +40,13 @@ export const dashboardBaseDataComponents = {
             )}
             {props.showValue && (
               <span className="font-mono text-[11px] text-muted-foreground">
-                {Math.round(props.value)}%
+                {Math.round(clampedValue)}%
               </span>
             )}
           </div>
         )}
         <Progress
-          value={props.value}
+          value={clampedValue}
           className={cn('h-2 rounded-full', colorClasses[color])}
         />
       </div>
@@ -155,11 +156,12 @@ export const dashboardBaseDataComponents = {
           className="flex items-end justify-between gap-2 px-1"
           style={{ height: props.height || 120 }}
         >
-          {props.data?.map((item, i: number) => {
+          {props.data?.map((item) => {
             const barColor = resolveBarColor(item.color);
+            const itemKey = `${item.label}-${item.value}-${item.color ?? 'default'}`;
             return (
               <div
-                key={i}
+                key={itemKey}
                 className="group relative flex flex-1 flex-col items-center gap-2"
               >
                 <div
@@ -180,9 +182,9 @@ export const dashboardBaseDataComponents = {
           })}
         </div>
         <div className="flex justify-between gap-1 px-1">
-          {props.data?.map((item, i: number) => (
+          {props.data?.map((item) => (
             <div
-              key={i}
+              key={`${item.label}-${item.value}-${item.color ?? 'default'}`}
               className="flex-1 whitespace-normal break-words text-center text-[10px] text-muted-foreground uppercase leading-tight tracking-tight"
             >
               {item.label}

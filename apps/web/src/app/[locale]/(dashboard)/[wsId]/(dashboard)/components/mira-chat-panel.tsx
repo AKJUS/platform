@@ -144,7 +144,7 @@ export default function MiraChatPanel({
     stop,
   } = useChat({
     id: stableChatId,
-    generateId: crypto.randomUUID,
+    generateId: () => crypto.randomUUID(),
     messages: initialMessages,
     transport,
     onError(error) {

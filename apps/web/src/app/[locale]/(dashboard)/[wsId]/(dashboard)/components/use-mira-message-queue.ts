@@ -31,12 +31,8 @@ export function useMiraMessageQueue({
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const messageQueueRef = useRef<string[]>([]);
 
-  const flushQueue = useCallback(() => {
+  const flushQueue = useCallback(async () => {
     const queue = [...messageQueueRef.current];
-    messageQueueRef.current = [];
-    debounceTimerRef.current = null;
-    setQueuedText(null);
-
     const seen = new Set<string>();
     const unique: string[] = [];
     for (const message of queue) {
@@ -50,6 +46,10 @@ export function useMiraMessageQueue({
     );
     if (unique.length === 0 && !hasUploadedFiles) return;
 
+    messageQueueRef.current = [];
+    debounceTimerRef.current = null;
+    setQueuedText(null);
+
     const combined =
       unique.length > 0
         ? unique.join('\n\n')
@@ -58,7 +58,13 @@ export function useMiraMessageQueue({
     if (!chatId) {
       snapshotAttachmentsForMessage('pending');
       snapshotAttachmentsForMessage('__latest_user_upload');
-      void createChat(combined);
+      try {
+        await createChat(combined);
+      } catch (error) {
+        console.error('[Mira Chat] Failed to create chat from queued input:', {
+          error,
+        });
+      }
     } else {
       snapshotAttachmentsForMessage('__latest_user_upload');
       sendMessageWithCurrentConfig({
@@ -106,14 +112,16 @@ export function useMiraMessageQueue({
           debounceTimerRef.current = null;
         }
         stop?.();
-        flushQueue();
+        void flushQueue();
         return;
       }
 
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
-      debounceTimerRef.current = setTimeout(flushQueue, QUEUE_DEBOUNCE_MS);
+      debounceTimerRef.current = setTimeout(() => {
+        void flushQueue();
+      }, QUEUE_DEBOUNCE_MS);
     },
     [attachedFiles, flushQueue, snapshotAttachmentsForMessage, status, stop]
   );

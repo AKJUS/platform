@@ -191,7 +191,6 @@ export function MiraChatHeader({
             <DropdownMenuItem
               disabled={!hasMessages}
               onSelect={() => {
-                if (!hasMessages) return;
                 onToggleViewOnly();
                 setIsMoreMenuOpen(false);
               }}
