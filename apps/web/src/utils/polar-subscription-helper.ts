@@ -69,7 +69,15 @@ async function upsertCreditPackPurchase(
   expiresAt.setUTCDate(expiresAt.getUTCDate() + Number(config.expiryDays));
   const expiresAtIso = expiresAt.toISOString();
 
-  const status = subscription.status === 'active' ? 'active' : 'canceled';
+  // Store the actual Polar status for audit trail
+  const status = subscription.status;
+
+  const shouldRetainCredits = [
+    'active',
+    'trialing',
+    'past_due',
+    'incomplete',
+  ].includes(status);
 
   const { data: existingPurchase, error: existingError } = await supabase
     .from('workspace_credit_pack_purchases')
@@ -84,11 +92,11 @@ async function upsertCreditPackPurchase(
   }
 
   let tokensRemaining = existingPurchase?.tokens_remaining ?? config.tokens;
-  if (!existingPurchase && status !== 'canceled') {
+  if (!existingPurchase && shouldRetainCredits) {
     tokensRemaining = config.tokens;
   }
 
-  if (status === 'canceled') {
+  if (!shouldRetainCredits) {
     tokensRemaining = 0;
   }
 
