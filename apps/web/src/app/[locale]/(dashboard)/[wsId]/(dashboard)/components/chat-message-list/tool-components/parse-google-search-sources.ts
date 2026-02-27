@@ -27,8 +27,8 @@ export function parseGoogleSearchSources(
       const title =
         typeof source.title === 'string' ? source.title.trim() : undefined;
       const sourceId =
-        typeof source.sourceId === 'string' && source.sourceId.length > 0
-          ? source.sourceId
+        typeof source.sourceId === 'string' && source.sourceId.trim().length > 0
+          ? source.sourceId.trim()
           : `google-search-${index}`;
 
       return {

@@ -57,11 +57,17 @@ const ChatRoleSchema = z
   .transform((value) => value.toLowerCase())
   .pipe(z.enum(['assistant', 'system', 'user']));
 
+const UIMessagePartSchema = z
+  .object({
+    type: z.string().trim().min(1),
+  })
+  .catchall(z.unknown());
+
 const UIMessageSchema = z
   .object({
     id: z.string().optional(),
     role: ChatRoleSchema,
-    parts: z.array(z.record(z.string(), z.unknown())),
+    parts: z.array(UIMessagePartSchema),
     name: z.string().optional(),
     metadata: z.record(z.string(), z.unknown()).optional(),
   })

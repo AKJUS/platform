@@ -46,4 +46,24 @@ describe('parseGoogleSearchSources', () => {
       },
     ]);
   });
+
+  it('falls back to generated sourceId when provided sourceId is whitespace', () => {
+    const sources = parseGoogleSearchSources({
+      sources: [
+        {
+          sourceId: '   ',
+          url: 'https://example.com/source',
+          title: 'Source',
+        },
+      ],
+    });
+
+    expect(sources).toEqual([
+      {
+        sourceId: 'google-search-0',
+        url: 'https://example.com/source',
+        title: 'Source',
+      },
+    ]);
+  });
 });

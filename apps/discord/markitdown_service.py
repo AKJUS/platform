@@ -1,8 +1,9 @@
 """Utilities for handling MarkItDown file conversion requests."""
 
+import asyncio
+import logging
 import os
 import tempfile
-import traceback
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -11,6 +12,7 @@ from fastapi import HTTPException
 from markitdown import MarkItDown
 
 MAX_MARKITDOWN_BYTES = 50 * 1024 * 1024
+logger = logging.getLogger(__name__)
 
 
 def _resolve_supabase_hostname() -> str | None:
@@ -68,9 +70,26 @@ def _validate_content_length(content_length_raw: str | None) -> None:
         raise HTTPException(status_code=413, detail="File exceeds 50MB limit")
 
 
-async def _download_signed_url_to_temp(signed_url: str, suffix: str) -> tuple[str, int]:
+def _validate_resolved_response_host(
+    response_host: str | None,
+    allowed_hosts: set[str],
+) -> None:
+    normalized_host = response_host.lower() if response_host else None
+    if normalized_host is None or normalized_host not in allowed_hosts:
+        raise HTTPException(status_code=400, detail="Invalid signed URL host")
+
+
+async def _download_signed_url_to_temp(
+    signed_url: str,
+    suffix: str,
+    configured_supabase_host: str,
+) -> tuple[str, int]:
     timeout = aiohttp.ClientTimeout(total=60)
     downloaded_bytes = 0
+    signed_url_host = urlparse(signed_url).hostname
+    allowed_hosts = {configured_supabase_host}
+    if signed_url_host:
+        allowed_hosts.add(signed_url_host.lower())
 
     async with (
         aiohttp.ClientSession(timeout=timeout) as session,
@@ -82,6 +101,7 @@ async def _download_signed_url_to_temp(signed_url: str, suffix: str) -> tuple[st
                 detail=(f"Failed to download from signed URL ({response.status})"),
             )
 
+        _validate_resolved_response_host(response.url.host, allowed_hosts)
         _validate_content_length(response.headers.get("Content-Length"))
 
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
@@ -97,7 +117,10 @@ async def _download_signed_url_to_temp(signed_url: str, suffix: str) -> tuple[st
     return temp_path, downloaded_bytes
 
 
-def _convert_temp_file(temp_path: str, enable_plugins: bool) -> tuple[str, str | None]:
+def _convert_temp_file_sync(
+    temp_path: str,
+    enable_plugins: bool,
+) -> tuple[str, str | None]:
     converter = MarkItDown(enable_plugins=enable_plugins)
     result = converter.convert(temp_path)
     markdown = (getattr(result, "text_content", "") or "").strip()
@@ -105,13 +128,20 @@ def _convert_temp_file(temp_path: str, enable_plugins: bool) -> tuple[str, str |
     return markdown, title
 
 
+async def _convert_temp_file(
+    temp_path: str,
+    enable_plugins: bool,
+) -> tuple[str, str | None]:
+    return await asyncio.to_thread(_convert_temp_file_sync, temp_path, enable_plugins)
+
+
 def _cleanup_temp_file(temp_path: str) -> None:
     try:
         temp_file = Path(temp_path) if temp_path else None
         if temp_file and temp_file.exists():
             temp_file.unlink()
-    except Exception as cleanup_error:
-        print(f"🤖: markitdown cleanup failed: {cleanup_error}")
+    except Exception:
+        logger.exception("markitdown cleanup failed")
 
 
 async def handle_markitdown(
@@ -131,12 +161,16 @@ async def handle_markitdown(
     temp_path = ""
 
     try:
-        temp_path, downloaded_bytes = await _download_signed_url_to_temp(signed_url, suffix)
+        temp_path, downloaded_bytes = await _download_signed_url_to_temp(
+            signed_url,
+            suffix,
+            configured_supabase_host,
+        )
 
         if downloaded_bytes == 0:
             raise HTTPException(status_code=400, detail="File is empty")
 
-        markdown, title = _convert_temp_file(temp_path, enable_plugins)
+        markdown, title = await _convert_temp_file(temp_path, enable_plugins)
 
         if not markdown:
             raise HTTPException(status_code=422, detail="MarkItDown returned empty markdown")
@@ -150,8 +184,7 @@ async def handle_markitdown(
     except HTTPException:
         raise
     except Exception as error:
-        print(f"🤖: markitdown conversion failed: {error}")
-        traceback.print_exc()
+        logger.exception("markitdown conversion failed")
         raise HTTPException(status_code=500, detail="Failed to convert file") from error
     finally:
         _cleanup_temp_file(temp_path)

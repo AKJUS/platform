@@ -29,6 +29,9 @@ DECLARE
   v_new_total_used NUMERIC;
   v_total_allocated NUMERIC;
   v_bonus_credits NUMERIC;
+  v_current_total_used NUMERIC;
+  v_current_total_allocated NUMERIC;
+  v_current_bonus_credits NUMERIC;
 BEGIN
   SELECT * INTO v_balance
     FROM public.get_or_create_credit_balance(p_ws_id, p_user_id);
@@ -52,13 +55,18 @@ BEGIN
     INTO v_new_total_used, v_total_allocated, v_bonus_credits;
 
   IF NOT FOUND THEN
+    SELECT total_used, total_allocated, bonus_credits
+      INTO v_current_total_used, v_current_total_allocated, v_current_bonus_credits
+      FROM public.workspace_ai_credit_balances
+     WHERE id = v_balance.id;
+
     RETURN QUERY
     SELECT
       FALSE,
       (
-        COALESCE(v_balance.total_allocated, 0) +
-        COALESCE(v_balance.bonus_credits, 0) -
-        COALESCE(v_balance.total_used, 0)
+        COALESCE(v_current_total_allocated, COALESCE(v_balance.total_allocated, 0)) +
+        COALESCE(v_current_bonus_credits, COALESCE(v_balance.bonus_credits, 0)) -
+        COALESCE(v_current_total_used, COALESCE(v_balance.total_used, 0))
       )::NUMERIC,
       'INSUFFICIENT_CREDITS'::TEXT;
     RETURN;

@@ -6,16 +6,34 @@ const MARKITDOWN_COST_CREDITS = 100;
 const CREDIT_FEATURE = 'chat' as const;
 const CREDIT_CHECK_MODEL = 'google/gemini-2.5-flash';
 const MARKITDOWN_LEDGER_MODEL = 'markitdown/conversion';
+const DEFAULT_MARKITDOWN_TIMEOUT_MS = 30_000;
+const MIN_MARKITDOWN_TIMEOUT_MS = 1_000;
 
 function stripTimestampPrefix(name: string): string {
   const match = name.match(/^\d+_(.+)$/);
   return match?.[1] ?? name;
 }
 
+function parseHttpsBaseUrl(value: string): string | null {
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== 'https:') {
+      return null;
+    }
+    parsed.search = '';
+    parsed.hash = '';
+    return `${parsed.origin}${parsed.pathname}`.replace(/\/+$/, '');
+  } catch {
+    return null;
+  }
+}
+
 function resolveDiscordMarkitdownUrl(): string | null {
   const deploymentUrl = process.env.DISCORD_APP_DEPLOYMENT_URL?.trim();
   if (!deploymentUrl) return null;
-  return `${deploymentUrl.replace(/\/$/, '')}/markitdown`;
+  const normalizedBaseUrl = parseHttpsBaseUrl(deploymentUrl);
+  if (!normalizedBaseUrl) return null;
+  return `${normalizedBaseUrl}/markitdown`;
 }
 
 function resolveDiscordMarkitdownSecret(): string | null {
@@ -25,6 +43,20 @@ function resolveDiscordMarkitdownSecret(): string | null {
     process.env.CRON_SECRET?.trim() ||
     null
   );
+}
+
+function resolveMarkitdownTimeoutMs(): number {
+  const rawTimeoutMs = process.env.MARKITDOWN_TIMEOUT_MS?.trim();
+  if (!rawTimeoutMs) {
+    return DEFAULT_MARKITDOWN_TIMEOUT_MS;
+  }
+
+  const parsedTimeoutMs = Number(rawTimeoutMs);
+  if (!Number.isFinite(parsedTimeoutMs) || parsedTimeoutMs <= 0) {
+    return DEFAULT_MARKITDOWN_TIMEOUT_MS;
+  }
+
+  return Math.max(MIN_MARKITDOWN_TIMEOUT_MS, Math.floor(parsedTimeoutMs));
 }
 
 async function deductFixedMarkitdownCredits(
@@ -212,9 +244,7 @@ export async function executeConvertFileToMarkdown(
     };
   }
 
-  const markitdownTimeoutMs = Number(
-    process.env.MARKITDOWN_TIMEOUT_MS ?? 30000
-  );
+  const markitdownTimeoutMs = resolveMarkitdownTimeoutMs();
   const abortController = new AbortController();
   const timeoutId = setTimeout(
     () => abortController.abort(),

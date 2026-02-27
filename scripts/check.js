@@ -283,12 +283,18 @@ function printSummary(results) {
     const colWidths = [col1Width, col2Width];
     if (showDetails) {
       colWidths.push(
-        Math.max(col3Header.length, ...detailsValues.map((v) => v.length))
+        Math.max(
+          getDisplayWidth(col3Header),
+          ...detailsValues.map((v) => getDisplayWidth(v))
+        )
       );
     }
     if (showTiming) {
       colWidths.push(
-        Math.max(col4Header.length, ...timeValues.map((v) => v.length))
+        Math.max(
+          getDisplayWidth(col4Header),
+          ...timeValues.map((v) => getDisplayWidth(v))
+        )
       );
     }
 

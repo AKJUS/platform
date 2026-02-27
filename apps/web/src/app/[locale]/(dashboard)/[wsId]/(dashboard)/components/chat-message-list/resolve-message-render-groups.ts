@@ -67,15 +67,36 @@ export function resolveMessageRenderGroups({
   isLastAssistant: boolean;
 }): MessageRenderDescriptor[] {
   const groups = groupMessageParts(message.parts);
+  const renderUiAnalysis = new WeakMap<
+    object,
+    {
+      spec: ReturnType<typeof resolveRenderUiSpecFromOutput>;
+      recovered: boolean;
+    }
+  >();
+  const getRenderUiPartAnalysis = (part: ToolPartData) => {
+    const cacheKey = part as unknown as object;
+    const cached = renderUiAnalysis.get(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const output = (part as { output?: unknown }).output;
+    const analyzed = {
+      spec: resolveRenderUiSpecFromOutput(output),
+      recovered: isRecoveredOutput(output),
+    };
+    renderUiAnalysis.set(cacheKey, analyzed);
+    return analyzed;
+  };
+
   const validRenderUiSpecs = groups.flatMap((group) => {
     if (group.kind !== 'tool' || group.toolName !== 'render_ui') {
       return [];
     }
     return group.parts
       .map((part) => {
-        const output = (part as { output?: unknown }).output;
-        const spec = resolveRenderUiSpecFromOutput(output);
-        const recovered = isRecoveredOutput(output);
+        const { spec, recovered } = getRenderUiPartAnalysis(part);
         return spec && !recovered ? spec : null;
       })
       .filter((spec): spec is NonNullable<typeof spec> => spec !== null);
@@ -119,15 +140,14 @@ export function resolveMessageRenderGroups({
       }
       case 'tool': {
         if (group.toolName === 'render_ui') {
-          const partsWithValidity = group.parts.map((part) => ({
-            part,
-            hasRenderableSpec: !!resolveRenderUiSpecFromOutput(
-              (part as { output?: unknown }).output
-            ),
-            recoveredFromInvalidSpec: isRecoveredOutput(
-              (part as { output?: unknown }).output
-            ),
-          }));
+          const partsWithValidity = group.parts.map((part) => {
+            const { spec, recovered } = getRenderUiPartAnalysis(part);
+            return {
+              part,
+              hasRenderableSpec: !!spec,
+              recoveredFromInvalidSpec: recovered,
+            };
+          });
           const hasAnyRenderable = partsWithValidity.some(
             (entry) => entry.hasRenderableSpec
           );
@@ -161,8 +181,8 @@ export function resolveMessageRenderGroups({
 
           if (
             hasValidRenderUi &&
-            visibleParts.every((part) =>
-              isRecoveredOutput((part as { output?: unknown }).output)
+            visibleParts.every(
+              (part) => getRenderUiPartAnalysis(part).recovered
             )
           ) {
             break;
