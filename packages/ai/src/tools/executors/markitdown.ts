@@ -9,6 +9,30 @@ const MARKITDOWN_LEDGER_MODEL = 'markitdown/conversion';
 const DEFAULT_MARKITDOWN_TIMEOUT_MS = 30_000;
 const MIN_MARKITDOWN_TIMEOUT_MS = 1_000;
 
+type DeductFixedCreditsRpcParams = {
+  p_ws_id: string;
+  p_user_id: string;
+  p_amount: number;
+  p_model_id: string;
+  p_feature: string;
+  p_metadata: Record<string, unknown>;
+};
+
+type DeductFixedCreditsRpcRow = {
+  success?: boolean;
+  remaining_credits?: number | string;
+  error_code?: string | null;
+};
+
+type DeductFixedCreditsRpcResult = {
+  data: DeductFixedCreditsRpcRow[] | null;
+  error: { message: string } | null;
+};
+
+type DeductFixedCreditsRpcCaller = {
+  rpc: unknown;
+};
+
 function stripTimestampPrefix(name: string): string {
   const match = name.match(/^\d+_(.+)$/);
   return match?.[1] ?? name;
@@ -67,12 +91,7 @@ async function deductFixedMarkitdownCredits(
 > {
   const billingWsId = ctx.creditWsId ?? ctx.wsId;
   const sbAdmin = await createAdminClient();
-  const { data, error } = await (
-    sbAdmin.rpc as unknown as (
-      fn: string,
-      params: Record<string, unknown>
-    ) => Promise<{ data: unknown; error: { message: string } | null }>
-  )('deduct_fixed_ai_credits', {
+  const { data, error } = await callDeductFixedCreditsRpc(sbAdmin, {
     p_ws_id: billingWsId,
     p_user_id: ctx.userId,
     p_amount: MARKITDOWN_COST_CREDITS,
@@ -90,11 +109,7 @@ async function deductFixedMarkitdownCredits(
     return { ok: false, error: 'Failed to deduct AI credits.' };
   }
 
-  const row = (Array.isArray(data) ? data[0] : data) as {
-    success?: boolean;
-    remaining_credits?: number | string;
-    error_code?: string | null;
-  } | null;
+  const row = data?.[0] ?? null;
 
   if (!row?.success) {
     if (row?.error_code === 'INSUFFICIENT_CREDITS') {
@@ -109,6 +124,24 @@ async function deductFixedMarkitdownCredits(
   return {
     ok: true,
     remainingCredits: Number(row.remaining_credits ?? 0),
+  };
+}
+
+async function callDeductFixedCreditsRpc(
+  sbAdmin: DeductFixedCreditsRpcCaller,
+  params: DeductFixedCreditsRpcParams
+): Promise<DeductFixedCreditsRpcResult> {
+  const rpc = sbAdmin.rpc as (
+    fn: 'deduct_fixed_ai_credits',
+    params: DeductFixedCreditsRpcParams
+  ) => Promise<{
+    data: DeductFixedCreditsRpcRow[] | null;
+    error: { message: string } | null;
+  }>;
+  const result = await rpc('deduct_fixed_ai_credits', params);
+  return {
+    data: result.data,
+    error: result.error ? { message: result.error.message } : null,
   };
 }
 
@@ -324,7 +357,29 @@ export async function executeConvertFileToMarkdown(
   });
 
   if (!deduction.ok) {
-    return { ok: false, error: deduction.error };
+    console.error(
+      'MarkItDown: conversion succeeded but fixed credit deduction failed:',
+      {
+        wsId: ctx.wsId,
+        userId: ctx.userId,
+        targetPath,
+        error: deduction.error,
+      }
+    );
+
+    return {
+      ok: true,
+      markdown: finalMarkdown,
+      title: typeof payload.title === 'string' ? payload.title : null,
+      fileName: stripTimestampPrefix(selectedFileName),
+      storagePath: targetPath,
+      creditsCharged: 0,
+      remainingCredits: null,
+      truncated: wasTruncated,
+      warning:
+        'MarkItDown conversion succeeded, but credits could not be charged for this run.',
+      creditDeductionError: deduction.error,
+    };
   }
 
   return {

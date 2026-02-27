@@ -1,6 +1,7 @@
 """Main Discord bot application."""
 
 import json
+import logging
 import os
 import traceback
 from typing import cast
@@ -13,6 +14,8 @@ from commands import CommandHandler
 from config import DiscordInteractionType, DiscordResponseType
 from markitdown_service import handle_markitdown
 from utils import get_supabase_client
+
+logger = logging.getLogger(__name__)
 
 image = (
     modal.Image.debian_slim(python_version="3.13")
@@ -869,10 +872,16 @@ def web_app():
         allow_headers=["*"],
     )
 
+    def _is_development_environment() -> bool:
+        return any(
+            (os.getenv(name) or "").strip().lower() in {"dev", "development", "local", "test"}
+            for name in ("ENV", "ENVIRONMENT", "APP_ENV", "FASTAPI_ENV", "PYTHON_ENV", "NODE_ENV")
+        )
+
     def _is_cron_request_authorized(request: Request) -> bool:
         secret = os.getenv("VERCEL_CRON_SECRET") or os.getenv("CRON_SECRET")
         if not secret:
-            return True
+            return _is_development_environment()
 
         auth_header = request.headers.get("Authorization")
         if auth_header:
@@ -1228,8 +1237,7 @@ def web_app():
         except HTTPException:
             raise
         except Exception as error:
-            print(f"🤖: markitdown conversion failed: {error}")
-            traceback.print_exc()
+            logger.exception("markitdown conversion failed")
             raise HTTPException(status_code=500, detail="Failed to convert file") from error
 
     return web_app

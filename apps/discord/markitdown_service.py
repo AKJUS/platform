@@ -5,7 +5,7 @@ import logging
 import os
 import tempfile
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 import aiohttp
 from fastapi import HTTPException
@@ -48,7 +48,11 @@ def _validate_signed_url(signed_url: str, configured_supabase_host: str) -> None
         raise HTTPException(status_code=400, detail="Invalid signed URL host")
     if "/storage/v1/object/sign/" not in parsed.path:
         raise HTTPException(status_code=400, detail="Invalid Supabase signed URL")
-    if "token=" not in parsed.query:
+    token = next(
+        (value.strip() for value in parse_qs(parsed.query).get("token", []) if value),
+        "",
+    )
+    if not token:
         raise HTTPException(status_code=400, detail="Invalid signed URL token")
 
 
@@ -86,35 +90,40 @@ async def _download_signed_url_to_temp(
 ) -> tuple[str, int]:
     timeout = aiohttp.ClientTimeout(total=60)
     downloaded_bytes = 0
+    temp_path = ""
     signed_url_host = urlparse(signed_url).hostname
     allowed_hosts = {configured_supabase_host}
     if signed_url_host:
         allowed_hosts.add(signed_url_host.lower())
 
-    async with (
-        aiohttp.ClientSession(timeout=timeout) as session,
-        session.get(signed_url) as response,
-    ):
-        if response.status >= 400:
-            raise HTTPException(
-                status_code=400,
-                detail=(f"Failed to download from signed URL ({response.status})"),
-            )
+    try:
+        async with (
+            aiohttp.ClientSession(timeout=timeout) as session,
+            session.get(signed_url) as response,
+        ):
+            if response.status >= 400:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(f"Failed to download from signed URL ({response.status})"),
+                )
 
-        _validate_resolved_response_host(response.url.host, allowed_hosts)
-        _validate_content_length(response.headers.get("Content-Length"))
+            _validate_resolved_response_host(response.url.host, allowed_hosts)
+            _validate_content_length(response.headers.get("Content-Length"))
 
-        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
-            temp_path = tmp.name
-            async for chunk in response.content.iter_chunked(1024 * 256):
-                if not chunk:
-                    continue
-                downloaded_bytes += len(chunk)
-                if downloaded_bytes > MAX_MARKITDOWN_BYTES:
-                    raise HTTPException(status_code=413, detail="File exceeds 50MB limit")
-                tmp.write(chunk)
+            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                temp_path = tmp.name
+                async for chunk in response.content.iter_chunked(1024 * 256):
+                    if not chunk:
+                        continue
+                    downloaded_bytes += len(chunk)
+                    if downloaded_bytes > MAX_MARKITDOWN_BYTES:
+                        raise HTTPException(status_code=413, detail="File exceeds 50MB limit")
+                    tmp.write(chunk)
 
-    return temp_path, downloaded_bytes
+        return temp_path, downloaded_bytes
+    except Exception:
+        _cleanup_temp_file(temp_path)
+        raise
 
 
 def _convert_temp_file_sync(

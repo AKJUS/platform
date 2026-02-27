@@ -57,6 +57,37 @@ export type MessageRenderDescriptor =
       parts: SourceUrlPart[];
     };
 
+function computeVisibleParts(
+  partsWithValidity: Array<{
+    part: ToolPartData;
+    hasRenderableSpec: boolean;
+    recoveredFromInvalidSpec: boolean;
+  }>,
+  fallbackParts: ToolPartData[]
+): ToolPartData[] {
+  const nonRecoveredRenderableParts = partsWithValidity
+    .filter(
+      (entry) => entry.hasRenderableSpec && !entry.recoveredFromInvalidSpec
+    )
+    .slice(-1)
+    .map((entry) => entry.part);
+
+  if (nonRecoveredRenderableParts.length > 0) {
+    return nonRecoveredRenderableParts;
+  }
+
+  const anyRenderableParts = partsWithValidity
+    .filter((entry) => entry.hasRenderableSpec)
+    .slice(-1)
+    .map((entry) => entry.part);
+
+  if (anyRenderableParts.length > 0) {
+    return anyRenderableParts;
+  }
+
+  return fallbackParts;
+}
+
 export function resolveMessageRenderGroups({
   message,
   isStreaming,
@@ -148,9 +179,6 @@ export function resolveMessageRenderGroups({
               recoveredFromInvalidSpec: recovered,
             };
           });
-          const hasAnyRenderable = partsWithValidity.some(
-            (entry) => entry.hasRenderableSpec
-          );
           const hasRecoveredRenderable = partsWithValidity.some(
             (entry) => entry.hasRenderableSpec && entry.recoveredFromInvalidSpec
           );
@@ -164,20 +192,10 @@ export function resolveMessageRenderGroups({
             isStreaming &&
             isLastAssistant;
 
-          const visibleParts = hasNonRecoveredRenderable
-            ? partsWithValidity
-                .filter(
-                  (entry) =>
-                    entry.hasRenderableSpec && !entry.recoveredFromInvalidSpec
-                )
-                .slice(-1)
-                .map((entry) => entry.part)
-            : hasAnyRenderable
-              ? partsWithValidity
-                  .filter((entry) => entry.hasRenderableSpec)
-                  .slice(-1)
-                  .map((entry) => entry.part)
-              : group.parts;
+          const visibleParts = computeVisibleParts(
+            partsWithValidity,
+            group.parts
+          );
 
           if (
             hasValidRenderUi &&
@@ -224,15 +242,8 @@ export function resolveMessageRenderGroups({
     }
   }
 
-  const sourceParts = message.parts.filter(
-    (
-      p
-    ): p is {
-      type: 'source-url';
-      url: string;
-      title?: string;
-      sourceId: string;
-    } => p.type === 'source-url'
+  const sourceParts = (message.parts ?? []).filter(
+    (p): p is SourceUrlPart => p.type === 'source-url'
   );
 
   if (sourceParts.length > 0) {

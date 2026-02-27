@@ -19323,6 +19323,21 @@ export type Database = {
               success: boolean;
             }[];
           };
+      deduct_fixed_ai_credits: {
+        Args: {
+          p_amount: number;
+          p_feature?: string;
+          p_metadata?: Json;
+          p_model_id?: string;
+          p_user_id: string;
+          p_ws_id: string;
+        };
+        Returns: {
+          error_code: string;
+          remaining_credits: number;
+          success: boolean;
+        }[];
+      };
       detect_duplicate_workspace_users: {
         Args: { _ws_id: string };
         Returns: {

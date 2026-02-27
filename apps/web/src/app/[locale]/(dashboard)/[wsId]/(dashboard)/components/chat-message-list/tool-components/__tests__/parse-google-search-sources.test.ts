@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseGoogleSearchSources } from './parse-google-search-sources';
+import { parseGoogleSearchSources } from '../parse-google-search-sources';
 
 describe('parseGoogleSearchSources', () => {
   it('returns empty array for null or invalid sources container', () => {
@@ -26,6 +26,15 @@ describe('parseGoogleSearchSources', () => {
         title: 'ok',
       },
     ]);
+  });
+
+  it('accepts plain http URLs', () => {
+    const sources = parseGoogleSearchSources({
+      sources: [{ url: 'http://example.com', title: 'HTTP site' }],
+    });
+
+    expect(sources).toHaveLength(1);
+    expect(sources[0]?.url).toBe('http://example.com');
   });
 
   it('uses provided sourceId and omits blank title', () => {

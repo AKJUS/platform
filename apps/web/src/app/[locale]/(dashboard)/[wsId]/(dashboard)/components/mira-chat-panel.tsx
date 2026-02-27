@@ -2,7 +2,7 @@
 
 import { ActionProvider, StateProvider } from '@json-render/react';
 import { formatForDisplay, useHotkey } from '@tanstack/react-hotkeys';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { DefaultChatTransport } from '@tuturuuu/ai/core';
 import {
   defaultModel,
@@ -12,6 +12,7 @@ import {
 import { useChat } from '@tuturuuu/ai/react';
 import type { UIMessage } from '@tuturuuu/ai/types';
 import {
+  Brain,
   Calendar,
   Download,
   Ellipsis,
@@ -23,6 +24,7 @@ import {
   PanelBottomOpen,
   Sparkles,
   Target,
+  Zap,
 } from '@tuturuuu/icons';
 import { createClient } from '@tuturuuu/supabase/next/client';
 import type { AIChat } from '@tuturuuu/types';
@@ -123,11 +125,15 @@ async function fetchSignedReadUrls(
   }
 }
 
-async function uploadChatFileViaSignedUrl(
-  wsId: string,
-  chatId: string | undefined,
-  file: File
-): Promise<{ path: string | null; error: string | null }> {
+async function uploadChatFileMutationFn({
+  wsId,
+  chatId,
+  file,
+}: {
+  wsId: string;
+  chatId: string | undefined;
+  file: File;
+}): Promise<{ path: string | null; error: string | null }> {
   try {
     // 1. Obtain a signed upload URL from our API
     const res = await fetch('/api/ai/chat/upload-url', {
@@ -207,10 +213,13 @@ async function uploadChatFileViaSignedUrl(
 
 /** Delete a previously uploaded chat file from Supabase Storage.
  *  Best-effort helper used when users remove an attachment before sending. */
-async function deleteChatFileFromStorage(
-  wsId: string,
-  path: string
-): Promise<boolean> {
+async function deleteChatFileMutationFn({
+  wsId,
+  path,
+}: {
+  wsId: string;
+  path: string;
+}): Promise<boolean> {
   try {
     const res = await fetch('/api/ai/chat/delete-file', {
       method: 'POST',
@@ -478,6 +487,21 @@ export default function MiraChatPanel({
 
   const queryClient = useQueryClient();
   const router = useRouter();
+  const uploadChatFileMutation = useMutation({
+    mutationFn: uploadChatFileMutationFn,
+  });
+  const { mutateAsync: uploadChatFileViaSignedUrl } = uploadChatFileMutation;
+  const deleteChatFileFromStorageMutation = useMutation({
+    mutationFn: deleteChatFileMutationFn,
+    onSuccess: async (deleted, variables) => {
+      if (!deleted) return;
+      await queryClient.invalidateQueries({
+        queryKey: ['chatFiles', variables.wsId],
+      });
+    },
+  });
+  const { mutateAsync: deleteChatFileFromStorage } =
+    deleteChatFileFromStorageMutation;
 
   useEffect(() => {
     const key = `${THINKING_MODE_STORAGE_KEY_PREFIX}${wsId}`;
@@ -902,11 +926,11 @@ export default function MiraChatPanel({
           )
         );
 
-        const { path, error } = await uploadChatFileViaSignedUrl(
+        const { path, error } = await uploadChatFileViaSignedUrl({
           wsId,
-          chat?.id,
-          chatFile.file
-        );
+          chatId: chat?.id,
+          file: chatFile.file,
+        });
 
         if (error || !path) {
           setAttachedFiles((prev) =>
@@ -926,7 +950,7 @@ export default function MiraChatPanel({
           (f) => f.id === chatFile.id
         );
         if (!stillAttached) {
-          void deleteChatFileFromStorage(wsId, path);
+          void deleteChatFileFromStorage({ wsId, path });
           continue;
         }
 
@@ -942,7 +966,7 @@ export default function MiraChatPanel({
         );
       }
     },
-    [wsId, chat?.id]
+    [chat?.id, deleteChatFileFromStorage, uploadChatFileViaSignedUrl, wsId]
   );
 
   const handleFileRemove = useCallback(
@@ -966,16 +990,17 @@ export default function MiraChatPanel({
       });
 
       if (removedStoragePath) {
-        void deleteChatFileFromStorage(wsId, removedStoragePath).then(
-          (deleted) => {
-            if (!deleted) {
-              toast.error(t('delete_file_failed'));
-            }
+        void deleteChatFileFromStorage({
+          wsId,
+          path: removedStoragePath,
+        }).then((deleted) => {
+          if (!deleted) {
+            toast.error(t('delete_file_failed'));
           }
-        );
+        });
       }
     },
-    [wsId, t] // Reads messageAttachments from ref — no stale closure
+    [deleteChatFileFromStorage, wsId, t] // Reads messageAttachments from ref — no stale closure
   );
 
   /** Snapshot the current attached files as serializable metadata and associate
@@ -1502,10 +1527,15 @@ export default function MiraChatPanel({
                 type="button"
                 size="sm"
                 variant="outline"
-                className="h-8 px-2 text-xs"
+                className="h-8 gap-1.5 px-2 text-xs"
                 title={t('thinking_mode_label')}
                 aria-label={t('thinking_mode_label')}
               >
+                {thinkingMode === 'thinking' ? (
+                  <Brain className="h-3.5 w-3.5" />
+                ) : (
+                  <Zap className="h-3.5 w-3.5" />
+                )}
                 {thinkingMode === 'thinking'
                   ? t('thinking_mode_thinking')
                   : t('thinking_mode_fast')}
@@ -1518,7 +1548,9 @@ export default function MiraChatPanel({
                   setIsThinkingMenuOpen(false);
                 }}
                 title={t('thinking_mode_fast_desc')}
+                className="gap-2"
               >
+                <Zap className="h-3.5 w-3.5" />
                 {t('thinking_mode_fast')}
                 <span className="ml-auto text-muted-foreground text-xs">
                   {hotkeyLabels.fastMode}
@@ -1530,7 +1562,9 @@ export default function MiraChatPanel({
                   setIsThinkingMenuOpen(false);
                 }}
                 title={t('thinking_mode_thinking_desc')}
+                className="gap-2"
               >
+                <Brain className="h-3.5 w-3.5" />
                 {t('thinking_mode_thinking')}
                 <span className="ml-auto text-muted-foreground text-xs">
                   {hotkeyLabels.thinkingMode}
