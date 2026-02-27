@@ -12,6 +12,7 @@ import {
 import { useChat } from '@tuturuuu/ai/react';
 import type { UIMessage } from '@tuturuuu/ai/types';
 import {
+  Brain,
   Calendar,
   Download,
   Ellipsis,
@@ -23,6 +24,7 @@ import {
   PanelBottomOpen,
   Sparkles,
   Target,
+  Zap,
 } from '@tuturuuu/icons';
 import { createClient } from '@tuturuuu/supabase/next/client';
 import type { AIChat } from '@tuturuuu/types';
@@ -1365,10 +1367,15 @@ export default function MiraChatPanel({
                 type="button"
                 size="sm"
                 variant="outline"
-                className="h-8 px-2 text-xs"
+                className="h-8 gap-1.5 px-2 text-xs"
                 title={t('thinking_mode_label')}
                 aria-label={t('thinking_mode_label')}
               >
+                {thinkingMode === 'thinking' ? (
+                  <Brain className="h-3.5 w-3.5" />
+                ) : (
+                  <Zap className="h-3.5 w-3.5" />
+                )}
                 {thinkingMode === 'thinking'
                   ? t('thinking_mode_thinking')
                   : t('thinking_mode_fast')}
@@ -1381,7 +1388,9 @@ export default function MiraChatPanel({
                   setIsThinkingMenuOpen(false);
                 }}
                 title={t('thinking_mode_fast_desc')}
+                className="gap-2"
               >
+                <Zap className="h-3.5 w-3.5" />
                 {t('thinking_mode_fast')}
                 <span className="ml-auto text-muted-foreground text-xs">
                   {hotkeyLabels.fastMode}
@@ -1393,7 +1402,9 @@ export default function MiraChatPanel({
                   setIsThinkingMenuOpen(false);
                 }}
                 title={t('thinking_mode_thinking_desc')}
+                className="gap-2"
               >
+                <Brain className="h-3.5 w-3.5" />
                 {t('thinking_mode_thinking')}
                 <span className="ml-auto text-muted-foreground text-xs">
                   {hotkeyLabels.thinkingMode}
