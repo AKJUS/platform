@@ -1,0 +1,227 @@
+import type { UIMessage } from 'ai';
+import { resolveRenderUiSpecFromOutput } from '@/components/json-render/render-ui-spec';
+import { groupMessageParts } from './group-message-parts';
+import { hasOutputText } from './helpers';
+import type { ToolPartData } from './types';
+
+interface RenderUiOutput {
+  recoveredFromInvalidSpec?: boolean;
+  autoRecoveredFromInvalidSpec?: boolean;
+  forcedFromRecoveryLoop?: boolean;
+}
+
+export function isRecoveredOutput(output: unknown): boolean {
+  if (!output || typeof output !== 'object') return false;
+  const parsed = output as RenderUiOutput;
+  return (
+    parsed.recoveredFromInvalidSpec === true ||
+    parsed.autoRecoveredFromInvalidSpec === true ||
+    parsed.forcedFromRecoveryLoop === true
+  );
+}
+
+type SourceUrlPart = {
+  type: 'source-url';
+  url: string;
+  title?: string;
+  sourceId: string;
+};
+
+export type MessageRenderDescriptor =
+  | {
+      kind: 'reasoning';
+      key: string;
+      text: string;
+      isAnimating: boolean;
+    }
+  | {
+      kind: 'text';
+      key: string;
+      text: string;
+      isAnimating: boolean;
+    }
+  | {
+      kind: 'tool';
+      key: string;
+      part: ToolPartData;
+    }
+  | {
+      kind: 'tool-group';
+      key: string;
+      toolName: string;
+      parts: ToolPartData[];
+    }
+  | {
+      kind: 'sources';
+      key: string;
+      parts: SourceUrlPart[];
+    };
+
+export function resolveMessageRenderGroups({
+  message,
+  isStreaming,
+  isLastAssistant,
+}: {
+  message: UIMessage;
+  isStreaming: boolean;
+  isLastAssistant: boolean;
+}): MessageRenderDescriptor[] {
+  const groups = groupMessageParts(message.parts);
+  const validRenderUiSpecs = groups.flatMap((group) => {
+    if (group.kind !== 'tool' || group.toolName !== 'render_ui') {
+      return [];
+    }
+    return group.parts
+      .map((part) => {
+        const output = (part as { output?: unknown }).output;
+        const spec = resolveRenderUiSpecFromOutput(output);
+        const recovered = isRecoveredOutput(output);
+        return spec && !recovered ? spec : null;
+      })
+      .filter((spec): spec is NonNullable<typeof spec> => spec !== null);
+  });
+  const hasValidRenderUi = validRenderUiSpecs.length > 0;
+  const lastReasoningIdx = groups.findLastIndex((g) => g.kind === 'reasoning');
+  const descriptors: MessageRenderDescriptor[] = [];
+
+  for (const [gi, group] of groups.entries()) {
+    switch (group.kind) {
+      case 'reasoning': {
+        const isLatestReasoning = gi === lastReasoningIdx;
+        const isReasoningInProgress =
+          isLatestReasoning &&
+          isStreaming &&
+          isLastAssistant &&
+          !hasOutputText(message);
+
+        descriptors.push({
+          kind: 'reasoning',
+          key: `reasoning-${group.index}`,
+          text:
+            typeof group.text === 'string'
+              ? group.text
+              : JSON.stringify(group.text),
+          isAnimating: isReasoningInProgress,
+        });
+        break;
+      }
+      case 'text': {
+        descriptors.push({
+          kind: 'text',
+          key: `text-${group.index}`,
+          text:
+            typeof group.text === 'string'
+              ? group.text
+              : JSON.stringify(group.text),
+          isAnimating: isStreaming && isLastAssistant,
+        });
+        break;
+      }
+      case 'tool': {
+        if (group.toolName === 'render_ui') {
+          const partsWithValidity = group.parts.map((part) => ({
+            part,
+            hasRenderableSpec: !!resolveRenderUiSpecFromOutput(
+              (part as { output?: unknown }).output
+            ),
+            recoveredFromInvalidSpec: isRecoveredOutput(
+              (part as { output?: unknown }).output
+            ),
+          }));
+          const hasAnyRenderable = partsWithValidity.some(
+            (entry) => entry.hasRenderableSpec
+          );
+          const hasRecoveredRenderable = partsWithValidity.some(
+            (entry) => entry.hasRenderableSpec && entry.recoveredFromInvalidSpec
+          );
+          const hasNonRecoveredRenderable = partsWithValidity.some(
+            (entry) =>
+              entry.hasRenderableSpec && !entry.recoveredFromInvalidSpec
+          );
+          const shouldDeferRecoveredPlaceholder =
+            hasRecoveredRenderable &&
+            !hasNonRecoveredRenderable &&
+            isStreaming &&
+            isLastAssistant;
+
+          const visibleParts = hasNonRecoveredRenderable
+            ? partsWithValidity
+                .filter(
+                  (entry) =>
+                    entry.hasRenderableSpec && !entry.recoveredFromInvalidSpec
+                )
+                .slice(-1)
+                .map((entry) => entry.part)
+            : hasAnyRenderable
+              ? partsWithValidity
+                  .filter((entry) => entry.hasRenderableSpec)
+                  .slice(-1)
+                  .map((entry) => entry.part)
+              : group.parts;
+
+          if (
+            hasValidRenderUi &&
+            visibleParts.every((part) =>
+              isRecoveredOutput((part as { output?: unknown }).output)
+            )
+          ) {
+            break;
+          }
+
+          if (shouldDeferRecoveredPlaceholder && visibleParts.length > 0) {
+            break;
+          }
+
+          visibleParts.forEach((part, idx) => {
+            descriptors.push({
+              kind: 'tool',
+              key: `render-ui-${group.startIndex}-${idx}`,
+              part,
+            });
+          });
+          break;
+        }
+
+        if (group.parts.length === 1) {
+          descriptors.push({
+            kind: 'tool',
+            key: `tool-${group.startIndex}`,
+            part: group.parts[0]!,
+          });
+          break;
+        }
+
+        descriptors.push({
+          kind: 'tool-group',
+          key: `toolgroup-${group.startIndex}`,
+          toolName: group.toolName,
+          parts: group.parts,
+        });
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
+  const sourceParts = message.parts.filter(
+    (
+      p
+    ): p is {
+      type: 'source-url';
+      url: string;
+      title?: string;
+      sourceId: string;
+    } => p.type === 'source-url'
+  );
+
+  if (sourceParts.length > 0) {
+    descriptors.push({
+      kind: 'sources',
+      key: 'sources',
+      parts: sourceParts,
+    });
+  }
+
+  return descriptors;
+}

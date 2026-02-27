@@ -315,13 +315,7 @@ export const dashboardCatalog = defineCatalog(schema, {
                 .describe(
                   'Human-readable source title (never paste full URL here)'
                 ),
-              url: z
-                .string()
-                .url()
-                .refine((value) => /^https?:\/\//i.test(value), {
-                  message: 'Source URL must use http or https',
-                })
-                .describe('Source URL'),
+              url: z.httpUrl().describe('Source URL'),
               publisher: z
                 .string()
                 .optional()

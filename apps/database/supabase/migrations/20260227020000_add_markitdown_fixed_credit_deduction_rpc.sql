@@ -22,6 +22,7 @@ RETURNS TABLE (
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path TO public, pg_temp
 AS $$
 DECLARE
   v_balance RECORD;
@@ -85,3 +86,21 @@ BEGIN
     NULL::TEXT;
 END;
 $$;
+
+REVOKE EXECUTE ON FUNCTION public.deduct_fixed_ai_credits(
+  UUID,
+  UUID,
+  NUMERIC,
+  TEXT,
+  TEXT,
+  JSONB
+) FROM PUBLIC, anon, authenticated;
+
+GRANT EXECUTE ON FUNCTION public.deduct_fixed_ai_credits(
+  UUID,
+  UUID,
+  NUMERIC,
+  TEXT,
+  TEXT,
+  JSONB
+) TO service_role;

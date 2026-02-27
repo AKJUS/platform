@@ -256,17 +256,21 @@ export async function executeConvertFileToMarkdown(
     });
     return {
       ok: false,
-      error:
-        safeMessage ||
-        `MarkItDown conversion failed with status ${conversionResponse.status}.`,
+      error: `MarkItDown conversion failed (status ${conversionResponse.status}).`,
     };
   }
 
-  const payload = (await conversionResponse.json()) as {
-    ok?: boolean;
-    markdown?: unknown;
-    title?: unknown;
-  };
+  let payload: { ok?: boolean; markdown?: unknown; title?: unknown };
+  try {
+    payload = (await conversionResponse.json()) as {
+      ok?: boolean;
+      markdown?: unknown;
+      title?: unknown;
+    };
+  } catch (error) {
+    console.error('MarkItDown returned invalid JSON response:', error);
+    return { ok: false, error: 'MarkItDown conversion failed.' };
+  }
   const markdown =
     typeof payload.markdown === 'string' ? payload.markdown.trim() : '';
 

@@ -92,6 +92,7 @@ Foundational mandates here take absolute precedence. **NEVER** invent ad-hoc beh
 - **MarkItDown Conversions**: For binary office/docs ingestion in Mira, route through the Discord `/markitdown` endpoint with plugins enabled, enforce fixed per-request credit charging in the tool executor, and pass files via Supabase signed read URLs (never raw multipart upload bytes to the endpoint).
 - **Discord Python Tooling**: In `apps/discord`, use `uv` as the local environment/package workflow (`uv sync`, `uv run ...`) with `pyproject.toml` + `uv.lock` as the source of truth for local development.
 - **Discord CI Parity**: Keep `.github/workflows/discord-python-ci.yml` aligned with the `uv` workflow and install dependencies via `uv sync --locked` so CI reproducibly uses `apps/discord/uv.lock`.
+- **Type-Safe Group Iteration**: In strict TS files with discriminated unions and `noUncheckedIndexedAccess`, avoid `array[index]` iteration for render groups. Prefer `for (const [i, item] of array.entries())` plus `switch (item.kind)` to preserve narrowing and prevent `"possibly undefined"` regressions.
 
 ## 7. Continuous Improvement (Session Retrospective)
 At the **END** of every session, you MUST:

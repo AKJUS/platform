@@ -9,7 +9,7 @@ import {
   Sparkles,
 } from '@tuturuuu/icons';
 import { Dialog, DialogContent, DialogTitle } from '@tuturuuu/ui/dialog';
-import { cn, isValidHttpUrl } from '@tuturuuu/utils/format';
+import { cn } from '@tuturuuu/utils/format';
 import { getToolName, isToolUIPart } from 'ai';
 import { useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
@@ -23,6 +23,7 @@ import {
   isApprovalRequestUiData,
 } from './approval-request';
 import { JsonHighlight } from './json-highlight';
+import { parseGoogleSearchSources } from './parse-google-search-sources';
 import { SourcesPart } from './sources-part';
 import { getToolPartStatus } from './tool-status';
 
@@ -56,29 +57,7 @@ export function ToolCallPart({ part }: { part: ToolPartData }) {
   const output = isToolPart ? getPartOutput(part) : undefined;
   const errorText = isToolPart ? getPartErrorText(part) : undefined;
   const outputRecord = isObjectRecord(output) ? output : null;
-  const googleSearchSources = Array.isArray(outputRecord?.sources)
-    ? outputRecord.sources
-        .map((item, index) => {
-          if (!item || typeof item !== 'object') return null;
-          const source = item as Record<string, unknown>;
-          const url =
-            typeof source.url === 'string' ? source.url.trim() : undefined;
-          if (!url || !isValidHttpUrl(url)) return null;
-          const title =
-            typeof source.title === 'string' ? source.title.trim() : undefined;
-          const sourceId =
-            typeof source.sourceId === 'string' && source.sourceId.length > 0
-              ? source.sourceId
-              : `google-search-${index}`;
-          return { sourceId, url, ...(title ? { title } : {}) };
-        })
-        .filter(
-          (
-            source
-          ): source is { sourceId: string; url: string; title?: string } =>
-            source !== null
-        )
-    : [];
+  const googleSearchSources = parseGoogleSearchSources(outputRecord);
 
   const { isDone, isError, isRunning, logicalError } = getToolPartStatus(part);
 

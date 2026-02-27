@@ -84,6 +84,7 @@ export async function executeGoogleSearch(
   args: Record<string, unknown>,
   _ctx: MiraToolContext
 ) {
+  void _ctx;
   const parsed = SearchArgsSchema.safeParse(args);
   if (!parsed.success) {
     return {

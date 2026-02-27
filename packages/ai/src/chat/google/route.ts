@@ -49,10 +49,28 @@ export const preferredRegion = 'sin1';
 
 const DEFAULT_MODEL_NAME = 'google/gemini-2.5-flash';
 type ThinkingMode = 'fast' | 'thinking';
+
+const ChatRoleSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .transform((value) => value.toLowerCase())
+  .pipe(z.enum(['assistant', 'system', 'user']));
+
+const UIMessageSchema = z
+  .object({
+    id: z.string().optional(),
+    role: ChatRoleSchema,
+    parts: z.array(z.record(z.string(), z.unknown())),
+    name: z.string().optional(),
+    metadata: z.record(z.string(), z.unknown()).optional(),
+  })
+  .passthrough();
+
 const ChatRequestBodySchema = z.object({
   id: z.string().min(1),
   model: z.string().optional(),
-  messages: z.array(z.custom<UIMessage>()).optional(),
+  messages: z.array(UIMessageSchema).optional(),
   wsId: z.string().optional(),
   isMiraMode: z.boolean().optional(),
   timezone: z.string().optional(),
@@ -390,11 +408,7 @@ export function createPOST(
         }
       }
 
-      // Normalize roles (DB stores uppercase USER/ASSISTANT, SDK expects lowercase)
-      const normalizedMessages = messages.map((msg) => ({
-        ...msg,
-        role: msg.role.toLowerCase() as UIMessage['role'],
-      }));
+      const normalizedMessages = messages as unknown as UIMessage[];
 
       // Convert UIMessages to ModelMessages
       const modelMessages = await convertToModelMessages(normalizedMessages);

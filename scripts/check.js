@@ -274,8 +274,8 @@ function printSummary(results) {
     const col2Width = Math.max(
       col2Header.length,
       ...results.map((r) => {
-        const prefix = r.success ? 'PASS ' : 'FAIL ';
-        return getDisplayWidth(prefix) + r.status.length;
+        const prefix = r.success ? 'PASS' : 'FAIL';
+        return getDisplayWidth(prefix);
       })
     );
     const detailsValues = results.map((r) => r.status);
@@ -308,8 +308,8 @@ function printSummary(results) {
 
     for (const result of results) {
       const statusText = result.success
-        ? `${colors.green}PASS ${result.status}${colors.reset}`
-        : `${colors.red}FAIL ${result.status}${colors.reset}`;
+        ? `${colors.green}PASS${colors.reset}`
+        : `${colors.red}FAIL${colors.reset}`;
       const rowCells = [result.name, statusText];
       if (showDetails) rowCells.push(result.status);
       if (showTiming) {

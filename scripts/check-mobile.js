@@ -233,8 +233,8 @@ function printSummaryTable(results) {
     const col2Width = Math.max(
       col2Header.length,
       ...results.map((r) => {
-        const prefix = r.success ? 'PASS ' : 'FAIL ';
-        return getDisplayWidth(prefix) + r.status.length;
+        const prefix = r.success ? 'PASS' : 'FAIL';
+        return getDisplayWidth(prefix);
       })
     );
     const colWidths = [col1Width, col2Width];
@@ -268,7 +268,7 @@ function printSummaryTable(results) {
     for (const result of results) {
       const statusColor = result.success ? colors.green : colors.red;
       const statusLabel = result.success ? 'PASS' : 'FAIL';
-      const statusText = `${statusColor}${statusLabel} ${result.status}${colors.reset}`;
+      const statusText = `${statusColor}${statusLabel}${colors.reset}`;
       const rowCells = [result.name, statusText];
       if (showDetails) rowCells.push(result.status);
       if (showTiming) {
