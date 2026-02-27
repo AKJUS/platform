@@ -64,10 +64,13 @@ type LegacyCalloutProps = JsonRenderCalloutProps;
 const markdownSyntaxPattern =
   /(\*\*|__|`|~~|\[.+\]\(.+\)|^#{1,6}\s|^\s*[-*+]\s|^\s*\d+\.\s)/m;
 
-function parseSafeUrl(value?: string): URL | null {
+function parseSafeHttpUrl(value?: string): URL | null {
   if (!value) return null;
   try {
-    return new URL(value);
+    const parsed = new URL(value);
+    const protocol = parsed.protocol.toLowerCase();
+    if (protocol !== 'http:' && protocol !== 'https:') return null;
+    return parsed;
   } catch {
     return null;
   }
@@ -108,7 +111,7 @@ function MarkdownText({
           code: false,
           mermaid: false,
         }}
-        linkSafety={{ enabled: false }}
+        linkSafety={{ enabled: true }}
       >
         {text}
       </Streamdown>
@@ -122,7 +125,7 @@ function getSourceDisplayModel(source: {
   publisher?: string;
   note?: string;
 }) {
-  const parsed = parseSafeUrl(source.url);
+  const parsed = parseSafeHttpUrl(source.url);
   const host = parsed ? normalizeHost(parsed.hostname) : 'source';
   const isGoogleGrounding =
     host === 'vertexaisearch.cloud.google.com' &&
@@ -862,15 +865,11 @@ function SourceListItem({
   LinkIcon: IconComponent | null;
 }) {
   const display = getSourceDisplayModel(source);
-
-  return (
-    <a
-      href={source.url}
-      target="_blank"
-      rel="noreferrer noopener"
-      title={source.url}
-      className="group rounded-lg border border-border/40 bg-muted/5 px-2.5 py-2 text-left transition-colors hover:border-primary/30 hover:bg-muted/15"
-    >
+  const safeHref = parseSafeHttpUrl(source.url)?.toString() ?? null;
+  const itemClassName =
+    'group rounded-lg border border-border/40 bg-muted/5 px-2.5 py-2 text-left transition-colors hover:border-primary/30 hover:bg-muted/15';
+  const content = (
+    <>
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
           <div className="truncate font-medium text-[12px] text-foreground">
@@ -886,7 +885,7 @@ function SourceListItem({
             </div>
           )}
         </div>
-        {ExternalLinkIcon && (
+        {ExternalLinkIcon && safeHref && (
           <ExternalLinkIcon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground/75 transition-colors group-hover:text-primary" />
         )}
       </div>
@@ -897,6 +896,22 @@ function SourceListItem({
           <span className="truncate font-mono">{display.urlPreview}</span>
         </div>
       )}
+    </>
+  );
+
+  if (!safeHref) {
+    return <div className={itemClassName}>{content}</div>;
+  }
+
+  return (
+    <a
+      href={safeHref}
+      target="_blank"
+      rel="noreferrer noopener"
+      title={safeHref}
+      className={itemClassName}
+    >
+      {content}
     </a>
   );
 }

@@ -38,7 +38,7 @@ function normalizeMarkdownTables(text: string): string {
   if (!text.includes('```')) return text;
 
   return text.replace(
-    /```(?:markdown|md)?\s*\n([\s\S]*?)```/gi,
+    /```(?:markdown|md)\s*\n([\s\S]*?)```/gi,
     (fullMatch, body: string) => {
       if (!isMarkdownTableBlock(body)) return fullMatch;
       return body.trim();
@@ -76,7 +76,7 @@ export function AssistantMarkdown({
   text: string;
   isAnimating: boolean;
 }) {
-  const normalizedText = normalizeMarkdownTables(text);
+  const normalizedText = useMemo(() => normalizeMarkdownTables(text), [text]);
 
   return (
     <div className="wrap-break-word [&_pre]:overflow-x-hidden! [&_pre]:whitespace-pre-wrap! [&_pre]:wrap-break-word [&_pre_code]:whitespace-pre-wrap! [&_pre_code]:wrap-anywhere min-w-0 max-w-full overflow-hidden [&_pre]:max-w-full">

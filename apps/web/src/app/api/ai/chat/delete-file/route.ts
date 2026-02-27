@@ -2,9 +2,10 @@ import { createDynamicAdminClient } from '@tuturuuu/supabase/next/server';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { withSessionAuth } from '@/lib/api-auth';
+import { normalizeWorkspaceId } from '@/lib/workspace-helper';
 
 const DeleteFileRequestSchema = z.object({
-  wsId: z.string().uuid(),
+  wsId: z.string().min(1),
   path: z.string().min(1).max(1024),
 });
 
@@ -15,10 +16,18 @@ const DeleteFileRequestSchema = z.object({
  * Path must remain within `{wsId}/chats/ai/resources/`.
  */
 export const POST = withSessionAuth(
-  async (req) => {
+  async (req, { user, supabase }) => {
     try {
       const body = await req.json();
-      const { wsId, path } = DeleteFileRequestSchema.parse(body);
+      const { wsId: wsIdRaw, path } = DeleteFileRequestSchema.parse(body);
+      const wsId = await normalizeWorkspaceId(wsIdRaw);
+
+      if (!wsId) {
+        return NextResponse.json(
+          { message: 'Invalid workspace ID' },
+          { status: 400 }
+        );
+      }
 
       const expectedPrefix = `${wsId}/chats/ai/resources/`;
       if (!path.startsWith(expectedPrefix) || path.includes('..')) {
@@ -28,10 +37,33 @@ export const POST = withSessionAuth(
         );
       }
 
-      const supabase = await createDynamicAdminClient();
-      const { error } = await supabase.storage
-        .from('workspaces')
-        .remove([path]);
+      const { data: membership, error: membershipError } = await supabase
+        .from('workspace_members')
+        .select('user_id')
+        .eq('ws_id', wsId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (membershipError) {
+        console.error(
+          'Error validating workspace membership for delete-file:',
+          membershipError
+        );
+        return NextResponse.json(
+          { message: 'Failed to verify workspace access' },
+          { status: 500 }
+        );
+      }
+
+      if (!membership) {
+        return NextResponse.json(
+          { message: "You don't have access to this workspace" },
+          { status: 403 }
+        );
+      }
+
+      const sbAdmin = await createDynamicAdminClient();
+      const { error } = await sbAdmin.storage.from('workspaces').remove([path]);
 
       if (error) {
         console.error('Error deleting chat file from storage:', error);

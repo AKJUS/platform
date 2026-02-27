@@ -9,7 +9,7 @@ import {
   Sparkles,
 } from '@tuturuuu/icons';
 import { Dialog, DialogContent, DialogTitle } from '@tuturuuu/ui/dialog';
-import { cn } from '@tuturuuu/utils/format';
+import { cn, isValidHttpUrl } from '@tuturuuu/utils/format';
 import { getToolName, isToolUIPart } from 'ai';
 import { useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
@@ -63,7 +63,7 @@ export function ToolCallPart({ part }: { part: ToolPartData }) {
           const source = item as Record<string, unknown>;
           const url =
             typeof source.url === 'string' ? source.url.trim() : undefined;
-          if (!url) return null;
+          if (!url || !isValidHttpUrl(url)) return null;
           const title =
             typeof source.title === 'string' ? source.title.trim() : undefined;
           const sourceId =

@@ -76,6 +76,8 @@ export default function MiraNameBadge({
         ) : (
           <button
             type="button"
+            aria-label={t('edit_title')}
+            title={t('edit_title')}
             className={cn(
               'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-muted-foreground text-xs transition-colors hover:bg-accent hover:text-foreground',
               className

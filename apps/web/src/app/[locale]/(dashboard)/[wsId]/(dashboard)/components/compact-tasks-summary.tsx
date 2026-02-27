@@ -61,16 +61,17 @@ export default async function CompactTasksSummary({
             <ListTodo className="h-4 w-4 shrink-0 text-dynamic-orange" />
             <span className="truncate">{t('compact_tasks_title')}</span>
           </CardTitle>
-          <Link href={`/${wsId}/tasks`} className="shrink-0">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-5 px-1.5 text-[11px]"
-            >
+          <Button
+            asChild
+            variant="ghost"
+            size="sm"
+            className="h-5 shrink-0 px-1.5 text-[11px]"
+          >
+            <Link href={`/${wsId}/tasks`}>
               {t('view_all')}
               <ArrowRight className="ml-1 h-3 w-3" />
-            </Button>
-          </Link>
+            </Link>
+          </Button>
         </div>
       </CardHeader>
       <CardContent className="px-2 pb-2">

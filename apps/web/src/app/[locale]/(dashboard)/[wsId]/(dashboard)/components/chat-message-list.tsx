@@ -39,6 +39,22 @@ import { UserMessageContent } from './chat-message-list/user-message-components'
 const MAX_AUTO_MERMAID_REPAIR_ATTEMPTS = 2;
 let mermaidParserInitialized = false;
 
+interface RenderUiOutput {
+  recoveredFromInvalidSpec?: boolean;
+  autoRecoveredFromInvalidSpec?: boolean;
+  forcedFromRecoveryLoop?: boolean;
+}
+
+function isRecoveredOutput(output: unknown): boolean {
+  if (!output || typeof output !== 'object') return false;
+  const parsed = output as RenderUiOutput;
+  return (
+    parsed.recoveredFromInvalidSpec === true ||
+    parsed.autoRecoveredFromInvalidSpec === true ||
+    parsed.forcedFromRecoveryLoop === true
+  );
+}
+
 function ensureMermaidParserInitialized(): void {
   if (mermaidParserInitialized) return;
   mermaidParser.initialize({
@@ -270,22 +286,12 @@ export default function ChatMessageList({
                           }
                           return group.parts
                             .map((part) => {
-                              const output = (
-                                part as {
-                                  output?: {
-                                    recoveredFromInvalidSpec?: boolean;
-                                    autoRecoveredFromInvalidSpec?: boolean;
-                                    forcedFromRecoveryLoop?: boolean;
-                                  };
-                                }
-                              ).output;
+                              const output = (part as { output?: unknown })
+                                .output;
 
                               const spec =
                                 resolveRenderUiSpecFromOutput(output);
-                              const recovered =
-                                output?.recoveredFromInvalidSpec === true ||
-                                output?.autoRecoveredFromInvalidSpec === true ||
-                                output?.forcedFromRecoveryLoop === true;
+                              const recovered = isRecoveredOutput(output);
 
                               return spec && !recovered ? spec : null;
                             })
@@ -343,24 +349,9 @@ export default function ChatMessageList({
                                     !!resolveRenderUiSpecFromOutput(
                                       (part as { output?: unknown }).output
                                     ),
-                                  recoveredFromInvalidSpec: !!(() => {
-                                    const output = (
-                                      part as {
-                                        output?: {
-                                          recoveredFromInvalidSpec?: boolean;
-                                          autoRecoveredFromInvalidSpec?: boolean;
-                                          forcedFromRecoveryLoop?: boolean;
-                                        };
-                                      }
-                                    ).output;
-                                    return (
-                                      output?.recoveredFromInvalidSpec ===
-                                        true ||
-                                      output?.autoRecoveredFromInvalidSpec ===
-                                        true ||
-                                      output?.forcedFromRecoveryLoop === true
-                                    );
-                                  })(),
+                                  recoveredFromInvalidSpec: isRecoveredOutput(
+                                    (part as { output?: unknown }).output
+                                  ),
                                 })
                               );
                               const hasAnyRenderable = partsWithValidity.some(
@@ -405,21 +396,8 @@ export default function ChatMessageList({
                               if (
                                 hasValidRenderUi &&
                                 visibleParts.every((part) => {
-                                  const output = (
-                                    part as {
-                                      output?: {
-                                        recoveredFromInvalidSpec?: boolean;
-                                        autoRecoveredFromInvalidSpec?: boolean;
-                                        forcedFromRecoveryLoop?: boolean;
-                                      };
-                                    }
-                                  ).output;
-
-                                  return (
-                                    output?.recoveredFromInvalidSpec === true ||
-                                    output?.autoRecoveredFromInvalidSpec ===
-                                      true ||
-                                    output?.forcedFromRecoveryLoop === true
+                                  return isRecoveredOutput(
+                                    (part as { output?: unknown }).output
                                   );
                                 })
                               ) {
