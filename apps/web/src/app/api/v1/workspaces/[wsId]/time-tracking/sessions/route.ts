@@ -29,14 +29,16 @@ const cursorSchema = z.object({
   lastId: z.uuid().or(z.string().regex(/^\d+$/)),
 });
 
-type SessionRequestBody = {
-  title?: string;
-  description?: string;
-  categoryId?: string;
-  taskId?: string;
-  startTime?: string;
-  endTime?: string;
-};
+const sessionCreateSchema = z.object({
+  title: z.string().optional(),
+  description: z.string().nullable().optional(),
+  categoryId: z.string().nullable().optional(),
+  taskId: z.string().nullable().optional(),
+  startTime: z.iso.datetime({ offset: true }).optional(),
+  endTime: z.iso.datetime({ offset: true }).optional(),
+});
+
+type SessionRequestBody = z.infer<typeof sessionCreateSchema>;
 
 type AdminClient = TypedSupabaseClient;
 
@@ -75,15 +77,30 @@ async function checkMissedEntryPermission({
   const { containsPermission } = permissions;
   const canBypass = containsPermission('bypass_time_tracking_request_approval');
 
-  const { data: workspaceSettings } = await sbAdmin
-    .from('workspace_settings')
-    .select('missed_entry_date_threshold')
-    .eq('ws_id', wsId)
-    .maybeSingle();
+  const { data: workspaceSettings, error: workspaceSettingsError } =
+    await sbAdmin
+      .from('workspace_settings')
+      .select('missed_entry_date_threshold')
+      .eq('ws_id', wsId)
+      .maybeSingle();
+
+  if (workspaceSettingsError || !workspaceSettings) {
+    console.error('Failed to load workspace_settings for time-tracking:', {
+      wsId,
+      error: workspaceSettingsError,
+    });
+
+    return {
+      errorResponse: NextResponse.json(
+        { error: 'Unable to validate workspace settings' },
+        { status: 500 }
+      ),
+    };
+  }
 
   return {
     canBypass,
-    thresholdDays: workspaceSettings?.missed_entry_date_threshold,
+    thresholdDays: workspaceSettings.missed_entry_date_threshold,
   };
 }
 
@@ -187,9 +204,9 @@ async function handleManualEntry({
         p_ws_id: sessionPayload.ws_id,
         p_user_id: sessionPayload.user_id,
         p_title: sessionPayload.title,
-        p_description: sessionPayload.description ?? undefined,
-        p_category_id: sessionPayload.category_id ?? undefined,
-        p_task_id: sessionPayload.task_id ?? undefined,
+        p_description: sessionPayload.description as string | undefined,
+        p_category_id: sessionPayload.category_id as string | undefined,
+        p_task_id: sessionPayload.task_id as string | undefined,
         p_start_time: sessionPayload.start_time,
         p_end_time: sessionPayload.end_time,
         p_duration_seconds: sessionPayload.duration_seconds,
@@ -259,16 +276,63 @@ async function createRunningSession({
 }): Promise<NextResponse> {
   const { title, description, categoryId, taskId } = requestBody;
 
-  await sbAdmin
-    .from('time_tracking_sessions')
-    .update({
-      end_time: new Date().toISOString(),
-      is_running: false,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('ws_id', normalizedWsId)
-    .eq('user_id', user.id)
-    .eq('is_running', true);
+  const { data: existingRunningSession, error: existingRunningSessionError } =
+    await sbAdmin
+      .from('time_tracking_sessions')
+      .select('id')
+      .eq('ws_id', normalizedWsId)
+      .eq('user_id', user.id)
+      .eq('is_running', true)
+      .maybeSingle();
+
+  if (existingRunningSessionError) {
+    console.error('Failed to check existing running session:', {
+      wsId: normalizedWsId,
+      userId: user.id,
+      error: existingRunningSessionError,
+    });
+    return NextResponse.json(
+      { error: 'Failed to prepare running session' },
+      { status: 500 }
+    );
+  }
+
+  const { data: closedSessions, error: closeRunningSessionError } =
+    await sbAdmin
+      .from('time_tracking_sessions')
+      .update({
+        end_time: new Date().toISOString(),
+        is_running: false,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('ws_id', normalizedWsId)
+      .eq('user_id', user.id)
+      .eq('is_running', true)
+      .select('id');
+
+  if (closeRunningSessionError) {
+    console.error('Failed to close existing running session:', {
+      wsId: normalizedWsId,
+      userId: user.id,
+      error: closeRunningSessionError,
+    });
+    return NextResponse.json(
+      { error: 'Failed to close active session' },
+      { status: 500 }
+    );
+  }
+
+  if (existingRunningSession && (closedSessions?.length ?? 0) === 0) {
+    console.error('Expected running session close but no rows were updated', {
+      wsId: normalizedWsId,
+      userId: user.id,
+      existingRunningSessionId: existingRunningSession.id,
+    });
+    return NextResponse.json(
+      { error: 'Failed to close active session' },
+      { status: 500 }
+    );
+  }
 
   const { data, error } = await sbAdmin
     .from('time_tracking_sessions')
@@ -657,7 +721,17 @@ export const POST = withSessionAuth<{ wsId: string }>(
       }
 
       const body = await request.json();
-      const { title, startTime, endTime } = body;
+      const validation = sessionCreateSchema.safeParse(body);
+
+      if (!validation.success) {
+        return NextResponse.json(
+          { error: 'Invalid request body', details: validation.error.issues },
+          { status: 400 }
+        );
+      }
+
+      const validatedBody = validation.data;
+      const { title, startTime, endTime } = validatedBody;
 
       if (!title?.trim()) {
         return NextResponse.json(
@@ -691,7 +765,7 @@ export const POST = withSessionAuth<{ wsId: string }>(
       // If this is a manual entry (missed entry), handle differently
       if (startTime && endTime) {
         return handleManualEntry({
-          requestBody: body,
+          requestBody: validatedBody,
           user,
           normalizedWsId,
           sbAdmin,
@@ -699,8 +773,18 @@ export const POST = withSessionAuth<{ wsId: string }>(
         });
       }
 
+      if ((startTime && !endTime) || (!startTime && endTime)) {
+        return NextResponse.json(
+          {
+            error:
+              'Manual entry requires both startTime and endTime, or neither for a running session',
+          },
+          { status: 400 }
+        );
+      }
+
       return createRunningSession({
-        requestBody: body,
+        requestBody: validatedBody,
         user,
         normalizedWsId,
         sbAdmin,

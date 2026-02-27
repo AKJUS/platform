@@ -186,7 +186,6 @@ export async function PUT(
 ) {
   try {
     const { wsId, id } = await context.params;
-    const normalizedWsId = await normalizeWorkspaceId(wsId);
     const supabase = await createClient(request);
     // Use createDynamicClient with request to support Bearer token auth for mobile apps
     const storageClient = await createDynamicClient(request);
@@ -200,6 +199,8 @@ export async function PUT(
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const normalizedWsId = await normalizeWorkspaceId(wsId);
 
     // Verify workspace membership
     const { data: memberCheck } = await supabase

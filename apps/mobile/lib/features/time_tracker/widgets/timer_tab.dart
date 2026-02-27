@@ -151,7 +151,12 @@ class TimerTab extends StatelessWidget {
           thresholdDays: cubit.state.thresholdDays,
           onDelete: () async {
             final userId = supabase.auth.currentUser?.id ?? '';
-            await cubit.deleteSession(session.id, wsId, userId);
+            await cubit.deleteSession(
+              session.id,
+              wsId,
+              userId,
+              throwOnError: true,
+            );
           },
           onSave:
               ({
