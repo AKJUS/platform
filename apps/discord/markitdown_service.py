@@ -117,9 +117,7 @@ async def _download_signed_url_to_temp(
                         continue
                     downloaded_bytes += len(chunk)
                     if downloaded_bytes > MAX_MARKITDOWN_BYTES:
-                        raise HTTPException(
-                            status_code=413, detail="File exceeds 50MB limit"
-                        )
+                        raise HTTPException(status_code=413, detail="File exceeds 50MB limit")
                     tmp.write(chunk)
 
         return temp_path, downloaded_bytes

@@ -872,10 +872,16 @@ def web_app():
         allow_headers=["*"],
     )
 
+    def _is_development_environment() -> bool:
+        return any(
+            (os.getenv(name) or "").strip().lower() in {"dev", "development", "local", "test"}
+            for name in ("ENV", "ENVIRONMENT", "APP_ENV", "FASTAPI_ENV", "PYTHON_ENV", "NODE_ENV")
+        )
+
     def _is_cron_request_authorized(request: Request) -> bool:
         secret = os.getenv("VERCEL_CRON_SECRET") or os.getenv("CRON_SECRET")
         if not secret:
-            return True
+            return _is_development_environment()
 
         auth_header = request.headers.get("Authorization")
         if auth_header:
