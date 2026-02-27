@@ -143,7 +143,7 @@ function MiraWorkspaceContextBadge({ wsId }: { wsId: string }) {
         'h-8 overflow-hidden border-border/50 bg-background/60 text-foreground text-xs backdrop-blur-sm',
         isPersonalWorkspaceContext
           ? 'w-8 justify-center px-0'
-          : 'max-w-[140px] gap-1.5 px-2'
+          : 'max-w-35 gap-1.5 px-2'
       )}
     >
       <Icon className="h-3 w-3 shrink-0" aria-hidden />
