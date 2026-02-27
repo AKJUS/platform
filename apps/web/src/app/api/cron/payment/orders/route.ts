@@ -3,7 +3,7 @@ import { createAdminClient } from '@tuturuuu/supabase/next/server';
 import { DEV_MODE } from '@tuturuuu/utils/constants';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-import { resolveWorkspaceOrderProduct } from '@/utils/workspace-product-helper';
+import { syncOrderToDatabase } from '@/utils/polar-order-helper';
 
 /**
  * Cron job to sync orders from Polar.sh to database
@@ -49,69 +49,16 @@ export async function GET(req: NextRequest) {
 
         // Process each order
         for (const order of orders) {
+          const wsId = order.metadata?.wsId;
+
+          if (!wsId || typeof wsId !== 'string') {
+            skippedCount++;
+            continue;
+          }
+
           try {
-            const wsId = order.metadata?.wsId;
-
-            if (!wsId || typeof wsId !== 'string') {
-              skippedCount++;
-              continue;
-            }
-
-            // Verify workspace exists
-            const { data: workspace, error: workspaceError } = await sbAdmin
-              .from('workspaces')
-              .select('id')
-              .eq('id', wsId)
-              .single();
-
-            if (workspaceError || !workspace) {
-              failedCount++;
-              errors.push(`Workspace ${wsId}: ${workspaceError.message}`);
-              continue;
-            }
-
-            const productResolution = await resolveWorkspaceOrderProduct(
-              sbAdmin,
-              order.productId
-            );
-
-            // Prepare order data
-            const orderData = {
-              ws_id: wsId,
-              polar_order_id: order.id,
-              status: order.status as any,
-              polar_subscription_id: order.subscriptionId,
-              product_id: productResolution.productId,
-              credit_pack_id: productResolution.creditPackId,
-              product_kind: productResolution.productKind,
-              total_amount: order.totalAmount,
-              currency: order.currency,
-              billing_reason: order.billingReason as any,
-              created_at:
-                order.createdAt instanceof Date
-                  ? order.createdAt.toISOString()
-                  : new Date(order.createdAt).toISOString(),
-              updated_at:
-                order.modifiedAt instanceof Date
-                  ? order.modifiedAt.toISOString()
-                  : order.modifiedAt
-                    ? new Date(order.modifiedAt).toISOString()
-                    : null,
-            };
-
-            // Upsert order
-            const { error: dbError } = await sbAdmin
-              .from('workspace_orders')
-              .upsert([orderData], {
-                onConflict: 'polar_order_id',
-              });
-
-            if (dbError) {
-              failedCount++;
-              errors.push(`Order ${order.id}: ${dbError.message}`);
-            } else {
-              processedCount++;
-            }
+            await syncOrderToDatabase(sbAdmin, order);
+            processedCount++;
           } catch (error) {
             failedCount++;
             const errorMessage =

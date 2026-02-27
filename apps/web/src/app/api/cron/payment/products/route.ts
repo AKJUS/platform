@@ -3,11 +3,7 @@ import { createAdminClient } from '@tuturuuu/supabase/next/server';
 import { DEV_MODE } from '@tuturuuu/utils/constants';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-import {
-  isAiCreditPackProduct,
-  parseCreditPackConfig,
-  parseWorkspaceProductTier,
-} from '@/utils/polar-product-metadata';
+import { syncProductToDatabase } from '@/utils/polar-product-helper';
 
 /**
  * Cron job to sync products from Polar.sh to database
@@ -53,98 +49,8 @@ export async function GET(req: NextRequest) {
         // Process each product
         for (const product of products) {
           try {
-            const isCreditPack = isAiCreditPackProduct(product.metadata);
-
-            let dbError: { message: string } | null = null;
-
-            if (isCreditPack) {
-              const config = parseCreditPackConfig(product.metadata);
-              if (!config) {
-                throw new Error(
-                  'Missing or invalid tokens/expiry_days in credit pack metadata'
-                );
-              }
-
-              const firstPrice = product.prices.find((p) => 'amountType' in p);
-              const price =
-                firstPrice?.amountType === 'fixed' ? firstPrice.priceAmount : 0;
-              const currency =
-                typeof firstPrice?.priceCurrency === 'string'
-                  ? firstPrice.priceCurrency.toLowerCase()
-                  : 'usd';
-
-              const upsertResult = await sbAdmin
-                .from('workspace_credit_packs')
-                .upsert(
-                  {
-                    id: product.id,
-                    name: product.name,
-                    description: product.description || '',
-                    price,
-                    currency,
-                    tokens: config.tokens,
-                    expiry_days: config.expiryDays,
-                    archived: product.isArchived ?? false,
-                  },
-                  {
-                    onConflict: 'id',
-                    ignoreDuplicates: false,
-                  }
-                );
-
-              dbError = upsertResult.error;
-            } else {
-              const tier = parseWorkspaceProductTier(product.metadata);
-              if (!tier) {
-                throw new Error('Missing or invalid product_tier in metadata');
-              }
-
-              const firstPrice = product.prices.find((p) => 'amountType' in p);
-              const isSeatBased = firstPrice?.amountType === 'seat_based';
-              const isFixed = firstPrice?.amountType === 'fixed';
-
-              const price = isFixed ? firstPrice.priceAmount : null;
-              const pricePerSeat = isSeatBased
-                ? (firstPrice?.seatTiers?.tiers?.[0]?.pricePerSeat ?? null)
-                : null;
-              const minSeats = isSeatBased
-                ? firstPrice?.seatTiers?.minimumSeats
-                : null;
-              const maxSeats = isSeatBased
-                ? firstPrice?.seatTiers?.maximumSeats
-                : null;
-
-              const upsertResult = await sbAdmin
-                .from('workspace_subscription_products')
-                .upsert(
-                  {
-                    id: product.id,
-                    name: product.name,
-                    description: product.description || '',
-                    price,
-                    recurring_interval: product.recurringInterval || 'month',
-                    tier,
-                    archived: product.isArchived ?? false,
-                    pricing_model: firstPrice?.amountType,
-                    price_per_seat: pricePerSeat,
-                    min_seats: minSeats,
-                    max_seats: maxSeats,
-                  },
-                  {
-                    onConflict: 'id',
-                    ignoreDuplicates: false,
-                  }
-                );
-
-              dbError = upsertResult.error;
-            }
-
-            if (dbError) {
-              failedCount++;
-              errors.push(`Product ${product.id}: ${dbError.message}`);
-            } else {
-              processedCount++;
-            }
+            await syncProductToDatabase(sbAdmin, product);
+            processedCount++;
           } catch (error) {
             failedCount++;
             const errorMessage =

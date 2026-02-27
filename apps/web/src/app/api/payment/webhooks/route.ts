@@ -1,20 +1,15 @@
-import type { Order, Product, Subscription } from '@tuturuuu/payment/polar';
 import { Webhooks } from '@tuturuuu/payment/polar/next';
 import { createPolarClient } from '@tuturuuu/payment/polar/server';
-import type { TypedSupabaseClient } from '@tuturuuu/supabase/next/client';
 import { createAdminClient } from '@tuturuuu/supabase/next/server';
 import { upsertSubscriptionError } from '@/app/api/payment/migrations/helper';
-import {
-  isAiCreditPackProduct,
-  parseCreditPackConfig,
-  parseWorkspaceProductTier,
-} from '@/utils/polar-product-metadata';
+import { syncOrderToDatabase } from '@/utils/polar-order-helper';
+import { syncProductToDatabase } from '@/utils/polar-product-helper';
 import { assignSeatsToAllMembers } from '@/utils/polar-seat-helper';
+import { syncSubscriptionToDatabase } from '@/utils/polar-subscription-helper';
 import {
   createFreeSubscription,
   hasActiveSubscription,
 } from '@/utils/subscription-helper';
-import { resolveWorkspaceOrderProduct } from '@/utils/workspace-product-helper';
 
 // Helper function to report initial seat usage to Polar
 export async function reportInitialUsage(wsId: string, customerId: string) {
@@ -46,255 +41,15 @@ export async function reportInitialUsage(wsId: string, customerId: string) {
   );
 }
 
-// Helper function to sync subscription data from Polar to DB
-export async function syncSubscriptionToDatabase(subscription: Subscription) {
-  const sbAdmin = await createAdminClient();
-
-  const wsId = subscription.metadata?.wsId;
-
-  if (!wsId || typeof wsId !== 'string') {
-    console.error('Webhook Error: Workspace ID not found.');
-    throw new Response('Webhook Error: Workspace ID not found.', {
-      status: 400,
-    });
-  }
-
-  // Check if product is seat-based
-  const { data: product } = await sbAdmin
-    .from('workspace_subscription_products')
-    .select('pricing_model, price_per_seat')
-    .eq('id', subscription.product.id)
-    .single();
-
-  const isSeatBased = product?.pricing_model === 'seat_based';
-  const seatCount = isSeatBased ? (subscription.seats ?? 1) : null;
-
-  const subscriptionData = {
-    ws_id: wsId,
-    status: subscription.status as any,
-    polar_subscription_id: subscription.id,
-    product_id: subscription.product.id,
-    current_period_start:
-      subscription.currentPeriodStart instanceof Date
-        ? subscription.currentPeriodStart.toISOString()
-        : new Date(subscription.currentPeriodStart).toISOString(),
-    current_period_end:
-      subscription.currentPeriodEnd instanceof Date
-        ? subscription.currentPeriodEnd.toISOString()
-        : subscription.currentPeriodEnd
-          ? new Date(subscription.currentPeriodEnd).toISOString()
-          : null,
-    cancel_at_period_end: subscription.cancelAtPeriodEnd ?? false,
-    created_at:
-      subscription.createdAt instanceof Date
-        ? subscription.createdAt.toISOString()
-        : new Date(subscription.createdAt).toISOString(),
-    updated_at:
-      subscription.modifiedAt instanceof Date
-        ? subscription.modifiedAt.toISOString()
-        : subscription.modifiedAt
-          ? new Date(subscription.modifiedAt).toISOString()
-          : null,
-    // Seat-based pricing fields
-    seat_count: seatCount,
-  };
-
-  // Update existing subscription
-  const { error: dbError } = await sbAdmin
-    .from('workspace_subscriptions')
-    .upsert([subscriptionData], {
-      onConflict: 'polar_subscription_id',
-      ignoreDuplicates: false,
-    });
-
-  if (dbError) {
-    console.error('Webhook: Supabase error:', dbError.message);
-    throw new Error(`Database Error: ${dbError.message}`);
-  }
-
-  return { subscriptionData, isSeatBased };
-}
-
-// Helper function to sync order data from Polar to DB
-export async function syncOrderToDatabase(order: Order) {
-  const sbAdmin = (await createAdminClient()) as TypedSupabaseClient;
-  const wsId = order.metadata?.wsId;
-
-  if (!wsId || typeof wsId !== 'string') {
-    console.error('Webhook Error: Workspace ID not found.');
-    throw new Response('Webhook Error: Workspace ID not found.', {
-      status: 400,
-    });
-  }
-
-  const productResolution = await resolveWorkspaceOrderProduct(
-    sbAdmin,
-    order.productId
-  );
-
-  const orderData = {
-    ws_id: wsId,
-    polar_order_id: order.id,
-    status: order.status as any,
-    polar_subscription_id: order.subscriptionId,
-    product_id: productResolution.productId,
-    credit_pack_id: productResolution.creditPackId,
-    product_kind: productResolution.productKind,
-    total_amount: order.totalAmount,
-    currency: order.currency,
-    billing_reason: order.billingReason as any,
-    created_at:
-      order.createdAt instanceof Date
-        ? order.createdAt.toISOString()
-        : new Date(order.createdAt).toISOString(),
-    updated_at:
-      order.modifiedAt instanceof Date
-        ? order.modifiedAt.toISOString()
-        : order.modifiedAt
-          ? new Date(order.modifiedAt).toISOString()
-          : null,
-  };
-
-  // Upsert order data
-  const { error: dbError } = await sbAdmin
-    .from('workspace_orders')
-    .upsert([orderData], {
-      onConflict: 'polar_order_id',
-      ignoreDuplicates: false,
-    });
-
-  if (dbError) {
-    console.error('Webhook: Supabase order error:', dbError.message);
-    throw new Error(`Database Error: ${dbError.message}`);
-  }
-
-  return { wsId, orderData, productKind: productResolution.productKind };
-}
-
-async function upsertSubscriptionProduct(
-  sbAdmin: TypedSupabaseClient,
-  product: Product
-) {
-  const tier = parseWorkspaceProductTier(product.metadata);
-  if (!tier) {
-    throw new Error(
-      `Subscription product ${product.id} is missing valid product_tier metadata`
-    );
-  }
-
-  const firstPrice = product.prices.find((p: any) => 'amountType' in p);
-
-  const isSeatBased = firstPrice?.amountType === 'seat_based';
-  const isFixed = firstPrice?.amountType === 'fixed';
-
-  const price = isFixed ? firstPrice.priceAmount : null;
-
-  const pricePerSeat = isSeatBased
-    ? (firstPrice?.seatTiers?.tiers?.[0]?.pricePerSeat ?? null)
-    : null;
-
-  const minSeats = isSeatBased ? firstPrice?.seatTiers?.minimumSeats : null;
-  const maxSeats = isSeatBased ? firstPrice?.seatTiers?.maximumSeats : null;
-
-  const productData = {
-    id: product.id,
-    name: product.name,
-    description: product.description || '',
-    price,
-    recurring_interval: product.recurringInterval || 'month',
-    tier,
-    archived: product.isArchived ?? false,
-    pricing_model: firstPrice?.amountType,
-    price_per_seat: pricePerSeat,
-    min_seats: minSeats,
-    max_seats: maxSeats,
-  };
-
-  const { error: upsertError } = await sbAdmin
-    .from('workspace_subscription_products')
-    .upsert(productData, {
-      onConflict: 'id',
-      ignoreDuplicates: false,
-    });
-
-  if (upsertError) {
-    throw new Error(
-      `Subscription product upsert error: ${upsertError.message}`
-    );
-  }
-}
-
-async function upsertCreditPackProduct(
-  sbAdmin: TypedSupabaseClient,
-  product: Product
-) {
-  const config = parseCreditPackConfig(product.metadata);
-  if (!config) {
-    throw new Error(
-      `Credit pack ${product.id} is missing metadata tokens/expiry_days`
-    );
-  }
-
-  const firstPrice = product.prices.find((p: any) => 'amountType' in p);
-  const isFixed = firstPrice?.amountType === 'fixed';
-  const price = isFixed ? firstPrice.priceAmount : 0;
-  const currency =
-    typeof firstPrice?.priceCurrency === 'string'
-      ? firstPrice.priceCurrency.toLowerCase()
-      : 'usd';
-
-  const { error: upsertError } = await sbAdmin
-    .from('workspace_credit_packs')
-    .upsert(
-      {
-        id: product.id,
-        name: product.name,
-        description: product.description || '',
-        price,
-        currency,
-        tokens: config.tokens,
-        expiry_days: config.expiryDays,
-        archived: product.isArchived ?? false,
-      },
-      {
-        onConflict: 'id',
-        ignoreDuplicates: false,
-      }
-    );
-
-  if (upsertError) {
-    throw new Error(`Credit pack upsert error: ${upsertError.message}`);
-  }
-}
-
-async function syncProductToDatabase(
-  sbAdmin: TypedSupabaseClient,
-  product: Product
-) {
-  if (isAiCreditPackProduct(product.metadata)) {
-    await upsertCreditPackProduct(sbAdmin, product);
-    return { kind: 'credit_pack' as const };
-  }
-
-  await upsertSubscriptionProduct(sbAdmin, product);
-  return { kind: 'subscription_product' as const };
-}
-
 export const POST = Webhooks({
   webhookSecret: process.env.POLAR_WEBHOOK_SECRET || '',
 
   onProductCreated: async (payload) => {
-    console.log('Product created:', payload);
-
-    const product = payload.data;
-
     try {
       const sbAdmin = await createAdminClient();
+      await syncProductToDatabase(sbAdmin, payload.data);
 
-      const result = await syncProductToDatabase(sbAdmin, product);
-
-      console.log(`Webhook: Product created successfully: ${product.id}`);
-      console.log(`Webhook: Product kind synced: ${result.kind}`);
+      console.log(`Webhook: Product created successfully: ${payload.data.id}`);
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : 'Unknown error';
       console.error(
@@ -306,17 +61,11 @@ export const POST = Webhooks({
   },
 
   onProductUpdated: async (payload) => {
-    console.log('Product updated:', payload);
-
-    const product = payload.data;
-
     try {
       const sbAdmin = await createAdminClient();
+      await syncProductToDatabase(sbAdmin, payload.data);
 
-      const result = await syncProductToDatabase(sbAdmin, product);
-
-      console.log(`Webhook: Product updated successfully: ${product.id}`);
-      console.log(`Webhook: Product kind synced: ${result.kind}`);
+      console.log(`Webhook: Product updated successfully: ${payload.data.id}`);
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : 'Unknown error';
       console.error(
@@ -330,9 +79,13 @@ export const POST = Webhooks({
   // Handle new subscription creation
   onSubscriptionCreated: async (payload) => {
     try {
+      const sbAdmin = await createAdminClient();
       const { subscriptionData, isSeatBased } =
-        await syncSubscriptionToDatabase(payload.data);
+        await syncSubscriptionToDatabase(sbAdmin, payload.data);
+
       console.log('Webhook: Subscription created:', payload.data.id);
+
+      if (!subscriptionData) return;
 
       // Report initial usage for new subscriptions (only non-seat-based)
       // Seat-based subscriptions use Polar Seats entity instead of events
@@ -355,7 +108,7 @@ export const POST = Webhooks({
         );
         try {
           const polar = createPolarClient();
-          const sbAdmin = await createAdminClient();
+
           await assignSeatsToAllMembers(
             polar,
             sbAdmin,
@@ -367,10 +120,6 @@ export const POST = Webhooks({
           console.error('Webhook: Failed to assign seats to members', e);
         }
       }
-
-      console.log(
-        `Webhook: Subscription created for workspace ${subscriptionData.ws_id}.`
-      );
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : 'Unknown error';
       console.error('Webhook: Subscription created error:', errorMessage);
@@ -381,11 +130,13 @@ export const POST = Webhooks({
   // Handle ALL subscription updates (status changes, plan changes, cancellations, etc.)
   onSubscriptionUpdated: async (payload) => {
     try {
+      const sbAdmin = await createAdminClient();
       const { subscriptionData, isSeatBased } =
-        await syncSubscriptionToDatabase(payload.data);
-      console.log(
-        `Webhook: Subscription updated: ${payload.data.id}, status: ${payload.data.status}`
-      );
+        await syncSubscriptionToDatabase(sbAdmin, payload.data);
+
+      console.log(`Webhook: Subscription updated: ${payload.data.id}`);
+
+      if (!subscriptionData) return;
 
       // If subscription just became active, handle usage reporting and seat assignment
       if (payload.data.status === 'active') {
@@ -485,16 +236,17 @@ export const POST = Webhooks({
   // Handle subscription revocation (admin-initiated or Polar-side)
   onSubscriptionRevoked: async (payload) => {
     try {
+      const sbAdmin = await createAdminClient();
       const { subscriptionData } = await syncSubscriptionToDatabase(
+        sbAdmin,
         payload.data
       );
-      console.log(
-        `Webhook: Subscription revoked: ${payload.data.id}, status: ${payload.data.status}`
-      );
+      console.log(`Webhook: Subscription revoked: ${payload.data.id}`);
+
+      if (!subscriptionData) return;
 
       // Check if workspace needs a free subscription (same logic as canceled)
       const polar = createPolarClient();
-      const sbAdmin = await createAdminClient();
 
       const { hasWorkspace, hasActive } = await hasActiveSubscription(
         polar,
@@ -537,10 +289,6 @@ export const POST = Webhooks({
           );
         }
       }
-
-      console.log(
-        `Webhook: Subscription revoked for workspace ${subscriptionData.ws_id}, status: ${payload.data.status}`
-      );
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : 'Unknown error';
       console.error('Webhook: Subscription revoked error:', errorMessage);
@@ -551,11 +299,10 @@ export const POST = Webhooks({
   // Handle new order creation
   onOrderCreated: async (payload) => {
     try {
-      const { wsId, orderData } = await syncOrderToDatabase(payload.data);
-      console.log(
-        `Webhook: Order created: ${payload.data.id}, status: ${orderData.status}, billing_reason: ${orderData.billing_reason}`
-      );
-      console.log(`Webhook: Order created for workspace ${wsId}.`);
+      const sbAdmin = await createAdminClient();
+      await syncOrderToDatabase(sbAdmin, payload.data);
+
+      console.log(`Webhook: Order created: ${payload.data.id}`);
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : 'Unknown error';
       console.error('Webhook: Order created error:', errorMessage);
@@ -566,13 +313,10 @@ export const POST = Webhooks({
   // Handle order updates (status changes, payment confirmations, refunds, etc.)
   onOrderUpdated: async (payload) => {
     try {
-      const { wsId, orderData } = await syncOrderToDatabase(payload.data);
-      console.log(
-        `Webhook: Order updated: ${payload.data.id}, status: ${orderData.status}, billing_reason: ${orderData.billing_reason}`
-      );
-      console.log(
-        `Webhook: Order updated for workspace ${wsId}, new status: ${orderData.status}`
-      );
+      const sbAdmin = await createAdminClient();
+      await syncOrderToDatabase(sbAdmin, payload.data);
+
+      console.log(`Webhook: Order updated: ${payload.data.id}`);
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : 'Unknown error';
       console.error('Webhook: Order updated error:', errorMessage);
