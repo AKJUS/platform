@@ -1,6 +1,7 @@
 """Main Discord bot application."""
 
 import json
+import logging
 import os
 import traceback
 from typing import cast
@@ -13,6 +14,8 @@ from commands import CommandHandler
 from config import DiscordInteractionType, DiscordResponseType
 from markitdown_service import handle_markitdown
 from utils import get_supabase_client
+
+logger = logging.getLogger(__name__)
 
 image = (
     modal.Image.debian_slim(python_version="3.13")
@@ -1228,8 +1231,7 @@ def web_app():
         except HTTPException:
             raise
         except Exception as error:
-            print(f"🤖: markitdown conversion failed: {error}")
-            traceback.print_exc()
+            logger.exception("markitdown conversion failed")
             raise HTTPException(status_code=500, detail="Failed to convert file") from error
 
     return web_app
