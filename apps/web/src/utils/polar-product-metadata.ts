@@ -1,3 +1,4 @@
+import type { Product } from '@tuturuuu/payment/polar';
 import type { WorkspaceProductTier } from '@tuturuuu/types';
 
 const VALID_TIERS: WorkspaceProductTier[] = [
@@ -7,13 +8,7 @@ const VALID_TIERS: WorkspaceProductTier[] = [
   'ENTERPRISE',
 ];
 
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === 'object' && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
-}
-
-function parsePositiveInteger(value: unknown): number | null {
+function parsePositiveInteger(value: any): number | null {
   if (typeof value === 'number' && Number.isFinite(value)) {
     const parsed = Math.trunc(value);
     return parsed > 0 ? parsed : null;
@@ -30,10 +25,9 @@ function parsePositiveInteger(value: unknown): number | null {
 }
 
 export function parseWorkspaceProductTier(
-  metadata: unknown
+  metadata: Product['metadata']
 ): WorkspaceProductTier | null {
-  const record = asRecord(metadata);
-  const tierRaw = record?.product_tier;
+  const tierRaw = metadata?.product_tier;
 
   if (typeof tierRaw !== 'string') {
     return null;
@@ -45,30 +39,18 @@ export function parseWorkspaceProductTier(
     : null;
 }
 
-export function isAiCreditPackProduct(metadata: unknown): boolean {
-  const record = asRecord(metadata);
-  const productType = record?.product_type;
+export function isAiCreditPackProduct(metadata: Product['metadata']): boolean {
+  const productType = metadata?.product_type;
   return (
     typeof productType === 'string' &&
     productType.trim().toLowerCase() === 'ai_credit_pack'
   );
 }
 
-export function parseCreditPackConfig(metadata: unknown): {
-  tokens: number;
-  expiryDays: number;
-} | null {
-  const record = asRecord(metadata);
-  if (!record) return null;
+export function parseCreditPackTokens(
+  metadata: Product['metadata']
+): number | null {
+  const tokens = parsePositiveInteger(metadata?.tokens);
 
-  const tokens = parsePositiveInteger(record.tokens ?? record.credits);
-  const expiryDays = parsePositiveInteger(
-    record.expiry_days ?? record.expiration_days
-  );
-
-  if (!tokens || !expiryDays) {
-    return null;
-  }
-
-  return { tokens, expiryDays };
+  return tokens;
 }

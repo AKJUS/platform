@@ -2,7 +2,7 @@ import type { Product } from '@tuturuuu/payment/polar';
 import type { TypedSupabaseClient } from '@tuturuuu/supabase/next/client';
 import {
   isAiCreditPackProduct,
-  parseCreditPackConfig,
+  parseCreditPackTokens,
   parseWorkspaceProductTier,
 } from '@/utils/polar-product-metadata';
 
@@ -118,20 +118,17 @@ async function upsertCreditPackProduct(
   supabase: TypedSupabaseClient,
   product: Product
 ) {
-  const config = parseCreditPackConfig(product.metadata);
-  if (!config) {
-    throw new Error(
-      `Credit pack ${product.id} is missing metadata tokens/expiry_days`
-    );
+  const tokens = parseCreditPackTokens(product.metadata);
+  if (!tokens) {
+    throw new Error(`Credit pack ${product.id} is missing metadata tokens`);
   }
 
   const firstPrice = product.prices.find((p: any) => 'amountType' in p);
   const isFixed = firstPrice?.amountType === 'fixed';
   const price = isFixed ? firstPrice.priceAmount : 0;
-  const currency =
-    typeof firstPrice?.priceCurrency === 'string'
-      ? firstPrice.priceCurrency.toLowerCase()
-      : 'usd';
+  const currency = firstPrice?.priceCurrency
+    ? firstPrice.priceCurrency.toLowerCase()
+    : 'usd';
 
   const creditPackData = {
     id: product.id,
@@ -139,8 +136,11 @@ async function upsertCreditPackProduct(
     description: product.description || '',
     price,
     currency,
-    tokens: config.tokens,
-    expiry_days: config.expiryDays,
+    tokens,
+    expiry_days: calculateExpiryDays(
+      product.recurringInterval ?? 'month',
+      product.recurringIntervalCount ?? 1
+    ),
     archived: product.isArchived ?? false,
   };
 
@@ -173,4 +173,26 @@ export async function syncProductToDatabase(
   );
 
   return subscriptionProductData;
+}
+
+function calculateExpiryDays(
+  recurringInterval: string,
+  recurringIntervalCount: number
+): number {
+  switch (recurringInterval) {
+    case 'day':
+      return recurringIntervalCount;
+
+    case 'week':
+      return recurringIntervalCount * 7;
+
+    case 'month':
+      return recurringIntervalCount * 30;
+
+    case 'year':
+      return recurringIntervalCount * 365;
+
+    default:
+      throw new Error(`Unsupported recurring interval: ${recurringInterval}`);
+  }
 }

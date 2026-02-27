@@ -1,8 +1,9 @@
 import type { Subscription } from '@tuturuuu/payment/polar';
 import type { TypedSupabaseClient } from '@tuturuuu/supabase/next/client';
+import { addDays, addMonths, addWeeks, addYears } from 'date-fns';
 import {
   isAiCreditPackProduct,
-  parseCreditPackConfig,
+  parseCreditPackTokens,
 } from '@/utils/polar-product-metadata';
 
 async function upsertSubscription(
@@ -57,16 +58,23 @@ async function upsertCreditPackPurchase(
   wsId: string,
   subscription: Subscription
 ) {
-  const config = parseCreditPackConfig(subscription.product.metadata);
-  if (!config) {
+  const tokens = parseCreditPackTokens(subscription.product.metadata);
+  if (!tokens) {
     throw new Error(
-      `Credit pack ${subscription.product.id} is missing metadata tokens/expiry_days`
+      `Credit pack ${subscription.product.id} is missing metadata tokens`
     );
   }
 
-  const grantedAtIso = new Date(subscription.createdAt).toISOString();
-  const expiresAt = new Date(grantedAtIso);
-  expiresAt.setUTCDate(expiresAt.getUTCDate() + Number(config.expiryDays));
+  // Get recurring interval from subscription product
+  const recurringInterval = subscription.product.recurringInterval ?? 'month';
+  const recurringIntervalCount =
+    subscription.product.recurringIntervalCount ?? 1;
+
+  const expiresAt = calculateExpiryDate(
+    subscription.currentPeriodStart,
+    recurringInterval,
+    recurringIntervalCount
+  );
   const expiresAtIso = expiresAt.toISOString();
 
   // Store the actual Polar status for audit trail
@@ -91,23 +99,22 @@ async function upsertCreditPackPurchase(
     );
   }
 
-  let tokensRemaining = existingPurchase?.tokens_remaining ?? config.tokens;
-  if (!existingPurchase && shouldRetainCredits) {
-    tokensRemaining = config.tokens;
-  }
+  let tokensRemaining = 0;
 
-  if (!shouldRetainCredits) {
-    tokensRemaining = 0;
+  if (!existingPurchase) {
+    tokensRemaining = tokens;
+  } else if (shouldRetainCredits) {
+    tokensRemaining = existingPurchase.tokens_remaining;
   }
 
   const purchaseData = {
     ws_id: wsId,
     credit_pack_id: subscription.product.id,
     polar_subscription_id: subscription.id,
-    tokens_granted: config.tokens,
+    tokens_granted: tokens,
     tokens_remaining: tokensRemaining,
-    granted_at: existingPurchase?.granted_at ?? grantedAtIso,
-    expires_at: existingPurchase?.expires_at ?? expiresAtIso,
+    granted_at: subscription.currentPeriodStart.toISOString(),
+    expires_at: expiresAtIso,
     status: status as any,
     updated_at: new Date().toISOString(),
   };
@@ -155,4 +162,27 @@ export async function syncSubscriptionToDatabase(
   );
 
   return { subscriptionData, isSeatBased };
+}
+
+function calculateExpiryDate(
+  baseDate: Date,
+  recurringInterval: string,
+  recurringIntervalCount: number
+): Date {
+  switch (recurringInterval) {
+    case 'day':
+      return addDays(baseDate, recurringIntervalCount);
+
+    case 'week':
+      return addWeeks(baseDate, recurringIntervalCount);
+
+    case 'month':
+      return addMonths(baseDate, recurringIntervalCount);
+
+    case 'year':
+      return addYears(baseDate, recurringIntervalCount);
+
+    default:
+      throw new Error(`Unsupported recurring interval: ${recurringInterval}`);
+  }
 }
