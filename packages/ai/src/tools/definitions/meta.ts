@@ -56,7 +56,7 @@ export const metaToolDefinitions = {
 
   convert_file_to_markdown: tool({
     description:
-      'Convert an attached chat file (Excel, Word, PowerPoint, PDF, etc.) to markdown via MarkItDown. Each call costs 100 AI credits.',
+      'Convert an attached chat file (Excel, Word, PowerPoint, PDF, etc.) to markdown via MarkItDown.',
     inputSchema: z.object({
       storagePath: optionalTrimmedString(1024, 'storagePath').describe(
         'Optional full storage path. If omitted, the latest file from the current chat is converted.'

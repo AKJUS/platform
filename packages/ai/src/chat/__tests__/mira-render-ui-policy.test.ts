@@ -9,7 +9,7 @@ import {
   shouldForceRenderUiForLatestUserMessage,
   shouldPreferMarkdownTablesForLatestUserMessage,
   wasToolEverSelectedInSteps,
-} from './mira-render-ui-policy';
+} from '../mira-render-ui-policy';
 
 describe('mira render_ui policy', () => {
   it('forces render_ui when latest user message explicitly requires it', () => {
