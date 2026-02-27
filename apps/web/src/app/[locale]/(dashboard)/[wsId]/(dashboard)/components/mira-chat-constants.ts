@@ -10,6 +10,8 @@ export const STORAGE_KEY_PREFIX = 'mira-dashboard-chat-';
 export const THINKING_MODE_STORAGE_KEY_PREFIX = 'mira-dashboard-thinking-mode-';
 export const WORKSPACE_CONTEXT_STORAGE_KEY_PREFIX =
   'mira-dashboard-workspace-context-';
+export const WORKSPACE_CONTEXT_EVENT =
+  'mira-dashboard-workspace-context-change';
 export const HOTKEY_NEW_CHAT = 'Alt+Shift+N';
 export const HOTKEY_MODEL_PICKER = 'Alt+Shift+M';
 export const HOTKEY_FULLSCREEN = 'Mod+Alt+F';

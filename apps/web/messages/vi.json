@@ -2926,6 +2926,10 @@
       "using_tools": "Đang xử lý...",
       "view_only": "Chỉ xem",
       "voice_input": "Nhập bằng giọng nói",
+      "workspace_context_label": "Ngữ cảnh",
+      "workspace_context_loading": "Đang tải...",
+      "workspace_context_personal": "Cá nhân",
+      "workspace_context_unknown": "Không gian làm việc",
       "you": "Bạn"
     },
     "multiple_tasks_attention": "{count} nhiệm vụ cần sự chú ý của bạn",

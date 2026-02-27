@@ -9,6 +9,7 @@ import {
   INITIAL_MODEL,
   THINKING_MODE_STORAGE_KEY_PREFIX,
   type ThinkingMode,
+  WORKSPACE_CONTEXT_EVENT,
   WORKSPACE_CONTEXT_STORAGE_KEY_PREFIX,
 } from './mira-chat-constants';
 
@@ -114,9 +115,15 @@ export function useMiraChatConfig({ wsId }: UseMiraChatConfigParams) {
   }, [wsId]);
 
   useEffect(() => {
+    const nextWorkspaceContextId = workspaceContextId || 'personal';
     localStorage.setItem(
       `${WORKSPACE_CONTEXT_STORAGE_KEY_PREFIX}${wsId}`,
-      workspaceContextId || 'personal'
+      nextWorkspaceContextId
+    );
+    window.dispatchEvent(
+      new CustomEvent(WORKSPACE_CONTEXT_EVENT, {
+        detail: { wsId, workspaceContextId: nextWorkspaceContextId },
+      })
     );
   }, [workspaceContextId, wsId]);
 

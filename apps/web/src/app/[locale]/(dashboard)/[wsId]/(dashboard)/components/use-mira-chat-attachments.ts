@@ -234,10 +234,51 @@ export function useMiraChatAttachments({
     });
   }, []);
 
+  const cleanupPendingUploads = useCallback(async () => {
+    const pendingStoragePaths = attachedFilesRef.current
+      .map((file) => file.storagePath)
+      .filter(
+        (path): path is string => typeof path === 'string' && path.length > 0
+      );
+
+    if (pendingStoragePaths.length === 0) return;
+
+    await Promise.all(
+      pendingStoragePaths.map(async (path) => {
+        try {
+          const deleted = await deleteChatFileFromStorageMutation.mutateAsync({
+            wsId,
+            path,
+          });
+          if (deleted.error) {
+            console.error(
+              '[Mira Chat] Failed to delete pending upload during reset:',
+              {
+                wsId,
+                path,
+                error: deleted.error,
+              }
+            );
+          }
+        } catch (error) {
+          console.error(
+            '[Mira Chat] Failed to clean up pending upload during reset:',
+            {
+              wsId,
+              path,
+              error,
+            }
+          );
+        }
+      })
+    );
+  }, [deleteChatFileFromStorageMutation, wsId]);
+
   return {
     attachedFiles,
     attachedFilesRef,
     clearAttachedFiles,
+    cleanupPendingUploads,
     handleFileRemove,
     handleFilesSelected,
     messageAttachments,

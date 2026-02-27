@@ -2926,6 +2926,10 @@
       "using_tools": "Working on it...",
       "view_only": "View only",
       "voice_input": "Voice input",
+      "workspace_context_label": "Context",
+      "workspace_context_loading": "Loading...",
+      "workspace_context_personal": "Personal",
+      "workspace_context_unknown": "Workspace",
       "you": "You"
     },
     "multiple_tasks_attention": "{count} tasks need your attention",

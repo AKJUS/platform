@@ -52,6 +52,7 @@ interface MiraChatHeaderProps {
   t: (...args: any[]) => string;
   thinkingMode: ThinkingMode;
   viewOnly: boolean;
+  workspaceContextBadge?: ReactNode;
 }
 
 export function MiraChatHeader({
@@ -71,6 +72,7 @@ export function MiraChatHeader({
   t,
   thinkingMode,
   viewOnly,
+  workspaceContextBadge,
 }: MiraChatHeaderProps) {
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [isThinkingMenuOpen, setIsThinkingMenuOpen] = useState(false);
@@ -88,6 +90,7 @@ export function MiraChatHeader({
         />
       </div>
       <div className="flex shrink-0 items-center gap-1">
+        {workspaceContextBadge}
         <DropdownMenu
           open={isThinkingMenuOpen}
           onOpenChange={setIsThinkingMenuOpen}
