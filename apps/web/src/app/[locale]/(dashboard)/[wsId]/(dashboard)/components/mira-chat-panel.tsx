@@ -124,11 +124,15 @@ async function fetchSignedReadUrls(
   }
 }
 
-async function uploadChatFileViaSignedUrl(
-  wsId: string,
-  chatId: string | undefined,
-  file: File
-): Promise<{ path: string | null; error: string | null }> {
+async function uploadChatFileMutationFn({
+  wsId,
+  chatId,
+  file,
+}: {
+  wsId: string;
+  chatId: string | undefined;
+  file: File;
+}): Promise<{ path: string | null; error: string | null }> {
   try {
     // 1. Obtain a signed upload URL from our API
     const res = await fetch('/api/ai/chat/upload-url', {
@@ -438,6 +442,10 @@ export default function MiraChatPanel({
 
   const queryClient = useQueryClient();
   const router = useRouter();
+  const uploadChatFileMutation = useMutation({
+    mutationFn: uploadChatFileMutationFn,
+  });
+  const { mutateAsync: uploadChatFileViaSignedUrl } = uploadChatFileMutation;
   const deleteChatFileFromStorageMutation = useMutation({
     mutationFn: deleteChatFileMutationFn,
     onSuccess: async (deleted, variables) => {
@@ -839,11 +847,11 @@ export default function MiraChatPanel({
           )
         );
 
-        const { path, error } = await uploadChatFileViaSignedUrl(
+        const { path, error } = await uploadChatFileViaSignedUrl({
           wsId,
-          chat?.id,
-          chatFile.file
-        );
+          chatId: chat?.id,
+          file: chatFile.file,
+        });
 
         if (error || !path) {
           setAttachedFiles((prev) =>
@@ -879,7 +887,7 @@ export default function MiraChatPanel({
         );
       }
     },
-    [chat?.id, deleteChatFileFromStorage, wsId]
+    [chat?.id, deleteChatFileFromStorage, uploadChatFileViaSignedUrl, wsId]
   );
 
   const handleFileRemove = useCallback(

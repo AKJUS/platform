@@ -242,7 +242,7 @@ export function resolveMessageRenderGroups({
     }
   }
 
-  const sourceParts = message.parts.filter(
+  const sourceParts = (message.parts ?? []).filter(
     (p): p is SourceUrlPart => p.type === 'source-url'
   );
 

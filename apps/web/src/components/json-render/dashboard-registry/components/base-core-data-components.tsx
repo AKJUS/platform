@@ -1,5 +1,6 @@
 'use client';
 
+import { TrendingDown, TrendingUp } from '@tuturuuu/icons';
 import type {
   JsonRenderBarChartProps,
   JsonRenderComponentContext,
@@ -71,7 +72,11 @@ export const dashboardBaseDataComponents = {
                 trend === 'up' ? 'text-dynamic-green' : 'text-dynamic-red'
               )}
             >
-              {trend === 'up' ? '↑' : '↓'}
+              {trend === 'up' ? (
+                <TrendingUp aria-hidden className="size-3.5" />
+              ) : (
+                <TrendingDown aria-hidden className="size-3.5" />
+              )}
               {trendValue}
             </div>
           )}
