@@ -56,6 +56,7 @@ interface MiraChatHeaderProps {
   thinkingMode: ThinkingMode;
   viewOnly: boolean;
   workspaceCreditLocked: boolean;
+  workspaceContextBadge?: ReactNode;
 }
 
 export function MiraChatHeader({
@@ -79,6 +80,7 @@ export function MiraChatHeader({
   thinkingMode,
   viewOnly,
   workspaceCreditLocked,
+  workspaceContextBadge,
 }: MiraChatHeaderProps) {
   const [isCreditSourceMenuOpen, setIsCreditSourceMenuOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
@@ -97,6 +99,7 @@ export function MiraChatHeader({
         />
       </div>
       <div className="flex shrink-0 items-center gap-1">
+        {workspaceContextBadge}
         <DropdownMenu
           open={isCreditSourceMenuOpen}
           onOpenChange={setIsCreditSourceMenuOpen}
@@ -258,7 +261,6 @@ export function MiraChatHeader({
             <DropdownMenuItem
               disabled={!hasMessages}
               onSelect={() => {
-                if (!hasMessages) return;
                 onToggleViewOnly();
                 setIsMoreMenuOpen(false);
               }}

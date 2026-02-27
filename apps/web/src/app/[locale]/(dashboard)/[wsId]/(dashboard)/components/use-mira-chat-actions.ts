@@ -7,7 +7,12 @@ import type { Dispatch, SetStateAction } from 'react';
 import { useCallback } from 'react';
 import { resetGenerativeUIStore } from '@/components/json-render/generative-ui-store';
 import type { MessageFileAttachment } from './file-preview-chips';
-import { STORAGE_KEY_PREFIX, type ThinkingMode } from './mira-chat-constants';
+import {
+  STORAGE_KEY_PREFIX,
+  type ThinkingMode,
+  WORKSPACE_CONTEXT_EVENT,
+  WORKSPACE_CONTEXT_STORAGE_KEY_PREFIX,
+} from './mira-chat-constants';
 import { exportMiraChat } from './mira-chat-export';
 
 interface UseMiraChatActionsParams {
@@ -19,6 +24,7 @@ interface UseMiraChatActionsParams {
   };
   chatId: string;
   clearAttachedFiles: () => void;
+  cleanupPendingUploads: () => Promise<void>;
   fallbackChatId: string;
   gatewayModelId: string;
   messageAttachments: Map<string, MessageFileAttachment[]>;
@@ -42,6 +48,7 @@ interface UseMiraChatActionsParams {
   >;
   setPendingPrompt: (value: string | null) => void;
   setStoredChatId: (value: string | null) => void;
+  setWorkspaceContextId: (value: string) => void;
   stableChatId: string;
   status: string;
   t: (...args: any[]) => string;
@@ -53,6 +60,7 @@ export function useMiraChatActions({
   chat,
   chatId,
   clearAttachedFiles,
+  cleanupPendingUploads,
   fallbackChatId,
   gatewayModelId,
   messageAttachments,
@@ -65,6 +73,7 @@ export function useMiraChatActions({
   setMessageAttachments,
   setPendingPrompt,
   setStoredChatId,
+  setWorkspaceContextId,
   stableChatId,
   status,
   t,
@@ -79,6 +88,10 @@ export function useMiraChatActions({
         const res = await fetch('/api/ai/chat/new', {
           credentials: 'include',
           method: 'POST',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+          },
           body: JSON.stringify({
             id: stableChatId,
             model: gatewayModelId,
@@ -99,7 +112,15 @@ export function useMiraChatActions({
           id: string;
           title?: string;
         };
-        if (!id) return;
+        if (!id) {
+          console.error('[Mira Chat] Chat creation returned no id', {
+            stableChatId,
+            gatewayModelId,
+          });
+          toast.error(t('error'));
+          setPendingPrompt(null);
+          return;
+        }
 
         setChat({
           id,
@@ -135,22 +156,35 @@ export function useMiraChatActions({
 
   const resetConversationState = useCallback(() => {
     localStorage.removeItem(`${STORAGE_KEY_PREFIX}${wsId}`);
+    localStorage.setItem(
+      `${WORKSPACE_CONTEXT_STORAGE_KEY_PREFIX}${wsId}`,
+      'personal'
+    );
+    window.dispatchEvent(
+      new CustomEvent(WORKSPACE_CONTEXT_EVENT, {
+        detail: { wsId, workspaceContextId: 'personal' },
+      })
+    );
     setChat(undefined);
     setStoredChatId(null);
     setPendingPrompt(null);
+    setWorkspaceContextId('personal');
     setInput('');
     clearAttachedFiles();
     setMessageAttachments(new Map());
     resetGenerativeUIStore();
     setFallbackChatId(generateRandomUUID());
+    return cleanupPendingUploads();
   }, [
     clearAttachedFiles,
+    cleanupPendingUploads,
     setChat,
     setFallbackChatId,
     setInput,
     setMessageAttachments,
     setPendingPrompt,
     setStoredChatId,
+    setWorkspaceContextId,
     wsId,
   ]);
 

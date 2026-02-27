@@ -20,29 +20,30 @@ export async function fetchSignedReadUrlsMutationFn(
 ): Promise<Map<string, string>> {
   if (paths.length === 0) return new Map();
 
-  try {
-    const res = await fetch('/api/ai/chat/signed-read-url', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ paths }),
-    });
+  const res = await fetch('/api/ai/chat/signed-read-url', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ paths }),
+  });
 
-    if (!res.ok) return new Map();
-
-    const { urls } = (await res.json()) as {
-      urls: Array<{ path: string; signedUrl: string | null }>;
-    };
-    const map = new Map<string, string>();
-
-    for (const url of urls) {
-      if (url.signedUrl) map.set(url.path, url.signedUrl);
-    }
-
-    return map;
-  } catch {
-    return new Map();
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(
+      `Failed to fetch signed read URLs (HTTP ${res.status}): ${body || 'No response body'}`
+    );
   }
+
+  const { urls } = (await res.json()) as {
+    urls: Array<{ path: string; signedUrl: string | null }>;
+  };
+  const map = new Map<string, string>();
+
+  for (const url of urls) {
+    if (url.signedUrl) map.set(url.path, url.signedUrl);
+  }
+
+  return map;
 }
 
 export async function uploadSignedUrlPutMutationFn({
@@ -65,7 +66,7 @@ export async function uploadSignedUrlPutMutationFn({
 
   const shouldUseBlob =
     forceBinaryBlob || contentType === 'application/octet-stream';
-  const body = shouldUseBlob ? new Blob([file], { type: contentType }) : file;
+  const body = shouldUseBlob ? file.slice(0, file.size, contentType) : file;
 
   return fetch(signedUrl, {
     method: 'PUT',
@@ -157,7 +158,7 @@ export async function deleteChatFileMutationFn({
 }: {
   wsId: string;
   path: string;
-}): Promise<boolean> {
+}): Promise<{ path: string | null; error: string | null }> {
   try {
     const res = await fetch('/api/ai/chat/delete-file', {
       method: 'POST',
@@ -166,8 +167,19 @@ export async function deleteChatFileMutationFn({
       body: JSON.stringify({ wsId, path }),
     });
 
-    return res.ok;
-  } catch {
-    return false;
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      const message =
+        (body as { message?: string }).message ??
+        `Failed to delete chat file (HTTP ${res.status})`;
+      return { path: null, error: message };
+    }
+
+    return { path, error: null };
+  } catch (error) {
+    return {
+      path: null,
+      error: error instanceof Error ? error.message : 'Failed to delete file',
+    };
   }
 }

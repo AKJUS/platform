@@ -1,8 +1,17 @@
 'use client';
 
+import { useQuery } from '@tanstack/react-query';
+import { User, Users } from '@tuturuuu/icons';
+import { Badge } from '@tuturuuu/ui/badge';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@tuturuuu/ui/tooltip';
 import { cn } from '@tuturuuu/utils/format';
-import { useState } from 'react';
+import { useTranslations } from 'next-intl';
+import { useEffect, useState } from 'react';
 import { useMiraSoul } from '../hooks/use-mira-soul';
+import {
+  WORKSPACE_CONTEXT_EVENT,
+  WORKSPACE_CONTEXT_STORAGE_KEY_PREFIX,
+} from './mira-chat-constants';
 import MiraChatPanel from './mira-chat-panel';
 
 interface MiraDashboardClientProps {
@@ -52,6 +61,112 @@ function FullscreenGradientBg() {
   );
 }
 
+interface WorkspaceSummary {
+  id: string;
+  name?: string | null;
+}
+
+function MiraWorkspaceContextBadge({ wsId }: { wsId: string }) {
+  const t = useTranslations('dashboard.mira_chat');
+  const [workspaceContextId, setWorkspaceContextId] =
+    useState<string>('personal');
+
+  useEffect(() => {
+    const storageKey = `${WORKSPACE_CONTEXT_STORAGE_KEY_PREFIX}${wsId}`;
+    const syncWorkspaceContext = () => {
+      const stored = localStorage.getItem(storageKey)?.trim();
+      setWorkspaceContextId(stored || 'personal');
+    };
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== storageKey) return;
+      syncWorkspaceContext();
+    };
+
+    const handleWorkspaceContextChange = (event: Event) => {
+      const detail = (
+        event as CustomEvent<{
+          wsId?: string;
+          workspaceContextId?: string;
+        }>
+      ).detail;
+      if (detail?.wsId !== wsId) return;
+      syncWorkspaceContext();
+    };
+
+    syncWorkspaceContext();
+    window.addEventListener('storage', handleStorage);
+    window.addEventListener(
+      WORKSPACE_CONTEXT_EVENT,
+      handleWorkspaceContextChange
+    );
+
+    return () => {
+      window.removeEventListener('storage', handleStorage);
+      window.removeEventListener(
+        WORKSPACE_CONTEXT_EVENT,
+        handleWorkspaceContextChange
+      );
+    };
+  }, [wsId]);
+
+  const { data: workspaces, isLoading } = useQuery({
+    queryKey: ['mira-dashboard-workspaces'],
+    queryFn: async () => {
+      const res = await fetch('/api/workspaces', { cache: 'no-store' });
+      if (!res.ok) {
+        throw new Error(`Failed to load workspaces: ${res.status}`);
+      }
+      return (await res.json()) as WorkspaceSummary[];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const workspaceName =
+    workspaceContextId === 'personal'
+      ? t('workspace_context_personal')
+      : workspaces?.find((workspace) => workspace.id === workspaceContextId)
+          ?.name ||
+        (isLoading
+          ? t('workspace_context_loading')
+          : t('workspace_context_unknown'));
+
+  const Icon = workspaceContextId === 'personal' ? User : Users;
+  const isPersonalWorkspaceContext = workspaceContextId === 'personal';
+
+  const badge = (
+    <Badge
+      variant="outline"
+      title={`${t('workspace_context_label')}: ${workspaceName}`}
+      aria-label={`${t('workspace_context_label')}: ${workspaceName}`}
+      className={cn(
+        'h-8 overflow-hidden border-border/50 bg-background/60 text-foreground text-xs backdrop-blur-sm',
+        isPersonalWorkspaceContext
+          ? 'w-8 justify-center px-0'
+          : 'max-w-35 gap-1.5 px-2'
+      )}
+    >
+      <Icon className="h-3 w-3 shrink-0" aria-hidden />
+      {!isPersonalWorkspaceContext ? (
+        <span className="truncate">{workspaceName}</span>
+      ) : null}
+    </Badge>
+  );
+
+  if (!isPersonalWorkspaceContext) {
+    return badge;
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{badge}</TooltipTrigger>
+      <TooltipContent>
+        {t('workspace_context_label')}: {workspaceName}
+      </TooltipContent>
+    </Tooltip>
+  );
+}
+
 export default function MiraDashboardClient({
   currentUser,
   initialAssistantName,
@@ -61,6 +176,7 @@ export default function MiraDashboardClient({
   const { data: soul } = useMiraSoul();
   const assistantName = soul?.name ?? initialAssistantName;
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [chatPanelResetKey, setChatPanelResetKey] = useState(0);
 
   return (
     <div
@@ -91,6 +207,7 @@ export default function MiraDashboardClient({
           )}
         >
           <MiraChatPanel
+            key={`${wsId}-${chatPanelResetKey}`}
             wsId={wsId}
             assistantName={assistantName}
             userName={
@@ -103,6 +220,10 @@ export default function MiraDashboardClient({
             isFullscreen={isFullscreen}
             insightsDock={!isFullscreen ? children : undefined}
             onToggleFullscreen={() => setIsFullscreen((prev) => !prev)}
+            onResetPanelState={() =>
+              setChatPanelResetKey((current) => current + 1)
+            }
+            workspaceContextBadge={<MiraWorkspaceContextBadge wsId={wsId} />}
           />
         </div>
       </div>

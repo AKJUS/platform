@@ -12,6 +12,8 @@ import {
   INITIAL_MODEL,
   THINKING_MODE_STORAGE_KEY_PREFIX,
   type ThinkingMode,
+  WORKSPACE_CONTEXT_EVENT,
+  WORKSPACE_CONTEXT_STORAGE_KEY_PREFIX,
 } from './mira-chat-constants';
 
 interface UseMiraChatConfigParams {
@@ -22,9 +24,11 @@ export function useMiraChatConfig({ wsId }: UseMiraChatConfigParams) {
   const [model, setModel] = useState<Model>(INITIAL_MODEL);
   const [thinkingMode, setThinkingMode] = useState<ThinkingMode>('fast');
   const [creditSource, setCreditSource] = useState<CreditSource>('workspace');
+  const [workspaceContextId, setWorkspaceContextId] =
+    useState<string>('personal');
 
   const supportsFileInput = useMemo(() => {
-    const tags = (model as { tags?: string[] }).tags;
+    const tags = model.tags;
     return Array.isArray(tags) && tags.includes('file-input');
   }, [model]);
 
@@ -102,6 +106,7 @@ export function useMiraChatConfig({ wsId }: UseMiraChatConfigParams) {
   const chatRequestBody = useMemo(
     () => ({
       wsId,
+      workspaceContextId,
       model: gatewayModelId,
       isMiraMode: true,
       timezone: timezoneForChat,
@@ -115,6 +120,7 @@ export function useMiraChatConfig({ wsId }: UseMiraChatConfigParams) {
       gatewayModelId,
       thinkingMode,
       timezoneForChat,
+      workspaceContextId,
       wsId,
     ]
   );
@@ -172,6 +178,25 @@ export function useMiraChatConfig({ wsId }: UseMiraChatConfigParams) {
     }
   }, [creditSource, workspaceCreditLocked]);
 
+  useEffect(() => {
+    const key = `${WORKSPACE_CONTEXT_STORAGE_KEY_PREFIX}${wsId}`;
+    const stored = localStorage.getItem(key)?.trim();
+    setWorkspaceContextId(stored || 'personal');
+  }, [wsId]);
+
+  useEffect(() => {
+    const nextWorkspaceContextId = workspaceContextId || 'personal';
+    localStorage.setItem(
+      `${WORKSPACE_CONTEXT_STORAGE_KEY_PREFIX}${wsId}`,
+      nextWorkspaceContextId
+    );
+    window.dispatchEvent(
+      new CustomEvent(WORKSPACE_CONTEXT_EVENT, {
+        detail: { wsId, workspaceContextId: nextWorkspaceContextId },
+      })
+    );
+  }, [workspaceContextId, wsId]);
+
   return {
     activeCreditSource,
     chatRequestBody,
@@ -183,6 +208,8 @@ export function useMiraChatConfig({ wsId }: UseMiraChatConfigParams) {
     supportsFileInput,
     thinkingMode,
     setThinkingMode,
+    workspaceContextId,
+    setWorkspaceContextId,
     transport,
     workspaceCreditLocked,
   };

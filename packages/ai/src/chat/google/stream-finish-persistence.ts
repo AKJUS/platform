@@ -217,7 +217,11 @@ export async function persistAssistantResponse({
   const steps = response.steps ?? [];
   const { allToolCalls, allToolResults } = collectToolData(steps);
 
-  if (!response.text && allToolCalls.length === 0) {
+  if (
+    !response.text &&
+    allToolCalls.length === 0 &&
+    allToolResults.length === 0
+  ) {
     console.warn('onFinish: no text and no tool calls — skipping DB save');
     return;
   }

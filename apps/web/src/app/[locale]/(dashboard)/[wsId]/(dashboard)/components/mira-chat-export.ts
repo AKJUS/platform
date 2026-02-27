@@ -47,17 +47,28 @@ export function exportMiraChat({
     });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
-    const safeWs = wsId.replace(/[^a-zA-Z0-9_-]/g, '_');
-    const safeChat = (chatId ?? fallbackChatId).replace(/[^a-zA-Z0-9_-]/g, '_');
-    const safeTimestamp = timestamp.replace(/[:.]/g, '-');
+    let appended = false;
 
-    anchor.href = url;
-    anchor.download = `mira-chat-${safeWs}-${safeChat}-${safeTimestamp}.json`;
-    document.body.appendChild(anchor);
-    anchor.click();
-    document.body.removeChild(anchor);
-    URL.revokeObjectURL(url);
-    toast.success(t('export_chat_success'));
+    try {
+      const safeWs = wsId.replace(/[^a-zA-Z0-9_-]/g, '_');
+      const safeChat = (chatId ?? fallbackChatId).replace(
+        /[^a-zA-Z0-9_-]/g,
+        '_'
+      );
+      const safeTimestamp = timestamp.replace(/[:.]/g, '-');
+
+      anchor.href = url;
+      anchor.download = `mira-chat-${safeWs}-${safeChat}-${safeTimestamp}.json`;
+      document.body.appendChild(anchor);
+      appended = true;
+      anchor.click();
+      toast.success(t('export_chat_success'));
+    } finally {
+      if (appended && document.body.contains(anchor)) {
+        document.body.removeChild(anchor);
+      }
+      URL.revokeObjectURL(url);
+    }
   } catch (error) {
     console.error('[Mira Chat] Failed to export chat:', error);
     toast.error(t('export_chat_failed'));

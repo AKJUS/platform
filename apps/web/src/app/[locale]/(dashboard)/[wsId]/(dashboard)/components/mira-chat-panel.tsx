@@ -36,9 +36,11 @@ interface MiraChatPanelProps {
   userName?: string;
   userAvatarUrl?: string | null;
   insightsDock?: ReactNode;
+  workspaceContextBadge?: ReactNode;
   onVoiceToggle?: () => void;
   isFullscreen?: boolean;
   onToggleFullscreen?: () => void;
+  onResetPanelState?: () => void;
 }
 
 export default function MiraChatPanel({
@@ -47,9 +49,11 @@ export default function MiraChatPanel({
   userName,
   userAvatarUrl,
   insightsDock,
+  workspaceContextBadge,
   onVoiceToggle,
   isFullscreen,
   onToggleFullscreen,
+  onResetPanelState,
 }: MiraChatPanelProps) {
   const t = useTranslations('dashboard.mira_chat');
   const greetingT = useTranslations('dashboard.greeting');
@@ -107,6 +111,7 @@ export default function MiraChatPanel({
     supportsFileInput,
     thinkingMode,
     setThinkingMode,
+    setWorkspaceContextId,
     transport,
     workspaceCreditLocked,
   } = useMiraChatConfig({ wsId });
@@ -114,6 +119,7 @@ export default function MiraChatPanel({
   const {
     attachedFiles,
     clearAttachedFiles,
+    cleanupPendingUploads,
     handleFileRemove,
     handleFilesSelected,
     messageAttachments,
@@ -149,7 +155,7 @@ export default function MiraChatPanel({
     stop,
   } = useChat({
     id: stableChatId,
-    generateId: crypto.randomUUID,
+    generateId: () => crypto.randomUUID(),
     messages: initialMessages,
     transport,
     onError(error) {
@@ -204,6 +210,7 @@ export default function MiraChatPanel({
       chat,
       chatId,
       clearAttachedFiles,
+      cleanupPendingUploads,
       fallbackChatId,
       gatewayModelId,
       messageAttachments,
@@ -216,6 +223,7 @@ export default function MiraChatPanel({
       setMessageAttachments,
       setPendingPrompt,
       setStoredChatId,
+      setWorkspaceContextId,
       stableChatId,
       status,
       t,
@@ -251,6 +259,7 @@ export default function MiraChatPanel({
     queryClient,
     routerRefresh: router.refresh,
     setMessageAttachments,
+    setWorkspaceContextId,
     status,
   });
 
@@ -276,11 +285,13 @@ export default function MiraChatPanel({
   }, [hasMessages, setBottomBarVisible]);
 
   const handleNewConversation = useCallback(() => {
+    if (status === 'submitted' || status === 'streaming') {
+      stop();
+    }
     resetQueue();
-    resetConversationState();
-    setViewOnly(false);
-    setBottomBarVisible(true);
-  }, [resetConversationState, resetQueue, setBottomBarVisible]);
+    void resetConversationState();
+    onResetPanelState?.();
+  }, [onResetPanelState, resetConversationState, resetQueue, status, stop]);
 
   const { hotkeyLabels, modelPickerHotkeySignal } = useMiraChatHotkeys({
     hasMessages,
@@ -314,6 +325,7 @@ export default function MiraChatPanel({
         viewOnly={viewOnly}
         workspaceCreditLocked={workspaceCreditLocked}
         wsId={wsId}
+        workspaceContextBadge={workspaceContextBadge}
       />
 
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">

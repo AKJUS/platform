@@ -30,6 +30,7 @@ export const ChatRequestBodySchema = z.object({
   model: z.string().optional(),
   messages: z.array(UIMessageSchema).optional(),
   wsId: z.string().optional(),
+  workspaceContextId: z.string().optional(),
   isMiraMode: z.boolean().optional(),
   timezone: z.string().optional(),
   thinkingMode: z.enum(['thinking', 'fast']).optional(),
@@ -38,6 +39,15 @@ export const ChatRequestBodySchema = z.object({
 });
 
 export type ChatRequestBody = z.infer<typeof ChatRequestBodySchema>;
+
+function isValidHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
 
 function mapToUIMessageParts(
   parts: z.infer<typeof UIMessageSchema>['parts']
@@ -98,7 +108,8 @@ function mapToUIMessageParts(
     if (
       part.type === 'source-url' &&
       typeof part.sourceId === 'string' &&
-      typeof part.url === 'string'
+      typeof part.url === 'string' &&
+      isValidHttpUrl(part.url)
     ) {
       mappedParts.push({
         type: 'source-url' as const,

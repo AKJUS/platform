@@ -1,10 +1,18 @@
 import { defaultModel } from '@tuturuuu/ai/models';
 import { Calendar, ListTodo, Sparkles, Target } from '@tuturuuu/icons';
 
-export const INITIAL_MODEL = defaultModel!;
+if (!defaultModel) {
+  throw new Error('No default Mira chat model is configured.');
+}
+
+export const INITIAL_MODEL = defaultModel;
 export const STORAGE_KEY_PREFIX = 'mira-dashboard-chat-';
 export const THINKING_MODE_STORAGE_KEY_PREFIX = 'mira-dashboard-thinking-mode-';
 export const CREDIT_SOURCE_STORAGE_KEY_PREFIX = 'mira-dashboard-credit-source-';
+export const WORKSPACE_CONTEXT_STORAGE_KEY_PREFIX =
+  'mira-dashboard-workspace-context-';
+export const WORKSPACE_CONTEXT_EVENT =
+  'mira-dashboard-workspace-context-change';
 export const HOTKEY_NEW_CHAT = 'Alt+Shift+N';
 export const HOTKEY_MODEL_PICKER = 'Alt+Shift+M';
 export const HOTKEY_FULLSCREEN = 'Mod+Alt+F';

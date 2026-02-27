@@ -76,6 +76,12 @@ export const MIRA_TOOL_DIRECTORY: Record<MiraToolName, string> = {
     'Search the web for real-time info (news, prices, weather, facts).',
   convert_file_to_markdown:
     'Convert attached files (Excel, Word, PowerPoint, PDF, etc.) into markdown via MarkItDown. Costs 100 credits per request.',
+  list_accessible_workspaces:
+    'List every workspace you can access, with member counts',
+  get_workspace_context:
+    'Show the current workspace context used for tasks, calendar, and finance queries',
+  set_workspace_context:
+    'Switch the current workspace context for task, calendar, and finance tools',
   update_my_settings: "Update the assistant's personality settings",
   set_theme: 'Switch dark mode, light mode, or system theme',
   render_ui:

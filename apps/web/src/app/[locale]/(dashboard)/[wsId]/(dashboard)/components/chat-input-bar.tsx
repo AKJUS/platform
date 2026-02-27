@@ -198,13 +198,13 @@ export default function ChatInputBar({
         setInput('');
       }}
       className={cn(
-        'flex min-w-0 flex-col rounded-xl border border-border/50 bg-background/80 backdrop-blur-sm',
+        'flex min-w-0 flex-col justify-center rounded-xl border border-border/50 bg-background/80 backdrop-blur-sm',
         'transition-colors focus-within:border-dynamic-purple/30'
       )}
     >
       {/* File preview chips — shown above the textarea when files are attached */}
       {hasFiles && onFileRemove && (
-        <div className="px-2.5 pt-2.5">
+        <div className="px-2 pt-2">
           <FilePreviewChips
             files={files}
             onRemove={onFileRemove}
@@ -214,7 +214,7 @@ export default function ChatInputBar({
       )}
 
       {/* Textarea + action buttons row */}
-      <div className="flex min-w-0 items-end gap-2.5 p-2.5">
+      <div className="flex min-w-0 items-center gap-2 p-2">
         <Textarea
           ref={textareaRef}
           tabIndex={0}
@@ -227,7 +227,7 @@ export default function ChatInputBar({
           placeholder={t('placeholder', { name: assistantName })}
           spellCheck={false}
           disabled={disabled}
-          className="scrollbar-none min-h-10.5 min-w-0 flex-1 resize-none bg-transparent px-2.5 py-2 text-sm placeholder-muted-foreground focus:outline-none"
+          className="scrollbar-none min-h-10.5 min-w-0 flex-1 resize-none bg-transparent px-2 py-2 text-sm placeholder-muted-foreground focus:outline-none"
         />
 
         <div className="flex items-center gap-1">

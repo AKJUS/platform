@@ -17,6 +17,7 @@ interface UseMiraChatEffectsParams {
   setMessageAttachments: Dispatch<
     SetStateAction<Map<string, MessageFileAttachment[]>>
   >;
+  setWorkspaceContextId: (value: string) => void;
   status: string;
 }
 
@@ -28,6 +29,7 @@ export function useMiraChatEffects({
   queryClient,
   routerRefresh,
   setMessageAttachments,
+  setWorkspaceContextId,
   status,
 }: UseMiraChatEffectsParams) {
   const prevStatusRef = useRef(status);
@@ -42,7 +44,7 @@ export function useMiraChatEffects({
     }
   }, [queryClient, routerRefresh, status]);
 
-  const lastToolHandled = useRef<string | null>(null);
+  const handledToolOutputs = useRef(new Set<string>());
   useEffect(() => {
     for (const message of messages) {
       if (message.role !== 'assistant') continue;
@@ -53,24 +55,42 @@ export function useMiraChatEffects({
         if (state !== 'output-available') continue;
 
         const key = `${message.id}-${toolName}`;
-        if (lastToolHandled.current === key) continue;
+        if (handledToolOutputs.current.has(key)) continue;
 
         if (toolName === 'update_my_settings') {
-          lastToolHandled.current = key;
+          handledToolOutputs.current.add(key);
           queryClient.invalidateQueries({
             queryKey: ['mira-soul', 'detail'],
           });
         } else if (toolName === 'set_immersive_mode') {
-          lastToolHandled.current = key;
+          handledToolOutputs.current.add(key);
           const output = (part as { output?: unknown }).output;
           const enabled = (output as { enabled?: boolean })?.enabled;
           if (typeof enabled === 'boolean' && enabled !== isFullscreen) {
             onToggleFullscreen?.();
           }
+        } else if (toolName === 'set_workspace_context') {
+          handledToolOutputs.current.add(key);
+          const output = (part as { output?: unknown }).output;
+          const nextWorkspaceContextId = (
+            output as { workspaceContextId?: unknown }
+          )?.workspaceContextId;
+          if (
+            typeof nextWorkspaceContextId === 'string' &&
+            nextWorkspaceContextId.trim().length > 0
+          ) {
+            setWorkspaceContextId(nextWorkspaceContextId.trim());
+          }
         }
       }
     }
-  }, [isFullscreen, messages, onToggleFullscreen, queryClient]);
+  }, [
+    isFullscreen,
+    messages,
+    onToggleFullscreen,
+    queryClient,
+    setWorkspaceContextId,
+  ]);
 
   const prevMessageIdsRef = useRef(new Set<string>());
   useEffect(() => {

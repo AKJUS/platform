@@ -7,7 +7,9 @@ import {
   hasToolCallInSteps,
   shouldForceGoogleSearchForLatestUserMessage,
   shouldForceRenderUiForLatestUserMessage,
+  shouldForceWorkspaceMembersForLatestUserMessage,
   shouldPreferMarkdownTablesForLatestUserMessage,
+  shouldResolveWorkspaceContextForLatestUserMessage,
   wasToolEverSelectedInSteps,
 } from '../mira-render-ui-policy';
 
@@ -127,6 +129,49 @@ describe('mira render_ui policy', () => {
     const messages: ModelMessage[] = [{ role: 'user', content: '    ' }];
     expect(shouldPreferMarkdownTablesForLatestUserMessage(messages)).toBe(
       false
+    );
+  });
+
+  it('requires workspace context resolution when a named workspace is in the request', () => {
+    const messages: ModelMessage[] = [
+      { role: 'user', content: "what's my tasks in tuturuuu" },
+    ];
+
+    expect(shouldResolveWorkspaceContextForLatestUserMessage(messages)).toBe(
+      true
+    );
+  });
+
+  it('does not mistake status phrasing for a workspace name', () => {
+    const messages: ModelMessage[] = [
+      { role: 'user', content: "what's my tasks in progress" },
+    ];
+
+    expect(shouldResolveWorkspaceContextForLatestUserMessage(messages)).toBe(
+      false
+    );
+  });
+
+  it('forces the workspace members tool for workspace member questions', () => {
+    const messages: ModelMessage[] = [
+      { role: 'user', content: "who's in my workspace?" },
+    ];
+
+    expect(shouldForceWorkspaceMembersForLatestUserMessage(messages)).toBe(
+      true
+    );
+  });
+
+  it('forces workspace context resolution for named workspace member questions', () => {
+    const messages: ModelMessage[] = [
+      { role: 'user', content: "who's in tuturuuu workspace?" },
+    ];
+
+    expect(shouldResolveWorkspaceContextForLatestUserMessage(messages)).toBe(
+      true
+    );
+    expect(shouldForceWorkspaceMembersForLatestUserMessage(messages)).toBe(
+      true
     );
   });
 

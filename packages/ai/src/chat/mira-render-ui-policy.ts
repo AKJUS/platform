@@ -142,6 +142,51 @@ function extractTextFromUserMessage(message: ModelMessage): string {
     .join('\n');
 }
 
+const PRODUCTIVITY_WORKSPACE_SCOPE_CUE_REGEX =
+  /\b(my tasks?|tasks?|calendar|events?|agenda|finance|spending|wallet|transactions?|workspace|workspace members?|members?|teammates?|team)\b/;
+
+const WORKSPACE_MEMBER_CUE_REGEX =
+  /\b(workspace|workspace members?|members?|teammates?|team)\b/;
+
+const WORKSPACE_QUALIFIER_REGEX =
+  /\b(?:in|from|inside|within|under)\s+["'`]?([a-z0-9][\w&./-]*(?:\s+[a-z0-9][\w&./-]*){0,4})["'`]?/i;
+
+const DISALLOWED_WORKSPACE_QUALIFIERS = new Set([
+  'progress',
+  'done',
+  'todo',
+  'to do',
+  'today',
+  'tomorrow',
+  'tonight',
+  'yesterday',
+  'this week',
+  'next week',
+  'upcoming',
+  'overdue',
+  'personal',
+  'my',
+]);
+
+function normalizeWorkspaceQualifierCandidate(candidate: string): string {
+  return candidate
+    .trim()
+    .replace(/[?.,!;:]+$/g, '')
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
+}
+
+function hasExplicitWorkspaceQualifier(text: string): boolean {
+  const match = text.match(WORKSPACE_QUALIFIER_REGEX);
+  if (!match?.[1]) return false;
+
+  const normalizedCandidate = normalizeWorkspaceQualifierCandidate(match[1]);
+  if (!normalizedCandidate) return false;
+  if (DISALLOWED_WORKSPACE_QUALIFIERS.has(normalizedCandidate)) return false;
+
+  return true;
+}
+
 export function shouldForceRenderUiForLatestUserMessage(
   messages: ModelMessage[]
 ): boolean {
@@ -218,6 +263,44 @@ export function shouldPreferMarkdownTablesForLatestUserMessage(
       /\b(render_ui|dashboard|card|chart|graph|widget|visual ui)\b/.test(text);
 
     return !explicitlyVisualUi;
+  }
+
+  return false;
+}
+
+export function shouldResolveWorkspaceContextForLatestUserMessage(
+  messages: ModelMessage[]
+): boolean {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i];
+    if (!message || message.role !== 'user') continue;
+
+    const text = extractTextFromUserMessage(message).toLowerCase();
+    if (!text) return false;
+
+    return (
+      PRODUCTIVITY_WORKSPACE_SCOPE_CUE_REGEX.test(text) &&
+      hasExplicitWorkspaceQualifier(text)
+    );
+  }
+
+  return false;
+}
+
+export function shouldForceWorkspaceMembersForLatestUserMessage(
+  messages: ModelMessage[]
+): boolean {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i];
+    if (!message || message.role !== 'user') continue;
+
+    const text = extractTextFromUserMessage(message).toLowerCase();
+    if (!text) return false;
+
+    return (
+      WORKSPACE_MEMBER_CUE_REGEX.test(text) &&
+      /\b(who(?:'s| is)?|list|show|see|what)\b/.test(text)
+    );
   }
 
   return false;

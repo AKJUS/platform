@@ -10,6 +10,8 @@ export type PrepareMiraToolStepInput = {
   steps: unknown[];
   forceGoogleSearch: boolean;
   forceRenderUi: boolean;
+  needsWorkspaceContextResolution: boolean;
+  needsWorkspaceMembersTool: boolean;
   preferMarkdownTables: boolean;
 };
 
@@ -17,6 +19,8 @@ export function prepareMiraToolStep({
   steps,
   forceGoogleSearch,
   forceRenderUi,
+  needsWorkspaceContextResolution,
+  needsWorkspaceMembersTool,
   preferMarkdownTables,
 }: PrepareMiraToolStepInput): {
   toolChoice?: 'required';
@@ -39,6 +43,54 @@ export function prepareMiraToolStep({
       !(filterRenderUiForMarkdownTables && toolName === 'render_ui') &&
       !(filterSearchForMarkdownTables && toolName === 'google_search')
   );
+
+  if (
+    needsWorkspaceContextResolution &&
+    !hasToolCallInSteps(steps, 'set_workspace_context')
+  ) {
+    const hasListedAccessibleWorkspaces = hasToolCallInSteps(
+      steps,
+      'list_accessible_workspaces'
+    );
+
+    return {
+      toolChoice: 'required',
+      activeTools: hasListedAccessibleWorkspaces
+        ? ['get_workspace_context', 'set_workspace_context', 'select_tools']
+        : [
+            'list_accessible_workspaces',
+            'get_workspace_context',
+            'set_workspace_context',
+            'select_tools',
+          ],
+    };
+  }
+
+  if (
+    needsWorkspaceMembersTool &&
+    !hasToolCallInSteps(steps, 'list_workspace_members')
+  ) {
+    const selected = buildActiveToolsFromSelected(
+      normalizedSelectedTools
+    ).filter(
+      (toolName) =>
+        toolName !== 'no_action_needed' &&
+        toolName !== 'select_tools' &&
+        toolName !== 'get_workspace_context' &&
+        toolName !== 'list_workspace_members'
+    );
+    const active = [
+      'get_workspace_context',
+      'list_workspace_members',
+      ...selected,
+      'select_tools',
+    ];
+
+    return {
+      toolChoice: 'required',
+      activeTools: Array.from(new Set(active)),
+    };
+  }
 
   if (forceGoogleSearch && !hasToolCallInSteps(steps, 'google_search')) {
     const active = buildActiveToolsFromSelected(normalizedSelectedTools)
