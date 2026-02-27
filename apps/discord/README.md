@@ -111,7 +111,7 @@ modal deploy app.py
 ### 6. Continuous Deployment (GitHub Actions)
 
 This repo includes a dedicated workflow at
-[`/.github/workflows/discord-modal-deploy.yml`](/Users/vhpx/Documents/GitHub/platform/.github/workflows/discord-modal-deploy.yml)
+[`/.github/workflows/discord-modal-deploy.yml`](../../.github/workflows/discord-modal-deploy.yml)
 that deploys `apps/discord` to Modal after `Discord Python CI` succeeds on the
 `main` branch. It can also be triggered manually with `workflow_dispatch`.
 
