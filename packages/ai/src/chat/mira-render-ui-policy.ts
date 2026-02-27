@@ -111,7 +111,13 @@ function isRecoveredRenderUiOutput(output: unknown): boolean {
     if (visited.has(current)) continue;
     visited.add(current);
 
-    if (current.recoveredFromInvalidSpec === true) return true;
+    if (
+      current.recoveredFromInvalidSpec === true ||
+      current.autoRecoveredFromInvalidSpec === true ||
+      current.forcedFromRecoveryLoop === true
+    ) {
+      return true;
+    }
 
     queue.push(...extractRenderUiOutputCandidates(current));
   }
@@ -170,7 +176,9 @@ export function shouldForceGoogleSearchForLatestUserMessage(
     if (!text) return false;
 
     const hasExplicitWebLookupRequest =
-      /\b(google|search|look up|lookup|find online|web|internet)\b/.test(text);
+      /\b(google search|search (?:the )?(?:web|internet|online)|web search|internet search|look ?up (?:on )?(?:the )?(?:web|internet|online)|find (?:online|on the web))\b/.test(
+        text
+      );
 
     const hasRealtimeExternalCue =
       /\b(latest|current|right now|up[- ]?to[- ]?date|news|weather|forecast|price|pricing|cost|stock|stocks|exchange rate|score|scores|standings)\b/.test(

@@ -1,5 +1,7 @@
 import { google } from '@ai-sdk/google';
 import { gateway, generateText, stepCountIs } from 'ai';
+import { z } from 'zod';
+import type { MiraToolContext } from '../mira-tools';
 
 const SEARCH_WRAPPER_MODEL = 'google/gemini-2.5-flash-lite';
 
@@ -8,6 +10,37 @@ type SearchSource = {
   title?: string;
   url?: string;
 };
+
+type ToolStepLike = {
+  toolCalls?: Array<{ toolName?: string }>;
+  toolResults?: Array<{ toolName?: string }>;
+};
+
+const SearchArgsSchema = z.object({
+  query: z
+    .string()
+    .transform((value) => value.trim())
+    .refine((value) => value.length > 0, {
+      message: 'Missing required `query`.',
+    })
+    .transform((value) => value.slice(0, 500)),
+});
+
+function hasGoogleSearchCallInSteps(steps: unknown): boolean {
+  if (!Array.isArray(steps)) return false;
+
+  return steps.some((step) => {
+    if (!step || typeof step !== 'object') return false;
+    const typedStep = step as ToolStepLike;
+    const called = (typedStep.toolCalls ?? []).some(
+      (toolCall) => toolCall.toolName === 'google_search'
+    );
+    const hasResult = (typedStep.toolResults ?? []).some(
+      (toolResult) => toolResult.toolName === 'google_search'
+    );
+    return called || hasResult;
+  });
+}
 
 function normalizeSources(value: unknown): SearchSource[] {
   if (!Array.isArray(value)) return [];
@@ -31,30 +64,72 @@ function normalizeSources(value: unknown): SearchSource[] {
   return normalized;
 }
 
-export async function executeGoogleSearch(args: Record<string, unknown>) {
-  const query =
-    typeof args.query === 'string' ? args.query.trim().slice(0, 500) : '';
+async function runGoogleSearchWrapper(query: string, forceTool: boolean) {
+  const prompt = forceTool
+    ? `You must call the google_search tool before producing the final answer.\nSearch the web for the query below and provide an accurate, concise answer with key points and cited sources.\n\nQuery: ${query}`
+    : `Search the web for the query below and provide an accurate, concise answer with key points and cited sources.\n\nQuery: ${query}`;
 
-  if (!query) {
-    return { ok: false, error: 'Missing required `query`.' };
-  }
-
-  const result = await generateText({
+  return generateText({
     model: gateway(SEARCH_WRAPPER_MODEL),
     tools: {
       google_search: google.tools.googleSearch({}),
     },
-    prompt: `Search the web for the query below and provide an accurate, concise answer with key points and cited sources.\n\nQuery: ${query}`,
-    stopWhen: stepCountIs(3),
+    prompt,
+    stopWhen: stepCountIs(4),
+    ...(forceTool ? { toolChoice: 'required' as const } : {}),
   });
+}
 
-  const sources = normalizeSources((result as { sources?: unknown }).sources);
+export async function executeGoogleSearch(
+  args: Record<string, unknown>,
+  _ctx: MiraToolContext
+) {
+  const parsed = SearchArgsSchema.safeParse(args);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      error: parsed.error.issues[0]?.message ?? 'Invalid `query`.',
+    };
+  }
 
-  return {
-    ok: true,
-    query,
-    answer: result.text,
-    sources,
-    sourceCount: sources.length,
-  };
+  const { query } = parsed.data;
+
+  try {
+    let result = await runGoogleSearchWrapper(query, false);
+    let sources = normalizeSources((result as { sources?: unknown }).sources);
+    let wasToolCalled = hasGoogleSearchCallInSteps(
+      (result as { steps?: unknown }).steps
+    );
+
+    if (!wasToolCalled) {
+      result = await runGoogleSearchWrapper(query, true);
+      sources = normalizeSources((result as { sources?: unknown }).sources);
+      wasToolCalled = hasGoogleSearchCallInSteps(
+        (result as { steps?: unknown }).steps
+      );
+    }
+
+    if (!wasToolCalled && sources.length === 0) {
+      return {
+        ok: false,
+        query,
+        error: 'Failed to invoke google_search tool for web-grounded results.',
+      };
+    }
+
+    return {
+      ok: true,
+      query,
+      answer: result.text,
+      sources,
+      sourceCount: sources.length,
+    };
+  } catch (error) {
+    console.error('executeGoogleSearch provider error:', error);
+    return {
+      ok: false,
+      query,
+      error: 'Search provider error. Please try again.',
+    };
+  }
 }

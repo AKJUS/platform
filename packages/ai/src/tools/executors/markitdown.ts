@@ -7,15 +7,6 @@ const CREDIT_FEATURE = 'chat' as const;
 const CREDIT_CHECK_MODEL = 'google/gemini-2.5-flash';
 const MARKITDOWN_LEDGER_MODEL = 'markitdown/conversion';
 
-type BalanceRow = {
-  id: string;
-  ws_id: string | null;
-  user_id: string | null;
-  total_allocated: number | string | null;
-  total_used: number | string | null;
-  bonus_credits: number | string | null;
-};
-
 function stripTimestampPrefix(name: string): string {
   const match = name.match(/^\d+_(.+)$/);
   return match?.[1] ?? name;
@@ -43,87 +34,48 @@ async function deductFixedMarkitdownCredits(
   { ok: true; remainingCredits: number } | { ok: false; error: string }
 > {
   const sbAdmin = await createAdminClient();
+  const { data, error } = await (
+    sbAdmin.rpc as unknown as (
+      fn: string,
+      params: Record<string, unknown>
+    ) => Promise<{ data: unknown; error: { message: string } | null }>
+  )('deduct_fixed_ai_credits', {
+    p_ws_id: ctx.wsId,
+    p_user_id: ctx.userId,
+    p_amount: MARKITDOWN_COST_CREDITS,
+    p_model_id: MARKITDOWN_LEDGER_MODEL,
+    p_feature: CREDIT_FEATURE,
+    p_metadata: {
+      ...metadata,
+      fixedCredits: MARKITDOWN_COST_CREDITS,
+      source: 'markitdown_tool',
+    },
+  });
 
-  const { data: balanceRows, error: balanceError } = await sbAdmin.rpc(
-    'get_or_create_credit_balance',
-    { p_ws_id: ctx.wsId, p_user_id: ctx.userId }
-  );
-
-  if (balanceError) {
-    console.error('MarkItDown: failed to load credit balance:', balanceError);
-    return { ok: false, error: 'Failed to load AI credit balance.' };
-  }
-
-  const balance = (
-    Array.isArray(balanceRows) ? balanceRows[0] : balanceRows
-  ) as BalanceRow | null;
-
-  if (!balance) {
-    return { ok: false, error: 'No AI credit balance available.' };
-  }
-
-  const totalAllocated = Number(balance.total_allocated ?? 0);
-  const totalUsed = Number(balance.total_used ?? 0);
-  const bonusCredits = Number(balance.bonus_credits ?? 0);
-  const remainingBefore = totalAllocated + bonusCredits - totalUsed;
-
-  if (remainingBefore < MARKITDOWN_COST_CREDITS) {
-    return {
-      ok: false,
-      error: `Insufficient credits. This conversion needs ${MARKITDOWN_COST_CREDITS} credits.`,
-    };
-  }
-
-  const newTotalUsed = totalUsed + MARKITDOWN_COST_CREDITS;
-
-  const { error: updateError } = await sbAdmin
-    .from('workspace_ai_credit_balances')
-    .update({
-      total_used: newTotalUsed,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', balance.id);
-
-  if (updateError) {
-    console.error('MarkItDown: failed to update credit balance:', updateError);
+  if (error) {
+    console.error('MarkItDown: failed to deduct credits atomically:', error);
     return { ok: false, error: 'Failed to deduct AI credits.' };
   }
 
-  const { error: txError } = await sbAdmin
-    .from('ai_credit_transactions')
-    .insert({
-      ws_id: balance.ws_id ? ctx.wsId : null,
-      user_id: ctx.userId,
-      balance_id: balance.id,
-      transaction_type: 'deduction',
-      amount: -MARKITDOWN_COST_CREDITS,
-      model_id: MARKITDOWN_LEDGER_MODEL,
-      feature: CREDIT_FEATURE,
-      metadata: {
-        ...metadata,
-        fixedCredits: MARKITDOWN_COST_CREDITS,
-        source: 'markitdown_tool',
-      },
-    });
+  const row = (Array.isArray(data) ? data[0] : data) as {
+    success?: boolean;
+    remaining_credits?: number | string;
+    error_code?: string | null;
+  } | null;
 
-  if (txError) {
-    console.error('MarkItDown: failed to insert credit transaction:', txError);
-
-    // Best-effort rollback.
-    await sbAdmin
-      .from('workspace_ai_credit_balances')
-      .update({
-        total_used: totalUsed,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', balance.id);
-
-    return { ok: false, error: 'Failed to record AI credit deduction.' };
+  if (!row?.success) {
+    if (row?.error_code === 'INSUFFICIENT_CREDITS') {
+      return {
+        ok: false,
+        error: `Insufficient credits. This conversion needs ${MARKITDOWN_COST_CREDITS} credits.`,
+      };
+    }
+    return { ok: false, error: 'Failed to deduct AI credits.' };
   }
 
   return {
     ok: true,
-    remainingCredits: totalAllocated + bonusCredits - newTotalUsed,
+    remainingCredits: Number(row.remaining_credits ?? 0),
   };
 }
 
@@ -260,25 +212,52 @@ export async function executeConvertFileToMarkdown(
     };
   }
 
-  const conversionResponse = await fetch(markitdownUrl, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${markitdownSecret}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      signed_url: signedReadUrl,
-      filename: stripTimestampPrefix(selectedFileName),
-      enable_plugins: true,
-    }),
-  });
+  const markitdownTimeoutMs = Number(
+    process.env.MARKITDOWN_TIMEOUT_MS ?? 30000
+  );
+  const abortController = new AbortController();
+  const timeoutId = setTimeout(
+    () => abortController.abort(),
+    markitdownTimeoutMs
+  );
+
+  let conversionResponse: Response;
+  try {
+    conversionResponse = await fetch(markitdownUrl, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${markitdownSecret}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        signed_url: signedReadUrl,
+        filename: stripTimestampPrefix(selectedFileName),
+        enable_plugins: true,
+      }),
+      signal: abortController.signal,
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error && error.name === 'AbortError'
+        ? `MarkItDown conversion timed out after ${markitdownTimeoutMs}ms.`
+        : 'Failed to reach MarkItDown conversion service.';
+    console.error('MarkItDown conversion request failed:', error);
+    return { ok: false, error: message };
+  } finally {
+    clearTimeout(timeoutId);
+  }
 
   if (!conversionResponse.ok) {
-    const body = await conversionResponse.text().catch(() => '');
+    const rawBody = await conversionResponse.text().catch(() => '');
+    const safeMessage = rawBody.replace(/\s+/g, ' ').trim().slice(0, 300);
+    console.error('MarkItDown conversion failed:', {
+      status: conversionResponse.status,
+      body: safeMessage,
+    });
     return {
       ok: false,
       error:
-        body ||
+        safeMessage ||
         `MarkItDown conversion failed with status ${conversionResponse.status}.`,
     };
   }

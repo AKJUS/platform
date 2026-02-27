@@ -26,6 +26,7 @@ import {
   type UIMessage,
 } from 'ai';
 import { type NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { buildMiraContext } from '../../tools/context-builder';
 import {
   createMiraStreamTools,
@@ -48,6 +49,15 @@ export const preferredRegion = 'sin1';
 
 const DEFAULT_MODEL_NAME = 'google/gemini-2.5-flash';
 type ThinkingMode = 'fast' | 'thinking';
+const ChatRequestBodySchema = z.object({
+  id: z.string().min(1),
+  model: z.string().optional(),
+  messages: z.array(z.custom<UIMessage>()).optional(),
+  wsId: z.string().optional(),
+  isMiraMode: z.boolean().optional(),
+  timezone: z.string().optional(),
+  thinkingMode: z.enum(['thinking', 'fast']).optional(),
+});
 
 async function getAllChatFiles(
   wsId: string,
@@ -275,6 +285,17 @@ export function createPOST(
     try {
       const sbAdmin = await createAdminClient();
 
+      const parsedBody = ChatRequestBodySchema.safeParse(await req.json());
+      if (!parsedBody.success) {
+        return NextResponse.json(
+          {
+            error: 'Invalid request body',
+            issues: parsedBody.error.issues,
+          },
+          { status: 400 }
+        );
+      }
+
       const {
         id,
         model = DEFAULT_MODEL_NAME,
@@ -283,18 +304,9 @@ export function createPOST(
         isMiraMode,
         timezone,
         thinkingMode: rawThinkingMode,
-      } = (await req.json()) as {
-        id?: string;
-        model?: string;
-        messages?: UIMessage[];
-        wsId?: string;
-        isMiraMode?: boolean;
-        timezone?: string;
-        thinkingMode?: ThinkingMode;
-      };
+      } = parsedBody.data;
       const thinkingMode: ThinkingMode =
         rawThinkingMode === 'thinking' ? 'thinking' : 'fast';
-      if (!id) return new Response('Missing chat ID', { status: 400 });
       if (!messages) {
         console.error('Missing messages');
         return new Response('Missing messages', { status: 400 });

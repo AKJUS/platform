@@ -60,6 +60,37 @@ describe('mira render_ui policy', () => {
     expect(shouldForceGoogleSearchForLatestUserMessage(messages)).toBe(false);
   });
 
+  it('does not force google_search for workspace search phrasing', () => {
+    const messages: ModelMessage[] = [
+      { role: 'user', content: 'search my tasks and board items' },
+    ];
+
+    expect(shouldForceGoogleSearchForLatestUserMessage(messages)).toBe(false);
+  });
+
+  it('forces google_search for explicit web search phrasing', () => {
+    const messages: ModelMessage[] = [
+      { role: 'user', content: 'search the web for latest tsgo updates' },
+    ];
+
+    expect(shouldForceGoogleSearchForLatestUserMessage(messages)).toBe(true);
+  });
+
+  it('returns false for google_search forcing when there is no user message', () => {
+    const assistantOnly: ModelMessage[] = [
+      { role: 'assistant', content: 'hello' },
+    ];
+    expect(shouldForceGoogleSearchForLatestUserMessage([])).toBe(false);
+    expect(shouldForceGoogleSearchForLatestUserMessage(assistantOnly)).toBe(
+      false
+    );
+  });
+
+  it('returns false for google_search forcing when user content is empty/whitespace', () => {
+    const messages: ModelMessage[] = [{ role: 'user', content: '   ' }];
+    expect(shouldForceGoogleSearchForLatestUserMessage(messages)).toBe(false);
+  });
+
   it('prefers native markdown tables for generic table requests', () => {
     const messages: ModelMessage[] = [
       { role: 'user', content: 'show me a table of useful content' },
@@ -77,6 +108,23 @@ describe('mira render_ui policy', () => {
       },
     ];
 
+    expect(shouldPreferMarkdownTablesForLatestUserMessage(messages)).toBe(
+      false
+    );
+  });
+
+  it('returns false for markdown table preference with no user message', () => {
+    const assistantOnly: ModelMessage[] = [
+      { role: 'assistant', content: 'hello' },
+    ];
+    expect(shouldPreferMarkdownTablesForLatestUserMessage([])).toBe(false);
+    expect(shouldPreferMarkdownTablesForLatestUserMessage(assistantOnly)).toBe(
+      false
+    );
+  });
+
+  it('returns false for markdown table preference when user content is empty/whitespace', () => {
+    const messages: ModelMessage[] = [{ role: 'user', content: '    ' }];
     expect(shouldPreferMarkdownTablesForLatestUserMessage(messages)).toBe(
       false
     );
@@ -190,6 +238,33 @@ describe('mira render_ui policy', () => {
     ];
 
     expect(hasRenderableRenderUiInSteps(steps)).toBe(true);
+  });
+
+  it('ignores render_ui outputs recovered by auto recovery flags', () => {
+    const steps = [
+      {
+        toolResults: [
+          {
+            toolName: 'render_ui',
+            output: {
+              autoRecoveredFromInvalidSpec: true,
+              spec: {
+                root: 'agenda_root',
+                elements: {
+                  agenda_root: {
+                    type: 'Stack',
+                    props: {},
+                    children: [],
+                  },
+                },
+              },
+            },
+          },
+        ],
+      },
+    ];
+
+    expect(hasRenderableRenderUiInSteps(steps)).toBe(false);
   });
 
   it('does not count auto-recovered render_ui outputs as final success', () => {

@@ -4,6 +4,18 @@ import { MIRA_TOOL_NAMES } from '../mira-tool-names';
 
 const validToolSet = new Set<string>(MIRA_TOOL_NAMES);
 
+const requiredTrimmedString = (max: number, field: string) =>
+  z.preprocess(
+    (value) => (typeof value === 'string' ? value.trim() : value),
+    z.string().min(1, `${field} cannot be blank`).max(max)
+  );
+
+const optionalTrimmedString = (max: number, field: string) =>
+  z.preprocess(
+    (value) => (typeof value === 'string' ? value.trim() : value),
+    z.string().min(1, `${field} cannot be blank`).max(max).optional()
+  );
+
 export const metaToolDefinitions = {
   select_tools: tool({
     description:
@@ -36,7 +48,9 @@ export const metaToolDefinitions = {
     description:
       'Search the public web for current, real-time information such as news, pricing, weather, and up-to-date facts.',
     inputSchema: z.object({
-      query: z.string().min(1).max(500).describe('Search query for web lookup'),
+      query: requiredTrimmedString(500, 'query').describe(
+        'Search query for web lookup'
+      ),
     }),
   }),
 
@@ -44,20 +58,12 @@ export const metaToolDefinitions = {
     description:
       'Convert an attached chat file (Excel, Word, PowerPoint, PDF, etc.) to markdown via MarkItDown. Each call costs 100 AI credits.',
     inputSchema: z.object({
-      storagePath: z
-        .string()
-        .max(1024)
-        .optional()
-        .describe(
-          'Optional full storage path. If omitted, the latest file from the current chat is converted.'
-        ),
-      fileName: z
-        .string()
-        .max(255)
-        .optional()
-        .describe(
-          'Optional filename from current chat attachments (for example: "report.xlsx"). Used when storagePath is not provided.'
-        ),
+      storagePath: optionalTrimmedString(1024, 'storagePath').describe(
+        'Optional full storage path. If omitted, the latest file from the current chat is converted.'
+      ),
+      fileName: optionalTrimmedString(255, 'fileName').describe(
+        'Optional filename from current chat attachments (for example: "report.xlsx"). Used when storagePath is not provided.'
+      ),
       maxCharacters: z
         .number()
         .int()
