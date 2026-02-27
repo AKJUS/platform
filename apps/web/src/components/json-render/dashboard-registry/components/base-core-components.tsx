@@ -83,7 +83,7 @@ export const dashboardBaseCoreComponents = {
         props.justify === 'between' && 'justify-between',
         props.justify === 'around' && 'justify-around'
       )}
-      style={{ gap: props.gap ? `${props.gap}px` : '1rem' }}
+      style={{ gap: props.gap !== undefined ? `${props.gap}px` : '1rem' }}
     >
       {children}
     </div>
@@ -96,7 +96,7 @@ export const dashboardBaseCoreComponents = {
       className="grid w-full min-w-0 [&>*]:min-w-0"
       style={{
         gridTemplateColumns: `repeat(${props.cols || 1}, minmax(0, 1fr))`,
-        gap: props.gap ? `${props.gap}px` : '1rem',
+        gap: props.gap !== undefined ? `${props.gap}px` : '1rem',
       }}
     >
       {children}

@@ -136,6 +136,7 @@ export const dashboardBaseActionComponents = {
     const IconComp = props.icon ? resolveRegistryIcon(props.icon) : null;
     return (
       <Button
+        type="button"
         variant={props.variant || 'default'}
         size={props.size || 'default'}
         className="h-auto w-full whitespace-normal break-words"

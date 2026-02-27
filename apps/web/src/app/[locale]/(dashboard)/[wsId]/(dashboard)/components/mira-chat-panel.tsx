@@ -2,7 +2,7 @@
 
 import { ActionProvider, StateProvider } from '@json-render/react';
 import { formatForDisplay, useHotkey } from '@tanstack/react-hotkeys';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { DefaultChatTransport } from '@tuturuuu/ai/core';
 import {
   defaultModel,
@@ -208,10 +208,13 @@ async function uploadChatFileViaSignedUrl(
 
 /** Delete a previously uploaded chat file from Supabase Storage.
  *  Best-effort helper used when users remove an attachment before sending. */
-async function deleteChatFileFromStorage(
-  wsId: string,
-  path: string
-): Promise<boolean> {
+async function deleteChatFileMutationFn({
+  wsId,
+  path,
+}: {
+  wsId: string;
+  path: string;
+}): Promise<boolean> {
   try {
     const res = await fetch('/api/ai/chat/delete-file', {
       method: 'POST',
@@ -435,6 +438,17 @@ export default function MiraChatPanel({
 
   const queryClient = useQueryClient();
   const router = useRouter();
+  const deleteChatFileFromStorageMutation = useMutation({
+    mutationFn: deleteChatFileMutationFn,
+    onSuccess: async (deleted, variables) => {
+      if (!deleted) return;
+      await queryClient.invalidateQueries({
+        queryKey: ['chatFiles', variables.wsId],
+      });
+    },
+  });
+  const { mutateAsync: deleteChatFileFromStorage } =
+    deleteChatFileFromStorageMutation;
 
   useEffect(() => {
     const key = `${THINKING_MODE_STORAGE_KEY_PREFIX}${wsId}`;
@@ -849,7 +863,7 @@ export default function MiraChatPanel({
           (f) => f.id === chatFile.id
         );
         if (!stillAttached) {
-          void deleteChatFileFromStorage(wsId, path);
+          void deleteChatFileFromStorage({ wsId, path });
           continue;
         }
 
@@ -865,7 +879,7 @@ export default function MiraChatPanel({
         );
       }
     },
-    [wsId, chat?.id]
+    [chat?.id, deleteChatFileFromStorage, wsId]
   );
 
   const handleFileRemove = useCallback(
@@ -889,16 +903,17 @@ export default function MiraChatPanel({
       });
 
       if (removedStoragePath) {
-        void deleteChatFileFromStorage(wsId, removedStoragePath).then(
-          (deleted) => {
-            if (!deleted) {
-              toast.error(t('delete_file_failed'));
-            }
+        void deleteChatFileFromStorage({
+          wsId,
+          path: removedStoragePath,
+        }).then((deleted) => {
+          if (!deleted) {
+            toast.error(t('delete_file_failed'));
           }
-        );
+        });
       }
     },
-    [wsId, t] // Reads messageAttachments from ref — no stale closure
+    [deleteChatFileFromStorage, wsId, t] // Reads messageAttachments from ref — no stale closure
   );
 
   /** Snapshot the current attached files as serializable metadata and associate

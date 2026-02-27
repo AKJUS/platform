@@ -28,6 +28,15 @@ describe('parseGoogleSearchSources', () => {
     ]);
   });
 
+  it('accepts plain http URLs', () => {
+    const sources = parseGoogleSearchSources({
+      sources: [{ url: 'http://example.com', title: 'HTTP site' }],
+    });
+
+    expect(sources).toHaveLength(1);
+    expect(sources[0]?.url).toBe('http://example.com');
+  });
+
   it('uses provided sourceId and omits blank title', () => {
     const sources = parseGoogleSearchSources({
       sources: [

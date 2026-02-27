@@ -6,21 +6,12 @@ import type {
   JsonRenderSourceListProps,
 } from '@tuturuuu/types';
 import { Badge } from '@tuturuuu/ui/badge';
-import { getIconComponentByKey } from '@tuturuuu/ui/custom/icon-picker';
 import { cn } from '@tuturuuu/utils/format';
-import type { ComponentType } from 'react';
 import { Streamdown } from 'streamdown';
-import type { IconProps } from '../shared';
-
-type IconComponent = ComponentType<IconProps>;
+import { type IconComponent, resolveRegistryIcon } from './base-core-icon';
 
 const markdownSyntaxPattern =
   /(\*\*|__|`|~~|\[.+\]\(.+\)|^#{1,6}\s|^\s*[-*+]\s|^\s*\d+\.\s)/m;
-
-function resolveRegistryIcon(name?: string): IconComponent | null {
-  if (!name) return null;
-  return getIconComponentByKey(name) ?? null;
-}
 
 function parseSafeHttpUrl(value?: string): URL | null {
   if (!value) return null;

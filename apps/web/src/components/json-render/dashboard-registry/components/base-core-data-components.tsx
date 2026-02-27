@@ -167,7 +167,7 @@ export const dashboardBaseDataComponents = {
                     ...(barColor ? { backgroundColor: barColor } : {}),
                   }}
                 />
-                <div className="absolute -top-8 left-1/2 -translate-x-1/2 scale-0 rounded bg-black/80 px-1.5 py-0.5 text-[10px] text-white transition-all group-hover:scale-100">
+                <div className="absolute -top-8 left-1/2 -translate-x-1/2 scale-0 rounded border border-border/60 bg-popover px-1.5 py-0.5 text-[10px] text-popover-foreground shadow-sm transition-all group-hover:scale-100">
                   {item.value}
                 </div>
               </div>
