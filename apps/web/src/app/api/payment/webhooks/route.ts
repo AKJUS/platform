@@ -1,14 +1,20 @@
-import type { Order, Subscription } from '@tuturuuu/payment/polar';
+import type { Order, Product, Subscription } from '@tuturuuu/payment/polar';
 import { Webhooks } from '@tuturuuu/payment/polar/next';
 import { createPolarClient } from '@tuturuuu/payment/polar/server';
+import type { TypedSupabaseClient } from '@tuturuuu/supabase/next/client';
 import { createAdminClient } from '@tuturuuu/supabase/next/server';
-import type { WorkspaceProductTier } from '@tuturuuu/types';
 import { upsertSubscriptionError } from '@/app/api/payment/migrations/helper';
+import {
+  isAiCreditPackProduct,
+  parseCreditPackConfig,
+  parseWorkspaceProductTier,
+} from '@/utils/polar-product-metadata';
 import { assignSeatsToAllMembers } from '@/utils/polar-seat-helper';
 import {
   createFreeSubscription,
   hasActiveSubscription,
 } from '@/utils/subscription-helper';
+import { resolveWorkspaceOrderProduct } from '@/utils/workspace-product-helper';
 
 // Helper function to report initial seat usage to Polar
 export async function reportInitialUsage(wsId: string, customerId: string) {
@@ -111,7 +117,7 @@ export async function syncSubscriptionToDatabase(subscription: Subscription) {
 
 // Helper function to sync order data from Polar to DB
 export async function syncOrderToDatabase(order: Order) {
-  const sbAdmin = await createAdminClient();
+  const sbAdmin = (await createAdminClient()) as TypedSupabaseClient;
   const wsId = order.metadata?.wsId;
 
   if (!wsId || typeof wsId !== 'string') {
@@ -121,12 +127,19 @@ export async function syncOrderToDatabase(order: Order) {
     });
   }
 
+  const productResolution = await resolveWorkspaceOrderProduct(
+    sbAdmin,
+    order.productId
+  );
+
   const orderData = {
     ws_id: wsId,
     polar_order_id: order.id,
     status: order.status as any,
     polar_subscription_id: order.subscriptionId,
-    product_id: order.productId,
+    product_id: productResolution.productId,
+    credit_pack_id: productResolution.creditPackId,
+    product_kind: productResolution.productKind,
     total_amount: order.totalAmount,
     currency: order.currency,
     billing_reason: order.billingReason as any,
@@ -155,7 +168,116 @@ export async function syncOrderToDatabase(order: Order) {
     throw new Error(`Database Error: ${dbError.message}`);
   }
 
-  return { wsId, orderData };
+  return { wsId, orderData, productKind: productResolution.productKind };
+}
+
+async function upsertSubscriptionProduct(
+  sbAdmin: TypedSupabaseClient,
+  product: Product
+) {
+  const tier = parseWorkspaceProductTier(product.metadata);
+  if (!tier) {
+    throw new Error(
+      `Subscription product ${product.id} is missing valid product_tier metadata`
+    );
+  }
+
+  const firstPrice = product.prices.find((p: any) => 'amountType' in p);
+
+  const isSeatBased = firstPrice?.amountType === 'seat_based';
+  const isFixed = firstPrice?.amountType === 'fixed';
+
+  const price = isFixed ? firstPrice.priceAmount : null;
+
+  const pricePerSeat = isSeatBased
+    ? (firstPrice?.seatTiers?.tiers?.[0]?.pricePerSeat ?? null)
+    : null;
+
+  const minSeats = isSeatBased ? firstPrice?.seatTiers?.minimumSeats : null;
+  const maxSeats = isSeatBased ? firstPrice?.seatTiers?.maximumSeats : null;
+
+  const productData = {
+    id: product.id,
+    name: product.name,
+    description: product.description || '',
+    price,
+    recurring_interval: product.recurringInterval || 'month',
+    tier,
+    archived: product.isArchived ?? false,
+    pricing_model: firstPrice?.amountType,
+    price_per_seat: pricePerSeat,
+    min_seats: minSeats,
+    max_seats: maxSeats,
+  };
+
+  const { error: upsertError } = await sbAdmin
+    .from('workspace_subscription_products')
+    .upsert(productData, {
+      onConflict: 'id',
+      ignoreDuplicates: false,
+    });
+
+  if (upsertError) {
+    throw new Error(
+      `Subscription product upsert error: ${upsertError.message}`
+    );
+  }
+}
+
+async function upsertCreditPackProduct(
+  sbAdmin: TypedSupabaseClient,
+  product: Product
+) {
+  const config = parseCreditPackConfig(product.metadata);
+  if (!config) {
+    throw new Error(
+      `Credit pack ${product.id} is missing metadata tokens/expiry_days`
+    );
+  }
+
+  const firstPrice = product.prices.find((p: any) => 'amountType' in p);
+  const isFixed = firstPrice?.amountType === 'fixed';
+  const price = isFixed ? firstPrice.priceAmount : 0;
+  const currency =
+    typeof firstPrice?.priceCurrency === 'string'
+      ? firstPrice.priceCurrency.toLowerCase()
+      : 'usd';
+
+  const { error: upsertError } = await sbAdmin
+    .from('workspace_credit_packs')
+    .upsert(
+      {
+        id: product.id,
+        name: product.name,
+        description: product.description || '',
+        price,
+        currency,
+        tokens: config.tokens,
+        expiry_days: config.expiryDays,
+        archived: product.isArchived ?? false,
+      },
+      {
+        onConflict: 'id',
+        ignoreDuplicates: false,
+      }
+    );
+
+  if (upsertError) {
+    throw new Error(`Credit pack upsert error: ${upsertError.message}`);
+  }
+}
+
+async function syncProductToDatabase(
+  sbAdmin: TypedSupabaseClient,
+  product: Product
+) {
+  if (isAiCreditPackProduct(product.metadata)) {
+    await upsertCreditPackProduct(sbAdmin, product);
+    return { kind: 'credit_pack' as const };
+  }
+
+  await upsertSubscriptionProduct(sbAdmin, product);
+  return { kind: 'subscription_product' as const };
 }
 
 export const POST = Webhooks({
@@ -166,88 +288,13 @@ export const POST = Webhooks({
 
     const product = payload.data;
 
-    // Validate metadata before entering try-catch to ensure proper error response
-    const metadataProductTier = product.metadata?.product_tier;
-
-    if (!metadataProductTier || typeof metadataProductTier !== 'string') {
-      console.error(
-        'Webhook Error: product_tier metadata is missing or invalid.'
-      );
-      throw new Response(
-        'Webhook Error: product_tier metadata is missing or invalid.',
-        {
-          status: 400,
-        }
-      );
-    }
-
-    const tierValue = metadataProductTier.toUpperCase();
-    const validTiers: WorkspaceProductTier[] = [
-      'FREE',
-      'PLUS',
-      'PRO',
-      'ENTERPRISE',
-    ];
-    const tier = validTiers.includes(tierValue as WorkspaceProductTier)
-      ? (tierValue as WorkspaceProductTier)
-      : null;
-
-    if (!tier) {
-      console.error(
-        `Webhook Error: Invalid product_tier value: ${tierValue}. Expected one of: ${validTiers.join(', ')}`
-      );
-      throw new Response(
-        `Webhook Error: Invalid product_tier value: ${tierValue}`,
-        {
-          status: 400,
-        }
-      );
-    }
-
     try {
       const sbAdmin = await createAdminClient();
 
-      const firstPrice = product.prices.find((p) => 'amountType' in p);
-
-      const isSeatBased = firstPrice?.amountType === 'seat_based';
-      const isFixed = firstPrice?.amountType === 'fixed';
-
-      const price = isFixed ? firstPrice.priceAmount : null;
-
-      const pricePerSeat = isSeatBased
-        ? (firstPrice?.seatTiers?.tiers?.[0]?.pricePerSeat ?? null)
-        : null;
-
-      const minSeats = isSeatBased ? firstPrice?.seatTiers?.minimumSeats : null;
-
-      const maxSeats = isSeatBased ? firstPrice?.seatTiers?.maximumSeats : null;
-
-      const productData = {
-        id: product.id,
-        name: product.name,
-        description: product.description || '',
-        price: price,
-        recurring_interval: product.recurringInterval || 'month',
-        tier,
-        archived: product.isArchived ?? false,
-        pricing_model: firstPrice?.amountType,
-        price_per_seat: pricePerSeat,
-        min_seats: minSeats,
-        max_seats: maxSeats,
-      };
-
-      const { error: dbError } = await sbAdmin
-        .from('workspace_subscription_products')
-        .insert(productData);
-
-      if (dbError) {
-        console.error('Webhook: Product insert error:', dbError.message);
-        throw new Response(`Database Error: ${dbError.message}`, {
-          status: 500,
-        });
-      }
+      const result = await syncProductToDatabase(sbAdmin, product);
 
       console.log(`Webhook: Product created successfully: ${product.id}`);
+      console.log(`Webhook: Product kind synced: ${result.kind}`);
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : 'Unknown error';
       console.error(
@@ -263,87 +310,13 @@ export const POST = Webhooks({
 
     const product = payload.data;
 
-    // Validate metadata before entering try-catch to ensure proper error response
-    const metadataProductTier = product.metadata?.product_tier;
-
-    if (!metadataProductTier || typeof metadataProductTier !== 'string') {
-      console.error(
-        'Webhook Error: product_tier metadata is missing or invalid.'
-      );
-      throw new Response(
-        'Webhook Error: product_tier metadata is missing or invalid.',
-        {
-          status: 400,
-        }
-      );
-    }
-
-    const tierValue = metadataProductTier.toUpperCase();
-    const validTiers: WorkspaceProductTier[] = [
-      'FREE',
-      'PLUS',
-      'PRO',
-      'ENTERPRISE',
-    ];
-    const tier = validTiers.includes(tierValue as WorkspaceProductTier)
-      ? (tierValue as WorkspaceProductTier)
-      : null;
-
-    if (!tier) {
-      console.error(
-        `Webhook Error: Invalid product_tier value: ${tierValue}. Expected one of: ${validTiers.join(', ')}`
-      );
-      throw new Response(
-        `Webhook Error: Invalid product_tier value: ${tierValue}`,
-        {
-          status: 400,
-        }
-      );
-    }
-
     try {
       const sbAdmin = await createAdminClient();
 
-      const firstPrice = product.prices.find((p) => 'amountType' in p);
-
-      const isSeatBased = firstPrice?.amountType === 'seat_based';
-      const isFixed = firstPrice?.amountType === 'fixed';
-
-      const price = isFixed ? firstPrice.priceAmount : null;
-
-      const pricePerSeat = isSeatBased
-        ? (firstPrice?.seatTiers?.tiers?.[0]?.pricePerSeat ?? null)
-        : null;
-
-      const minSeats = isSeatBased ? firstPrice?.seatTiers?.minimumSeats : null;
-
-      const maxSeats = isSeatBased ? firstPrice?.seatTiers?.maximumSeats : null;
-
-      const { error: dbError } = await sbAdmin
-        .from('workspace_subscription_products')
-        .update({
-          name: product.name,
-          description: product.description || '',
-          price,
-          recurring_interval: product.recurringInterval as string,
-          tier,
-          archived: product.isArchived,
-          // Seat-based pricing fields
-          pricing_model: firstPrice?.amountType,
-          price_per_seat: pricePerSeat,
-          min_seats: minSeats,
-          max_seats: maxSeats,
-        })
-        .eq('id', product.id);
-
-      if (dbError) {
-        console.error('Webhook: Product upsert error:', dbError.message);
-        throw new Response(`Database Error: ${dbError.message}`, {
-          status: 500,
-        });
-      }
+      const result = await syncProductToDatabase(sbAdmin, product);
 
       console.log(`Webhook: Product updated successfully: ${product.id}`);
+      console.log(`Webhook: Product kind synced: ${result.kind}`);
     } catch (e) {
       const errorMessage = e instanceof Error ? e.message : 'Unknown error';
       console.error(

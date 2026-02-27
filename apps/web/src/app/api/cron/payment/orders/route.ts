@@ -3,6 +3,7 @@ import { createAdminClient } from '@tuturuuu/supabase/next/server';
 import { DEV_MODE } from '@tuturuuu/utils/constants';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
+import { resolveWorkspaceOrderProduct } from '@/utils/workspace-product-helper';
 
 /**
  * Cron job to sync orders from Polar.sh to database
@@ -69,13 +70,20 @@ export async function GET(req: NextRequest) {
               continue;
             }
 
+            const productResolution = await resolveWorkspaceOrderProduct(
+              sbAdmin,
+              order.productId
+            );
+
             // Prepare order data
             const orderData = {
               ws_id: wsId,
               polar_order_id: order.id,
               status: order.status as any,
               polar_subscription_id: order.subscriptionId,
-              product_id: order.productId,
+              product_id: productResolution.productId,
+              credit_pack_id: productResolution.creditPackId,
+              product_kind: productResolution.productKind,
               total_amount: order.totalAmount,
               currency: order.currency,
               billing_reason: order.billingReason as any,
