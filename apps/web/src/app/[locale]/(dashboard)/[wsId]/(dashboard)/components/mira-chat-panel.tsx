@@ -1,48 +1,11 @@
 'use client';
 
-import { ActionProvider, StateProvider } from '@json-render/react';
-import { formatForDisplay, useHotkey } from '@tanstack/react-hotkeys';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { DefaultChatTransport } from '@tuturuuu/ai/core';
-import {
-  defaultModel,
-  getGatewayModelId,
-  type Model,
-} from '@tuturuuu/ai/models';
+import { useQueryClient } from '@tanstack/react-query';
 import { useChat } from '@tuturuuu/ai/react';
 import type { UIMessage } from '@tuturuuu/ai/types';
-import {
-  Brain,
-  Calendar,
-  Download,
-  Ellipsis,
-  Eye,
-  ListTodo,
-  Maximize2,
-  MessageSquarePlus,
-  Minimize2,
-  PanelBottomOpen,
-  Sparkles,
-  Target,
-  Zap,
-} from '@tuturuuu/icons';
-import { createClient } from '@tuturuuu/supabase/next/client';
-import type { AIChat } from '@tuturuuu/types';
-import { Button } from '@tuturuuu/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@tuturuuu/ui/dropdown-menu';
-import { toast } from '@tuturuuu/ui/sonner';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@tuturuuu/ui/tooltip';
-import { cn } from '@tuturuuu/utils/format';
-import { generateRandomUUID } from '@tuturuuu/utils/uuid-helper';
-import { getToolName, isToolUIPart } from 'ai';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import type { ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { handlers as jsonRenderHandlers } from '@/components/json-render/dashboard-registry';
 import {
@@ -51,227 +14,32 @@ import {
 } from '@/components/json-render/dashboard-registry/shared';
 import {
   createGenerativeUIAdapter,
-  resetGenerativeUIStore,
   useGenerativeUIStore,
 } from '@/components/json-render/generative-ui-store';
-import { resolveTimezone } from '@/lib/calendar-settings-resolver';
-import ChatInputBar from './chat-input-bar';
-import ChatMessageList from './chat-message-list';
-import type { ChatFile, MessageFileAttachment } from './file-preview-chips';
-import MiraCreditBar from './mira-credit-bar';
-import MiraModelSelector from './mira-model-selector';
-import MiraNameBadge from './mira-name-badge';
-import QuickActionChips from './quick-action-chips';
+import { MiraChatBottomBar } from './mira-chat-bottom-bar';
+import { getGreetingKey } from './mira-chat-constants';
+import { MiraChatConversation } from './mira-chat-conversation';
+import { MiraChatEmptyState } from './mira-chat-empty-state';
+import { MiraChatHeader } from './mira-chat-header';
+import { useMiraBottomBarVisibility } from './use-mira-bottom-bar-visibility';
+import { useMiraChatActions } from './use-mira-chat-actions';
+import { useMiraChatAttachments } from './use-mira-chat-attachments';
+import { useMiraChatConfig } from './use-mira-chat-config';
+import { useMiraChatEffects } from './use-mira-chat-effects';
+import { useMiraChatHotkeys } from './use-mira-chat-hotkeys';
+import { useMiraChatPersistence } from './use-mira-chat-persistence';
+import { useMiraMessageQueue } from './use-mira-message-queue';
 
 interface MiraChatPanelProps {
   wsId: string;
   assistantName: string;
   userName?: string;
   userAvatarUrl?: string | null;
-  insightsDock?: React.ReactNode;
+  insightsDock?: ReactNode;
   onVoiceToggle?: () => void;
   isFullscreen?: boolean;
   onToggleFullscreen?: () => void;
 }
-
-const OFFICE_MIME_TYPES = new Set([
-  'application/vnd.ms-excel',
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  'application/vnd.ms-powerpoint',
-  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-  'application/msword',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-]);
-
-function getUploadContentType(file: File): string {
-  const mime = file.type.toLowerCase();
-  if (OFFICE_MIME_TYPES.has(mime)) return 'application/octet-stream';
-  return mime || 'application/octet-stream';
-}
-
-/** Upload a file to Supabase Storage via a server-generated signed upload URL.
- *  1. POST /api/ai/chat/upload-url to obtain a signed URL + token
- *  2. PUT the file directly to Supabase Storage using that URL
- *
- *  Path logic lives server-side:
- *  - No chatId → temp path `{wsId}/chats/ai/resources/temp/{userId}/…`
- *  - With chatId → chat path `{wsId}/chats/ai/resources/{chatId}/…`
- *  The AI route automatically moves temp files on the first message. */
-/** Fetch signed read URLs for the given storage paths.
- *  Returns a Map from path → signedUrl. Non-critical — returns empty map on failure. */
-async function fetchSignedReadUrls(
-  paths: string[]
-): Promise<Map<string, string>> {
-  if (paths.length === 0) return new Map();
-  try {
-    const res = await fetch('/api/ai/chat/signed-read-url', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ paths }),
-    });
-    if (!res.ok) return new Map();
-    const { urls } = (await res.json()) as {
-      urls: Array<{ path: string; signedUrl: string | null }>;
-    };
-    const map = new Map<string, string>();
-    for (const u of urls) {
-      if (u.signedUrl) map.set(u.path, u.signedUrl);
-    }
-    return map;
-  } catch {
-    return new Map();
-  }
-}
-
-async function uploadChatFileMutationFn({
-  wsId,
-  chatId,
-  file,
-}: {
-  wsId: string;
-  chatId: string | undefined;
-  file: File;
-}): Promise<{ path: string | null; error: string | null }> {
-  try {
-    // 1. Obtain a signed upload URL from our API
-    const res = await fetch('/api/ai/chat/upload-url', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ filename: file.name, wsId, chatId }),
-    });
-
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      const msg =
-        (body as { message?: string }).message ?? `HTTP ${res.status}`;
-      console.error('[Mira Chat] Failed to get signed URL:', msg);
-      return { path: null, error: msg };
-    }
-
-    const { signedUrl, token, path } = (await res.json()) as {
-      signedUrl: string;
-      token: string;
-      path: string;
-    };
-
-    const tryUpload = async (contentType: string, forceBinaryBlob = false) => {
-      const headers: HeadersInit = {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': contentType,
-      };
-
-      const shouldUseBlob =
-        forceBinaryBlob || contentType === 'application/octet-stream';
-      const body = shouldUseBlob
-        ? new Blob([file], { type: contentType })
-        : file;
-
-      return fetch(signedUrl, {
-        method: 'PUT',
-        headers,
-        body,
-      });
-    };
-
-    // 2. Upload the file directly to Supabase Storage
-    let uploadRes = await tryUpload(getUploadContentType(file));
-    let uploadErrorText = '';
-
-    if (!uploadRes.ok) {
-      uploadErrorText = await uploadRes.text().catch(() => '');
-
-      // Some Supabase buckets reject specific MIME values for Office docs.
-      // Retry once with a forced binary blob and octet-stream content type.
-      if (/unsupported mime type/i.test(uploadErrorText)) {
-        uploadRes = await tryUpload('application/octet-stream', true);
-      }
-    }
-
-    if (!uploadRes.ok) {
-      if (!uploadErrorText) {
-        uploadErrorText = await uploadRes.text().catch(() => '');
-      }
-      console.error('[Mira Chat] Signed upload failed:', uploadErrorText);
-      return {
-        path: null,
-        error: uploadErrorText || `Upload failed (${uploadRes.status})`,
-      };
-    }
-
-    return { path, error: null };
-  } catch (err) {
-    console.error('[Mira Chat] File upload exception:', err);
-    return {
-      path: null,
-      error: err instanceof Error ? err.message : 'Upload failed',
-    };
-  }
-}
-
-/** Delete a previously uploaded chat file from Supabase Storage.
- *  Best-effort helper used when users remove an attachment before sending. */
-async function deleteChatFileMutationFn({
-  wsId,
-  path,
-}: {
-  wsId: string;
-  path: string;
-}): Promise<boolean> {
-  try {
-    const res = await fetch('/api/ai/chat/delete-file', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ wsId, path }),
-    });
-    return res.ok;
-  } catch {
-    return false;
-  }
-}
-
-const STORAGE_KEY_PREFIX = 'mira-dashboard-chat-';
-const THINKING_MODE_STORAGE_KEY_PREFIX = 'mira-dashboard-thinking-mode-';
-const INITIAL_MODEL = defaultModel!;
-type ThinkingMode = 'fast' | 'thinking';
-const HOTKEY_NEW_CHAT = 'Alt+Shift+N';
-const HOTKEY_MODEL_PICKER = 'Alt+Shift+M';
-const HOTKEY_FULLSCREEN = 'Mod+Alt+F';
-const HOTKEY_FAST_MODE = 'Mod+Alt+1';
-const HOTKEY_THINKING_MODE = 'Mod+Alt+2';
-const HOTKEY_VIEW_ONLY = 'Mod+Alt+V';
-const HOTKEY_EXPORT = 'Mod+Alt+E';
-
-type GreetingKey =
-  | 'good_morning'
-  | 'good_afternoon'
-  | 'good_evening'
-  | 'good_night';
-
-const emptyStateActions = [
-  {
-    titleKey: 'quick_calendar',
-    descKey: 'quick_calendar_desc',
-    icon: Calendar,
-  },
-  { titleKey: 'quick_tasks', descKey: 'quick_tasks_desc', icon: ListTodo },
-  { titleKey: 'quick_focus', descKey: 'quick_focus_desc', icon: Target },
-  { titleKey: 'quick_log', descKey: 'quick_log_desc', icon: Sparkles },
-] as const;
-
-function getGreetingKey(): GreetingKey {
-  const hour = new Date().getHours();
-  if (hour >= 5 && hour < 12) return 'good_morning';
-  if (hour >= 12 && hour < 17) return 'good_afternoon';
-  if (hour >= 17 && hour < 24) return 'good_evening';
-  return 'good_night';
-}
-
-/** Debounce window for message queueing (ms). Messages sent within this window
- *  after the last one are batched into a single user turn. */
-const QUEUE_DEBOUNCE_MS = 500;
 
 export default function MiraChatPanel({
   wsId,
@@ -285,28 +53,15 @@ export default function MiraChatPanel({
 }: MiraChatPanelProps) {
   const t = useTranslations('dashboard.mira_chat');
   const greetingT = useTranslations('dashboard.greeting');
-  const [chat, setChat] = useState<Partial<AIChat> | undefined>();
-  const [model, setModel] = useState<Model>(INITIAL_MODEL);
-  const [thinkingMode, setThinkingMode] = useState<ThinkingMode>('fast');
+  const router = useRouter();
+  const queryClient = useQueryClient();
   const [input, setInput] = useState('');
-  const greetingKey = useMemo(() => getGreetingKey(), []);
-
-  const supportsFileInput = useMemo(() => {
-    const tags = (model as any).tags as string[] | undefined;
-    return Array.isArray(tags) && tags.includes('file-input');
-  }, [model]);
-  const [pendingPrompt, setPendingPrompt] = useState<string | null>(null);
-  const [initialMessages, setInitialMessages] = useState<UIMessage[]>([]);
-  const [initialLoaded, setInitialLoaded] = useState(false);
+  const [viewOnly, setViewOnly] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const scrollEndTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Zustand-backed store adapter — single source of truth for generative UI
+  const greetingKey = useMemo(() => getGreetingKey(), []);
   const generativeUIStore = useMemo(() => createGenerativeUIAdapter(), []);
 
-  const sendMessageRef = useRef<typeof sendMessage>(null!);
-  const submitTextRef = useRef<((value: string) => void) | null>(null);
   const createTransactionMutation = useCreateTransaction();
   const createTransactionRef = useRef<
     ((params: CreateTransactionInput) => Promise<void>) | null
@@ -315,7 +70,11 @@ export default function MiraChatPanel({
     await createTransactionMutation.mutateAsync(params);
   };
 
-  // json-render action handlers factory expecting state accessors
+  const sendMessageRef = useRef<
+    ((message: UIMessage) => void | Promise<void>) | null
+  >(null);
+  const submitTextRef = useRef<((value: string) => void) | null>(null);
+
   const actionHandlers = useMemo(
     () =>
       jsonRenderHandlers(
@@ -329,152 +88,54 @@ export default function MiraChatPanel({
         },
         () => ({
           ...useGenerativeUIStore.getState().ui,
-          submitText: submitTextRef.current,
-          sendMessage: sendMessageRef.current,
           createTransaction: createTransactionRef.current,
+          sendMessage: sendMessageRef.current,
+          submitText: submitTextRef.current,
         })
       ),
-    [] // Stable handlers
-  );
-
-  // Bottom bar (suggested prompts + input) visibility: hide while scrolling, show after scroll stops
-  const [bottomBarVisible, setBottomBarVisible] = useState(true);
-  // Fullscreen only: view-only mode hides the input panel for a clean read-only view
-  const [viewOnly, setViewOnly] = useState(false);
-  const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
-  const [isThinkingMenuOpen, setIsThinkingMenuOpen] = useState(false);
-  const [modelPickerHotkeySignal, setModelPickerHotkeySignal] = useState(0);
-
-  // ── Message queue for debounced batching ──
-  const messageQueueRef = useRef<string[]>([]);
-  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [queuedText, setQueuedText] = useState<string | null>(null);
-
-  // ── File attachment state ──
-  const [attachedFiles, setAttachedFiles] = useState<ChatFile[]>([]);
-  const attachedFilesRef = useRef(attachedFiles);
-  attachedFilesRef.current = attachedFiles;
-  // Maps message IDs → file metadata so chat-message-list can render previews
-  const [messageAttachments, setMessageAttachments] = useState<
-    Map<string, MessageFileAttachment[]>
-  >(new Map());
-
-  // Keep a ref in sync so callbacks (clearAttachedFiles, handleFileRemove)
-  // always see the latest snapshot even within the same React batch.
-  const messageAttachmentsRef = useRef(messageAttachments);
-  messageAttachmentsRef.current = messageAttachments;
-
-  // Generate a stable chat ID so useChat's internal Chat instance is never
-  // recreated due to id: undefined → auto-generated UUID mismatch.
-  // Regenerated when the user starts a new conversation.
-  const [fallbackChatId, setFallbackChatId] = useState(generateRandomUUID);
-
-  const gatewayModelId = useMemo(
-    () => getGatewayModelId(model.value, model.provider),
-    [model]
-  );
-
-  // User and workspace calendar settings for task CRUD timezone
-  const { data: userCalendarSettings } = useQuery({
-    queryKey: ['users', 'calendar-settings'],
-    queryFn: async () => {
-      const res = await fetch('/api/v1/users/calendar-settings', {
-        cache: 'no-store',
-      });
-      if (!res.ok) return null;
-      const data = await res.json();
-      return data as { timezone?: string | null };
-    },
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const { data: workspaceCalendarSettings } = useQuery({
-    queryKey: ['workspace-calendar-settings', wsId],
-    queryFn: async () => {
-      const res = await fetch(`/api/v1/workspaces/${wsId}/calendar-settings`, {
-        cache: 'no-store',
-      });
-      if (!res.ok) return null;
-      const data = await res.json();
-      return data as { timezone?: string | null };
-    },
-    enabled: !!wsId,
-    staleTime: 5 * 60 * 1000,
-  });
-
-  const timezoneForChat = useMemo(
-    () =>
-      resolveTimezone(
-        userCalendarSettings ?? null,
-        workspaceCalendarSettings ?? null
-      ),
-    [userCalendarSettings, workspaceCalendarSettings]
-  );
-
-  const chatRequestBody = useMemo(
-    () => ({
-      wsId,
-      model: gatewayModelId,
-      isMiraMode: true,
-      timezone: timezoneForChat,
-      thinkingMode,
-    }),
-    [wsId, gatewayModelId, timezoneForChat, thinkingMode]
-  );
-  const chatRequestBodyRef = useRef(chatRequestBody);
-  chatRequestBodyRef.current = chatRequestBody;
-  const transport = useMemo(
-    () =>
-      new DefaultChatTransport({
-        api: '/api/ai/chat',
-        credentials: 'include',
-        // useChat keeps a stable Chat instance for a stable id. Supplying a
-        // resolver here guarantees each request uses the latest model/mode.
-        body: () => chatRequestBodyRef.current,
-      }),
     []
   );
 
-  // Use the server-assigned chat ID when available, otherwise use the stable
-  // fallback. This prevents useChat from recreating its internal Chat instance
-  // on every render (which would discard streamed messages).
+  const {
+    chatRequestBody,
+    gatewayModelId,
+    model,
+    setModel,
+    supportsFileInput,
+    thinkingMode,
+    setThinkingMode,
+    transport,
+  } = useMiraChatConfig({ wsId });
+
+  const {
+    attachedFiles,
+    clearAttachedFiles,
+    handleFileRemove,
+    handleFilesSelected,
+    messageAttachments,
+    messageAttachmentsRef,
+    setMessageAttachments,
+    snapshotAttachmentsForMessage,
+  } = useMiraChatAttachments({
+    wsId,
+    deleteFileFailedMessage: t('delete_file_failed'),
+  });
+
+  const {
+    chat,
+    fallbackChatId,
+    initialMessages,
+    pendingPrompt,
+    setChat,
+    setFallbackChatId,
+    setPendingPrompt,
+    setStoredChatId,
+  } = useMiraChatPersistence({
+    wsId,
+    setMessageAttachments,
+  });
+
   const stableChatId = chat?.id ?? fallbackChatId;
-
-  const queryClient = useQueryClient();
-  const router = useRouter();
-  const uploadChatFileMutation = useMutation({
-    mutationFn: uploadChatFileMutationFn,
-  });
-  const { mutateAsync: uploadChatFileViaSignedUrl } = uploadChatFileMutation;
-  const deleteChatFileFromStorageMutation = useMutation({
-    mutationFn: deleteChatFileMutationFn,
-    onSuccess: async (deleted, variables) => {
-      if (!deleted) return;
-      await queryClient.invalidateQueries({
-        queryKey: ['chatFiles', variables.wsId],
-      });
-    },
-  });
-  const { mutateAsync: deleteChatFileFromStorage } =
-    deleteChatFileFromStorageMutation;
-
-  useEffect(() => {
-    const key = `${THINKING_MODE_STORAGE_KEY_PREFIX}${wsId}`;
-    const stored = localStorage.getItem(key);
-    if (stored === 'fast' || stored === 'thinking') {
-      setThinkingMode(stored);
-    } else {
-      setThinkingMode('fast');
-    }
-  }, [wsId]);
-
-  useEffect(() => {
-    localStorage.setItem(
-      `${THINKING_MODE_STORAGE_KEY_PREFIX}${wsId}`,
-      thinkingMode
-    );
-  }, [wsId, thinkingMode]);
-
   const {
     id: chatId,
     messages,
@@ -483,875 +144,107 @@ export default function MiraChatPanel({
     stop,
   } = useChat({
     id: stableChatId,
-    generateId: generateRandomUUID,
+    generateId: crypto.randomUUID,
     messages: initialMessages,
     transport,
     onError(error) {
       console.error('[Mira Chat] Stream error:', error);
-      toast.error(error?.message || t('error'));
     },
   });
 
-  // Refresh widgets & credits when the assistant finishes responding.
-  // Track the previous status so we only trigger once per completion cycle.
-  const prevStatusRef = useRef(status);
-  useEffect(() => {
-    const prev = prevStatusRef.current;
-    prevStatusRef.current = status;
-
-    const wasBusy = prev === 'submitted' || prev === 'streaming';
-    if (wasBusy && status === 'ready') {
-      queryClient.invalidateQueries({ queryKey: ['ai-credits'] });
-      router.refresh();
-    }
-  }, [status, queryClient, router]);
-
-  // IMPORTANT: useChat keeps the same Chat instance for a stable id and does
-  // not recreate it when `transport` changes. Inject per-request body values
-  // so model/thinking switches apply on the very next message.
-  const sendMessageWithCurrentConfig: typeof sendMessage = useCallback(
-    (message, options) =>
+  const sendMessageWithCurrentConfig = useCallback(
+    (message: UIMessage) =>
       sendMessage(message, {
-        ...options,
-        body: {
-          ...(options?.body ?? {}),
-          ...chatRequestBody,
-        },
+        body: chatRequestBody,
       }),
-    [sendMessage, chatRequestBody]
+    [chatRequestBody, sendMessage]
   );
-
-  // Keep ref in sync so callbacks always use the latest sendMessage
   sendMessageRef.current = sendMessageWithCurrentConfig;
 
   const handleModelChange = useCallback(
-    (nextModel: Model) => {
+    (nextModel: typeof model) => {
       if (
         nextModel.value === model.value &&
         nextModel.provider === model.provider
-      )
+      ) {
         return;
+      }
       setModel(nextModel);
       if (status === 'submitted' || status === 'streaming') stop();
     },
-    [model.value, model.provider, status, stop]
+    [model, setModel, status, stop]
   );
 
   const handleThinkingModeChange = useCallback(
-    (nextMode: ThinkingMode) => {
+    (nextMode: typeof thinkingMode) => {
       if (nextMode === thinkingMode) return;
       setThinkingMode(nextMode);
       if (status === 'submitted' || status === 'streaming') stop();
     },
-    [thinkingMode, status, stop]
+    [setThinkingMode, status, stop, thinkingMode]
   );
 
-  // Invalidate the mira-soul query when Mira updates its own settings via tool.
-  // This ensures the UI (name in header, placeholder, etc.) refreshes immediately.
-  const lastToolHandled = useRef<string | null>(null);
-  useEffect(() => {
-    for (const msg of messages) {
-      if (msg.role !== 'assistant') continue;
-      for (const part of msg.parts ?? []) {
-        if (!isToolUIPart(part)) continue;
-        const toolName = getToolName(part as never);
-        const state = (part as { state?: string }).state;
-
-        if (state !== 'output-available') continue;
-
-        const key = `${msg.id}-${toolName}`;
-        if (lastToolHandled.current === key) continue;
-
-        if (toolName === 'update_my_settings') {
-          lastToolHandled.current = key;
-          queryClient.invalidateQueries({
-            queryKey: ['mira-soul', 'detail'],
-          });
-        } else if (toolName === 'set_immersive_mode') {
-          lastToolHandled.current = key;
-          const output = (part as { output?: unknown }).output;
-          const enabled = (output as { enabled?: boolean })?.enabled;
-          if (typeof enabled === 'boolean' && enabled !== isFullscreen) {
-            onToggleFullscreen?.();
-          }
-        }
-      }
-    }
-  }, [messages, queryClient, isFullscreen, onToggleFullscreen]);
-
-  // Load existing chat from localStorage on mount
-  useEffect(() => {
-    if (initialLoaded) return;
-
-    const loadExistingChat = async () => {
-      const storedChatId = localStorage.getItem(`${STORAGE_KEY_PREFIX}${wsId}`);
-      if (!storedChatId) {
-        setInitialLoaded(true);
-        return;
-      }
-
-      try {
-        const supabase = await createClient();
-        const { data: chatData } = await supabase
-          .from('ai_chats')
-          .select('id, title, model, is_public')
-          .eq('id', storedChatId)
-          .maybeSingle();
-
-        if (!chatData) {
-          localStorage.removeItem(`${STORAGE_KEY_PREFIX}${wsId}`);
-          setInitialLoaded(true);
-          return;
-        }
-
-        // Load messages (include metadata for tool call reconstruction)
-        const { data: messagesData } = await supabase
-          .from('ai_chat_messages')
-          .select('id, role, content, metadata')
-          .eq('chat_id', storedChatId)
-          .order('created_at', { ascending: true });
-
-        if (messagesData?.length) {
-          const uiMessages: UIMessage[] = messagesData
-            .filter(
-              (msg) =>
-                msg.content != null ||
-                (msg.metadata as Record<string, unknown>)?.toolCalls ||
-                (msg.metadata as Record<string, unknown>)?.reasoning
-            )
-            .map((msg) => {
-              const parts: UIMessage['parts'] = [];
-              const meta = msg.metadata as Record<string, unknown> | null;
-
-              // Reconstruct reasoning part (appears before text)
-              const reasoning = meta?.reasoning as string | undefined;
-              if (reasoning) {
-                parts.push({
-                  type: 'reasoning' as const,
-                  text: reasoning,
-                } as UIMessage['parts'][number]);
-              }
-
-              // Add text part if content exists
-              if (msg.content) {
-                parts.push({ type: 'text' as const, text: msg.content });
-              }
-
-              // Reconstruct tool parts from metadata saved by onFinish.
-              // AI SDK v6 serializes tool calls as { toolCallId, toolName, input }
-              // and tool results as { toolCallId, toolName, input, output }.
-              const toolCalls = meta?.toolCalls as
-                | Array<{
-                    toolCallId: string;
-                    toolName: string;
-                    input?: unknown;
-                    args?: unknown; // legacy fallback
-                  }>
-                | undefined;
-              const toolResults = meta?.toolResults as
-                | Array<{
-                    toolCallId: string;
-                    output?: unknown;
-                    result?: unknown; // legacy fallback
-                  }>
-                | undefined;
-
-              if (Array.isArray(toolCalls)) {
-                for (const tc of toolCalls) {
-                  const tr = toolResults?.find(
-                    (r) => r.toolCallId === tc.toolCallId
-                  );
-                  // Use DynamicToolUIPart format (type: 'dynamic-tool')
-                  // since we don't know the TOOLS generic at restore time
-                  parts.push({
-                    type: 'dynamic-tool' as const,
-                    toolName: tc.toolName,
-                    toolCallId: tc.toolCallId,
-                    state: 'output-available' as const,
-                    input: tc.input ?? tc.args ?? {},
-                    output: tr?.output ?? tr?.result ?? null,
-                  });
-                }
-              }
-
-              // Reconstruct source-url parts from persisted sources
-              const sources = meta?.sources as
-                | Array<{
-                    sourceId: string;
-                    url: string;
-                    title?: string;
-                  }>
-                | undefined;
-              if (Array.isArray(sources)) {
-                for (const src of sources) {
-                  parts.push({
-                    type: 'source-url' as const,
-                    sourceId: src.sourceId,
-                    url: src.url,
-                    ...(src.title ? { title: src.title } : {}),
-                  } as UIMessage['parts'][number]);
-                }
-              }
-
-              return {
-                id: msg.id,
-                role: msg.role.toLowerCase() as 'user' | 'assistant',
-                parts,
-              };
-            });
-          setInitialMessages(uiMessages);
-        }
-
-        setChat(chatData);
-
-        // Fetch file attachments from storage and associate with user messages.
-        // Files uploaded to the chat are stored under the chat's resource path.
-        try {
-          const fileUrlsRes = await fetch('/api/ai/chat/file-urls', {
-            method: 'POST',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ wsId, chatId: chatData.id }),
-          });
-          if (fileUrlsRes.ok) {
-            const { files } = (await fileUrlsRes.json()) as {
-              files: Array<{
-                path: string;
-                name: string;
-                size: number;
-                type: string;
-                signedUrl: string | null;
-                createdAt: string | null;
-              }>;
-            };
-            if (files.length > 0) {
-              // Associate all files with the first user message (best-effort).
-              // A more precise approach would store per-message metadata server-side.
-              const firstUserMsg = messagesData?.find(
-                (m) => m.role.toLowerCase() === 'user'
-              );
-              if (firstUserMsg) {
-                const attachments: MessageFileAttachment[] = files.map(
-                  (f, idx) => ({
-                    id: `stored-${idx}`,
-                    name: f.name,
-                    size: f.size,
-                    type: f.type,
-                    previewUrl: null,
-                    storagePath: f.path,
-                    signedUrl: f.signedUrl,
-                  })
-                );
-                setMessageAttachments((prev) =>
-                  new Map(prev).set(firstUserMsg.id, attachments)
-                );
-              }
-            }
-          }
-        } catch {
-          // Non-critical: files simply won't show previews for old messages
-          console.warn('[Mira Chat] Failed to load chat file URLs');
-        }
-      } catch {
-        localStorage.removeItem(`${STORAGE_KEY_PREFIX}${wsId}`);
-      } finally {
-        setInitialLoaded(true);
-      }
-    };
-
-    loadExistingChat();
-  }, [wsId, initialLoaded]);
-
-  // Create a new chat on first message, then send directly via ref
-  // (avoids effect-based indirection that could drop the first message)
-  const createChat = useCallback(
-    async (userInput: string) => {
-      setPendingPrompt(userInput);
-
-      try {
-        const res = await fetch('/api/ai/chat/new', {
-          credentials: 'include',
-          method: 'POST',
-          body: JSON.stringify({
-            id: chatId,
-            model: gatewayModelId,
-            message: userInput,
-            isMiraMode: true,
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-            thinkingMode,
-          }),
-        });
-
-        if (!res.ok) {
-          toast.error(t('error'));
-          setPendingPrompt(null);
-          return;
-        }
-
-        const { id, title } = (await res.json()) as AIChat;
-        if (id) {
-          setChat({
-            id,
-            title,
-            model: gatewayModelId,
-            is_public: false,
-          });
-          localStorage.setItem(`${STORAGE_KEY_PREFIX}${wsId}`, id);
-
-          // Send message directly via ref — bypasses stale closure issues
-          sendMessageWithCurrentConfig({
-            role: 'user',
-            parts: [{ type: 'text', text: userInput }],
-          });
-          setPendingPrompt(null);
-        }
-      } catch {
-        toast.error(t('error'));
-        setPendingPrompt(null);
-      }
-    },
-    [
+  const { createChat, handleExportChat, resetConversationState } =
+    useMiraChatActions({
+      chat,
       chatId,
-      wsId,
-      t,
+      clearAttachedFiles,
+      fallbackChatId,
       gatewayModelId,
-      thinkingMode,
+      messageAttachments,
+      messages,
+      model,
       sendMessageWithCurrentConfig,
-    ]
-  );
-
-  // Flush queued messages: deduplicate, combine, send as one user turn.
-  // ── File attachment handlers ──
-  const handleFilesSelected = useCallback(
-    async (files: File[]) => {
-      // Create ChatFile entries in 'pending' state with preview URLs
-      const newChatFiles: ChatFile[] = files.map((file) => ({
-        id: generateRandomUUID(),
-        file,
-        previewUrl:
-          file.type.startsWith('image/') || file.type.startsWith('video/')
-            ? URL.createObjectURL(file)
-            : null,
-        storagePath: null,
-        signedUrl: null,
-        status: 'pending' as const,
-      }));
-
-      setAttachedFiles((prev) => [...prev, ...newChatFiles]);
-
-      // Upload each file via signed URL, then fetch a persistent signed read URL
-      for (const chatFile of newChatFiles) {
-        setAttachedFiles((prev) =>
-          prev.map((f) =>
-            f.id === chatFile.id ? { ...f, status: 'uploading' } : f
-          )
-        );
-
-        const { path, error } = await uploadChatFileViaSignedUrl({
-          wsId,
-          chatId: chat?.id,
-          file: chatFile.file,
-        });
-
-        if (error || !path) {
-          setAttachedFiles((prev) =>
-            prev.map((f) =>
-              f.id === chatFile.id
-                ? { ...f, storagePath: path, status: 'error' }
-                : f
-            )
-          );
-          toast.error(`Failed to upload ${chatFile.file.name}`);
-          continue;
-        }
-
-        // Fetch a signed read URL so the preview survives blob URL revocation
-        // If user removed this chip while upload was in-flight, clean up storage.
-        const stillAttached = attachedFilesRef.current.some(
-          (f) => f.id === chatFile.id
-        );
-        if (!stillAttached) {
-          void deleteChatFileFromStorage({ wsId, path });
-          continue;
-        }
-
-        const readUrls = await fetchSignedReadUrls([path]);
-        const signedUrl = readUrls.get(path) ?? null;
-
-        setAttachedFiles((prev) =>
-          prev.map((f) =>
-            f.id === chatFile.id
-              ? { ...f, storagePath: path, signedUrl, status: 'uploaded' }
-              : f
-          )
-        );
-      }
-    },
-    [chat?.id, deleteChatFileFromStorage, uploadChatFileViaSignedUrl, wsId]
-  );
-
-  const handleFileRemove = useCallback(
-    (id: string) => {
-      let removedStoragePath: string | null = null;
-      setAttachedFiles((prev) => {
-        const file = prev.find((f) => f.id === id);
-        removedStoragePath = file?.storagePath ?? null;
-        // Revoke preview URL to avoid memory leaks — but only if NOT already
-        // snapshotted into messageAttachments (otherwise the chat display breaks).
-        // Read from ref to avoid stale closure issues.
-        if (file?.previewUrl) {
-          const isSnapshotted = Array.from(
-            messageAttachmentsRef.current.values()
-          ).some((attachments) =>
-            attachments.some((a) => a.previewUrl === file.previewUrl)
-          );
-          if (!isSnapshotted) URL.revokeObjectURL(file.previewUrl);
-        }
-        return prev.filter((f) => f.id !== id);
-      });
-
-      if (removedStoragePath) {
-        void deleteChatFileFromStorage({
-          wsId,
-          path: removedStoragePath,
-        }).then((deleted) => {
-          if (!deleted) {
-            toast.error(t('delete_file_failed'));
-          }
-        });
-      }
-    },
-    [deleteChatFileFromStorage, wsId, t] // Reads messageAttachments from ref — no stale closure
-  );
-
-  /** Snapshot the current attached files as serializable metadata and associate
-   *  them with a message ID so the chat list can render inline previews.
-   *  Also updates the ref immediately so subsequent callbacks in the same
-   *  React batch (e.g. clearAttachedFiles) see the new snapshot. */
-  const snapshotAttachmentsForMessage = useCallback(
-    (messageId: string) => {
-      if (attachedFiles.length === 0) return;
-      const meta: MessageFileAttachment[] = attachedFiles
-        .filter((f) => f.status === 'uploaded')
-        .map((f) => ({
-          id: f.id,
-          name: f.file.name,
-          size: f.file.size,
-          type: f.file.type,
-          previewUrl: f.previewUrl,
-          storagePath: f.storagePath,
-          signedUrl: f.signedUrl ?? null,
-        }));
-      if (meta.length > 0) {
-        setMessageAttachments((prev) => {
-          const next = new Map(prev).set(messageId, meta);
-          // Update ref immediately so clearAttachedFiles (called in the same
-          // synchronous batch) sees the preserved URLs.
-          messageAttachmentsRef.current = next;
-          return next;
-        });
-      }
-    },
-    [attachedFiles]
-  );
-
-  const clearAttachedFiles = useCallback(() => {
-    setAttachedFiles((prev) => {
-      // Collect all preview URLs that are currently referenced by
-      // messageAttachments so we don't revoke them prematurely.
-      // Read from ref to avoid stale closure (snapshot may have been
-      // added in the same synchronous batch).
-      const preservedUrls = new Set<string>();
-      for (const attachments of messageAttachmentsRef.current.values()) {
-        for (const a of attachments) {
-          if (a.previewUrl) preservedUrls.add(a.previewUrl);
-        }
-      }
-      for (const f of prev) {
-        if (f.previewUrl && !preservedUrls.has(f.previewUrl)) {
-          URL.revokeObjectURL(f.previewUrl);
-        }
-      }
-      return [];
+      setChat,
+      setFallbackChatId,
+      setInput,
+      setMessageAttachments,
+      setPendingPrompt,
+      setStoredChatId,
+      stableChatId,
+      status,
+      t,
+      thinkingMode,
+      wsId,
     });
-  }, []); // Reads from ref — no stale closure
 
-  const flushQueue = useCallback(() => {
-    const queue = [...messageQueueRef.current];
-    messageQueueRef.current = [];
-    debounceTimerRef.current = null;
-    setQueuedText(null);
-
-    // Deduplicate exact matches while preserving order
-    const seen = new Set<string>();
-    const unique: string[] = [];
-    for (const msg of queue) {
-      if (!seen.has(msg)) {
-        seen.add(msg);
-        unique.push(msg);
-      }
-    }
-
-    const hasUploadedFiles = attachedFiles.some((f) => f.status === 'uploaded');
-
-    // Nothing to send — no text and no files
-    if (unique.length === 0 && !hasUploadedFiles) return;
-
-    // If the user sent only files with no text, use a short placeholder so the
-    // AI route still triggers and picks up the uploaded files from storage.
-    const combined =
-      unique.length > 0
-        ? unique.join('\n\n')
-        : 'Please analyze the attached file(s).';
-
-    if (!chat?.id) {
-      // Snapshot files for the 'pending' synthetic message shown while creating.
-      // Also snapshot under '__latest_user_upload' so the re-keying effect can
-      // transfer attachments to the real message ID once useChat assigns one.
-      snapshotAttachmentsForMessage('pending');
-      snapshotAttachmentsForMessage('__latest_user_upload');
-      createChat(combined);
-    } else {
-      // Snapshot under a stable key for re-keying to the real message ID
-      snapshotAttachmentsForMessage('__latest_user_upload');
-      sendMessageWithCurrentConfig({
-        role: 'user',
-        parts: [{ type: 'text', text: combined }],
-      });
-    }
-
-    // Clear files after sending (they are already uploaded to storage)
-    clearAttachedFiles();
-  }, [
-    chat?.id,
+  const { handleSubmit, queuedText, resetQueue } = useMiraMessageQueue({
     attachedFiles,
+    chatId: chat?.id,
+    clearAttachedFiles,
     createChat,
     sendMessageWithCurrentConfig,
-    clearAttachedFiles,
     snapshotAttachmentsForMessage,
-  ]);
-
-  // Re-key attachment metadata from synthetic IDs ('pending', 'queued',
-  // '__latest_user_upload') to real message IDs assigned by useChat.
-  // This runs after React commits state updates so new messages are visible.
-  const prevMessageIdsRef = useRef(new Set<string>());
-  useEffect(() => {
-    const prevIds = prevMessageIdsRef.current;
-    const currentIds = new Set(messages.map((m) => m.id));
-    prevMessageIdsRef.current = currentIds;
-
-    for (const msg of messages) {
-      if (msg.role !== 'user') continue;
-      if (prevIds.has(msg.id)) continue; // Not a new message
-
-      // New user message appeared — transfer attachments from synthetic keys
-      const current = messageAttachmentsRef.current;
-      const latestUpload = current.get('__latest_user_upload');
-      if (latestUpload && latestUpload.length > 0) {
-        setMessageAttachments((prev) => {
-          const next = new Map(prev);
-          next.set(msg.id, latestUpload);
-          // Clean up all synthetic keys
-          next.delete('__latest_user_upload');
-          next.delete('pending');
-          next.delete('queued');
-          messageAttachmentsRef.current = next;
-          return next;
-        });
-        break; // Only transfer once per flush
-      }
-    }
-  }, [messages]);
-
-  const handleSubmit = useCallback(
-    (value: string) => {
-      // Allow submitting with only files (empty text)
-      if (!value.trim() && attachedFiles.length === 0) return;
-
-      if (value.trim()) {
-        messageQueueRef.current.push(value.trim());
-      }
-
-      // Update preview with deduplicated queue
-      const seen = new Set<string>();
-      const unique: string[] = [];
-      for (const msg of messageQueueRef.current) {
-        if (!seen.has(msg)) {
-          seen.add(msg);
-          unique.push(msg);
-        }
-      }
-      setQueuedText(unique.length > 0 ? unique.join('\n\n') : null);
-
-      // Snapshot attachment metadata for the queued display message
-      if (attachedFiles.length > 0) {
-        snapshotAttachmentsForMessage('queued');
-      }
-
-      const currentlyBusy = status === 'submitted' || status === 'streaming';
-
-      // If the assistant is currently busy (submitted or streaming), stop the
-      // ongoing response and send the new message immediately instead of
-      // waiting for the debounce window.
-      if (currentlyBusy) {
-        if (debounceTimerRef.current) {
-          clearTimeout(debounceTimerRef.current);
-          debounceTimerRef.current = null;
-        }
-        if (typeof stop === 'function') {
-          stop();
-        }
-        flushQueue();
-        return;
-      }
-
-      // Otherwise, use the normal debounce window for batching
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-      debounceTimerRef.current = setTimeout(flushQueue, QUEUE_DEBOUNCE_MS);
-    },
-    [flushQueue, attachedFiles, snapshotAttachmentsForMessage, status, stop]
-  );
-
-  const handleAutoSubmitMermaidFix = useCallback(
-    (prompt: string) => {
-      handleSubmit(prompt);
-    },
-    [handleSubmit]
-  );
-
-  // Expose the debounced submit handler to generative UI actions so that
-  // render_ui forms and quick actions can trigger chat submissions with the
-  // same batching and interrupt semantics as the main input bar.
+    status,
+    stop,
+  });
   submitTextRef.current = handleSubmit;
 
-  // Cleanup debounce timer on unmount
-  useEffect(() => {
-    return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
-    };
-  }, []);
-
-  const handleNewConversation = useCallback(() => {
-    // Clear debounce timer and queue
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-      debounceTimerRef.current = null;
-    }
-    messageQueueRef.current = [];
-    setQueuedText(null);
-
-    localStorage.removeItem(`${STORAGE_KEY_PREFIX}${wsId}`);
-    setChat(undefined);
-    setInitialMessages([]);
-    setPendingPrompt(null);
-    setInput('');
-    clearAttachedFiles();
-    setMessageAttachments(new Map());
-    resetGenerativeUIStore();
-    // Generate a fresh fallback ID so useChat creates a new Chat instance
-    setFallbackChatId(generateRandomUUID());
-  }, [wsId, clearAttachedFiles]);
-
-  const handleExportChat = useCallback(() => {
-    if (messages.length === 0) return;
-
-    try {
-      const timestamp = new Date().toISOString();
-      const payload = {
-        exportedAt: timestamp,
-        wsId,
-        chatId,
-        fallbackChatId,
-        status,
-        model,
-        thinkingMode,
-        chat: chat ?? null,
-        messages,
-        messageAttachments: Object.fromEntries(messageAttachments.entries()),
-      };
-
-      const blob = new Blob([JSON.stringify(payload, null, 2)], {
-        type: 'application/json',
-      });
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement('a');
-      const safeWs = wsId.replace(/[^a-zA-Z0-9_-]/g, '_');
-      const safeChat = (chatId ?? fallbackChatId).replace(
-        /[^a-zA-Z0-9_-]/g,
-        '_'
-      );
-      const safeTimestamp = timestamp.replace(/[:.]/g, '-');
-
-      anchor.href = url;
-      anchor.download = `mira-chat-${safeWs}-${safeChat}-${safeTimestamp}.json`;
-      document.body.appendChild(anchor);
-      anchor.click();
-      document.body.removeChild(anchor);
-      URL.revokeObjectURL(url);
-
-      toast.success(t('export_chat_success'));
-    } catch (error) {
-      console.error('[Mira Chat] Failed to export chat:', error);
-      toast.error(t('export_chat_failed'));
-    }
-  }, [
-    messages,
-    wsId,
-    chatId,
-    fallbackChatId,
-    status,
-    model,
-    thinkingMode,
-    chat,
-    messageAttachments,
-    t,
-  ]);
-
-  const isStreaming = status === 'streaming';
-  const isBusy = status === 'submitted' || isStreaming;
-  // queuedText = messages accumulating during debounce (not yet sent)
-  // pendingPrompt = first message waiting for chat creation
   const pendingDisplay = queuedText ?? pendingPrompt;
   const hasFileOnlyPending =
     !pendingDisplay && messageAttachments.size > 0 && messages.length === 0;
   const hasMessages =
     messages.length > 0 || !!pendingDisplay || hasFileOnlyPending;
+  const isStreaming = status === 'streaming';
+  const isBusy = status === 'submitted' || isStreaming;
 
-  const hotkeyLabels = useMemo(
-    () => ({
-      newChat: formatForDisplay(HOTKEY_NEW_CHAT),
-      modelPicker: formatForDisplay(HOTKEY_MODEL_PICKER),
-      fullscreen: formatForDisplay(HOTKEY_FULLSCREEN),
-      fastMode: formatForDisplay(HOTKEY_FAST_MODE),
-      thinkingMode: formatForDisplay(HOTKEY_THINKING_MODE),
-      viewOnly: formatForDisplay(HOTKEY_VIEW_ONLY),
-      export: formatForDisplay(HOTKEY_EXPORT),
-    }),
-    []
-  );
-
-  useHotkey(HOTKEY_NEW_CHAT, handleNewConversation, {
-    preventDefault: true,
+  useMiraChatEffects({
+    isFullscreen,
+    messageAttachmentsRef,
+    messages,
+    onToggleFullscreen,
+    queryClient,
+    routerRefresh: router.refresh,
+    setMessageAttachments,
+    status,
   });
 
-  useHotkey(
-    HOTKEY_MODEL_PICKER,
-    () => {
-      setModelPickerHotkeySignal((v) => v + 1);
-    },
-    {
-      preventDefault: true,
-    }
-  );
-
-  useHotkey(HOTKEY_FAST_MODE, () => handleThinkingModeChange('fast'), {
-    preventDefault: true,
+  const { bottomBarVisible, setBottomBarVisible } = useMiraBottomBarVisibility({
+    hasMessages,
+    scrollContainerRef,
+    viewOnly,
   });
 
-  useHotkey(HOTKEY_THINKING_MODE, () => handleThinkingModeChange('thinking'), {
-    preventDefault: true,
-  });
-
-  useHotkey(
-    HOTKEY_FULLSCREEN,
-    () => {
-      if (!onToggleFullscreen) return;
-      onToggleFullscreen();
-    },
-    {
-      enabled: Boolean(onToggleFullscreen),
-      preventDefault: true,
-    }
-  );
-
-  useHotkey(
-    HOTKEY_VIEW_ONLY,
-    () => {
-      if (!hasMessages) return;
-      setViewOnly((v) => !v);
-    },
-    {
-      enabled: hasMessages,
-      preventDefault: true,
-    }
-  );
-
-  useHotkey(
-    HOTKEY_EXPORT,
-    () => {
-      if (!hasMessages) return;
-      handleExportChat();
-    },
-    {
-      enabled: hasMessages,
-      preventDefault: true,
-    }
-  );
-
-  // Hide bottom bar while scrolling; in "view only" mode, only show the input
-  // panel when the user is scrolled to the bottom.
-  const SCROLL_END_DELAY_MS = 700;
-  useEffect(() => {
-    if (!hasMessages) return;
-    const el = scrollContainerRef.current;
-    if (!el) return;
-
-    const onScroll = () => {
-      if (!el) return;
-
-      // Calculate how far we are from the bottom
-      const isNearBottom =
-        el.scrollHeight - el.scrollTop - el.clientHeight < 50;
-
-      // In view-only mode, only surface the input bar when the user is at (or
-      // very near) the bottom of the conversation; otherwise keep it hidden.
-      if (viewOnly) {
-        setBottomBarVisible(isNearBottom);
-        return;
-      }
-
-      // Normal mode: keep existing behavior of hiding while the user scrolls
-      // far up, and re-showing shortly after scrolling stops or when near the
-      // bottom.
-      if (isNearBottom) {
-        setBottomBarVisible(true);
-        if (scrollEndTimerRef.current) {
-          clearTimeout(scrollEndTimerRef.current);
-          scrollEndTimerRef.current = null;
-        }
-        return;
-      }
-
-      setBottomBarVisible(false);
-      if (scrollEndTimerRef.current) clearTimeout(scrollEndTimerRef.current);
-      scrollEndTimerRef.current = setTimeout(() => {
-        scrollEndTimerRef.current = null;
-        setBottomBarVisible(true);
-      }, SCROLL_END_DELAY_MS);
-    };
-
-    el.addEventListener('scroll', onScroll, { passive: true });
-    // Run once on mount to initialize visibility based on initial scroll
-    onScroll();
-    return () => {
-      el.removeEventListener('scroll', onScroll);
-      if (scrollEndTimerRef.current) {
-        clearTimeout(scrollEndTimerRef.current);
-        scrollEndTimerRef.current = null;
-      }
-    };
-  }, [hasMessages, viewOnly]);
-
-  // When switching between empty/non-empty chat states, ensure the input panel
-  // behaves intuitively:
-  // - On an empty chat, always show the input (regardless of prior view-only
-  //   state) so the user can start typing immediately.
-  // - On the first real message in a new chat, also surface the input panel
-  //   even if the previous conversation ended in "view only" mode.
   const firstMessageSeenRef = useRef(false);
   useEffect(() => {
     if (!hasMessages) {
@@ -1360,312 +253,94 @@ export default function MiraChatPanel({
       setBottomBarVisible(true);
       return;
     }
-    if (!firstMessageSeenRef.current) {
-      firstMessageSeenRef.current = true;
-      setViewOnly(false);
-      setBottomBarVisible(true);
-    }
-  }, [hasMessages]);
+
+    if (firstMessageSeenRef.current) return;
+    firstMessageSeenRef.current = true;
+    setViewOnly(false);
+    setBottomBarVisible(true);
+  }, [hasMessages, setBottomBarVisible]);
+
+  const handleNewConversation = useCallback(() => {
+    resetQueue();
+    resetConversationState();
+    setViewOnly(false);
+    setBottomBarVisible(true);
+  }, [resetConversationState, resetQueue, setBottomBarVisible]);
+
+  const { hotkeyLabels, modelPickerHotkeySignal } = useMiraChatHotkeys({
+    hasMessages,
+    onExportChat: handleExportChat,
+    onNewConversation: handleNewConversation,
+    onThinkingModeChange: handleThinkingModeChange,
+    onToggleFullscreen,
+    onToggleViewOnly: () => setViewOnly((value) => !value),
+  });
 
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-      <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 pb-2">
-        <div className="w-full min-w-0 max-w-md">
-          <MiraModelSelector
-            wsId={wsId}
-            model={model}
-            onChange={handleModelChange}
-            disabled={false}
-            hotkeySignal={modelPickerHotkeySignal}
-            shortcutLabel={hotkeyLabels.modelPicker}
-          />
-        </div>
-        <div className="flex shrink-0 items-center gap-1">
-          <DropdownMenu
-            open={isThinkingMenuOpen}
-            onOpenChange={setIsThinkingMenuOpen}
-          >
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="h-8 gap-1.5 px-2 text-xs"
-                title={t('thinking_mode_label')}
-                aria-label={t('thinking_mode_label')}
-              >
-                {thinkingMode === 'thinking' ? (
-                  <Brain className="h-3.5 w-3.5" />
-                ) : (
-                  <Zap className="h-3.5 w-3.5" />
-                )}
-                {thinkingMode === 'thinking'
-                  ? t('thinking_mode_thinking')
-                  : t('thinking_mode_fast')}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-44">
-              <DropdownMenuItem
-                onSelect={() => {
-                  handleThinkingModeChange('fast');
-                  setIsThinkingMenuOpen(false);
-                }}
-                title={t('thinking_mode_fast_desc')}
-                className="gap-2"
-              >
-                <Zap className="h-3.5 w-3.5" />
-                {t('thinking_mode_fast')}
-                <span className="ml-auto text-muted-foreground text-xs">
-                  {hotkeyLabels.fastMode}
-                </span>
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onSelect={() => {
-                  handleThinkingModeChange('thinking');
-                  setIsThinkingMenuOpen(false);
-                }}
-                title={t('thinking_mode_thinking_desc')}
-                className="gap-2"
-              >
-                <Brain className="h-3.5 w-3.5" />
-                {t('thinking_mode_thinking')}
-                <span className="ml-auto text-muted-foreground text-xs">
-                  {hotkeyLabels.thinkingMode}
-                </span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <div className="ml-2">
-            <MiraCreditBar wsId={wsId} />
-          </div>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={handleNewConversation}
-                aria-label={t('new_conversation')}
-              >
-                <MessageSquarePlus className="h-4 w-4" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>
-              {`${t('new_conversation')} (${hotkeyLabels.newChat})`}
-            </TooltipContent>
-          </Tooltip>
-          <DropdownMenu open={isMoreMenuOpen} onOpenChange={setIsMoreMenuOpen}>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 gap-1.5 px-2"
-                title={t('more_actions')}
-              >
-                <Ellipsis className="h-4 w-4" />
-                <span className="text-xs">{t('more_actions')}</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              {hasMessages && (
-                <DropdownMenuItem
-                  onSelect={() => {
-                    handleExportChat();
-                    setIsMoreMenuOpen(false);
-                  }}
-                >
-                  <Download className="h-4 w-4" />
-                  {t('export_chat')}
-                  <span className="ml-auto text-muted-foreground text-xs">
-                    {hotkeyLabels.export}
-                  </span>
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuItem
-                disabled={!hasMessages}
-                onSelect={() => {
-                  if (!hasMessages) return;
-                  setViewOnly((v) => !v);
-                  setIsMoreMenuOpen(false);
-                }}
-              >
-                {viewOnly ? (
-                  <PanelBottomOpen className="h-4 w-4" />
-                ) : (
-                  <Eye className="h-4 w-4" />
-                )}
-                {viewOnly ? t('show_input_panel') : t('view_only')}
-                <span className="ml-auto text-muted-foreground text-xs">
-                  {hotkeyLabels.viewOnly}
-                </span>
-              </DropdownMenuItem>
-              {onToggleFullscreen && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onSelect={() => {
-                      onToggleFullscreen();
-                      setIsMoreMenuOpen(false);
-                    }}
-                  >
-                    {isFullscreen ? (
-                      <Minimize2 className="h-4 w-4" />
-                    ) : (
-                      <Maximize2 className="h-4 w-4" />
-                    )}
-                    {isFullscreen ? t('exit_fullscreen') : t('fullscreen')}
-                    <span className="ml-auto text-muted-foreground text-xs">
-                      {hotkeyLabels.fullscreen}
-                    </span>
-                  </DropdownMenuItem>
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          {insightsDock && <div className="shrink-0">{insightsDock}</div>}
-        </div>
-      </div>
+      <MiraChatHeader
+        wsId={wsId}
+        hasMessages={hasMessages}
+        hotkeyLabels={hotkeyLabels}
+        insightsDock={insightsDock}
+        isFullscreen={isFullscreen}
+        model={model}
+        modelPickerHotkeySignal={modelPickerHotkeySignal}
+        onExportChat={handleExportChat}
+        onModelChange={handleModelChange}
+        onNewConversation={handleNewConversation}
+        onThinkingModeChange={handleThinkingModeChange}
+        onToggleFullscreen={onToggleFullscreen}
+        onToggleViewOnly={() => setViewOnly((value) => !value)}
+        t={t}
+        thinkingMode={thinkingMode}
+        viewOnly={viewOnly}
+      />
 
-      {/* Messages area + floating bottom bar container; overflow hidden so content stays inside chat area */}
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {hasMessages ? (
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-            <StateProvider store={generativeUIStore}>
-              <ActionProvider handlers={actionHandlers}>
-                <ChatMessageList
-                  messages={
-                    (pendingDisplay || hasFileOnlyPending) &&
-                    messages.length === 0
-                      ? [
-                          {
-                            id: 'pending',
-                            role: 'user' as const,
-                            parts: pendingDisplay
-                              ? [
-                                  {
-                                    type: 'text' as const,
-                                    text: pendingDisplay,
-                                  },
-                                ]
-                              : [],
-                          },
-                        ]
-                      : queuedText
-                        ? [
-                            ...messages,
-                            {
-                              id: 'queued',
-                              role: 'user' as const,
-                              parts: [
-                                { type: 'text' as const, text: queuedText },
-                              ],
-                            },
-                          ]
-                        : messages
-                  }
-                  isStreaming={isBusy || !!pendingPrompt}
-                  assistantName={assistantName}
-                  userName={userName}
-                  userAvatarUrl={userAvatarUrl}
-                  onAutoSubmitMermaidFix={handleAutoSubmitMermaidFix}
-                  scrollContainerRef={scrollContainerRef}
-                  messageAttachments={messageAttachments}
-                />
-              </ActionProvider>
-            </StateProvider>
-          </div>
+          <MiraChatConversation
+            actionHandlers={actionHandlers}
+            assistantName={assistantName}
+            generativeUIStore={generativeUIStore}
+            hasFileOnlyPending={hasFileOnlyPending}
+            isBusy={isBusy}
+            messageAttachments={messageAttachments}
+            messages={messages}
+            onAutoSubmitMermaidFix={handleSubmit}
+            pendingDisplay={pendingDisplay}
+            pendingPrompt={pendingPrompt}
+            queuedText={queuedText}
+            scrollContainerRef={scrollContainerRef}
+            userAvatarUrl={userAvatarUrl}
+            userName={userName}
+          />
         ) : (
-          <div className="flex h-full w-full flex-col items-center justify-center px-4 py-10 sm:px-8 sm:py-14">
-            <div className="relative mx-auto w-full max-w-3xl">
-              <div className="pointer-events-none absolute top-8 left-1/2 h-44 w-44 -translate-x-1/2 rounded-full bg-dynamic-purple/12 blur-3xl" />
-              <div className="pointer-events-none absolute top-40 right-10 h-32 w-32 rounded-full bg-dynamic-cyan/6 blur-3xl" />
-
-              <div className="relative mx-auto w-full px-2 py-5 sm:px-6 sm:py-8">
-                <div className="flex flex-col items-center text-center">
-                  <div className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-linear-to-br from-dynamic-purple/20 to-dynamic-purple/5 shadow-dynamic-purple/10 shadow-lg ring-1 ring-dynamic-purple/25">
-                    <div className="absolute inset-0 rounded-2xl bg-dynamic-purple/10 blur-xl" />
-                    <Sparkles className="relative z-10 h-8 w-8 animate-pulse text-dynamic-purple duration-2000" />
-                  </div>
-
-                  <div className="mt-4 max-w-xl space-y-2">
-                    <p className="font-semibold text-muted-foreground text-sm tracking-tight sm:text-base">
-                      {greetingT(greetingKey)}
-                      {userName ? `, ${userName}` : ''}!
-                    </p>
-                    <h2 className="text-2xl tracking-tight sm:text-3xl">
-                      <MiraNameBadge
-                        currentName={assistantName}
-                        className="px-0.5"
-                      >
-                        <span className="bg-linear-to-br from-foreground to-foreground/70 bg-clip-text font-bold text-transparent">
-                          {assistantName}
-                        </span>
-                      </MiraNameBadge>
-                    </h2>
-                    <p className="font-medium text-muted-foreground text-sm sm:text-base">
-                      {t('empty_state', { name: assistantName })}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="mt-7 grid grid-cols-1 gap-2 sm:grid-cols-2">
-                  {emptyStateActions.map((action) => {
-                    return (
-                      <button
-                        key={action.titleKey}
-                        type="button"
-                        onClick={() => handleSubmit(t(action.titleKey))}
-                        className={cn(
-                          'group flex min-w-0 items-center justify-center gap-3 rounded-xl border border-border/30 bg-background/20 px-3.5 py-3 text-left text-center transition-all duration-200',
-                          'hover:border-dynamic-purple/30 hover:bg-dynamic-purple/5'
-                        )}
-                      >
-                        <div className="min-w-0">
-                          <p className="truncate font-medium text-sm leading-tight">
-                            {t(action.titleKey)}
-                          </p>
-                          <p className="mt-1 line-clamp-1 text-muted-foreground text-xs leading-relaxed">
-                            {t(action.descKey)}
-                          </p>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
+          <MiraChatEmptyState
+            assistantName={assistantName}
+            greetingKey={greetingKey}
+            greetingT={greetingT}
+            onQuickAction={handleSubmit}
+            t={t}
+            userName={userName}
+          />
         )}
-        {/* Floating bottom bar: suggested prompts + input (overlays content) */}
-        <div
-          className={cn(
-            'absolute right-0 bottom-0 left-0 z-10 flex min-w-0 max-w-full flex-col gap-2 p-3 transition-transform duration-300 ease-out sm:p-4',
-            !bottomBarVisible && 'pointer-events-none translate-y-full'
-          )}
-        >
-          {hasMessages && !isBusy && (
-            <div className="min-w-0 overflow-x-auto overflow-y-hidden">
-              <QuickActionChips onSend={handleSubmit} disabled={false} />
-            </div>
-          )}
-          <div className="min-w-0">
-            <ChatInputBar
-              input={input}
-              setInput={setInput}
-              onSubmit={handleSubmit}
-              isStreaming={isBusy}
-              assistantName={assistantName}
-              onVoiceToggle={onVoiceToggle}
-              inputRef={inputRef}
-              files={attachedFiles}
-              onFilesSelected={
-                supportsFileInput ? handleFilesSelected : undefined
-              }
-              onFileRemove={handleFileRemove}
-              canUploadFiles={supportsFileInput}
-            />
-          </div>
-        </div>
+
+        <MiraChatBottomBar
+          assistantName={assistantName}
+          attachedFiles={attachedFiles}
+          bottomBarVisible={bottomBarVisible}
+          canUploadFiles={supportsFileInput}
+          hasMessages={hasMessages}
+          input={input}
+          inputRef={inputRef}
+          isBusy={isBusy}
+          onFileRemove={handleFileRemove}
+          onFilesSelected={supportsFileInput ? handleFilesSelected : undefined}
+          onSubmit={handleSubmit}
+          onVoiceToggle={onVoiceToggle}
+          setInput={setInput}
+        />
       </div>
     </div>
   );
