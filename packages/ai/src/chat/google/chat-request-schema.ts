@@ -33,6 +33,8 @@ export const ChatRequestBodySchema = z.object({
   isMiraMode: z.boolean().optional(),
   timezone: z.string().optional(),
   thinkingMode: z.enum(['thinking', 'fast']).optional(),
+  creditSource: z.enum(['personal', 'workspace']).optional(),
+  creditWsId: z.string().optional(),
 });
 
 export type ChatRequestBody = z.infer<typeof ChatRequestBodySchema>;
