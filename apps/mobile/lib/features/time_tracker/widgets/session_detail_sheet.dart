@@ -208,7 +208,6 @@ class _SessionDetailSheetState extends State<SessionDetailSheet> {
           shad.DestructiveButton(
             onPressed: () => _showDeleteConfirmation(context),
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Icon(shad.LucideIcons.trash2, size: 16),
                 const shad.Gap(8),
@@ -327,29 +326,32 @@ class _DeleteConfirmationDialogState extends State<_DeleteConfirmationDialog> {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: SizedBox(
-        width: MediaQuery.of(context).size.width * 0.85,
-        child: shad.AlertDialog(
-          title: Text(widget.title),
-          content: Text(widget.message),
-          actions: [
-            shad.OutlineButton(
-              onPressed: _isDeleting ? null : () => Navigator.of(context).pop(),
-              child: Text(widget.cancelLabel),
-            ),
-            shad.DestructiveButton(
-              onPressed: _isDeleting ? null : _handleConfirm,
-              child: _isDeleting
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: shad.CircularProgressIndicator(),
-                    )
-                  : Text(widget.confirmLabel),
-            ),
-          ],
-        ),
+    return shad.AlertDialog(
+      title: Text(widget.title),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(widget.message),
+          const shad.Gap(24),
+                    shad.OutlineButton(
+            onPressed: _isDeleting ? null : () => Navigator.of(context).pop(),
+            child: Text(widget.cancelLabel),
+          ),
+                    const shad.Gap(8),
+          shad.DestructiveButton(
+            onPressed: _isDeleting ? null : _handleConfirm,
+            child: _isDeleting
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: shad.CircularProgressIndicator(),
+                  )
+                : Text(widget.confirmLabel),
+          ),
+
+
+        ],
       ),
     );
   }

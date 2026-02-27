@@ -32,8 +32,8 @@ const cursorSchema = z.object({
 const sessionCreateSchema = z.object({
   title: z.string().optional(),
   description: z.string().nullable().optional(),
-  categoryId: z.string().nullable().optional(),
-  taskId: z.string().nullable().optional(),
+  categoryId: z.uuid().nullable().optional(),
+  taskId: z.uuid().nullable().optional(),
   startTime: z.iso.datetime({ offset: true }).optional(),
   endTime: z.iso.datetime({ offset: true }).optional(),
 });
@@ -84,7 +84,7 @@ async function checkMissedEntryPermission({
       .eq('ws_id', wsId)
       .maybeSingle();
 
-  if (workspaceSettingsError || !workspaceSettings) {
+  if (workspaceSettingsError) {
     console.error('Failed to load workspace_settings for time-tracking:', {
       wsId,
       error: workspaceSettingsError,
@@ -100,7 +100,7 @@ async function checkMissedEntryPermission({
 
   return {
     canBypass,
-    thresholdDays: workspaceSettings.missed_entry_date_threshold,
+    thresholdDays: workspaceSettings?.missed_entry_date_threshold,
   };
 }
 
