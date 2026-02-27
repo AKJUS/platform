@@ -302,6 +302,107 @@ export type Database = {
         };
         Relationships: [];
       };
+      ai_credit_reservations: {
+        Row: {
+          amount: number;
+          balance_id: string;
+          committed_at: string | null;
+          created_at: string;
+          expires_at: string;
+          feature: string | null;
+          id: string;
+          metadata: Json;
+          model_id: string | null;
+          released_at: string | null;
+          status: string;
+          updated_at: string;
+          user_id: string;
+          ws_id: string;
+        };
+        Insert: {
+          amount: number;
+          balance_id: string;
+          committed_at?: string | null;
+          created_at?: string;
+          expires_at?: string;
+          feature?: string | null;
+          id?: string;
+          metadata?: Json;
+          model_id?: string | null;
+          released_at?: string | null;
+          status: string;
+          updated_at?: string;
+          user_id: string;
+          ws_id: string;
+        };
+        Update: {
+          amount?: number;
+          balance_id?: string;
+          committed_at?: string | null;
+          created_at?: string;
+          expires_at?: string;
+          feature?: string | null;
+          id?: string;
+          metadata?: Json;
+          model_id?: string | null;
+          released_at?: string | null;
+          status?: string;
+          updated_at?: string;
+          user_id?: string;
+          ws_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'ai_credit_reservations_balance_id_fkey';
+            columns: ['balance_id'];
+            isOneToOne: false;
+            referencedRelation: 'workspace_ai_credit_balances';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'ai_credit_reservations_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'nova_user_challenge_leaderboard';
+            referencedColumns: ['user_id'];
+          },
+          {
+            foreignKeyName: 'ai_credit_reservations_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'nova_user_leaderboard';
+            referencedColumns: ['user_id'];
+          },
+          {
+            foreignKeyName: 'ai_credit_reservations_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'shortened_links_creator_stats';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'ai_credit_reservations_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'ai_credit_reservations_ws_id_fkey';
+            columns: ['ws_id'];
+            isOneToOne: false;
+            referencedRelation: 'workspace_link_counts';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'ai_credit_reservations_ws_id_fkey';
+            columns: ['ws_id'];
+            isOneToOne: false;
+            referencedRelation: 'workspaces';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       ai_credit_transactions: {
         Row: {
           amount: number;
@@ -18964,6 +19065,10 @@ export type Database = {
       };
     };
     Functions: {
+      _release_expired_ai_credit_reservations: {
+        Args: { p_balance_id: string };
+        Returns: undefined;
+      };
       _resolve_workspace_tier: {
         Args: { p_ws_id: string };
         Returns: Database['public']['Enums']['workspace_product_tier'];
@@ -19138,6 +19243,15 @@ export type Database = {
       cleanup_old_api_key_usage_logs: { Args: never; Returns: undefined };
       cleanup_old_typing_indicators: { Args: never; Returns: undefined };
       cleanup_role_inconsistencies: { Args: never; Returns: undefined };
+      commit_fixed_ai_credit_reservation: {
+        Args: { p_metadata?: Json; p_reservation_id: string };
+        Returns: {
+          credits_deducted: number;
+          error_code: string;
+          remaining_credits: number;
+          success: boolean;
+        }[];
+      };
       complete_mira_focus_session: {
         Args: { p_notes?: string; p_session_id: string };
         Returns: {
@@ -21658,6 +21772,31 @@ export type Database = {
         };
       };
       refresh_posts_dashboard_view: { Args: never; Returns: undefined };
+      release_fixed_ai_credit_reservation: {
+        Args: { p_metadata?: Json; p_reservation_id: string };
+        Returns: {
+          error_code: string;
+          remaining_credits: number;
+          success: boolean;
+        }[];
+      };
+      reserve_fixed_ai_credits: {
+        Args: {
+          p_amount: number;
+          p_expires_in_seconds?: number;
+          p_feature?: string;
+          p_metadata?: Json;
+          p_model_id?: string;
+          p_user_id: string;
+          p_ws_id: string;
+        };
+        Returns: {
+          error_code: string;
+          remaining_credits: number;
+          reservation_id: string;
+          success: boolean;
+        }[];
+      };
       revoke_all_cross_app_tokens: {
         Args: { p_user_id: string };
         Returns: undefined;

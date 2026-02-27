@@ -1,11 +1,14 @@
-export const models: {
+export interface Model {
   value: string;
   label: string;
   provider: string;
   description?: string;
   context?: number;
   disabled?: boolean;
-}[] = [
+  tags?: string[];
+}
+
+export const models: Model[] = [
   {
     value: 'gemini-2.5-pro',
     label: 'gemini-2.5-pro',
@@ -210,7 +213,6 @@ export const providers: Provider[] = models.reduce((acc, model) => {
   return acc;
 }, [] as Provider[]);
 
-export type Model = (typeof models)[number];
 export type ModelName = Model['value'];
 
 export type Provider = (typeof models)[number]['provider'];
