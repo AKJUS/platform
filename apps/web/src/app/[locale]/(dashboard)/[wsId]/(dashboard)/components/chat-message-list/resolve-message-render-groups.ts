@@ -27,6 +27,24 @@ type SourceUrlPart = {
   sourceId: string;
 };
 
+function getStablePartKey(part: ToolPartData, fallbackIndex: number): string {
+  const maybeId = (part as { id?: unknown; key?: unknown }).id;
+  if (typeof maybeId === 'string' && maybeId.trim().length > 0) {
+    return maybeId.trim();
+  }
+
+  const maybeKey = (part as { id?: unknown; key?: unknown }).key;
+  if (typeof maybeKey === 'string' && maybeKey.trim().length > 0) {
+    return maybeKey.trim();
+  }
+
+  try {
+    return JSON.stringify(part);
+  } catch {
+    return `fallback-${fallbackIndex}`;
+  }
+}
+
 export type MessageRenderDescriptor =
   | {
       kind: 'reasoning';
@@ -213,7 +231,7 @@ export function resolveMessageRenderGroups({
           visibleParts.forEach((part, idx) => {
             descriptors.push({
               kind: 'tool',
-              key: `render-ui-${group.startIndex}-${idx}`,
+              key: `render-ui-${group.startIndex}-${getStablePartKey(part, idx)}`,
               part,
             });
           });
@@ -243,7 +261,14 @@ export function resolveMessageRenderGroups({
   }
 
   const sourceParts = (message.parts ?? []).filter(
-    (p): p is SourceUrlPart => p.type === 'source-url'
+    (p): p is SourceUrlPart =>
+      !!p &&
+      typeof p === 'object' &&
+      p.type === 'source-url' &&
+      typeof p.url === 'string' &&
+      p.url.trim().length > 0 &&
+      typeof p.sourceId === 'string' &&
+      p.sourceId.trim().length > 0
   );
 
   if (sourceParts.length > 0) {

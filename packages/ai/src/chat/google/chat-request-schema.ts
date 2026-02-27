@@ -37,6 +37,79 @@ export const ChatRequestBodySchema = z.object({
 
 export type ChatRequestBody = z.infer<typeof ChatRequestBodySchema>;
 
+function mapToUIMessageParts(
+  parts: z.infer<typeof UIMessageSchema>['parts']
+): UIMessage['parts'] {
+  const mappedParts: UIMessage['parts'] = [];
+
+  for (const rawPart of parts) {
+    const part = UIMessagePartSchema.parse(rawPart);
+
+    if (part.type === 'text' && typeof part.text === 'string') {
+      mappedParts.push({ type: 'text', text: part.text });
+      continue;
+    }
+
+    if (part.type === 'reasoning' && typeof part.text === 'string') {
+      mappedParts.push({ type: 'reasoning', text: part.text });
+      continue;
+    }
+
+    if (part.type === 'step-start') {
+      mappedParts.push({ type: 'step-start' as const });
+      continue;
+    }
+
+    if (
+      part.type === 'dynamic-tool' &&
+      typeof part.toolName === 'string' &&
+      typeof part.toolCallId === 'string'
+    ) {
+      mappedParts.push({
+        type: 'dynamic-tool' as const,
+        toolName: part.toolName,
+        toolCallId: part.toolCallId,
+        state: 'output-available' as const,
+        input: part.input ?? {},
+        output: part.output ?? null,
+        ...(typeof part.title === 'string' ? { title: part.title } : {}),
+        ...(typeof part.providerExecuted === 'boolean'
+          ? { providerExecuted: part.providerExecuted }
+          : {}),
+        ...(part.callProviderMetadata !== undefined
+          ? {
+              callProviderMetadata: part.callProviderMetadata as NonNullable<
+                UIMessage['parts'][number] & {
+                  type: 'dynamic-tool';
+                  state: 'output-available';
+                }
+              >['callProviderMetadata'],
+            }
+          : {}),
+        ...(typeof part.preliminary === 'boolean'
+          ? { preliminary: part.preliminary }
+          : {}),
+      });
+      continue;
+    }
+
+    if (
+      part.type === 'source-url' &&
+      typeof part.sourceId === 'string' &&
+      typeof part.url === 'string'
+    ) {
+      mappedParts.push({
+        type: 'source-url' as const,
+        sourceId: part.sourceId,
+        url: part.url,
+        ...(typeof part.title === 'string' ? { title: part.title } : {}),
+      } as UIMessage['parts'][number]);
+    }
+  }
+
+  return mappedParts;
+}
+
 export function mapToUIMessages(
   messages: ChatRequestBody['messages']
 ): UIMessage[] {
@@ -46,7 +119,7 @@ export function mapToUIMessages(
     (message): UIMessage => ({
       id: message.id ?? generateRandomUUID(),
       role: message.role,
-      parts: message.parts.map((part) => ({ ...part })) as UIMessage['parts'],
+      parts: mapToUIMessageParts(message.parts),
       ...(message.name ? { name: message.name } : {}),
       ...(message.metadata ? { metadata: message.metadata } : {}),
     })

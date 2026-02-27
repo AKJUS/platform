@@ -108,19 +108,27 @@ function collectUsageTotals(response: StreamFinishResponseLike): UsageTotals {
   let reasoningTokens = usage.reasoningTokens ?? 0;
 
   if ((response.steps?.length ?? 0) > 0) {
+    let stepInputSum = 0;
+    let stepOutputSum = 0;
+    let stepReasoningSum = 0;
+
     for (const step of response.steps ?? []) {
       const stepUsage = step.usage;
       if (!stepUsage) continue;
 
-      if (inputTokens === 0) {
-        inputTokens += stepUsage.inputTokens ?? 0;
-      }
-      if (outputTokens === 0) {
-        outputTokens += stepUsage.outputTokens ?? 0;
-      }
-      if (reasoningTokens === 0) {
-        reasoningTokens += stepUsage.reasoningTokens ?? 0;
-      }
+      stepInputSum += stepUsage.inputTokens ?? 0;
+      stepOutputSum += stepUsage.outputTokens ?? 0;
+      stepReasoningSum += stepUsage.reasoningTokens ?? 0;
+    }
+
+    if (inputTokens === 0) {
+      inputTokens = stepInputSum;
+    }
+    if (outputTokens === 0) {
+      outputTokens = stepOutputSum;
+    }
+    if (reasoningTokens === 0) {
+      reasoningTokens = stepReasoningSum;
     }
   }
 
@@ -237,10 +245,10 @@ export async function persistAssistantResponse({
         source: effectiveSource,
         ...(reasoningText ? { reasoning: reasoningText } : {}),
         ...(allToolCalls.length
-          ? { toolCalls: JSON.parse(JSON.stringify(allToolCalls)) }
+          ? { toolCalls: structuredClone(allToolCalls) }
           : {}),
         ...(allToolResults.length
-          ? { toolResults: JSON.parse(JSON.stringify(allToolResults)) }
+          ? { toolResults: structuredClone(allToolResults) }
           : {}),
         ...(serializedSources.length ? { sources: serializedSources } : {}),
       },

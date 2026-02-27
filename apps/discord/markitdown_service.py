@@ -46,7 +46,7 @@ def _validate_signed_url(signed_url: str, configured_supabase_host: str) -> None
         raise HTTPException(status_code=400, detail="Invalid signed URL scheme")
     if parsed.hostname is None or parsed.hostname.lower() != configured_supabase_host:
         raise HTTPException(status_code=400, detail="Invalid signed URL host")
-    if "/storage/v1/object/sign/" not in parsed.path:
+    if not parsed.path.startswith("/storage/v1/object/sign/"):
         raise HTTPException(status_code=400, detail="Invalid Supabase signed URL")
     token = next(
         (value.strip() for value in parse_qs(parsed.query).get("token", []) if value),

@@ -84,13 +84,12 @@ function resolveMarkitdownTimeoutMs(): number {
 }
 
 async function deductFixedMarkitdownCredits(
+  sbAdmin: DeductFixedCreditsRpcCaller,
   ctx: MiraToolContext,
   metadata: Record<string, unknown>
 ): Promise<
   { ok: true; remainingCredits: number } | { ok: false; error: string }
 > {
-  const sbAdmin = await createAdminClient();
-
   const { data, error } = await callDeductFixedCreditsRpc(sbAdmin, {
     p_ws_id: ctx.wsId,
     p_user_id: ctx.userId,
@@ -347,7 +346,7 @@ export async function executeConvertFileToMarkdown(
     ? `${markdown.slice(0, maxCharacters)}\n\n[...truncated for token safety...]`
     : markdown;
 
-  const deduction = await deductFixedMarkitdownCredits(ctx, {
+  const deduction = await deductFixedMarkitdownCredits(sbAdmin, ctx, {
     targetPath,
     selectedFileName: stripTimestampPrefix(selectedFileName),
     markdownLength: markdown.length,
@@ -367,16 +366,12 @@ export async function executeConvertFileToMarkdown(
     );
 
     return {
-      ok: true,
-      markdown: finalMarkdown,
+      ok: false,
+      error: deduction.error,
       title: typeof payload.title === 'string' ? payload.title : null,
       fileName: stripTimestampPrefix(selectedFileName),
       storagePath: targetPath,
-      creditsCharged: 0,
-      remainingCredits: null,
       truncated: wasTruncated,
-      warning:
-        'MarkItDown conversion succeeded, but credits could not be charged for this run.',
       creditDeductionError: deduction.error,
     };
   }

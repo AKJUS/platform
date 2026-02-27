@@ -41,6 +41,7 @@ export const maxDuration = 60;
 export const preferredRegion = 'sin1';
 
 const DEFAULT_MODEL_NAME = 'google/gemini-2.5-flash';
+const MAX_CONTEXT_MESSAGES = 10;
 type ThinkingMode = 'fast' | 'thinking';
 
 export function createPOST(
@@ -155,23 +156,22 @@ export function createPOST(
         }
 
         if (files && files.length > 0) {
-          const sbAdmin = await createAdminClient();
+          await Promise.all(
+            files.map(async (file) => {
+              const fileName = file.name;
 
-          // Copy files to thread
-          for (const file of files) {
-            const fileName = file.name;
+              const { error: copyError } = await sbAdmin.storage
+                .from('workspaces')
+                .move(
+                  `${tempStoragePath}/${fileName}`,
+                  `${wsId}/chats/ai/resources/${chatId}/${fileName}`
+                );
 
-            const { error: copyError } = await sbAdmin.storage
-              .from('workspaces')
-              .move(
-                `${tempStoragePath}/${fileName}`,
-                `${wsId}/chats/ai/resources/${chatId}/${fileName}`
-              );
-
-            if (copyError) {
-              console.error('File copy error:', copyError);
-            }
-          }
+              if (copyError) {
+                console.error('File copy error:', { fileName, copyError });
+              }
+            })
+          );
         }
       }
 
@@ -214,10 +214,26 @@ export function createPOST(
           : modelMessages;
 
       // Limit the number of messages sent to the AI to prevent context overflow and save credits
-      if (processedMessages.length > 10) {
-        // Keep the system prompt/instruction (if any inserted earlier, though streamText takes `system` separately)
-        // Keep the last 10 messages
-        processedMessages = processedMessages.slice(-10);
+      if (processedMessages.length > MAX_CONTEXT_MESSAGES) {
+        const systemMessages = processedMessages.filter(
+          (message) => message.role === 'system'
+        );
+        const nonSystemMessages = processedMessages.filter(
+          (message) => message.role !== 'system'
+        );
+        const allowedNonSystemCount = Math.max(
+          MAX_CONTEXT_MESSAGES - systemMessages.length,
+          0
+        );
+        processedMessages = [
+          ...systemMessages,
+          ...nonSystemMessages.slice(-allowedNonSystemCount),
+        ];
+        console.info('Truncated processed chat context', {
+          originalLength: systemMessages.length + nonSystemMessages.length,
+          resultingLength: processedMessages.length,
+          preservedSystemMessages: systemMessages.length,
+        });
       }
 
       if (processedMessages.length !== 1) {
@@ -373,6 +389,17 @@ export function createPOST(
         google_search: google.tools.googleSearch({}),
       };
 
+      type PrepareStep = NonNullable<
+        NonNullable<Parameters<typeof streamText>[0]>['prepareStep']
+      >;
+      const prepareStep: PrepareStep = ({ steps }) =>
+        prepareMiraToolStep({
+          steps,
+          forceGoogleSearch,
+          forceRenderUi,
+          preferMarkdownTables,
+        });
+
       const result = streamText({
         abortSignal: req.signal,
         experimental_transform: smoothStream(),
@@ -386,15 +413,7 @@ export function createPOST(
               tools: miraTools,
               stopWhen: stepCountIs(25),
               toolChoice: 'auto' as const,
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              prepareStep: ({ steps }: { steps: unknown[] }): any => {
-                return prepareMiraToolStep({
-                  steps,
-                  forceGoogleSearch,
-                  forceRenderUi,
-                  preferMarkdownTables,
-                });
-              },
+              prepareStep,
             }
           : {
               tools: googleSearchTool,
