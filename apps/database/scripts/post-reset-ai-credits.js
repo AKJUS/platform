@@ -19,6 +19,7 @@ const GATEWAY_MODELS_URL = 'https://ai-gateway.vercel.sh/v1/models';
 const ONE_MILLION_CREDITS = 1_000_000;
 const MIN_MAX_OUTPUT_TOKENS = 8_192;
 const UPSERT_BATCH_SIZE = 100;
+const DEFAULT_FETCH_TIMEOUT_MS = 10_000;
 
 function parseHttpsBaseUrl(value) {
   try {
@@ -105,16 +106,44 @@ function getLocalSupabaseStatus() {
   return { supabaseBaseUrl, serviceRoleKey };
 }
 
-async function adminFetch(baseUrl, serviceRoleKey, path, init = {}) {
-  const response = await fetch(`${baseUrl}${path}`, {
-    ...init,
-    headers: {
-      apikey: serviceRoleKey,
-      Authorization: `Bearer ${serviceRoleKey}`,
-      'Content-Type': 'application/json',
-      ...(init.headers ?? {}),
+async function fetchWithTimeout(
+  url,
+  init = {},
+  timeoutMs = DEFAULT_FETCH_TIMEOUT_MS
+) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetch(url, {
+      ...init,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+async function adminFetch(
+  baseUrl,
+  serviceRoleKey,
+  path,
+  init = {},
+  timeoutMs = DEFAULT_FETCH_TIMEOUT_MS
+) {
+  const response = await fetchWithTimeout(
+    `${baseUrl}${path}`,
+    {
+      ...init,
+      headers: {
+        apikey: serviceRoleKey,
+        Authorization: `Bearer ${serviceRoleKey}`,
+        'Content-Type': 'application/json',
+        ...(init.headers ?? {}),
+      },
     },
-  });
+    timeoutMs
+  );
 
   if (!response.ok) {
     const body = await response.text().catch(() => '');
@@ -126,8 +155,12 @@ async function adminFetch(baseUrl, serviceRoleKey, path, init = {}) {
   return response;
 }
 
-async function fetchGatewayModels() {
-  const response = await fetch(GATEWAY_MODELS_URL);
+async function fetchGatewayModels(timeoutMs = DEFAULT_FETCH_TIMEOUT_MS) {
+  const response = await fetchWithTimeout(
+    GATEWAY_MODELS_URL,
+    undefined,
+    timeoutMs
+  );
   if (!response.ok) {
     throw new Error(
       `Failed to fetch gateway models (${response.status} ${response.statusText}).`
