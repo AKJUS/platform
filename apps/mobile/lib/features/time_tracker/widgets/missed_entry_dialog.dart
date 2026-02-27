@@ -15,6 +15,7 @@ class MissedEntryDialog extends StatefulWidget {
   const MissedEntryDialog({
     required this.categories,
     required this.onSave,
+    this.canBypassRequestApproval = false,
     this.thresholdDays,
     this.initialStartTime,
     this.initialEndTime,
@@ -35,6 +36,7 @@ class MissedEntryDialog extends StatefulWidget {
     String? description,
   })
   onSave;
+  final bool canBypassRequestApproval;
   final int? thresholdDays;
   final DateTime? initialStartTime;
   final DateTime? initialEndTime;
@@ -87,7 +89,8 @@ class _MissedEntryDialogState extends State<MissedEntryDialog> {
 
     final duration = _endTime.difference(_startTime);
     final durationText = _formatDuration(duration);
-    final showThresholdWarning = _isOlderThanThreshold;
+    final showThresholdWarning =
+        _isOlderThanThreshold && !widget.canBypassRequestApproval;
     final requiresProof = showThresholdWarning;
     final selectedCategory = widget.categories
         .where((category) => category.id == _categoryId)
@@ -403,7 +406,9 @@ class _MissedEntryDialogState extends State<MissedEntryDialog> {
       return false;
     }
 
-    if (_isOlderThanThreshold && _images.isEmpty) {
+    if (_isOlderThanThreshold &&
+        !widget.canBypassRequestApproval &&
+        _images.isEmpty) {
       return false;
     }
 

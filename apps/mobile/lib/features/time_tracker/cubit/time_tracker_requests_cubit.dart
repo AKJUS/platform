@@ -90,6 +90,7 @@ class TimeTrackerRequestsCubit extends Cubit<TimeTrackerRequestsState> {
       await loadRequests(wsId);
     } on Exception catch (e) {
       emit(state.copyWith(error: e.toString()));
+      rethrow;
     }
   }
 
@@ -108,6 +109,21 @@ class TimeTrackerRequestsCubit extends Cubit<TimeTrackerRequestsState> {
       await loadRequests(wsId);
     } on Exception catch (e) {
       emit(state.copyWith(error: e.toString()));
+      rethrow;
+    }
+  }
+
+  Future<void> resubmitRequest(String requestId, String wsId) async {
+    try {
+      await _repo.updateRequestStatus(
+        wsId,
+        requestId,
+        status: ApprovalStatus.pending,
+      );
+      await loadRequests(wsId);
+    } on Exception catch (e) {
+      emit(state.copyWith(error: e.toString()));
+      rethrow;
     }
   }
 

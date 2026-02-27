@@ -20,6 +20,7 @@ class RequestDetailSheet extends StatefulWidget {
     required this.onApprove,
     required this.onReject,
     required this.onRequestInfo,
+    required this.onResubmit,
     required this.wsId,
     required this.repository,
     this.isManager = false,
@@ -31,8 +32,9 @@ class RequestDetailSheet extends StatefulWidget {
 
   final TimeTrackingRequest request;
   final Future<void> Function() onApprove;
-  final ValueChanged<String?> onReject;
-  final ValueChanged<String?> onRequestInfo;
+  final Future<void> Function(String?) onReject;
+  final Future<void> Function(String) onRequestInfo;
+  final Future<void> Function() onResubmit;
   final String wsId;
   final ITimeTrackerRepository repository;
   final bool isManager;
@@ -62,6 +64,7 @@ class _RequestDetailSheetState extends State<RequestDetailSheet> {
   bool _commentsExpanded = false;
   bool _activityExpanded = false;
   int _activityCount = 0;
+  bool _isResubmitting = false;
 
   @override
   void initState() {
@@ -160,8 +163,17 @@ class _RequestDetailSheetState extends State<RequestDetailSheet> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final theme = shad.Theme.of(context);
+    final canEditRequest =
+        widget.canEdit &&
+        widget.onEdit != null &&
+        (_request.approvalStatus == ApprovalStatus.pending ||
+            _request.approvalStatus == ApprovalStatus.needsInfo);
+    final isRequestOwner =
+        _currentUserId != null && _request.userId == _currentUserId;
     final showManagerActions =
         widget.isManager && _request.approvalStatus == ApprovalStatus.pending;
+    final showResubmitAction =
+        isRequestOwner && _request.approvalStatus == ApprovalStatus.needsInfo;
 
     return DraggableScrollableSheet(
       initialChildSize: 0.62,
@@ -196,7 +208,7 @@ class _RequestDetailSheetState extends State<RequestDetailSheet> {
                           RequestStatusBadge(status: _request.approvalStatus),
                         ],
                       ),
-                      if (widget.canEdit && widget.onEdit != null) ...[
+                      if (canEditRequest) ...[
                         const shad.Gap(12),
                         Align(
                           alignment: Alignment.centerLeft,
@@ -254,15 +266,19 @@ class _RequestDetailSheetState extends State<RequestDetailSheet> {
                       if (_request.rejectionReason != null) ...[
                         const shad.Gap(12),
                         RequestReasonBox(
+                          title: l10n.timerRequestRejectionReason,
                           text: _request.rejectionReason!,
                           color: theme.colorScheme.destructive,
+                          icon: Icons.close,
                         ),
                       ],
                       if (_request.needsInfoReason != null) ...[
                         const shad.Gap(12),
                         RequestReasonBox(
+                          title: l10n.timerRequestNeedsInfoReason,
                           text: _request.needsInfoReason!,
-                          color: theme.colorScheme.secondary,
+                          color: theme.colorScheme.primary,
+                          icon: Icons.info,
                         ),
                       ],
                       const shad.Gap(24),
@@ -313,9 +329,89 @@ class _RequestDetailSheetState extends State<RequestDetailSheet> {
               ),
               if (showManagerActions)
                 RequestManagerActionsBar(
-                  onApprove: widget.onApprove,
-                  onReject: widget.onReject,
-                  onRequestInfo: widget.onRequestInfo,
+                  onApprove: () async {
+                    await widget.onApprove();
+
+                    if (!mounted) {
+                      return;
+                    }
+
+                    setState(() {
+                      _request = _requestWithStatus(
+                        ApprovalStatus.approved,
+                      );
+                    });
+                  },
+                  onReject: (reason) async {
+                    await widget.onReject(reason);
+
+                    if (!mounted) {
+                      return;
+                    }
+
+                    setState(() {
+                      _request = _requestWithStatus(
+                        ApprovalStatus.rejected,
+                        reason: reason,
+                      );
+                    });
+                  },
+                  onRequestInfo: (reason) async {
+                    await widget.onRequestInfo(reason);
+
+                    if (!mounted) {
+                      return;
+                    }
+
+                    setState(() {
+                      _request = _requestWithStatus(
+                        ApprovalStatus.needsInfo,
+                        reason: reason,
+                      );
+                    });
+                  },
+                ),
+              if (showResubmitAction)
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const shad.Divider(),
+                    SafeArea(
+                      top: false,
+                      child: Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
+                        child: shad.PrimaryButton(
+                          onPressed: _isResubmitting
+                              ? null
+                              : () async {
+                                  setState(() => _isResubmitting = true);
+                                  try {
+                                    await widget.onResubmit();
+                                    if (!mounted) {
+                                      return;
+                                    }
+                                    setState(() {
+                                      _request = _requestWithStatus(
+                                        ApprovalStatus.pending,
+                                      );
+                                    });
+                                  } finally {
+                                    if (mounted) {
+                                      setState(() => _isResubmitting = false);
+                                    }
+                                  }
+                                },
+                          child: _isResubmitting
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: shad.CircularProgressIndicator(),
+                                )
+                              : Text(l10n.timerRequestResubmit),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
             ],
           ),
@@ -379,6 +475,39 @@ class _RequestDetailSheetState extends State<RequestDetailSheet> {
     return '${local.month}/${local.day} '
         '${local.hour.toString().padLeft(2, '0')}:'
         '${local.minute.toString().padLeft(2, '0')}';
+  }
+
+  TimeTrackingRequest _requestWithStatus(
+    ApprovalStatus status, {
+    String? reason,
+  }) {
+    final now = DateTime.now().toUtc();
+
+    return TimeTrackingRequest(
+      id: _request.id,
+      workspaceId: _request.workspaceId,
+      userId: _request.userId,
+      taskId: _request.taskId,
+      categoryId: _request.categoryId,
+      title: _request.title,
+      description: _request.description,
+      startTime: _request.startTime,
+      endTime: _request.endTime,
+      images: _request.images,
+      approvalStatus: status,
+      approvedBy: status == ApprovalStatus.approved
+          ? (_currentUserId ?? _request.approvedBy)
+          : null,
+      approvedAt: status == ApprovalStatus.approved ? now : null,
+      rejectedBy: status == ApprovalStatus.rejected
+          ? (_currentUserId ?? _request.rejectedBy)
+          : null,
+      rejectedAt: status == ApprovalStatus.rejected ? now : null,
+      rejectionReason: status == ApprovalStatus.rejected ? reason : null,
+      needsInfoReason: status == ApprovalStatus.needsInfo ? reason : null,
+      createdAt: _request.createdAt,
+      updatedAt: now,
+    );
   }
 }
 

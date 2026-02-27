@@ -11,6 +11,7 @@ import 'package:mobile/features/time_tracker/cubit/time_tracker_state.dart';
 import 'package:mobile/features/time_tracker/widgets/edit_session_dialog.dart';
 import 'package:mobile/features/time_tracker/widgets/history_period_controls.dart';
 import 'package:mobile/features/time_tracker/widgets/history_stats_accordion.dart';
+import 'package:mobile/features/time_tracker/widgets/session_detail_sheet.dart';
 import 'package:mobile/features/time_tracker/widgets/session_tile.dart';
 import 'package:mobile/features/workspace/cubit/workspace_cubit.dart';
 import 'package:mobile/l10n/l10n.dart';
@@ -196,6 +197,7 @@ class _HistoryTabState extends State<HistoryTab> {
                       return SessionTile(
                         session: session,
                         categoryColor: categoryColorById[session.categoryId],
+                        onTap: () => _showDetailSheet(context, session),
                         onEdit: () => _showEditDialog(context, session),
                         onDelete: () => _deleteSession(context, session.id),
                       );
@@ -290,6 +292,44 @@ class _HistoryTabState extends State<HistoryTab> {
     }).toList();
   }
 
+  void _showDetailSheet(BuildContext context, TimeTrackingSession session) {
+    final cubit = context.read<TimeTrackerCubit>();
+    final wsId =
+        context.read<WorkspaceCubit>().state.currentWorkspace?.id ?? '';
+
+    unawaited(
+      showAdaptiveSheet<void>(
+        context: context,
+        builder: (_) => SessionDetailSheet(
+          session: session,
+          categories: cubit.state.categories,
+          thresholdDays: cubit.state.thresholdDays,
+          onDelete: () => _deleteSession(context, session.id),
+          onSave:
+              ({
+                title,
+                description,
+                categoryId,
+                startTime,
+                endTime,
+              }) async {
+                await cubit.editSession(
+                  session.id,
+                  wsId,
+                  userId: supabase.auth.currentUser?.id,
+                  title: title,
+                  description: description,
+                  categoryId: categoryId,
+                  startTime: startTime,
+                  endTime: endTime,
+                  throwOnError: true,
+                );
+              },
+        ),
+      ),
+    );
+  }
+
   void _showEditDialog(BuildContext context, TimeTrackingSession session) {
     final cubit = context.read<TimeTrackerCubit>();
     final wsId =
@@ -327,12 +367,12 @@ class _HistoryTabState extends State<HistoryTab> {
     );
   }
 
-  void _deleteSession(BuildContext context, String sessionId) {
+  Future<void> _deleteSession(BuildContext context, String sessionId) {
     final cubit = context.read<TimeTrackerCubit>();
     final wsId =
         context.read<WorkspaceCubit>().state.currentWorkspace?.id ?? '';
     final userId = _currentUserId();
-    unawaited(cubit.deleteSession(sessionId, wsId, userId));
+    return cubit.deleteSession(sessionId, wsId, userId);
   }
 
   String _currentUserId() {

@@ -450,10 +450,16 @@ class AppLocalizationsEn extends AppLocalizations {
   String get timerActivityHeatmap => 'Activity';
 
   @override
+  String get timerViewSessionDetails => 'Session details';
+
+  @override
   String get timerEditSession => 'Edit session';
 
   @override
   String get timerSessionUpdated => 'Session updated';
+
+  @override
+  String get timerSessionDeleted => 'Session deleted';
 
   @override
   String get timerDeleteSession => 'Delete session';
@@ -523,6 +529,9 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get timerRequestInfo => 'Request info';
+
+  @override
+  String get timerRequestResubmit => 'Resubmit request';
 
   @override
   String get timerRequestEdit => 'Edit';
@@ -643,6 +652,15 @@ class AppLocalizationsEn extends AppLocalizations {
   String get timerReasonOptional => 'Reason (optional)';
 
   @override
+  String get timerInfoRequired => 'Info (required)';
+
+  @override
+  String get timerSubmitInfo => 'Submit info';
+
+  @override
+  String get timerRequestUpdated => 'Request updated';
+
+  @override
   String get timerManagementTitle => 'Management';
 
   @override
@@ -662,6 +680,12 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get timerRequestSubmittedContent => 'Your time entry has been submitted for approval.';
+
+  @override
+  String get timerRequestRejectionReason => 'Rejection reason';
+
+  @override
+  String get timerRequestNeedsInfoReason => 'Requested Information';
 
   @override
   String get timerMissedEntrySavedTitle => 'Entry saved';
