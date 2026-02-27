@@ -356,7 +356,29 @@ export async function executeConvertFileToMarkdown(
   });
 
   if (!deduction.ok) {
-    return { ok: false, error: deduction.error };
+    console.error(
+      'MarkItDown: conversion succeeded but fixed credit deduction failed:',
+      {
+        wsId: ctx.wsId,
+        userId: ctx.userId,
+        targetPath,
+        error: deduction.error,
+      }
+    );
+
+    return {
+      ok: true,
+      markdown: finalMarkdown,
+      title: typeof payload.title === 'string' ? payload.title : null,
+      fileName: stripTimestampPrefix(selectedFileName),
+      storagePath: targetPath,
+      creditsCharged: 0,
+      remainingCredits: null,
+      truncated: wasTruncated,
+      warning:
+        'MarkItDown conversion succeeded, but credits could not be charged for this run.',
+      creditDeductionError: deduction.error,
+    };
   }
 
   return {

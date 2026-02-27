@@ -10,6 +10,8 @@ type ChatFile = {
   mediaType: string;
 };
 
+const FILE_DOWNLOAD_CONCURRENCY = 4;
+
 function maskIdentifier(value: string): string {
   if (value.length <= 8) return value;
   return `${value.slice(0, 4)}...${value.slice(-4)}`;
@@ -45,9 +47,18 @@ async function getAllChatFiles(
     }
 
     const supabase = await createClient();
-    const fileContents = (
-      await Promise.all(
-        files.map(async (file) => {
+    let nextFileIndex = 0;
+    const results = new Array<ChatFile | null>(files.length).fill(null);
+    const workers = Array.from(
+      { length: Math.min(FILE_DOWNLOAD_CONCURRENCY, files.length) },
+      async () => {
+        while (true) {
+          const currentIndex = nextFileIndex++;
+          if (currentIndex >= files.length) {
+            return;
+          }
+
+          const file = files[currentIndex]!;
           const fileName = file.name || 'unknown';
           const mediaType =
             file.metadata?.mediaType ||
@@ -61,12 +72,12 @@ async function getAllChatFiles(
 
           if (downloadError) {
             console.error(`Error downloading file ${fileName}:`, downloadError);
-            return null;
+            continue;
           }
 
           if (!fileData) {
             console.error(`No data received for file ${fileName}`);
-            return null;
+            continue;
           }
 
           const content =
@@ -74,14 +85,19 @@ async function getAllChatFiles(
               ? await fileData.text()
               : await fileData.arrayBuffer();
 
-          return {
+          results[currentIndex] = {
             fileName,
             content,
             mediaType,
           } satisfies ChatFile;
-        })
-      )
-    ).filter((file): file is ChatFile => file !== null);
+        }
+      }
+    );
+
+    await Promise.all(workers);
+    const fileContents = results.filter(
+      (file): file is ChatFile => file !== null
+    );
 
     return fileContents;
   } catch (error) {
@@ -191,16 +207,6 @@ export async function processMessagesWithFiles(
     role: 'user',
     content: newContent,
   };
-
-  if (Array.isArray(newContent) && newContent.length > 0) {
-    const lastPart = newContent[newContent.length - 1];
-    if (lastPart?.type === 'file') {
-      console.info('[Google Chat Files] appended file part metadata', {
-        type: 'file',
-        mediaType: lastPart.mediaType,
-      });
-    }
-  }
 
   return processedMessages;
 }

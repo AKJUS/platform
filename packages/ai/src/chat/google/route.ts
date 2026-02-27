@@ -56,8 +56,21 @@ export function createPOST(
   return async function handler(req: NextRequest): Promise<Response> {
     try {
       const sbAdmin = await createAdminClient();
+      let requestBody: unknown;
+      try {
+        requestBody = await req.json();
+      } catch (error) {
+        return NextResponse.json(
+          {
+            error: 'Invalid JSON payload',
+            message:
+              error instanceof Error ? error.message : 'Malformed JSON body',
+          },
+          { status: 400 }
+        );
+      }
 
-      const parsedBody = ChatRequestBodySchema.safeParse(await req.json());
+      const parsedBody = ChatRequestBodySchema.safeParse(requestBody);
       if (!parsedBody.success) {
         return NextResponse.json(
           {

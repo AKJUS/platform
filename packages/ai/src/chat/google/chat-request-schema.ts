@@ -26,7 +26,7 @@ const UIMessageSchema = z
   .passthrough();
 
 export const ChatRequestBodySchema = z.object({
-  id: z.string().min(1),
+  id: z.string().optional(),
   model: z.string().optional(),
   messages: z.array(UIMessageSchema).optional(),
   wsId: z.string().optional(),

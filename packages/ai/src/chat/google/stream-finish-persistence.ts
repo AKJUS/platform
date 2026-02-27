@@ -107,19 +107,20 @@ function collectUsageTotals(response: StreamFinishResponseLike): UsageTotals {
   let outputTokens = usage.outputTokens ?? 0;
   let reasoningTokens = usage.reasoningTokens ?? 0;
 
-  if (
-    inputTokens === 0 &&
-    outputTokens === 0 &&
-    reasoningTokens === 0 &&
-    (response.steps?.length ?? 0) > 0
-  ) {
+  if ((response.steps?.length ?? 0) > 0) {
     for (const step of response.steps ?? []) {
       const stepUsage = step.usage;
       if (!stepUsage) continue;
 
-      inputTokens += stepUsage.inputTokens ?? 0;
-      outputTokens += stepUsage.outputTokens ?? 0;
-      reasoningTokens += stepUsage.reasoningTokens ?? 0;
+      if (inputTokens === 0) {
+        inputTokens += stepUsage.inputTokens ?? 0;
+      }
+      if (outputTokens === 0) {
+        outputTokens += stepUsage.outputTokens ?? 0;
+      }
+      if (reasoningTokens === 0) {
+        reasoningTokens += stepUsage.reasoningTokens ?? 0;
+      }
     }
   }
 
