@@ -104,6 +104,7 @@ export default function MiraChatPanel({
     supportsFileInput,
     thinkingMode,
     setThinkingMode,
+    setWorkspaceContextId,
     transport,
   } = useMiraChatConfig({ wsId });
 
@@ -236,6 +237,7 @@ export default function MiraChatPanel({
     queryClient,
     routerRefresh: router.refresh,
     setMessageAttachments,
+    setWorkspaceContextId,
     status,
   });
 

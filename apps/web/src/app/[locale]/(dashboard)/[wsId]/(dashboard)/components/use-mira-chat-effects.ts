@@ -17,6 +17,7 @@ interface UseMiraChatEffectsParams {
   setMessageAttachments: Dispatch<
     SetStateAction<Map<string, MessageFileAttachment[]>>
   >;
+  setWorkspaceContextId: (value: string) => void;
   status: string;
 }
 
@@ -28,6 +29,7 @@ export function useMiraChatEffects({
   queryClient,
   routerRefresh,
   setMessageAttachments,
+  setWorkspaceContextId,
   status,
 }: UseMiraChatEffectsParams) {
   const prevStatusRef = useRef(status);
@@ -67,10 +69,28 @@ export function useMiraChatEffects({
           if (typeof enabled === 'boolean' && enabled !== isFullscreen) {
             onToggleFullscreen?.();
           }
+        } else if (toolName === 'set_workspace_context') {
+          handledToolOutputs.current.add(key);
+          const output = (part as { output?: unknown }).output;
+          const nextWorkspaceContextId = (
+            output as { workspaceContextId?: unknown }
+          )?.workspaceContextId;
+          if (
+            typeof nextWorkspaceContextId === 'string' &&
+            nextWorkspaceContextId.trim().length > 0
+          ) {
+            setWorkspaceContextId(nextWorkspaceContextId.trim());
+          }
         }
       }
     }
-  }, [isFullscreen, messages, onToggleFullscreen, queryClient]);
+  }, [
+    isFullscreen,
+    messages,
+    onToggleFullscreen,
+    queryClient,
+    setWorkspaceContextId,
+  ]);
 
   const prevMessageIdsRef = useRef(new Set<string>());
   useEffect(() => {

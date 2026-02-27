@@ -9,6 +9,7 @@ import {
   INITIAL_MODEL,
   THINKING_MODE_STORAGE_KEY_PREFIX,
   type ThinkingMode,
+  WORKSPACE_CONTEXT_STORAGE_KEY_PREFIX,
 } from './mira-chat-constants';
 
 interface UseMiraChatConfigParams {
@@ -18,6 +19,8 @@ interface UseMiraChatConfigParams {
 export function useMiraChatConfig({ wsId }: UseMiraChatConfigParams) {
   const [model, setModel] = useState<Model>(INITIAL_MODEL);
   const [thinkingMode, setThinkingMode] = useState<ThinkingMode>('fast');
+  const [workspaceContextId, setWorkspaceContextId] =
+    useState<string>('personal');
 
   const supportsFileInput = useMemo(() => {
     const tags = model.tags;
@@ -66,12 +69,13 @@ export function useMiraChatConfig({ wsId }: UseMiraChatConfigParams) {
   const chatRequestBody = useMemo(
     () => ({
       wsId,
+      workspaceContextId,
       model: gatewayModelId,
       isMiraMode: true,
       timezone: timezoneForChat,
       thinkingMode,
     }),
-    [gatewayModelId, thinkingMode, timezoneForChat, wsId]
+    [gatewayModelId, thinkingMode, timezoneForChat, workspaceContextId, wsId]
   );
   const chatRequestBodyRef = useRef(chatRequestBody);
   chatRequestBodyRef.current = chatRequestBody;
@@ -103,6 +107,19 @@ export function useMiraChatConfig({ wsId }: UseMiraChatConfigParams) {
     );
   }, [thinkingMode, wsId]);
 
+  useEffect(() => {
+    const key = `${WORKSPACE_CONTEXT_STORAGE_KEY_PREFIX}${wsId}`;
+    const stored = localStorage.getItem(key)?.trim();
+    setWorkspaceContextId(stored || 'personal');
+  }, [wsId]);
+
+  useEffect(() => {
+    localStorage.setItem(
+      `${WORKSPACE_CONTEXT_STORAGE_KEY_PREFIX}${wsId}`,
+      workspaceContextId || 'personal'
+    );
+  }, [workspaceContextId, wsId]);
+
   return {
     chatRequestBody,
     gatewayModelId,
@@ -111,6 +128,8 @@ export function useMiraChatConfig({ wsId }: UseMiraChatConfigParams) {
     supportsFileInput,
     thinkingMode,
     setThinkingMode,
+    workspaceContextId,
+    setWorkspaceContextId,
     transport,
   };
 }
