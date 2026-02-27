@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseGoogleSearchSources } from './parse-google-search-sources';
+import { parseGoogleSearchSources } from '../parse-google-search-sources';
 
 describe('parseGoogleSearchSources', () => {
   it('returns empty array for null or invalid sources container', () => {
