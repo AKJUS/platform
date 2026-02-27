@@ -24,14 +24,16 @@ async function upsertSubscription(
     status: subscription.status as any,
     polar_subscription_id: subscription.id,
     product_id: subscription.product.id,
-    current_period_start: subscription.currentPeriodStart.toISOString(),
+    current_period_start: new Date(
+      subscription.currentPeriodStart
+    ).toISOString(),
     current_period_end: subscription.currentPeriodEnd
-      ? subscription.currentPeriodEnd.toISOString()
+      ? new Date(subscription.currentPeriodEnd).toISOString()
       : null,
     cancel_at_period_end: subscription.cancelAtPeriodEnd,
-    created_at: subscription.createdAt.toISOString(),
+    created_at: new Date(subscription.createdAt).toISOString(),
     updated_at: subscription.modifiedAt
-      ? subscription.modifiedAt.toISOString()
+      ? new Date(subscription.modifiedAt).toISOString()
       : null,
     seat_count: seatCount,
   };
@@ -62,7 +64,7 @@ async function upsertCreditPackPurchase(
     );
   }
 
-  const grantedAtIso = subscription.createdAt.toISOString();
+  const grantedAtIso = new Date(subscription.createdAt).toISOString();
   const expiresAt = new Date(grantedAtIso);
   expiresAt.setUTCDate(expiresAt.getUTCDate() + Number(config.expiryDays));
   const expiresAtIso = expiresAt.toISOString();

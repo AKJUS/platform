@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { syncSubscriptionToDatabase } from '@/utils/polar-subscription-helper';
 
 // Mock dependencies that cause issues in test environment
 vi.mock('@tuturuuu/payment/polar/next', () => ({
@@ -9,13 +10,11 @@ vi.mock('@tuturuuu/payment/polar/server', () => ({
   createPolarClient: vi.fn(),
 }));
 
-import { syncSubscriptionToDatabase } from '../../../app/api/payment/webhooks/route';
-
 // Mock Supabase admin client
 const mockSingle = vi.fn();
 const mockUpsert = vi.fn();
 
-const mockSupabase = {
+const mockSupabase: any = {
   from: vi.fn().mockImplementation((table) => {
     if (table === 'workspace_subscription_products') {
       return {
@@ -60,17 +59,20 @@ describe('syncSubscriptionToDatabase', () => {
     });
     mockUpsert.mockResolvedValue({ error: null });
 
-    const result = await syncSubscriptionToDatabase(mockSubscription);
+    const result = await syncSubscriptionToDatabase(
+      mockSupabase,
+      mockSubscription
+    );
 
     expect(result.isSeatBased).toBe(true);
-    expect(result.subscriptionData.seat_count).toBe(5);
-    expect(result.subscriptionData.ws_id).toBe(
+    expect(result.subscriptionData!.seat_count).toBe(5);
+    expect(result.subscriptionData!.ws_id).toBe(
       '00000000-0000-0000-0000-000000000000'
     );
-    expect(result.subscriptionData.status).toBe('active');
-    expect(result.subscriptionData.polar_subscription_id).toBe('sub_123');
-    expect(result.subscriptionData.product_id).toBe('prod_123');
-    expect(result.subscriptionData.cancel_at_period_end).toBe(false);
+    expect(result.subscriptionData!.status).toBe('active');
+    expect(result.subscriptionData!.polar_subscription_id).toBe('sub_123');
+    expect(result.subscriptionData!.product_id).toBe('prod_123');
+    expect(result.subscriptionData!.cancel_at_period_end).toBe(false);
 
     expect(mockUpsert).toHaveBeenCalledWith(
       [
@@ -102,17 +104,17 @@ describe('syncSubscriptionToDatabase', () => {
     });
     mockUpsert.mockResolvedValue({ error: null });
 
-    const result = await syncSubscriptionToDatabase({
+    const result = await syncSubscriptionToDatabase(mockSupabase, {
       ...mockSubscription,
       seats: null,
     });
 
     expect(result.isSeatBased).toBe(false);
-    expect(result.subscriptionData.seat_count).toBeNull();
-    expect(result.subscriptionData.ws_id).toBe(
+    expect(result.subscriptionData!.seat_count).toBeNull();
+    expect(result.subscriptionData!.ws_id).toBe(
       '00000000-0000-0000-0000-000000000000'
     );
-    expect(result.subscriptionData.status).toBe('active');
+    expect(result.subscriptionData!.status).toBe('active');
 
     expect(mockUpsert).toHaveBeenCalledWith(
       [
@@ -139,7 +141,7 @@ describe('syncSubscriptionToDatabase', () => {
     };
 
     await expect(
-      syncSubscriptionToDatabase(subscriptionWithoutWsId)
+      syncSubscriptionToDatabase(mockSupabase, subscriptionWithoutWsId)
     ).rejects.toThrow();
   });
 
@@ -159,16 +161,21 @@ describe('syncSubscriptionToDatabase', () => {
     };
 
     const result = await syncSubscriptionToDatabase(
+      mockSupabase,
       subscriptionWithStringDates
     );
 
-    expect(result.subscriptionData.current_period_start).toBe(
+    expect(result.subscriptionData!.current_period_start).toBe(
       '2026-01-15T10:30:00.000Z'
     );
-    expect(result.subscriptionData.current_period_end).toBe(
+    expect(result.subscriptionData!.current_period_end).toBe(
       '2026-02-15T10:30:00.000Z'
     );
-    expect(result.subscriptionData.created_at).toBe('2026-01-15T10:30:00.000Z');
-    expect(result.subscriptionData.updated_at).toBe('2026-01-15T10:30:00.000Z');
+    expect(result.subscriptionData!.created_at).toBe(
+      '2026-01-15T10:30:00.000Z'
+    );
+    expect(result.subscriptionData!.updated_at).toBe(
+      '2026-01-15T10:30:00.000Z'
+    );
   });
 });

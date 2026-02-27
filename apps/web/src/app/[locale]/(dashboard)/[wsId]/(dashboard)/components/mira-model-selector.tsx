@@ -573,7 +573,7 @@ export default function MiraModelSelector({
             </div>
           )}
           <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b px-3 py-2">
-            <div className="relative min-w-0 flex-1 sm:max-w-[240px]">
+            <div className="relative min-w-0 flex-1 sm:max-w-60">
               <Search className="pointer-events-none absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground/70" />
               <Input
                 placeholder={t('model_selector_search')}
