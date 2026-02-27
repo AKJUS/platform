@@ -8,9 +8,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { resolveTimezone } from '@/lib/calendar-settings-resolver';
 import {
   CREDIT_SOURCE_STORAGE_KEY_PREFIX,
+  type CreditSource,
   INITIAL_MODEL,
   THINKING_MODE_STORAGE_KEY_PREFIX,
-  type CreditSource,
   type ThinkingMode,
 } from './mira-chat-constants';
 
