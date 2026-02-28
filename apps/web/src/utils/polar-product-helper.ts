@@ -73,7 +73,7 @@ async function upsertSubscriptionProduct(
     );
   }
 
-  const firstPrice = product.prices.find((p: any) => 'amountType' in p);
+  const firstPrice = product.prices.find((p) => 'amountType' in p);
   const isSeatBased = firstPrice?.amountType === 'seat_based';
   const isFixed = firstPrice?.amountType === 'fixed';
 
@@ -123,7 +123,7 @@ async function upsertCreditPackProduct(
     throw new Error(`Credit pack ${product.id} is missing metadata tokens`);
   }
 
-  const firstPrice = product.prices.find((p: any) => 'amountType' in p);
+  const firstPrice = product.prices.find((p) => 'amountType' in p);
   const isFixed = firstPrice?.amountType === 'fixed';
   const price = isFixed ? firstPrice.priceAmount : 0;
   const currency = firstPrice?.priceCurrency

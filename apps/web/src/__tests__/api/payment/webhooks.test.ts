@@ -14,7 +14,7 @@ vi.mock('@tuturuuu/payment/polar/server', () => ({
 const mockSingle = vi.fn();
 const mockUpsert = vi.fn();
 
-const mockSupabase: any = {
+const mockSupabase: Record<string, unknown> = {
   from: vi.fn().mockImplementation((table) => {
     if (table === 'workspace_subscription_products') {
       return {
@@ -33,11 +33,11 @@ const mockSupabase: any = {
 };
 
 vi.mock('@tuturuuu/supabase/next/server', () => ({
-  createAdminClient: vi.fn(() => Promise.resolve(mockSupabase)),
+  createAdminClient: vi.fn(() => Promise.resolve(mockSupabase as any)),
 }));
 
 describe('syncSubscriptionToDatabase', () => {
-  const mockSubscription: any = {
+  const mockSubscription: Record<string, unknown> = {
     id: 'sub_123',
     customer: { id: 'cust_123' },
     status: 'active',
@@ -60,8 +60,8 @@ describe('syncSubscriptionToDatabase', () => {
     mockUpsert.mockResolvedValue({ error: null });
 
     const result = await syncSubscriptionToDatabase(
-      mockSupabase,
-      mockSubscription
+      mockSupabase as any,
+      mockSubscription as any
     );
 
     expect(result.isSeatBased).toBe(true);
@@ -104,10 +104,13 @@ describe('syncSubscriptionToDatabase', () => {
     });
     mockUpsert.mockResolvedValue({ error: null });
 
-    const result = await syncSubscriptionToDatabase(mockSupabase, {
-      ...mockSubscription,
-      seats: null,
-    });
+    const result = await syncSubscriptionToDatabase(
+      mockSupabase as any,
+      {
+        ...mockSubscription,
+        seats: null,
+      } as any
+    );
 
     expect(result.isSeatBased).toBe(false);
     expect(result.subscriptionData!.seat_count).toBeNull();
@@ -141,7 +144,10 @@ describe('syncSubscriptionToDatabase', () => {
     };
 
     await expect(
-      syncSubscriptionToDatabase(mockSupabase, subscriptionWithoutWsId)
+      syncSubscriptionToDatabase(
+        mockSupabase as any,
+        subscriptionWithoutWsId as any
+      )
     ).rejects.toThrow();
   });
 
@@ -161,8 +167,8 @@ describe('syncSubscriptionToDatabase', () => {
     };
 
     const result = await syncSubscriptionToDatabase(
-      mockSupabase,
-      subscriptionWithStringDates
+      mockSupabase as any,
+      subscriptionWithStringDates as any
     );
 
     expect(result.subscriptionData!.current_period_start).toBe(

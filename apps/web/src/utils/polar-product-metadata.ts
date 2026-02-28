@@ -8,7 +8,7 @@ const VALID_TIERS: WorkspaceProductTier[] = [
   'ENTERPRISE',
 ];
 
-function parsePositiveInteger(value: any): number | null {
+function parsePositiveInteger(value: unknown): number | null {
   if (typeof value === 'number' && Number.isFinite(value)) {
     const parsed = Math.trunc(value);
     return parsed > 0 ? parsed : null;

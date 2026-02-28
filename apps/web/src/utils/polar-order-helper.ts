@@ -1,5 +1,6 @@
 import type { Order } from '@tuturuuu/payment/polar';
 import type { TypedSupabaseClient } from '@tuturuuu/supabase/next/client';
+import type { Database } from '@tuturuuu/types';
 import { resolveWorkspaceOrderProduct } from '@/utils/polar-product-helper';
 
 export async function syncOrderToDatabase(
@@ -21,14 +22,15 @@ export async function syncOrderToDatabase(
   const orderData = {
     ws_id: wsId,
     polar_order_id: order.id,
-    status: order.status as any,
+    status: order.status as Database['public']['Enums']['order_status'],
     polar_subscription_id: order.subscriptionId,
     product_id: productResolution.productId,
     credit_pack_id: productResolution.creditPackId,
     product_kind: productResolution.productKind,
     total_amount: order.totalAmount,
     currency: order.currency,
-    billing_reason: order.billingReason as any,
+    billing_reason:
+      order.billingReason as Database['public']['Enums']['billing_reason'],
     created_at: order.createdAt.toISOString(),
     updated_at: order.modifiedAt ? order.modifiedAt.toISOString() : null,
   };

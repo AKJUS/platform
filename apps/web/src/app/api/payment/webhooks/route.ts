@@ -80,8 +80,12 @@ export const POST = Webhooks({
   onSubscriptionCreated: async (payload) => {
     try {
       const sbAdmin = await createAdminClient();
-      const { subscriptionData, isSeatBased } =
-        await syncSubscriptionToDatabase(sbAdmin, payload.data);
+      const syncResult = await syncSubscriptionToDatabase(
+        sbAdmin,
+        payload.data
+      );
+      if ('purchaseData' in syncResult) return;
+      const { subscriptionData, isSeatBased } = syncResult;
 
       console.log('Webhook: Subscription created:', payload.data.id);
 
@@ -131,8 +135,12 @@ export const POST = Webhooks({
   onSubscriptionUpdated: async (payload) => {
     try {
       const sbAdmin = await createAdminClient();
-      const { subscriptionData, isSeatBased } =
-        await syncSubscriptionToDatabase(sbAdmin, payload.data);
+      const syncResult = await syncSubscriptionToDatabase(
+        sbAdmin,
+        payload.data
+      );
+      if ('purchaseData' in syncResult) return;
+      const { subscriptionData, isSeatBased } = syncResult;
 
       console.log(`Webhook: Subscription updated: ${payload.data.id}`);
 
@@ -237,10 +245,12 @@ export const POST = Webhooks({
   onSubscriptionRevoked: async (payload) => {
     try {
       const sbAdmin = await createAdminClient();
-      const { subscriptionData } = await syncSubscriptionToDatabase(
+      const syncResult = await syncSubscriptionToDatabase(
         sbAdmin,
         payload.data
       );
+      if ('purchaseData' in syncResult) return;
+      const { subscriptionData } = syncResult;
       console.log(`Webhook: Subscription revoked: ${payload.data.id}`);
 
       if (!subscriptionData) return;

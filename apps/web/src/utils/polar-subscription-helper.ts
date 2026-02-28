@@ -1,5 +1,6 @@
 import type { Subscription } from '@tuturuuu/payment/polar';
 import type { TypedSupabaseClient } from '@tuturuuu/supabase/next/client';
+import type { Database } from '@tuturuuu/types';
 import { addDays, addMonths, addWeeks, addYears } from 'date-fns';
 import {
   isAiCreditPackProduct,
@@ -22,7 +23,8 @@ async function upsertSubscription(
 
   const subscriptionData = {
     ws_id: wsId,
-    status: subscription.status as any,
+    status:
+      subscription.status as Database['public']['Enums']['subscription_status'],
     polar_subscription_id: subscription.id,
     product_id: subscription.product.id,
     current_period_start: new Date(
@@ -115,7 +117,7 @@ async function upsertCreditPackPurchase(
     tokens_remaining: tokensRemaining,
     granted_at: subscription.currentPeriodStart.toISOString(),
     expires_at: expiresAtIso,
-    status: status as any,
+    status: status as Database['public']['Enums']['subscription_status'],
     updated_at: new Date().toISOString(),
   };
 

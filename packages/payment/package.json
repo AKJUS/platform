@@ -16,8 +16,5 @@
   "devDependencies": {
     "@tuturuuu/typescript-config": "workspace:*"
   },
-  "overrides": {
-    "@polar-sh/sdk": "^0.45.1"
-  },
   "packageManager": "bun@1.3.10"
 }
