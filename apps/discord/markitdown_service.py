@@ -42,7 +42,7 @@ def _require_supabase_hostname() -> str:
 
 def _validate_signed_url(signed_url: str, configured_supabase_host: str) -> None:
     parsed = urlparse(signed_url)
-    
+
     is_local_host = configured_supabase_host in ("127.0.0.1", "localhost")
     allowed_schemes = ("http", "https") if is_local_host else ("https",)
 

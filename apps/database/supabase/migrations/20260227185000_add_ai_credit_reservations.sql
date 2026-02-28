@@ -655,6 +655,7 @@ RETURNS TABLE (
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path TO public, pg_temp
 AS $$
 DECLARE
   v_balance RECORD;
@@ -739,6 +740,7 @@ CREATE OR REPLACE FUNCTION public.get_ai_credit_usage_summary(
 RETURNS JSONB
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path TO public, pg_temp
 AS $$
 DECLARE
   v_balance RECORD;

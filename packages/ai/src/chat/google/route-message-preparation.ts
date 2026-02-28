@@ -113,7 +113,7 @@ function extractLatestUserMessageContent(
         if (part.type === 'text') return part.text;
         if (part.type === 'image') return '[Image attached]';
         if (part.type === 'file')
-          return `[File: ${(part as any).name || 'attached'}]`;
+          return `[File: ${(part as { name?: string }).name || 'attached'}]`;
         return '';
       })
       .filter(Boolean)

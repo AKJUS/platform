@@ -4,6 +4,7 @@ import {
   createClient,
   createDynamicClient,
 } from '@tuturuuu/supabase/next/server';
+
 import {
   consumeStream,
   gateway,
@@ -11,6 +12,7 @@ import {
   stepCountIs,
   streamText,
 } from 'ai';
+
 import { type NextRequest, NextResponse } from 'next/server';
 import {
   shouldForceGoogleSearchForLatestUserMessage,
@@ -239,10 +241,14 @@ export function createPOST(
         ...(cappedMaxOutput ? { maxOutputTokens: cappedMaxOutput } : {}),
         ...(miraTools
           ? {
-              tools: { ...miraTools, ...googleSearchTool },
+              tools: { ...miraTools, ...googleSearchTool } as NonNullable<
+                Parameters<typeof streamText>[0]
+              >['tools'],
               stopWhen: stepCountIs(25),
               toolChoice: 'auto' as const,
-              prepareStep: prepareStep as any,
+              prepareStep: prepareStep as NonNullable<
+                NonNullable<Parameters<typeof streamText>[0]>['prepareStep']
+              >,
             }
           : {
               tools: googleSearchTool,
