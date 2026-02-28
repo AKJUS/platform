@@ -60,7 +60,8 @@ function extractRenderUiOutputCandidates(output: unknown): unknown[] {
   if (typeof jsonValue === 'string') {
     const parsed = safeParseJson(jsonValue);
     if (parsed !== null) candidates.push(parsed);
-  } else if (jsonValue !== undefined) {
+  }
+  if (typeof jsonValue === 'object' && jsonValue !== null) {
     candidates.push(jsonValue);
   }
 
@@ -111,7 +112,13 @@ function isRecoveredRenderUiOutput(output: unknown): boolean {
     if (visited.has(current)) continue;
     visited.add(current);
 
-    if (current.recoveredFromInvalidSpec === true) return true;
+    if (
+      current.recoveredFromInvalidSpec === true ||
+      current.autoRecoveredFromInvalidSpec === true ||
+      current.forcedFromRecoveryLoop === true
+    ) {
+      return true;
+    }
 
     queue.push(...extractRenderUiOutputCandidates(current));
   }
@@ -136,6 +143,51 @@ function extractTextFromUserMessage(message: ModelMessage): string {
     .join('\n');
 }
 
+const PRODUCTIVITY_WORKSPACE_SCOPE_CUE_REGEX =
+  /\b(my tasks?|tasks?|calendar|events?|agenda|finance|spending|wallet|transactions?|workspace|workspace members?|members?|teammates?|team)\b/;
+
+const WORKSPACE_MEMBER_CUE_REGEX =
+  /\b(workspace|workspace members?|members?|teammates?|team)\b/;
+
+const WORKSPACE_QUALIFIER_REGEX =
+  /\b(?:in|from|inside|within|under)\s+["'`]?([a-z0-9][\w&./-]*(?:\s+[a-z0-9][\w&./-]*){0,4})["'`]?/i;
+
+const DISALLOWED_WORKSPACE_QUALIFIERS = new Set([
+  'progress',
+  'done',
+  'todo',
+  'to do',
+  'today',
+  'tomorrow',
+  'tonight',
+  'yesterday',
+  'this week',
+  'next week',
+  'upcoming',
+  'overdue',
+  'personal',
+  'my',
+]);
+
+function normalizeWorkspaceQualifierCandidate(candidate: string): string {
+  return candidate
+    .trim()
+    .replace(/[?.,!;:]+$/g, '')
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
+}
+
+function hasExplicitWorkspaceQualifier(text: string): boolean {
+  const match = text.match(WORKSPACE_QUALIFIER_REGEX);
+  if (!match?.[1]) return false;
+
+  const normalizedCandidate = normalizeWorkspaceQualifierCandidate(match[1]);
+  if (!normalizedCandidate) return false;
+  if (DISALLOWED_WORKSPACE_QUALIFIERS.has(normalizedCandidate)) return false;
+
+  return true;
+}
+
 export function shouldForceRenderUiForLatestUserMessage(
   messages: ModelMessage[]
 ): boolean {
@@ -154,6 +206,102 @@ export function shouldForceRenderUiForLatestUserMessage(
     }
 
     return false;
+  }
+
+  return false;
+}
+
+export function shouldForceGoogleSearchForLatestUserMessage(
+  messages: ModelMessage[]
+): boolean {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i];
+    if (!message || message.role !== 'user') continue;
+
+    const text = extractTextFromUserMessage(message).toLowerCase();
+    if (!text) return false;
+
+    const hasExplicitWebLookupRequest =
+      /\b(google search|search (?:the )?(?:web|internet|online)|web search|internet search|look ?up (?:on )?(?:the )?(?:web|internet|online)|find (?:online|on the web))\b/.test(
+        text
+      );
+
+    const hasRealtimeExternalCue =
+      /\b(latest|current|right now|up[- ]?to[- ]?date|news|weather|forecast|price|pricing|cost|stock|stocks|exchange rate|score|scores|standings)\b/.test(
+        text
+      );
+
+    const hasWorkspaceAppCue =
+      /\b(my tasks?|task|agenda|calendar|event|events|wallet|transaction|spending|finance|timer|time tracking|workspace|board|project|assignee)\b/.test(
+        text
+      );
+
+    if (hasExplicitWebLookupRequest) return true;
+    if (hasRealtimeExternalCue && !hasWorkspaceAppCue) return true;
+    return false;
+  }
+
+  return false;
+}
+
+export function shouldPreferMarkdownTablesForLatestUserMessage(
+  messages: ModelMessage[]
+): boolean {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i];
+    if (!message || message.role !== 'user') continue;
+
+    const text = extractTextFromUserMessage(message).toLowerCase();
+    if (!text) return false;
+
+    const requestsTable =
+      /\b(table|tabular|rows?|columns?|markdown table)\b/.test(text) ||
+      /\|\s*[^|\n]+\s*\|/.test(text);
+
+    if (!requestsTable) return false;
+
+    const explicitlyVisualUi =
+      /\b(render_ui|dashboard|card|chart|graph|widget|visual ui)\b/.test(text);
+
+    return !explicitlyVisualUi;
+  }
+
+  return false;
+}
+
+export function shouldResolveWorkspaceContextForLatestUserMessage(
+  messages: ModelMessage[]
+): boolean {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i];
+    if (!message || message.role !== 'user') continue;
+
+    const text = extractTextFromUserMessage(message).toLowerCase();
+    if (!text) return false;
+
+    return (
+      PRODUCTIVITY_WORKSPACE_SCOPE_CUE_REGEX.test(text) &&
+      hasExplicitWorkspaceQualifier(text)
+    );
+  }
+
+  return false;
+}
+
+export function shouldForceWorkspaceMembersForLatestUserMessage(
+  messages: ModelMessage[]
+): boolean {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i];
+    if (!message || message.role !== 'user') continue;
+
+    const text = extractTextFromUserMessage(message).toLowerCase();
+    if (!text) return false;
+
+    return (
+      WORKSPACE_MEMBER_CUE_REGEX.test(text) &&
+      /\b(who(?:'s| is)?|list|show|see|what)\b/.test(text)
+    );
   }
 
   return false;
