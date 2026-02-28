@@ -60,8 +60,7 @@ export async function executeGetMyTasks(
       (t) =>
         t.task_end_date &&
         t.task_end_date >= todayStart.toISOString() &&
-        t.task_end_date <= todayEnd.toISOString() &&
-        t.task_end_date >= now.toISOString()
+        t.task_end_date <= todayEnd.toISOString()
     )
     .map(mapTask)
     .slice(0, 30);
@@ -816,5 +815,6 @@ async function resolveDefaultBoardAndList(
   return { boardId: board.id, listId: list.id };
 }
 
+// Exported for potential reuse
 // Exported for potential reuse
 export { resolveDefaultBoardAndList };

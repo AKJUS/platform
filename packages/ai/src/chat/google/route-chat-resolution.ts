@@ -64,7 +64,7 @@ export async function moveTempFilesToThread({
     return new Response(threadError.message, { status: 500 });
   }
 
-  if (!(thread && thread.length === 1 && thread[0]?.role === 'USER')) {
+  if (!thread || thread.length === 0) {
     return null;
   }
 

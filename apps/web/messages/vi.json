@@ -2947,7 +2947,7 @@
       "workspace_context_label": "Ngữ cảnh",
       "workspace_context_loading": "Đang tải...",
       "workspace_context_personal": "Cá nhân",
-      "workspace_context_unknown": "Không gian làm việc",
+      "workspace_context_unknown": "Không gian làm việc (không xác định)",
       "you": "Bạn"
     },
     "multiple_tasks_attention": "{count} nhiệm vụ cần sự chú ý của bạn",

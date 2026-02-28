@@ -2,7 +2,6 @@
 
 import type { QueryClient } from '@tanstack/react-query';
 import type { UIMessage } from '@tuturuuu/ai/types';
-import { getToolName, isToolUIPart } from 'ai';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import { useEffect, useRef } from 'react';
 import type { MessageFileAttachment } from './file-preview-chips';
@@ -48,13 +47,21 @@ export function useMiraChatEffects({
   useEffect(() => {
     for (const message of messages) {
       if (message.role !== 'assistant') continue;
-      for (const part of message.parts ?? []) {
-        if (!isToolUIPart(part)) continue;
-        const toolName = getToolName(part as never);
-        const state = (part as { state?: string }).state;
-        if (state !== 'output-available') continue;
+      const parts = message.parts ?? [];
+      for (let index = 0; index < parts.length; index++) {
+        const part = parts[index];
+        if (!part) continue;
 
-        const key = `${message.id}-${toolName}`;
+        // Extract tool name and state safely
+        const toolName =
+          (part as any).toolInvocation?.toolName || (part as any).toolName;
+        const state =
+          (part as any).toolInvocation?.state || (part as any).state;
+        const partId =
+          (part as any).toolInvocation?.toolCallId || (part as any).id || index;
+        const key = `${message.id}-${toolName}-${partId}`;
+
+        if (state !== 'output-available') continue;
         if (handledToolOutputs.current.has(key)) continue;
 
         if (toolName === 'update_my_settings') {

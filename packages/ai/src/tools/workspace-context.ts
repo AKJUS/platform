@@ -197,14 +197,20 @@ export async function resolveWorkspaceContextState({
     (workspace) => workspace.id === requested
   );
   if (directMatch) {
-    return toWorkspaceContextState(directMatch, directMatch.id);
+    return toWorkspaceContextState(
+      directMatch,
+      directMatch.personal ? PERSONAL_WORKSPACE_SLUG : directMatch.id
+    );
   }
 
   const nameMatches = accessibleWorkspaces.filter(
     (workspace) => workspace.name.toLowerCase() === requested.toLowerCase()
   );
   if (nameMatches.length === 1) {
-    return toWorkspaceContextState(nameMatches[0]!, nameMatches[0]!.id);
+    return toWorkspaceContextState(
+      nameMatches[0]!,
+      nameMatches[0]!.personal ? PERSONAL_WORKSPACE_SLUG : nameMatches[0]!.id
+    );
   }
 
   if (strict) {

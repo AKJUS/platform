@@ -1,5 +1,6 @@
 import {
   Archive,
+  BadgeDollarSign,
   Banknote,
   Bell,
   Blocks,
@@ -51,7 +52,6 @@ import {
   MailX,
   Megaphone,
   MessageCircleIcon,
-  NotepadText,
   Package,
   PencilRuler,
   Play,
@@ -250,11 +250,11 @@ export async function WorkspaceNavigationLinks({
           icon: <Repeat className="h-4 w-4" />,
           requireRootMember: true,
         },
-        {
-          title: t('sidebar_tabs.notes'),
-          href: `/${personalOrWsId}/tasks/notes`,
-          icon: <NotepadText className="h-4 w-4" />,
-        },
+        // {
+        //   title: t('sidebar_tabs.notes'),
+        //   href: `/${personalOrWsId}/tasks/notes`,
+        //   icon: <NotepadText className="h-4 w-4" />,
+        // },
         {
           title: t('sidebar_tabs.drafts'),
           href: `/${personalOrWsId}/tasks/drafts`,
@@ -315,7 +315,104 @@ export async function WorkspaceNavigationLinks({
       href: `/${personalOrWsId}/calendar`,
       disabled: ENABLE_AI_ONLY || withoutPermission('manage_calendar'),
     },
-    // ── Vertical 4: Track (Time + Finance merged) ──
+    // ── Vertical 4: Finance & Track ──
+    {
+      title: t('sidebar_tabs.finance'),
+      href: `/${personalOrWsId}/time-tracker`,
+      icon: <BadgeDollarSign className="h-5 w-5" />,
+      experimental: 'beta',
+      aliases: [
+        `/${personalOrWsId}/time-tracker`,
+        `/${personalOrWsId}/time-tracker/timer`,
+        `/${personalOrWsId}/time-tracker/history`,
+        `/${personalOrWsId}/time-tracker/management`,
+        `/${personalOrWsId}/time-tracker/requests`,
+        `/${personalOrWsId}/finance`,
+        `/${personalOrWsId}/finance/transactions`,
+        `/${personalOrWsId}/finance/recurring`,
+        `/${personalOrWsId}/finance/wallets`,
+        `/${personalOrWsId}/finance/budgets`,
+        `/${personalOrWsId}/finance/analytics`,
+        `/${personalOrWsId}/finance/transactions/categories`,
+        `/${personalOrWsId}/finance/tags`,
+        `/${personalOrWsId}/finance/invoices`,
+        `/${personalOrWsId}/finance/debts`,
+        `/${personalOrWsId}/finance/settings`,
+      ],
+      children: [
+        // ── Finance: Core ──
+        {
+          sectionLabel: t('sidebar_tabs.finance'),
+          title: t('workspace-finance-tabs.overview'),
+          href: `/${personalOrWsId}/finance`,
+          icon: <LayoutDashboard className="h-5 w-5" />,
+          matchExact: true,
+          disabled: withoutPermission('manage_finance'),
+        },
+        {
+          title: t('workspace-finance-tabs.transactions'),
+          href: `/${personalOrWsId}/finance/transactions`,
+          matchExact: true,
+          icon: <Banknote className="h-5 w-5" />,
+          disabled: withoutPermission('view_transactions'),
+        },
+        // {
+        //   title: t('workspace-finance-tabs.recurring'),
+        //   href: `/${personalOrWsId}/finance/recurring`,
+        //   icon: <Repeat className="h-5 w-5" />,
+        //   disabled: withoutPermission('view_transactions'),
+        // },
+        {
+          title: t('workspace-finance-tabs.wallets'),
+          href: `/${personalOrWsId}/finance/wallets`,
+          icon: <Wallet className="h-5 w-5" />,
+          disabled: withoutPermission('view_transactions'),
+        },
+        // {
+        //   title: t('workspace-finance-tabs.budgets'),
+        //   href: `/${personalOrWsId}/finance/budgets`,
+        //   icon: <PiggyBank className="h-5 w-5" />,
+        //   disabled: withoutPermission('manage_finance'),
+        // },
+        null,
+        // ── Finance: Insights ──
+        // {
+        //   title: t('workspace-finance-tabs.analytics'),
+        //   href: `/${personalOrWsId}/finance/analytics`,
+        //   icon: <TrendingUp className="h-5 w-5" />,
+        //   disabled: withoutPermission('manage_finance'),
+        // },
+        null,
+        // ── Finance: Records ──
+        {
+          title: t('workspace-finance-tabs.invoices'),
+          href: `/${personalOrWsId}/finance/invoices`,
+          icon: <ReceiptText className="h-5 w-5" />,
+          disabled: !showInvoices || withoutPermission('view_invoices'),
+        },
+        // {
+        //   title: t('workspace-finance-tabs.debts'),
+        //   href: `/${personalOrWsId}/finance/debts`,
+        //   icon: <ArrowLeftRight className="h-5 w-5" />,
+        //   disabled: withoutPermission('view_transactions'),
+        // },
+        null,
+        // ── Finance: Configuration ──
+        {
+          title: t('workspace-finance-tabs.categories'),
+          href: `/${personalOrWsId}/finance/transactions/categories`,
+          icon: <Group className="h-5 w-5" />,
+          disabled: withoutPermission('manage_finance'),
+        },
+        {
+          title: t('workspace-finance-tabs.tags'),
+          href: `/${personalOrWsId}/finance/tags`,
+          icon: <Tags className="h-5 w-5" />,
+          disabled: withoutPermission('manage_finance'),
+        },
+      ],
+      disabled: ENABLE_AI_ONLY,
+    },
     {
       title: t('sidebar_tabs.track'),
       href: `/${personalOrWsId}/time-tracker`,
@@ -386,77 +483,6 @@ export async function WorkspaceNavigationLinks({
           requiredWorkspaceTier: createTierRequirement('time_tracker', {
             alwaysShow: true,
           }),
-        },
-        null,
-        // ── Finance: Core ──
-        {
-          sectionLabel: t('sidebar_tabs.finance'),
-          title: t('workspace-finance-tabs.overview'),
-          href: `/${personalOrWsId}/finance`,
-          icon: <LayoutDashboard className="h-5 w-5" />,
-          matchExact: true,
-          disabled: withoutPermission('manage_finance'),
-        },
-        {
-          title: t('workspace-finance-tabs.transactions'),
-          href: `/${personalOrWsId}/finance/transactions`,
-          matchExact: true,
-          icon: <Banknote className="h-5 w-5" />,
-          disabled: withoutPermission('view_transactions'),
-        },
-        // {
-        //   title: t('workspace-finance-tabs.recurring'),
-        //   href: `/${personalOrWsId}/finance/recurring`,
-        //   icon: <Repeat className="h-5 w-5" />,
-        //   disabled: withoutPermission('view_transactions'),
-        // },
-        {
-          title: t('workspace-finance-tabs.wallets'),
-          href: `/${personalOrWsId}/finance/wallets`,
-          icon: <Wallet className="h-5 w-5" />,
-          disabled: withoutPermission('view_transactions'),
-        },
-        // {
-        //   title: t('workspace-finance-tabs.budgets'),
-        //   href: `/${personalOrWsId}/finance/budgets`,
-        //   icon: <PiggyBank className="h-5 w-5" />,
-        //   disabled: withoutPermission('manage_finance'),
-        // },
-        null,
-        // ── Finance: Insights ──
-        // {
-        //   title: t('workspace-finance-tabs.analytics'),
-        //   href: `/${personalOrWsId}/finance/analytics`,
-        //   icon: <TrendingUp className="h-5 w-5" />,
-        //   disabled: withoutPermission('manage_finance'),
-        // },
-        null,
-        // ── Finance: Records ──
-        {
-          title: t('workspace-finance-tabs.invoices'),
-          href: `/${personalOrWsId}/finance/invoices`,
-          icon: <ReceiptText className="h-5 w-5" />,
-          disabled: !showInvoices || withoutPermission('view_invoices'),
-        },
-        // {
-        //   title: t('workspace-finance-tabs.debts'),
-        //   href: `/${personalOrWsId}/finance/debts`,
-        //   icon: <ArrowLeftRight className="h-5 w-5" />,
-        //   disabled: withoutPermission('view_transactions'),
-        // },
-        null,
-        // ── Finance: Configuration ──
-        {
-          title: t('workspace-finance-tabs.categories'),
-          href: `/${personalOrWsId}/finance/transactions/categories`,
-          icon: <Group className="h-5 w-5" />,
-          disabled: withoutPermission('manage_finance'),
-        },
-        {
-          title: t('workspace-finance-tabs.tags'),
-          href: `/${personalOrWsId}/finance/tags`,
-          icon: <Tags className="h-5 w-5" />,
-          disabled: withoutPermission('manage_finance'),
         },
       ],
       disabled: ENABLE_AI_ONLY,

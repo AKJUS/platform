@@ -1,6 +1,8 @@
 'use client';
 
+import type { AIChat } from '@tuturuuu/types';
 import { toast } from '@tuturuuu/ui/sonner';
+import type { MessageFileAttachment } from './file-preview-chips';
 
 export function exportMiraChat({
   chat,
@@ -14,12 +16,12 @@ export function exportMiraChat({
   thinkingMode,
   wsId,
 }: {
-  chat: unknown;
+  chat: Partial<AIChat> | null | undefined;
   chatId: string;
   fallbackChatId: string;
-  messageAttachments: Map<string, unknown>;
-  messages: unknown[];
-  model: unknown;
+  messageAttachments: Map<string, MessageFileAttachment[]>;
+  messages: any[];
+  model: any;
   status: string;
   t: (...args: any[]) => string;
   thinkingMode: string;

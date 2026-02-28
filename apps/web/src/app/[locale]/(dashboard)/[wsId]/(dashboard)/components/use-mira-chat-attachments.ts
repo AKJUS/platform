@@ -155,25 +155,21 @@ export function useMiraChatAttachments({
 
   const handleFileRemove = useCallback(
     (id: string) => {
-      let removedStoragePath: string | null = null;
+      const file = attachedFilesRef.current.find((item) => item.id === id);
+      const removedStoragePath = file?.storagePath ?? null;
 
-      setAttachedFiles((prev) => {
-        const file = prev.find((item) => item.id === id);
-        removedStoragePath = file?.storagePath ?? null;
+      if (file?.previewUrl) {
+        const isSnapshotted = Array.from(
+          messageAttachmentsRef.current.values()
+        ).some((attachments) =>
+          attachments.some(
+            (attachment) => attachment.previewUrl === file.previewUrl
+          )
+        );
+        if (!isSnapshotted) URL.revokeObjectURL(file.previewUrl);
+      }
 
-        if (file?.previewUrl) {
-          const isSnapshotted = Array.from(
-            messageAttachmentsRef.current.values()
-          ).some((attachments) =>
-            attachments.some(
-              (attachment) => attachment.previewUrl === file.previewUrl
-            )
-          );
-          if (!isSnapshotted) URL.revokeObjectURL(file.previewUrl);
-        }
-
-        return prev.filter((file) => file.id !== id);
-      });
+      setAttachedFiles((prev) => prev.filter((item) => item.id !== id));
 
       if (!removedStoragePath) return;
 

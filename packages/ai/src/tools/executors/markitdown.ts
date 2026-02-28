@@ -17,12 +17,20 @@ function stripTimestampPrefix(name: string): string {
   return match?.[1] ?? name;
 }
 
-function parseHttpsBaseUrl(value: string): string | null {
+function parseBaseUrl(value: string): string | null {
   try {
     const parsed = new URL(value);
-    if (parsed.protocol !== 'https:') {
+    const isLocalhost =
+      parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1';
+
+    // Require HTTPS, except for local testing
+    if (
+      parsed.protocol !== 'https:' &&
+      !(isLocalhost && parsed.protocol === 'http:')
+    ) {
       return null;
     }
+
     parsed.search = '';
     parsed.hash = '';
     return `${parsed.origin}${parsed.pathname}`.replace(/\/+$/, '');
@@ -34,7 +42,7 @@ function parseHttpsBaseUrl(value: string): string | null {
 function resolveDiscordMarkitdownUrl(): string | null {
   const deploymentUrl = process.env.DISCORD_APP_DEPLOYMENT_URL?.trim();
   if (!deploymentUrl) return null;
-  const normalizedBaseUrl = parseHttpsBaseUrl(deploymentUrl);
+  const normalizedBaseUrl = parseBaseUrl(deploymentUrl);
   if (!normalizedBaseUrl) return null;
   return `${normalizedBaseUrl}/markitdown`;
 }
@@ -194,7 +202,7 @@ export async function executeConvertFileToMarkdown(
     Number.isFinite(args.maxCharacters)
       ? Math.floor(args.maxCharacters)
       : 120_000;
-  const maxCharacters = Math.min(Math.max(maxCharactersRaw, 2_000), 300_000);
+  const maxCharacters = Math.min(Math.max(maxCharactersRaw, 10_000), 120_000);
 
   const expectedPrefix = `${ctx.wsId}/chats/ai/resources/`;
   let targetPath = storagePathArg;
