@@ -60,7 +60,8 @@ function extractRenderUiOutputCandidates(output: unknown): unknown[] {
   if (typeof jsonValue === 'string') {
     const parsed = safeParseJson(jsonValue);
     if (parsed !== null) candidates.push(parsed);
-  } else if (jsonValue !== undefined) {
+  }
+  if (typeof jsonValue === 'object' && jsonValue !== null) {
     candidates.push(jsonValue);
   }
 

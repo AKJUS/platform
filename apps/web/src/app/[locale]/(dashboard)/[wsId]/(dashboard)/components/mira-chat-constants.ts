@@ -1,5 +1,4 @@
 import { defaultModel } from '@tuturuuu/ai/models';
-import { Calendar, ListTodo, Sparkles, Target } from '@tuturuuu/icons';
 
 if (!defaultModel) {
   throw new Error('No default Mira chat model is configured.');
@@ -34,11 +33,10 @@ export const emptyStateActions = [
   {
     titleKey: 'quick_calendar',
     descKey: 'quick_calendar_desc',
-    icon: Calendar,
   },
-  { titleKey: 'quick_tasks', descKey: 'quick_tasks_desc', icon: ListTodo },
-  { titleKey: 'quick_focus', descKey: 'quick_focus_desc', icon: Target },
-  { titleKey: 'quick_log', descKey: 'quick_log_desc', icon: Sparkles },
+  { titleKey: 'quick_tasks', descKey: 'quick_tasks_desc' },
+  { titleKey: 'quick_focus', descKey: 'quick_focus_desc' },
+  { titleKey: 'quick_log', descKey: 'quick_log_desc' },
 ] as const;
 
 export function getGreetingKey(): GreetingKey {

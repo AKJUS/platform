@@ -12,7 +12,7 @@ import type {
  * Returns allowance info including remaining credits and effective maxOutputTokens.
  */
 export async function checkAiCredits(
-  wsId: string,
+  wsId: string | undefined,
   modelId: string,
   feature: AiFeature,
   opts?: { userId?: string; estimatedInputTokens?: number }
@@ -21,7 +21,7 @@ export async function checkAiCredits(
   const gatewayModelId = resolveGatewayModelId(modelId);
 
   const { data, error } = await sbAdmin.rpc('check_ai_credit_allowance', {
-    p_ws_id: wsId,
+    p_ws_id: wsId as string,
     p_model_id: gatewayModelId,
     p_feature: feature,
     ...(opts?.estimatedInputTokens != null
@@ -75,7 +75,7 @@ export async function deductAiCredits(
   const gatewayModelId = resolveGatewayModelId(params.modelId);
 
   const { data, error } = await sbAdmin.rpc('deduct_ai_credits', {
-    p_ws_id: params.wsId,
+    p_ws_id: params.wsId as string,
     p_model_id: gatewayModelId,
     p_input_tokens: params.inputTokens,
     p_output_tokens: params.outputTokens,

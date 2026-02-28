@@ -239,10 +239,10 @@ export function createPOST(
         ...(cappedMaxOutput ? { maxOutputTokens: cappedMaxOutput } : {}),
         ...(miraTools
           ? {
-              tools: miraTools,
+              tools: { ...miraTools, ...googleSearchTool },
               stopWhen: stepCountIs(25),
               toolChoice: 'auto' as const,
-              prepareStep,
+              prepareStep: prepareStep as any,
             }
           : {
               tools: googleSearchTool,

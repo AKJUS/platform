@@ -192,7 +192,7 @@ export async function executeConvertFileToMarkdown(
     Number.isFinite(args.maxCharacters)
       ? Math.floor(args.maxCharacters)
       : 120_000;
-  const maxCharacters = Math.min(Math.max(maxCharactersRaw, 2_000), 300_000);
+  const maxCharacters = Math.min(Math.max(maxCharactersRaw, 10_000), 120_000);
 
   const expectedPrefix = `${ctx.wsId}/chats/ai/resources/`;
   let targetPath = storagePathArg;

@@ -93,7 +93,7 @@ export async function reserveFixedAiCredits(
     p_model_id: gatewayModelId,
     p_feature: params.feature,
     p_metadata: (params.metadata ?? {}) as Json,
-    ...(params.expiresInSeconds != null
+    ...((params.expiresInSeconds ?? 0) > 0
       ? { p_expires_in_seconds: params.expiresInSeconds }
       : {}),
   });

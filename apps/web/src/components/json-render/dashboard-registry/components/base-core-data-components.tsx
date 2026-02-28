@@ -16,7 +16,9 @@ export const dashboardBaseDataComponents = {
   Progress: ({
     props,
   }: JsonRenderComponentContext<JsonRenderProgressProps>) => {
-    const clampedValue = Math.max(0, Math.min(100, props.value ?? 0));
+    const raw = Number(props.value);
+    const safe = Number.isFinite(raw) ? raw : 0;
+    const clampedValue = Math.max(0, Math.min(100, safe));
     const resolveColor = () => {
       if (props.color && props.color !== 'default') return props.color;
       if (clampedValue > 66) return 'success';
@@ -128,7 +130,17 @@ export const dashboardBaseDataComponents = {
   BarChart: ({
     props,
   }: JsonRenderComponentContext<JsonRenderBarChartProps>) => {
-    const maxValue = Math.max(1, ...(props.data?.map((d) => d.value) ?? [100]));
+    const normalizedData = (props.data ?? []).map((item) => {
+      const parsed = Number(item.value);
+      return {
+        ...item,
+        value: Number.isFinite(parsed) ? Math.max(0, parsed) : 0,
+      };
+    });
+    const maxValue = Math.max(
+      1,
+      ...(normalizedData.length ? normalizedData.map((d) => d.value) : [100])
+    );
 
     const resolveBarColor = (color?: string): string | undefined => {
       if (!color) return undefined;
@@ -156,7 +168,7 @@ export const dashboardBaseDataComponents = {
           className="flex items-end justify-between gap-2 px-1"
           style={{ height: props.height || 120 }}
         >
-          {props.data?.map((item) => {
+          {normalizedData.map((item) => {
             const barColor = resolveBarColor(item.color);
             const itemKey = `${item.label}-${item.value}-${item.color ?? 'default'}`;
             return (
@@ -182,10 +194,10 @@ export const dashboardBaseDataComponents = {
           })}
         </div>
         <div className="flex justify-between gap-1 px-1">
-          {props.data?.map((item) => (
+          {normalizedData.map((item) => (
             <div
               key={`${item.label}-${item.value}-${item.color ?? 'default'}`}
-              className="flex-1 whitespace-normal break-words text-center text-[10px] text-muted-foreground uppercase leading-tight tracking-tight"
+              className="wrap-break-word flex-1 whitespace-normal text-center text-[10px] text-muted-foreground uppercase leading-tight tracking-tight"
             >
               {item.label}
             </div>

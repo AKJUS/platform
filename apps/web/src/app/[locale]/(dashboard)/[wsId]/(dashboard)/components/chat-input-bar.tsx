@@ -54,7 +54,12 @@ function isAcceptedFile(file: File): boolean {
   if (ACCEPTED_MIME_TYPES.has(mimeType)) return true;
 
   const fileName = file.name.toLowerCase();
-  return [...ACCEPTED_EXTENSIONS].some((ext) => fileName.endsWith(ext));
+  const extIndex = fileName.lastIndexOf('.');
+  if (extIndex !== -1) {
+    const ext = fileName.substring(extIndex);
+    return ACCEPTED_EXTENSIONS.has(ext);
+  }
+  return false;
 }
 
 /**

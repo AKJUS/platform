@@ -19,9 +19,9 @@ export async function performCreditPreflight({
 }: CreditPreflightParams): Promise<
   { cappedMaxOutput: number | null } | { error: Response }
 > {
-  const creditCheck = wsId
-    ? await checkAiCredits(wsId, model, 'chat', { userId })
-    : null;
+  const creditCheck = await checkAiCredits(wsId ?? undefined, model, 'chat', {
+    userId,
+  });
 
   if (creditCheck && !creditCheck.allowed) {
     return {

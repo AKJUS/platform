@@ -31,7 +31,8 @@ export function restoreMessages(
       return (
         message.content != null ||
         metadata?.toolCalls != null ||
-        metadata?.reasoning != null
+        metadata?.reasoning != null ||
+        metadata?.sources != null
       );
     })
     .map((message) => {
@@ -119,19 +120,38 @@ export async function loadExistingChat({
   storedChatId: string;
 }): Promise<RestoredChatPayload | null> {
   const supabase = await createClient();
-  const { data: chatData } = await supabase
+  const { data: chatData, error: chatError } = await supabase
     .from('ai_chats')
     .select('id, title, model, is_public')
     .eq('id', storedChatId)
     .maybeSingle();
 
+  if (chatError) {
+    console.error(
+      '[Mira Chat] Error fetching ai_chats:',
+      chatError,
+      'storedChatId:',
+      storedChatId
+    );
+    return null;
+  }
   if (!chatData) return null;
 
-  const { data: messagesData } = await supabase
+  const { data: messagesData, error: messagesError } = await supabase
     .from('ai_chat_messages')
     .select('id, role, content, metadata')
     .eq('chat_id', storedChatId)
     .order('created_at', { ascending: true });
+
+  if (messagesError) {
+    console.error(
+      '[Mira Chat] Error fetching ai_chat_messages:',
+      messagesError,
+      'storedChatId:',
+      storedChatId
+    );
+    return null;
+  }
 
   const restoredMessages = messagesData?.length
     ? restoreMessages(messagesData)
@@ -163,24 +183,44 @@ export async function loadExistingChat({
           (message) => message.role.toLowerCase() === 'user'
         );
 
-        if (firstUserMessage) {
-          messageAttachments.set(
-            firstUserMessage.id,
-            files.map((file, index) => ({
-              id: `stored-${index}`,
+        files.forEach((file, index) => {
+          let targetMsgId = (file as any).message_id;
+
+          if (!targetMsgId) {
+            const msgMatch = messagesData?.find((m) => {
+              const meta = m.metadata as any;
+              return (
+                meta &&
+                Array.isArray(meta.attachments) &&
+                meta.attachments.some(
+                  (a: any) =>
+                    a.storagePath === file.path ||
+                    a.url === file.path ||
+                    a.id === file.path
+                )
+              );
+            });
+            targetMsgId = msgMatch?.id || firstUserMessage?.id;
+          }
+
+          if (targetMsgId) {
+            const existing = messageAttachments.get(targetMsgId) || [];
+            existing.push({
+              id: `stored-${file.path.replace(/[^a-zA-Z0-9]/g, '-')}-${index}`,
               name: file.name,
               size: file.size,
               type: file.type,
               previewUrl: null,
               storagePath: file.path,
               signedUrl: file.signedUrl,
-            }))
-          );
-        }
+            });
+            messageAttachments.set(targetMsgId, existing);
+          }
+        });
       }
     }
-  } catch {
-    console.warn('[Mira Chat] Failed to load chat file URLs');
+  } catch (err) {
+    console.error('[Mira Chat] Failed to load chat file URLs', err);
   }
 
   return {

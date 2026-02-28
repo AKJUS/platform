@@ -97,7 +97,7 @@ export async function prepareMiraRuntime({
       isFirstInteraction,
       withoutPermission,
     });
-    const workspaceContextInstruction = `## Workspace Context\n\nCurrent task/calendar/finance workspace context: ${resolvedWorkspaceContext.name} (${resolvedWorkspaceContext.personal ? 'personal' : 'shared'} workspace).\nUse the personal workspace by default for "my tasks", "my calendar", and "my finance". Only switch to another workspace when the user explicitly asks or clearly approves it.`;
+    const workspaceContextInstruction = `## Workspace Context\n\nCurrent task/calendar/finance workspace context: ${resolvedWorkspaceContext.name} (${resolvedWorkspaceContext.personal ? 'personal' : 'shared'} workspace).\nUse this workspace for "my tasks", "my calendar", and "my finance" requests. Only switch to another workspace when the user explicitly names a different workspace.`;
     miraSystemPrompt = `${contextString}\n\n${workspaceContextInstruction}\n\n${dynamicInstruction}`;
   } catch (ctxErr) {
     console.error(

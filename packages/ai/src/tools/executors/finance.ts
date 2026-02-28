@@ -302,10 +302,19 @@ export async function executeGetTransaction(
 ) {
   const transactionId = args.transactionId as string;
 
+  const { data: wallets } = await ctx.supabase
+    .from('workspace_wallets')
+    .select('id')
+    .eq('ws_id', getWorkspaceContextWorkspaceId(ctx));
+  const walletIds = wallets?.map((w) => w.id) ?? [];
+
+  if (!walletIds.length) return { error: 'No wallets in workspace' };
+
   const { data, error } = await ctx.supabase
     .from('wallet_transactions')
     .select('id, amount, description, taken_at, wallet_id, category_id')
     .eq('id', transactionId)
+    .in('wallet_id', walletIds)
     .single();
 
   if (error) return { error: error.message };
@@ -328,10 +337,19 @@ export async function executeUpdateTransaction(
     return { success: true, message: 'No fields to update' };
   }
 
+  const { data: wallets } = await ctx.supabase
+    .from('workspace_wallets')
+    .select('id')
+    .eq('ws_id', getWorkspaceContextWorkspaceId(ctx));
+  const walletIds = wallets?.map((w) => w.id) ?? [];
+
+  if (!walletIds.length) return { error: 'No wallets in workspace' };
+
   const { error } = await ctx.supabase
     .from('wallet_transactions')
     .update(updates)
-    .eq('id', transactionId);
+    .eq('id', transactionId)
+    .in('wallet_id', walletIds);
 
   if (error) return { error: error.message };
   return { success: true, message: `Transaction ${transactionId} updated` };
@@ -343,10 +361,19 @@ export async function executeDeleteTransaction(
 ) {
   const transactionId = args.transactionId as string;
 
+  const { data: wallets } = await ctx.supabase
+    .from('workspace_wallets')
+    .select('id')
+    .eq('ws_id', getWorkspaceContextWorkspaceId(ctx));
+  const walletIds = wallets?.map((w) => w.id) ?? [];
+
+  if (!walletIds.length) return { error: 'No wallets in workspace' };
+
   const { error } = await ctx.supabase
     .from('wallet_transactions')
     .delete()
-    .eq('id', transactionId);
+    .eq('id', transactionId)
+    .in('wallet_id', walletIds);
 
   if (error) return { error: error.message };
   return { success: true, message: `Transaction ${transactionId} deleted` };

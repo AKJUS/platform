@@ -1,27 +1,25 @@
 'use client';
 
+import { useMutation } from '@tanstack/react-query';
+import type { Model } from '@tuturuuu/ai/models';
 import type { UIMessage } from '@tuturuuu/ai/types';
+import type { AIChat } from '@tuturuuu/types';
 import { toast } from '@tuturuuu/ui/sonner';
 import { generateRandomUUID } from '@tuturuuu/utils/uuid-helper';
 import type { Dispatch, SetStateAction } from 'react';
 import { useCallback } from 'react';
 import { resetGenerativeUIStore } from '@/components/json-render/generative-ui-store';
 import type { MessageFileAttachment } from './file-preview-chips';
+import type { ThinkingMode } from './mira-chat-constants';
 import {
   STORAGE_KEY_PREFIX,
-  type ThinkingMode,
   WORKSPACE_CONTEXT_EVENT,
   WORKSPACE_CONTEXT_STORAGE_KEY_PREFIX,
 } from './mira-chat-constants';
 import { exportMiraChat } from './mira-chat-export';
 
 interface UseMiraChatActionsParams {
-  chat?: {
-    id?: string | null;
-    title?: string | null;
-    is_public?: boolean | null;
-    model?: string | null;
-  };
+  chat?: Partial<AIChat>;
   chatId: string;
   clearAttachedFiles: () => void;
   cleanupPendingUploads: () => Promise<void>;
@@ -29,18 +27,9 @@ interface UseMiraChatActionsParams {
   gatewayModelId: string;
   messageAttachments: Map<string, MessageFileAttachment[]>;
   messages: UIMessage[];
-  model: unknown;
-  sendMessageWithCurrentConfig: (message: UIMessage) => void;
-  setChat: (
-    chat:
-      | {
-          id: string;
-          title?: string;
-          is_public: boolean;
-          model: string;
-        }
-      | undefined
-  ) => void;
+  model: Model;
+  sendMessageWithCurrentConfig: (message: UIMessage) => void | Promise<void>;
+  setChat: Dispatch<SetStateAction<Partial<AIChat> | undefined>>;
   setFallbackChatId: (value: string) => void;
   setInput: (value: string) => void;
   setMessageAttachments: Dispatch<
@@ -80,78 +69,72 @@ export function useMiraChatActions({
   thinkingMode,
   wsId,
 }: UseMiraChatActionsParams) {
+  const { mutateAsync: createChatMutation } = useMutation({
+    mutationFn: async (userInput: string) => {
+      const res = await fetch('/api/ai/chat/new', {
+        credentials: 'include',
+        cache: 'no-store',
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: stableChatId,
+          model: gatewayModelId,
+          message: userInput,
+          isMiraMode: true,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          thinkingMode,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to create chat');
+      }
+
+      const data = await res.json();
+      if (!data.id) {
+        console.error('[Mira Chat] Chat creation returned no id', {
+          stableChatId,
+          gatewayModelId,
+        });
+        throw new Error('Chat creation returned no id');
+      }
+      return {
+        id: data.id as string,
+        title: data.title as string | undefined,
+        userInput,
+      };
+    },
+    onSuccess: (data, userInput) => {
+      setChat({
+        id: data.id,
+        title: data.title,
+        model: gatewayModelId,
+        is_public: false,
+      });
+      setStoredChatId(data.id);
+      localStorage.setItem(`${STORAGE_KEY_PREFIX}${wsId}`, data.id);
+      sendMessageWithCurrentConfig({
+        id: generateRandomUUID(),
+        role: 'user',
+        parts: [{ type: 'text', text: userInput }],
+      });
+      setPendingPrompt(null);
+    },
+    onError: () => {
+      toast.error(t('error'));
+      setPendingPrompt(null);
+    },
+  });
+
   const createChat = useCallback(
     async (userInput: string) => {
       setPendingPrompt(userInput);
-
-      try {
-        const res = await fetch('/api/ai/chat/new', {
-          credentials: 'include',
-          method: 'POST',
-          headers: {
-            Accept: 'application/json',
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            id: stableChatId,
-            model: gatewayModelId,
-            message: userInput,
-            isMiraMode: true,
-            timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-            thinkingMode,
-          }),
-        });
-
-        if (!res.ok) {
-          toast.error(t('error'));
-          setPendingPrompt(null);
-          return;
-        }
-
-        const { id, title } = (await res.json()) as {
-          id: string;
-          title?: string;
-        };
-        if (!id) {
-          console.error('[Mira Chat] Chat creation returned no id', {
-            stableChatId,
-            gatewayModelId,
-          });
-          toast.error(t('error'));
-          setPendingPrompt(null);
-          return;
-        }
-
-        setChat({
-          id,
-          title,
-          model: gatewayModelId,
-          is_public: false,
-        });
-        setStoredChatId(id);
-        localStorage.setItem(`${STORAGE_KEY_PREFIX}${wsId}`, id);
-        sendMessageWithCurrentConfig({
-          id: generateRandomUUID(),
-          role: 'user',
-          parts: [{ type: 'text', text: userInput }],
-        });
-        setPendingPrompt(null);
-      } catch {
-        toast.error(t('error'));
-        setPendingPrompt(null);
-      }
+      await createChatMutation(userInput).catch(() => {});
     },
-    [
-      gatewayModelId,
-      sendMessageWithCurrentConfig,
-      setChat,
-      setPendingPrompt,
-      setStoredChatId,
-      stableChatId,
-      t,
-      thinkingMode,
-      wsId,
-    ]
+    [setPendingPrompt, createChatMutation]
   );
 
   const resetConversationState = useCallback(() => {
@@ -190,14 +173,14 @@ export function useMiraChatActions({
 
   const handleExportChat = useCallback(() => {
     exportMiraChat({
-      chat,
+      chat: chat ?? null,
       chatId,
       fallbackChatId,
       messageAttachments,
       messages,
       model,
       status,
-      t,
+      t: t as any,
       thinkingMode,
       wsId,
     });

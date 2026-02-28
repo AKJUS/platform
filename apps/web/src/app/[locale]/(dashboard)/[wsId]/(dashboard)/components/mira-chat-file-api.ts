@@ -34,9 +34,21 @@ export async function fetchSignedReadUrlsMutationFn(
     );
   }
 
-  const { urls } = (await res.json()) as {
-    urls: Array<{ path: string; signedUrl: string | null }>;
-  };
+  const jsonResponse = (await res.json().catch(() => ({}))) as any;
+  const urls =
+    typeof jsonResponse === 'object' && jsonResponse !== null
+      ? jsonResponse.urls
+      : undefined;
+
+  if (
+    !Array.isArray(urls) ||
+    !urls.every(
+      (u: any) => u && typeof u === 'object' && 'path' in u && 'signedUrl' in u
+    )
+  ) {
+    throw new Error('Invalid response shape for signed read URLs');
+  }
+
   const map = new Map<string, string>();
 
   for (const url of urls) {
@@ -126,6 +138,7 @@ export async function uploadChatFileMutationFn({
       uploadErrorText = await uploadRes.text().catch(() => '');
 
       if (/unsupported mime type/i.test(uploadErrorText)) {
+        uploadErrorText = '';
         uploadRes = await tryUpload('application/octet-stream', true);
       }
     }

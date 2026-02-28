@@ -89,7 +89,7 @@ export async function executeGetWorkspaceContext(
 ) {
   return {
     currentWorkspaceContext: ctx.workspaceContext,
-    note: 'Task, calendar, and finance queries default to the personal workspace unless the user explicitly switches to another workspace.',
+    note: 'Use this workspace for task, calendar, and finance queries unless the user explicitly specifies another workspace.',
   };
 }
 

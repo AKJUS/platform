@@ -277,7 +277,7 @@ export async function persistAssistantResponse({
   }
 
   if (
-    wsId &&
+    (wsId || userId) &&
     (inputTokens > 0 ||
       outputTokens > 0 ||
       reasoningTokens > 0 ||
@@ -286,7 +286,7 @@ export async function persistAssistantResponse({
     let deductionResult: CreditDeductionResult;
     try {
       deductionResult = await deductAiCredits({
-        wsId,
+        wsId: wsId ?? undefined,
         userId,
         modelId: model,
         inputTokens,

@@ -78,7 +78,7 @@ export interface FeatureAccess {
 }
 
 export interface DeductCreditsParams {
-  wsId: string;
+  wsId?: string;
   userId?: string;
   modelId: string;
   inputTokens: number;

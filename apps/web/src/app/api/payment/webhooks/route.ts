@@ -358,7 +358,7 @@ export const POST = Webhooks({
   onSubscriptionCreated: async (payload) => {
     try {
       const { subscriptionData, isSeatBased } =
-        await syncSubscriptionToDatabase(payload.data);
+        await syncSubscriptionToDatabase(payload.data as any);
       console.log('Webhook: Subscription created:', payload.data.id);
 
       // Report initial usage for new subscriptions (only non-seat-based)
@@ -409,7 +409,7 @@ export const POST = Webhooks({
   onSubscriptionUpdated: async (payload) => {
     try {
       const { subscriptionData, isSeatBased } =
-        await syncSubscriptionToDatabase(payload.data);
+        await syncSubscriptionToDatabase(payload.data as any);
       console.log(
         `Webhook: Subscription updated: ${payload.data.id}, status: ${payload.data.status}`
       );
@@ -513,7 +513,7 @@ export const POST = Webhooks({
   onSubscriptionRevoked: async (payload) => {
     try {
       const { subscriptionData } = await syncSubscriptionToDatabase(
-        payload.data
+        payload.data as any
       );
       console.log(
         `Webhook: Subscription revoked: ${payload.data.id}, status: ${payload.data.status}`
@@ -578,7 +578,9 @@ export const POST = Webhooks({
   // Handle new order creation
   onOrderCreated: async (payload) => {
     try {
-      const { wsId, orderData } = await syncOrderToDatabase(payload.data);
+      const { wsId, orderData } = await syncOrderToDatabase(
+        payload.data as any
+      );
       console.log(
         `Webhook: Order created: ${payload.data.id}, status: ${orderData.status}, billing_reason: ${orderData.billing_reason}`
       );
@@ -593,7 +595,9 @@ export const POST = Webhooks({
   // Handle order updates (status changes, payment confirmations, refunds, etc.)
   onOrderUpdated: async (payload) => {
     try {
-      const { wsId, orderData } = await syncOrderToDatabase(payload.data);
+      const { wsId, orderData } = await syncOrderToDatabase(
+        payload.data as any
+      );
       console.log(
         `Webhook: Order updated: ${payload.data.id}, status: ${orderData.status}, billing_reason: ${orderData.billing_reason}`
       );

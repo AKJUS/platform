@@ -1,5 +1,5 @@
 import { MAX_CHAT_MESSAGE_LENGTH } from '@tuturuuu/utils/constants';
-import type { ModelMessage, TextPart, UIMessage } from 'ai';
+import type { ModelMessage, UIMessage } from 'ai';
 import { convertToModelMessages } from 'ai';
 import { processMessagesWithFiles } from './message-file-processing';
 
@@ -109,8 +109,14 @@ function extractLatestUserMessageContent(
 
   if (Array.isArray(lastMessage?.content)) {
     return lastMessage.content
-      .filter((part): part is TextPart => part.type === 'text')
-      .map((part) => part.text)
+      .map((part) => {
+        if (part.type === 'text') return part.text;
+        if (part.type === 'image') return '[Image attached]';
+        if (part.type === 'file')
+          return `[File: ${(part as any).name || 'attached'}]`;
+        return '';
+      })
+      .filter(Boolean)
       .join('\n');
   }
 
