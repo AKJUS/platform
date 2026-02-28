@@ -466,8 +466,8 @@ RETURNS TABLE (
   error_message TEXT
 )
 LANGUAGE plpgsql
-STABLE
 SECURITY DEFINER
+SET search_path TO public, pg_temp
 AS $$
 DECLARE
   v_tier workspace_product_tier;
@@ -630,6 +630,9 @@ END;
 $$;
 
 
+DROP FUNCTION IF EXISTS public.deduct_ai_credits(UUID, TEXT, INTEGER, INTEGER, INTEGER, TEXT, UUID, UUID, JSONB, UUID);
+DROP FUNCTION IF EXISTS public.deduct_ai_credits(UUID, TEXT, INTEGER, INTEGER, INTEGER, TEXT, UUID, UUID, JSONB, UUID, INTEGER);
+
 CREATE OR REPLACE FUNCTION public.deduct_ai_credits(
   p_ws_id UUID,
   p_model_id TEXT,
@@ -640,7 +643,9 @@ CREATE OR REPLACE FUNCTION public.deduct_ai_credits(
   p_execution_id UUID DEFAULT NULL,
   p_chat_message_id UUID DEFAULT NULL,
   p_metadata JSONB DEFAULT '{}',
-  p_user_id UUID DEFAULT NULL
+  p_user_id UUID DEFAULT NULL,
+  p_image_count INTEGER DEFAULT 0,
+  p_search_count INTEGER DEFAULT 0
 )
 RETURNS TABLE (
   success BOOLEAN,
@@ -685,14 +690,18 @@ BEGIN
 
   -- Compute cost using gateway pricing
   v_cost_usd := public.compute_ai_cost_from_gateway(
-    p_model_id, p_input_tokens, p_output_tokens, p_reasoning_tokens
+    p_model_id, p_input_tokens, p_output_tokens, p_reasoning_tokens, p_image_count, p_search_count
   );
 
   -- Convert to credits: cost_usd / 0.0001 * markup
   v_credits := (v_cost_usd / 0.0001) * v_markup;
 
   -- Enforce minimum 1 credit deduction for any non-zero token usage
-  IF v_credits < 1 AND (COALESCE(p_input_tokens, 0) + COALESCE(p_output_tokens, 0) + COALESCE(p_reasoning_tokens, 0)) > 0 THEN
+  IF v_credits < 1 AND (
+    COALESCE(p_input_tokens, 0) + COALESCE(p_output_tokens, 0)
+    + COALESCE(p_reasoning_tokens, 0) + COALESCE(p_image_count, 0)
+    + COALESCE(p_search_count, 0)
+  ) > 0 THEN
     v_credits := 1;
   END IF;
 
@@ -709,12 +718,12 @@ BEGIN
   INSERT INTO public.ai_credit_transactions
     (ws_id, user_id, balance_id, execution_id, chat_message_id,
      transaction_type, amount, cost_usd, model_id, feature,
-     input_tokens, output_tokens, reasoning_tokens, metadata)
+     input_tokens, output_tokens, reasoning_tokens, image_count, search_count, metadata)
   VALUES
     (CASE WHEN v_balance.ws_id IS NOT NULL THEN p_ws_id ELSE NULL END,
      p_user_id, v_balance.id, p_execution_id, p_chat_message_id,
      'deduction', -v_credits, v_cost_usd, p_model_id, p_feature,
-     p_input_tokens, p_output_tokens, p_reasoning_tokens, p_metadata);
+     p_input_tokens, p_output_tokens, p_reasoning_tokens, p_image_count, p_search_count, p_metadata);
 
   RETURN QUERY SELECT TRUE, v_credits, v_remaining, NULL::TEXT;
   RETURN;
@@ -729,7 +738,6 @@ CREATE OR REPLACE FUNCTION public.get_ai_credit_usage_summary(
 )
 RETURNS JSONB
 LANGUAGE plpgsql
-STABLE
 SECURITY DEFINER
 AS $$
 DECLARE

@@ -78,7 +78,7 @@ export async function reserveFixedAiCredits(
 ): Promise<CreditReservationResult> {
   const sbAdmin = await getRpcCaller(rpcCaller);
   const gatewayModelId = resolveGatewayModelId(params.modelId);
-  const rpc = sbAdmin.rpc as (
+  const rpc = (sbAdmin.rpc as (...args: any[]) => any).bind(sbAdmin) as (
     fn: 'reserve_fixed_ai_credits',
     args: ReserveFixedCreditsRpcParams
   ) => Promise<{
@@ -132,7 +132,7 @@ export async function commitFixedAiCreditReservation(
   rpcCaller?: CreditReservationRpcCaller
 ): Promise<CreditReservationCommitResult> {
   const sbAdmin = await getRpcCaller(rpcCaller);
-  const rpc = sbAdmin.rpc as (
+  const rpc = (sbAdmin.rpc as (...args: any[]) => any).bind(sbAdmin) as (
     fn: 'commit_fixed_ai_credit_reservation',
     args: CommitFixedCreditReservationRpcParams
   ) => Promise<{
@@ -179,7 +179,7 @@ export async function releaseFixedAiCreditReservation(
   rpcCaller?: CreditReservationRpcCaller
 ): Promise<CreditReservationReleaseResult> {
   const sbAdmin = await getRpcCaller(rpcCaller);
-  const rpc = sbAdmin.rpc as (
+  const rpc = (sbAdmin.rpc as (...args: any[]) => any).bind(sbAdmin) as (
     fn: 'release_fixed_ai_credit_reservation',
     args: ReleaseFixedCreditReservationRpcParams
   ) => Promise<{

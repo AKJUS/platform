@@ -17,11 +17,22 @@ export async function checkAiCredits(
   feature: AiFeature,
   opts?: { userId?: string; estimatedInputTokens?: number }
 ): Promise<CreditCheckResult> {
+  if (!wsId) {
+    return {
+      allowed: false,
+      remainingCredits: 0,
+      tier: 'FREE',
+      maxOutputTokens: null,
+      errorCode: 'CREDIT_CHECK_FAILED',
+      errorMessage: 'Workspace ID is missing.',
+    };
+  }
+
   const sbAdmin = await createAdminClient();
   const gatewayModelId = resolveGatewayModelId(modelId);
 
   const { data, error } = await sbAdmin.rpc('check_ai_credit_allowance', {
-    p_ws_id: wsId as string,
+    p_ws_id: wsId,
     p_model_id: gatewayModelId,
     p_feature: feature,
     ...(opts?.estimatedInputTokens != null
@@ -71,11 +82,20 @@ export async function checkAiCredits(
 export async function deductAiCredits(
   params: DeductCreditsParams
 ): Promise<CreditDeductionResult> {
+  if (!params.wsId) {
+    return {
+      success: false,
+      creditsDeducted: 0,
+      remainingCredits: 0,
+      errorCode: 'DEDUCTION_FAILED',
+    };
+  }
+
   const sbAdmin = await createAdminClient();
   const gatewayModelId = resolveGatewayModelId(params.modelId);
 
   const { data, error } = await sbAdmin.rpc('deduct_ai_credits', {
-    p_ws_id: params.wsId as string,
+    p_ws_id: params.wsId,
     p_model_id: gatewayModelId,
     p_input_tokens: params.inputTokens,
     p_output_tokens: params.outputTokens,

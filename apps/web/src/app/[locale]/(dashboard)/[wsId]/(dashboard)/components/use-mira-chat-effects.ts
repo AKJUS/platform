@@ -53,7 +53,8 @@ export function useMiraChatEffects({
         if (!part) continue;
 
         // Extract tool name and state safely
-        const toolName = (part as any).toolInvocation?.toolName;
+        const toolName =
+          (part as any).toolInvocation?.toolName || (part as any).toolName;
         const state =
           (part as any).toolInvocation?.state || (part as any).state;
         const partId =

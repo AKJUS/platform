@@ -42,7 +42,11 @@ def _require_supabase_hostname() -> str:
 
 def _validate_signed_url(signed_url: str, configured_supabase_host: str) -> None:
     parsed = urlparse(signed_url)
-    if parsed.scheme != "https":
+    
+    is_local_host = configured_supabase_host in ("127.0.0.1", "localhost")
+    allowed_schemes = ("http", "https") if is_local_host else ("https",)
+
+    if parsed.scheme not in allowed_schemes:
         raise HTTPException(status_code=400, detail="Invalid signed URL scheme")
     if parsed.hostname is None or parsed.hostname.lower() != configured_supabase_host:
         raise HTTPException(status_code=400, detail="Invalid signed URL host")
