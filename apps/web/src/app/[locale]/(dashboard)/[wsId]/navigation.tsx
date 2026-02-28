@@ -342,7 +342,6 @@ export async function WorkspaceNavigationLinks({
       children: [
         // ── Finance: Core ──
         {
-          sectionLabel: t('sidebar_tabs.finance'),
           title: t('workspace-finance-tabs.overview'),
           href: `/${personalOrWsId}/finance`,
           icon: <LayoutDashboard className="h-5 w-5" />,
@@ -439,7 +438,6 @@ export async function WorkspaceNavigationLinks({
       children: [
         // ── Time Tracking ──
         {
-          sectionLabel: t('sidebar_tabs.time_tracker'),
           title: t('sidebar_tabs.overview'),
           href: `/${personalOrWsId}/time-tracker`,
           icon: <LayoutDashboard className="h-5 w-5" />,

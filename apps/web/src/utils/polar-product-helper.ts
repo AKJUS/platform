@@ -12,12 +12,7 @@ type PolarPrice = Product['prices'][number];
 
 function isPolarPrice(value: unknown): value is PolarPrice {
   if (!value || typeof value !== 'object') return false;
-  return (
-    'amountType' in value &&
-    'priceAmount' in value &&
-    'seatTiers' in value &&
-    'priceCurrency' in value
-  );
+  return 'amountType' in value && 'priceAmount' in value;
 }
 
 export type WorkspaceOrderProductKind =
@@ -41,11 +36,17 @@ export async function resolveWorkspaceOrderProduct(
     };
   }
 
-  const { data: creditPack } = await supabase
+  const { data: creditPack, error: creditPackError } = await supabase
     .from('workspace_credit_packs')
     .select('id')
     .eq('id', polarProductId)
     .maybeSingle();
+
+  if (creditPackError) {
+    throw new Error(
+      `Credit pack lookup failed: ${creditPackError.message ?? 'Unknown error'}`
+    );
+  }
 
   if (creditPack?.id) {
     return {
@@ -55,11 +56,18 @@ export async function resolveWorkspaceOrderProduct(
     };
   }
 
-  const { data: subscriptionProduct } = await supabase
-    .from('workspace_subscription_products')
-    .select('id')
-    .eq('id', polarProductId)
-    .maybeSingle();
+  const { data: subscriptionProduct, error: subscriptionProductError } =
+    await supabase
+      .from('workspace_subscription_products')
+      .select('id')
+      .eq('id', polarProductId)
+      .maybeSingle();
+
+  if (subscriptionProductError) {
+    throw new Error(
+      `Subscription product lookup failed: ${subscriptionProductError.message ?? 'Unknown error'}`
+    );
+  }
 
   if (subscriptionProduct?.id) {
     return {
@@ -88,10 +96,15 @@ async function upsertSubscriptionProduct(
   }
 
   const firstPrice = product.prices.find(isPolarPrice);
+  if (!firstPrice && product.recurringInterval) {
+    throw new Error(
+      `Subscription product ${product.id} is missing valid pricing data`
+    );
+  }
   const isSeatBased = firstPrice?.amountType === 'seat_based';
   const isFixed = firstPrice?.amountType === 'fixed';
 
-  const price = isFixed ? firstPrice.priceAmount : null;
+  const price = isFixed && firstPrice ? firstPrice.priceAmount : null;
   const pricePerSeat = isSeatBased
     ? (firstPrice?.seatTiers?.tiers?.[0]?.pricePerSeat ?? null)
     : null;
@@ -139,8 +152,13 @@ async function upsertCreditPackProduct(
 
   const firstPrice = product.prices.find(isPolarPrice);
   const isFixed = firstPrice?.amountType === 'fixed';
-  const price = isFixed ? firstPrice.priceAmount : 0;
-  const currency = firstPrice?.priceCurrency
+  if (!firstPrice || !isFixed) {
+    throw new Error(
+      `Credit pack ${product.id} is missing a fixed price configuration`
+    );
+  }
+  const price = firstPrice.priceAmount;
+  const currency = firstPrice.priceCurrency
     ? firstPrice.priceCurrency.toLowerCase()
     : 'usd';
 

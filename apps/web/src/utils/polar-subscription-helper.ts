@@ -1,6 +1,6 @@
 import type { Subscription } from '@tuturuuu/payment/polar';
 import type { TypedSupabaseClient } from '@tuturuuu/supabase/next/client';
-import type { Database } from '@tuturuuu/types';
+import type { Database } from '@tuturuuu/types/db';
 import { addDays } from 'date-fns';
 import {
   isAiCreditPackProduct,
@@ -14,13 +14,25 @@ async function upsertSubscription(
   wsId: string,
   subscription: Subscription
 ) {
-  const { data: product } = await supabase
+  const { data: product, error: productError } = await supabase
     .from('workspace_subscription_products')
     .select('pricing_model, price_per_seat')
     .eq('id', subscription.product.id)
     .single();
 
-  const isSeatBased = product?.pricing_model === 'seat_based';
+  if (productError) {
+    throw new Error(
+      `Subscription product lookup error: ${productError.message}`
+    );
+  }
+
+  if (!product) {
+    throw new Error(
+      `Subscription product ${subscription.product.id} not found`
+    );
+  }
+
+  const isSeatBased = product.pricing_model === 'seat_based';
   const seatCount = isSeatBased ? (subscription.seats ?? 1) : null;
 
   const subscriptionData = {
@@ -69,11 +81,11 @@ async function upsertCreditPackPurchase(
     );
   }
 
-  const expiresAt = addDays(
+  const periodExpiry = addDays(
     subscription.currentPeriodStart,
     CREDIT_PACK_EXPIRY_DAYS
   );
-  const expiresAtIso = expiresAt.toISOString();
+  const expiresAtIso = periodExpiry.toISOString();
 
   // Store the actual Polar status for audit trail
   const status = subscription.status;
@@ -99,17 +111,29 @@ async function upsertCreditPackPurchase(
   }
 
   let tokensRemaining = 0;
+  let grantedAt = currentPeriodStartIso;
+  let expiresAt = expiresAtIso;
+  const shouldRetainDates = !shouldRetainCredits;
 
   if (!existingPurchase) {
     tokensRemaining = tokens;
-  } else if (
-    shouldRetainCredits &&
-    new Date(currentPeriodStartIso).getTime() <=
-      new Date(existingPurchase.granted_at).getTime()
-  ) {
-    tokensRemaining = existingPurchase.tokens_remaining;
   } else if (shouldRetainCredits) {
-    tokensRemaining = tokens;
+    const existingGrantedAt = new Date(existingPurchase.granted_at).getTime();
+    const currentGrantedAt = new Date(currentPeriodStartIso).getTime();
+    if (existingGrantedAt >= currentGrantedAt) {
+      tokensRemaining = existingPurchase.tokens_remaining;
+      grantedAt = existingPurchase.granted_at;
+      expiresAt = existingPurchase.expires_at;
+    } else {
+      tokensRemaining = tokens;
+    }
+  } else if (shouldRetainDates) {
+    const existingGrantedAt = new Date(existingPurchase.granted_at).getTime();
+    const currentGrantedAt = new Date(currentPeriodStartIso).getTime();
+    if (existingGrantedAt >= currentGrantedAt) {
+      grantedAt = existingPurchase.granted_at;
+      expiresAt = existingPurchase.expires_at;
+    }
   }
 
   const purchaseData = {
@@ -118,8 +142,8 @@ async function upsertCreditPackPurchase(
     polar_subscription_id: subscription.id,
     tokens_granted: tokens,
     tokens_remaining: tokensRemaining,
-    granted_at: currentPeriodStartIso,
-    expires_at: expiresAtIso,
+    granted_at: grantedAt,
+    expires_at: expiresAt,
     status: status as Database['public']['Enums']['subscription_status'],
     updated_at: new Date().toISOString(),
   };

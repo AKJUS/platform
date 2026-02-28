@@ -1,3 +1,4 @@
+import type { Subscription } from '@tuturuuu/payment/polar';
 import { describe, expect, it, vi } from 'vitest';
 import { syncSubscriptionToDatabase } from '@/utils/polar-subscription-helper';
 
@@ -5,25 +6,45 @@ type MockSingleResult = Promise<{
   data: {
     pricing_model: 'seat_based' | 'fixed';
     price_per_seat: number | null;
-  };
+  } | null;
   error: null;
 }>;
 
 type MockUpsertResult = Promise<{ error: null }>;
 
 interface MockSupabaseLike {
-  from: (table: string) =>
-    | {
-        select: () => {
-          eq: () => {
-            single: () => MockSingleResult;
-          };
-        };
-      }
-    | {
-        upsert: () => MockUpsertResult;
-      }
-    | Record<string, never>;
+  from: (table: 'workspace_subscription_products') => {
+    select: (columns: string) => {
+      eq: (
+        column: string,
+        value: string
+      ) => {
+        single: () => MockSingleResult;
+      };
+    };
+  };
+  from: (table: 'workspace_subscriptions') => {
+    upsert: (data: unknown[], options: unknown) => MockUpsertResult;
+  };
+  from: (table: 'workspace_credit_pack_purchases') => {
+    select: (columns: string) => {
+      eq: (
+        column: string,
+        value: string
+      ) => {
+        maybeSingle: () => Promise<{
+          data: {
+            id: string;
+            tokens_remaining: number;
+            granted_at: string;
+            expires_at: string;
+          } | null;
+          error: null;
+        }>;
+      };
+    };
+    upsert: (data: unknown, options: unknown) => MockUpsertResult;
+  };
 }
 
 // Mock dependencies that cause issues in test environment
@@ -39,7 +60,12 @@ vi.mock('@tuturuuu/payment/polar/server', () => ({
 const mockSingle = vi.fn<() => MockSingleResult>();
 const mockUpsert = vi.fn<() => MockUpsertResult>();
 
-const mockSupabase: MockSupabaseLike = {
+const mockCreditPackMaybeSingle = vi.fn(() =>
+  Promise.resolve({ data: null, error: null })
+);
+const mockCreditPackUpsert = vi.fn<() => MockUpsertResult>();
+
+const mockSupabase = {
   from: vi.fn().mockImplementation((table) => {
     if (table === 'workspace_subscription_products') {
       return {
@@ -53,21 +79,29 @@ const mockSupabase: MockSupabaseLike = {
         upsert: mockUpsert,
       };
     }
+    if (table === 'workspace_credit_pack_purchases') {
+      return {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        maybeSingle: mockCreditPackMaybeSingle,
+        upsert: mockCreditPackUpsert,
+      };
+    }
     return {};
   }),
-};
+} satisfies MockSupabaseLike;
 
 vi.mock('@tuturuuu/supabase/next/server', () => ({
   createAdminClient: vi.fn(() => Promise.resolve(mockSupabase)),
 }));
 
 describe('syncSubscriptionToDatabase', () => {
-  const mockSubscription: Record<string, unknown> = {
+  const mockSubscription: Subscription = {
     id: 'sub_123',
     customer: { id: 'cust_123' },
     status: 'active',
     metadata: { wsId: '00000000-0000-0000-0000-000000000000' },
-    product: { id: 'prod_123' },
+    product: { id: 'prod_123', metadata: {} },
     seats: 5,
     currentPeriodStart: new Date('2026-01-01T00:00:00Z'),
     currentPeriodEnd: new Date('2026-02-01T00:00:00Z'),
@@ -85,8 +119,8 @@ describe('syncSubscriptionToDatabase', () => {
     mockUpsert.mockResolvedValue({ error: null });
 
     const result = await syncSubscriptionToDatabase(
-      mockSupabase as any,
-      mockSubscription as any
+      mockSupabase,
+      mockSubscription
     );
 
     expect(result.isSeatBased).toBe(true);
@@ -129,13 +163,10 @@ describe('syncSubscriptionToDatabase', () => {
     });
     mockUpsert.mockResolvedValue({ error: null });
 
-    const result = await syncSubscriptionToDatabase(
-      mockSupabase as any,
-      {
-        ...mockSubscription,
-        seats: null,
-      } as any
-    );
+    const result = await syncSubscriptionToDatabase(mockSupabase, {
+      ...mockSubscription,
+      seats: null,
+    });
 
     expect(result.isSeatBased).toBe(false);
     expect(result.subscriptionData!.seat_count).toBeNull();
@@ -169,10 +200,7 @@ describe('syncSubscriptionToDatabase', () => {
     };
 
     await expect(
-      syncSubscriptionToDatabase(
-        mockSupabase as any,
-        subscriptionWithoutWsId as any
-      )
+      syncSubscriptionToDatabase(mockSupabase, subscriptionWithoutWsId)
     ).rejects.toThrow();
   });
 
@@ -192,8 +220,8 @@ describe('syncSubscriptionToDatabase', () => {
     };
 
     const result = await syncSubscriptionToDatabase(
-      mockSupabase as any,
-      subscriptionWithStringDates as any
+      mockSupabase,
+      subscriptionWithStringDates
     );
 
     expect(result.subscriptionData!.current_period_start).toBe(
@@ -207,6 +235,54 @@ describe('syncSubscriptionToDatabase', () => {
     );
     expect(result.subscriptionData!.updated_at).toBe(
       '2026-01-15T10:30:00.000Z'
+    );
+  });
+
+  it('should sync AI credit pack purchases', async () => {
+    const creditPackSubscription: Subscription = {
+      ...mockSubscription,
+      id: 'sub_pack_123',
+      product: {
+        id: 'pack_123',
+        metadata: {
+          product_type: 'ai_credit_pack',
+          tokens: '5000',
+        },
+      },
+      currentPeriodStart: new Date('2026-03-01T00:00:00Z'),
+    };
+
+    mockCreditPackMaybeSingle.mockResolvedValue({
+      data: null,
+      error: null,
+    });
+    mockCreditPackUpsert.mockResolvedValue({ error: null });
+
+    const result = await syncSubscriptionToDatabase(
+      mockSupabase,
+      creditPackSubscription
+    );
+
+    expect('purchaseData' in result).toBe(true);
+    if ('purchaseData' in result) {
+      expect(result.purchaseData.ws_id).toBe(
+        '00000000-0000-0000-0000-000000000000'
+      );
+      expect(result.purchaseData.polar_subscription_id).toBe('sub_pack_123');
+      expect(result.purchaseData.credit_pack_id).toBe('pack_123');
+    }
+
+    expect(mockCreditPackUpsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ws_id: '00000000-0000-0000-0000-000000000000',
+        credit_pack_id: 'pack_123',
+        polar_subscription_id: 'sub_pack_123',
+        tokens_granted: 5000,
+      }),
+      {
+        onConflict: 'polar_subscription_id',
+        ignoreDuplicates: false,
+      }
     );
   });
 });

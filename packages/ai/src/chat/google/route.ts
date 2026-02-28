@@ -4,7 +4,7 @@ import {
   createClient,
   createDynamicClient,
 } from '@tuturuuu/supabase/next/server';
-
+import { normalizeWorkspaceId } from '@tuturuuu/utils/workspace-helper';
 import {
   consumeStream,
   gateway,
@@ -12,7 +12,6 @@ import {
   stepCountIs,
   streamText,
 } from 'ai';
-
 import { type NextRequest, NextResponse } from 'next/server';
 import type { CreditSource as SharedCreditSource } from '../credit-source';
 import {
@@ -110,11 +109,13 @@ export function createPOST(
         return new Response('Unauthorized', { status: 401 });
       }
 
-      if (wsId) {
+      const normalizedWsId = wsId ? await normalizeWorkspaceId(wsId) : null;
+
+      if (normalizedWsId) {
         const { data: contextMembership } = await sbAdmin
           .from('workspace_members')
           .select('user_id')
-          .eq('ws_id', wsId)
+          .eq('ws_id', normalizedWsId)
           .eq('user_id', user.id)
           .maybeSingle();
 
@@ -128,7 +129,7 @@ export function createPOST(
 
       const requestedCreditSource: SharedCreditSource =
         requestedCreditSourceRaw ?? 'workspace';
-      let billingWsId: string | null = wsId ?? null;
+      let billingWsId: string | null = normalizedWsId ?? null;
 
       if (requestedCreditSource === 'personal') {
         const { data: personalWorkspace, error: personalWorkspaceError } =
@@ -166,7 +167,7 @@ export function createPOST(
 
         billingWsId = personalWorkspace.id;
       } else if (requestedCreditWsId) {
-        if (wsId && requestedCreditWsId !== wsId) {
+        if (normalizedWsId && requestedCreditWsId !== normalizedWsId) {
           return NextResponse.json(
             {
               error: 'Invalid credit workspace for workspace source selection.',
@@ -176,7 +177,7 @@ export function createPOST(
           );
         }
 
-        if (!wsId) {
+        if (!normalizedWsId) {
           const { data: billingMembership } = await sbAdmin
             .from('workspace_members')
             .select('user_id')
@@ -220,7 +221,7 @@ export function createPOST(
           sbDynamic.storage.from('workspaces').list(tempStoragePath),
         moveFile: (fromPath, toPath) =>
           sbAdmin.storage.from('workspaces').move(fromPath, toPath),
-        wsId,
+        wsId: normalizedWsId ?? undefined,
         chatId,
         userId: user.id,
       });
@@ -231,7 +232,7 @@ export function createPOST(
       const normalizedMessages = mapToUIMessages(messages);
       const preparedMessages = await prepareProcessedMessages(
         normalizedMessages,
-        wsId,
+        normalizedWsId ?? undefined,
         chatId
       );
       if ('error' in preparedMessages) {
@@ -251,7 +252,7 @@ export function createPOST(
       }
 
       const creditPreflight = await performCreditPreflight({
-        wsId: billingWsId ?? wsId,
+        wsId: billingWsId ?? normalizedWsId ?? undefined,
         model,
         userId: user.id,
         sbAdmin,
@@ -263,9 +264,9 @@ export function createPOST(
 
       const { miraSystemPrompt, miraTools } = await prepareMiraRuntime({
         isMiraMode,
-        wsId,
+        wsId: normalizedWsId ?? undefined,
         workspaceContextId,
-        creditWsId: billingWsId ?? wsId,
+        creditWsId: billingWsId ?? normalizedWsId ?? undefined,
         request: req,
         userId: user.id,
         chatId,
@@ -400,7 +401,7 @@ export function createPOST(
             userId: user.id,
             model,
             effectiveSource,
-            wsId: billingWsId ?? wsId,
+            wsId: billingWsId ?? normalizedWsId ?? undefined,
           }),
       });
 

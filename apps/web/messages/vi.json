@@ -2870,7 +2870,7 @@
       "credit_source_label": "Nguồn tín dụng",
       "credit_source_personal": "Cá nhân",
       "credit_source_personal_desc": "Dùng tín dụng AI cá nhân toàn tài khoản",
-      "credit_source_workspace": "Nhóm",
+      "credit_source_workspace": "Workspace",
       "credit_source_workspace_desc": "Dùng tín dụng AI dùng chung của workspace này",
       "credit_source_workspace_locked_free": "Gói FREE không hỗ trợ dùng nguồn tín dụng của workspace",
       "credits_remaining": "Tín dụng AI còn lại",

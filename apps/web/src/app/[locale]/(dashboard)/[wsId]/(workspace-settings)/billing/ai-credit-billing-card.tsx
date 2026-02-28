@@ -7,7 +7,7 @@ import { Badge } from '@tuturuuu/ui/badge';
 import { Button } from '@tuturuuu/ui/button';
 import { toast } from '@tuturuuu/ui/sonner';
 import { cn } from '@tuturuuu/utils/format';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
 import { useEffect, useMemo, useState } from 'react';
 import type { CreditPackListItem } from '@/utils/billing-helper';
@@ -39,8 +39,8 @@ interface AiCreditBillingCardProps {
   canPurchase: boolean;
 }
 
-function formatAmount(value: number): string {
-  return new Intl.NumberFormat('en-US', {
+function formatAmount(value: number, locale: string): string {
+  return new Intl.NumberFormat(locale, {
     maximumFractionDigits: 0,
   }).format(Math.max(0, value));
 }
@@ -63,6 +63,7 @@ export function AiCreditBillingCard({
   canPurchase,
 }: AiCreditBillingCardProps) {
   const t = useTranslations('billing');
+  const locale = useLocale();
   const { resolvedTheme } = useTheme();
   const [checkoutInstance, setCheckoutInstance] =
     useState<PolarEmbedCheckout | null>(null);
@@ -160,8 +161,8 @@ export function AiCreditBillingCard({
           <div className="mb-2 flex items-center justify-between">
             <span className="font-medium text-sm">{t('included-credits')}</span>
             <span className="text-muted-foreground text-xs">
-              {formatAmount(creditData?.included.remaining ?? 0)} /{' '}
-              {formatAmount(includedTotal)}
+              {formatAmount(creditData?.included.remaining ?? 0, locale)} /{' '}
+              {formatAmount(includedTotal, locale)}
             </span>
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-muted">
@@ -181,15 +182,18 @@ export function AiCreditBillingCard({
           <div className="mb-2 flex items-center justify-between">
             <span className="font-medium text-sm">{t('payg-credits')}</span>
             <span className="text-muted-foreground text-xs">
-              {formatAmount(creditData?.payg.remaining ?? 0)} /{' '}
-              {formatAmount(paygTotal)}
+              {formatAmount(creditData?.payg.remaining ?? 0, locale)} /{' '}
+              {formatAmount(paygTotal, locale)}
             </span>
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-muted">
             <div
               className="h-full rounded-full bg-dynamic-green transition-all"
               style={{
-                width: `${barWidth(creditData?.payg.totalUsed ?? 0, paygTotal)}%`,
+                width: `${barWidth(
+                  creditData?.payg.remaining ?? 0,
+                  paygTotal
+                )}%`,
               }}
             />
           </div>
@@ -197,7 +201,9 @@ export function AiCreditBillingCard({
             <p className="mt-2 flex items-center gap-1 text-muted-foreground text-xs">
               <Clock className="h-3 w-3" />
               {t('payg-next-expiry', {
-                date: new Date(creditData.payg.nextExpiry).toLocaleDateString(),
+                date: new Date(creditData.payg.nextExpiry).toLocaleDateString(
+                  locale
+                ),
               })}
             </p>
           )}
@@ -220,7 +226,7 @@ export function AiCreditBillingCard({
                   <p className="mt-1 text-muted-foreground text-xs">
                     {pack.description ||
                       t('credit-pack-description-fallback', {
-                        tokens: formatAmount(pack.tokens),
+                        tokens: formatAmount(pack.tokens, locale),
                       })}
                   </p>
                 </div>

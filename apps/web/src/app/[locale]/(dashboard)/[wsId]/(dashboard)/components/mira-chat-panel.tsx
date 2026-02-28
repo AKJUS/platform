@@ -289,17 +289,9 @@ export default function MiraChatPanel({
       stop();
     }
     resetQueue();
-    setCreditSource('personal');
     void resetConversationState();
     onResetPanelState?.();
-  }, [
-    onResetPanelState,
-    resetConversationState,
-    resetQueue,
-    setCreditSource,
-    status,
-    stop,
-  ]);
+  }, [onResetPanelState, resetConversationState, resetQueue, status, stop]);
 
   const { hotkeyLabels, modelPickerHotkeySignal } = useMiraChatHotkeys({
     hasMessages,

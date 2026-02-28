@@ -28,6 +28,9 @@ export async function executeGenerateImage(
     releaseFixedAiCreditReservation,
     reserveFixedAiCredits,
   } = await import('../../credits/reservations');
+  let commitResult: Awaited<
+    ReturnType<typeof commitFixedAiCreditReservation>
+  > | null = null;
   const { createAdminClient } = await import('@tuturuuu/supabase/next/server');
   const creditCheck = await checkAiCredits(
     billingWsId,
@@ -115,7 +118,7 @@ export async function executeGenerateImage(
       );
     }
 
-    const commitResult = await commitFixedAiCreditReservation(
+    commitResult = await commitFixedAiCreditReservation(
       reservation.reservationId,
       {
         ...reservationMetadata,
@@ -135,7 +138,20 @@ export async function executeGenerateImage(
       prompt,
     };
   } catch (error) {
-    await releaseFixedAiCreditReservation(
+    let commitOrReleaseError: Error | null = null;
+    if (storagePath) {
+      const { error: removeError } = await sbAdmin.storage
+        .from('workspaces')
+        .remove([storagePath]);
+      if (removeError) {
+        console.error('Failed to cleanup image upload', {
+          storagePath,
+          error: removeError.message,
+        });
+      }
+    }
+
+    const releaseResult = await releaseFixedAiCreditReservation(
       reservation.reservationId,
       {
         ...reservationMetadata,
@@ -148,10 +164,32 @@ export async function executeGenerateImage(
       sbAdmin
     );
 
+    if (
+      !releaseResult.success &&
+      releaseResult.errorCode === 'RESERVATION_ALREADY_COMMITTED'
+    ) {
+      console.error('Reservation already committed after failure', {
+        commitResult,
+        releaseResult,
+        storagePath,
+      });
+      commitOrReleaseError = new Error(
+        `AI credit reservation already committed after failure: ${JSON.stringify(
+          {
+            commitResult,
+            releaseResult,
+          }
+        )}`
+      );
+    }
+
     return {
       success: false,
-      error:
-        error instanceof Error
+      error: commitOrReleaseError?.message
+        ? `${commitOrReleaseError.message} ${
+            error instanceof Error ? `Original error: ${error.message}` : ''
+          }`.trim()
+        : error instanceof Error
           ? error.message
           : 'Image generation failed. Please try again.',
     };

@@ -34,6 +34,7 @@ DECLARE
   v_consumed NUMERIC := 0;
   v_row RECORD;
   v_take NUMERIC;
+  v_total NUMERIC;
 BEGIN
   IF v_remaining <= 0 THEN
     RETURN 0;
@@ -46,6 +47,19 @@ BEGIN
      AND status = 'active'
      AND expires_at <= now()
      AND tokens_remaining > 0;
+
+  SELECT COALESCE(SUM(tokens_remaining), 0)
+    INTO v_total
+    FROM public.workspace_credit_pack_purchases
+   WHERE ws_id = p_ws_id
+     AND status = 'active'
+     AND expires_at > now()
+     AND tokens_remaining > 0
+   FOR UPDATE;
+
+  IF v_total < v_remaining THEN
+    RETURN 0;
+  END IF;
 
   FOR v_row IN
     SELECT id, tokens_remaining
@@ -105,6 +119,7 @@ DECLARE
   v_remaining NUMERIC;
   v_model RECORD;
   v_feature_access RECORD;
+  v_feature_exists BOOLEAN;
   v_daily_used NUMERIC;
   v_daily_request_count INTEGER;
   v_feature_daily_count INTEGER;
@@ -150,7 +165,9 @@ BEGIN
     FROM public.ai_credit_feature_access fa
    WHERE fa.tier = v_tier AND fa.feature = p_feature;
 
-  IF FOUND AND NOT v_feature_access.enabled THEN
+  v_feature_exists := FOUND;
+
+  IF v_feature_exists AND NOT v_feature_access.enabled THEN
     RETURN QUERY SELECT FALSE, 0::NUMERIC, v_tier::TEXT, NULL::INTEGER,
       'FEATURE_NOT_ALLOWED'::TEXT,
       format('Feature %s is not available on the %s plan', p_feature, v_tier::TEXT)::TEXT;
@@ -158,7 +175,8 @@ BEGIN
   END IF;
 
   SELECT * INTO v_balance
-    FROM public.get_or_create_credit_balance(p_ws_id, p_user_id);
+    FROM public.get_or_create_credit_balance(p_ws_id, p_user_id)
+    FOR UPDATE;
 
   v_included_remaining := v_balance.total_allocated + v_balance.bonus_credits - v_balance.total_used;
   v_payg_remaining := public._get_active_payg_credits(p_ws_id);
@@ -201,7 +219,7 @@ BEGIN
     END IF;
   END IF;
 
-  IF FOUND AND v_feature_access.max_requests_per_day IS NOT NULL THEN
+  IF v_feature_exists AND v_feature_access.max_requests_per_day IS NOT NULL THEN
     SELECT COUNT(*) INTO v_feature_daily_count
       FROM public.ai_credit_transactions
      WHERE balance_id = v_balance.id
@@ -301,7 +319,8 @@ DECLARE
   v_metadata JSONB;
 BEGIN
   SELECT * INTO v_balance
-    FROM public.get_or_create_credit_balance(p_ws_id, p_user_id);
+    FROM public.get_or_create_credit_balance(p_ws_id, p_user_id)
+    FOR UPDATE;
 
   IF NOT FOUND THEN
     RETURN QUERY SELECT FALSE, 0::NUMERIC, 0::NUMERIC, 'NO_BALANCE'::TEXT;
@@ -464,6 +483,16 @@ BEGIN
     RETURN;
   END IF;
 
+  SELECT * INTO v_balance
+    FROM public.workspace_ai_credit_balances
+   WHERE id = v_balance.id
+   FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RETURN QUERY SELECT FALSE, 0::NUMERIC, 'NO_BALANCE'::TEXT;
+    RETURN;
+  END IF;
+
   v_included_remaining := v_balance.total_allocated + v_balance.bonus_credits - v_balance.total_used;
   v_payg_remaining := public._get_active_payg_credits(p_ws_id);
 
@@ -479,16 +508,6 @@ BEGIN
   v_included_to_consume := LEAST(GREATEST(v_included_remaining, 0), p_amount);
   v_payg_to_consume := p_amount - v_included_to_consume;
 
-  IF v_included_to_consume > 0 THEN
-    UPDATE public.workspace_ai_credit_balances
-       SET total_used = total_used + v_included_to_consume,
-           updated_at = now()
-     WHERE id = v_balance.id
-    RETURNING total_used INTO v_new_total_used;
-  ELSE
-    v_new_total_used := v_balance.total_used;
-  END IF;
-
   v_payg_consumed := 0;
   IF v_payg_to_consume > 0 THEN
     v_payg_consumed := public._consume_payg_credits(p_ws_id, v_payg_to_consume);
@@ -497,6 +516,16 @@ BEGIN
       RETURN QUERY SELECT FALSE, 0::NUMERIC, 'INSUFFICIENT_CREDITS'::TEXT;
       RETURN;
     END IF;
+  END IF;
+
+  IF v_included_to_consume > 0 THEN
+    UPDATE public.workspace_ai_credit_balances
+       SET total_used = total_used + v_included_to_consume,
+           updated_at = now()
+     WHERE id = v_balance.id
+    RETURNING total_used INTO v_new_total_used;
+  ELSE
+    v_new_total_used := v_balance.total_used;
   END IF;
 
   v_payg_remaining := public._get_active_payg_credits(p_ws_id);

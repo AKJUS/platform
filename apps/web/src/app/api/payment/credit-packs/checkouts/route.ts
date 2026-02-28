@@ -1,6 +1,5 @@
 import { createPolarClient } from '@tuturuuu/payment/polar/server';
 import { createClient } from '@tuturuuu/supabase/next/server';
-import { getCurrentSupabaseUser } from '@tuturuuu/utils/user-helper';
 import { type NextRequest, NextResponse } from 'next/server';
 import { BASE_URL } from '@/constants/common';
 import { normalizeWorkspaceId } from '@/lib/workspace-helper';
@@ -8,7 +7,21 @@ import { normalizeWorkspaceId } from '@/lib/workspace-helper';
 export async function POST(request: NextRequest) {
   const baseUrl = BASE_URL;
 
-  const { wsId, creditPackId } = await request.json();
+  let wsId: string | undefined;
+  let creditPackId: string | undefined;
+  try {
+    const body = await request.json();
+    wsId = body?.wsId;
+    creditPackId = body?.creditPackId;
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: 'Invalid JSON payload',
+        message: error instanceof Error ? error.message : 'Malformed JSON body',
+      },
+      { status: 400 }
+    );
+  }
 
   if (!wsId || !creditPackId) {
     return NextResponse.json(
@@ -20,7 +33,9 @@ export async function POST(request: NextRequest) {
   const normalizedWsId = await normalizeWorkspaceId(wsId);
 
   const supabase = await createClient(request);
-  const user = await getCurrentSupabaseUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
