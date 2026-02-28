@@ -3,6 +3,7 @@ RETURNS NUMERIC
 LANGUAGE plpgsql
 STABLE
 SECURITY DEFINER
+SET search_path TO public, pg_temp
 AS $$
 DECLARE
   v_total NUMERIC;
@@ -26,6 +27,7 @@ CREATE OR REPLACE FUNCTION public._consume_payg_credits(
 RETURNS NUMERIC
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path TO public, pg_temp
 AS $$
 DECLARE
   v_remaining NUMERIC := GREATEST(COALESCE(p_amount, 0), 0);
@@ -92,8 +94,9 @@ RETURNS TABLE (
   error_message TEXT
 )
 LANGUAGE plpgsql
-STABLE
+VOLATILE
 SECURITY DEFINER
+SET search_path TO public, pg_temp
 AS $$
 DECLARE
   v_tier workspace_product_tier;
@@ -280,6 +283,7 @@ RETURNS TABLE (
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
+SET search_path TO public, pg_temp
 AS $$
 DECLARE
   v_balance RECORD;
@@ -298,6 +302,16 @@ DECLARE
 BEGIN
   SELECT * INTO v_balance
     FROM public.get_or_create_credit_balance(p_ws_id, p_user_id);
+
+  IF NOT FOUND THEN
+    RETURN QUERY SELECT FALSE, 0::NUMERIC, 0::NUMERIC, 'NO_BALANCE'::TEXT;
+    RETURN;
+  END IF;
+
+  SELECT * INTO v_balance
+    FROM public.workspace_ai_credit_balances
+   WHERE id = v_balance.id
+   FOR UPDATE;
 
   IF NOT FOUND THEN
     RETURN QUERY SELECT FALSE, 0::NUMERIC, 0::NUMERIC, 'NO_BALANCE'::TEXT;
@@ -352,16 +366,6 @@ BEGIN
   v_included_to_consume := LEAST(GREATEST(v_included_remaining, 0), v_credits);
   v_payg_to_consume := v_credits - v_included_to_consume;
 
-  IF v_included_to_consume > 0 THEN
-    UPDATE public.workspace_ai_credit_balances
-       SET total_used = total_used + v_included_to_consume,
-           updated_at = now()
-     WHERE id = v_balance.id
-    RETURNING total_used INTO v_new_total_used;
-  ELSE
-    v_new_total_used := v_balance.total_used;
-  END IF;
-
   v_payg_consumed := 0;
   IF v_payg_to_consume > 0 THEN
     v_payg_consumed := public._consume_payg_credits(p_ws_id, v_payg_to_consume);
@@ -370,6 +374,16 @@ BEGIN
       RETURN QUERY SELECT FALSE, 0::NUMERIC, 0::NUMERIC, 'INSUFFICIENT_CREDITS'::TEXT;
       RETURN;
     END IF;
+  END IF;
+
+  IF v_included_to_consume > 0 THEN
+    UPDATE public.workspace_ai_credit_balances
+       SET total_used = total_used + v_included_to_consume,
+           updated_at = now()
+     WHERE id = v_balance.id
+    RETURNING total_used INTO v_new_total_used;
+  ELSE
+    v_new_total_used := v_balance.total_used;
   END IF;
 
   v_payg_remaining := public._get_active_payg_credits(p_ws_id);
@@ -538,3 +552,65 @@ GRANT EXECUTE ON FUNCTION public.deduct_fixed_ai_credits(
   TEXT,
   JSONB
 ) TO service_role;
+
+REVOKE EXECUTE ON FUNCTION public._get_active_payg_credits(UUID)
+FROM PUBLIC, anon, authenticated;
+
+GRANT EXECUTE ON FUNCTION public._get_active_payg_credits(UUID)
+TO service_role;
+
+REVOKE EXECUTE ON FUNCTION public._consume_payg_credits(UUID, NUMERIC)
+FROM PUBLIC, anon, authenticated;
+
+GRANT EXECUTE ON FUNCTION public._consume_payg_credits(UUID, NUMERIC)
+TO service_role;
+
+REVOKE EXECUTE ON FUNCTION public.check_ai_credit_allowance(
+  UUID,
+  TEXT,
+  TEXT,
+  INTEGER,
+  UUID
+)
+FROM PUBLIC, anon, authenticated;
+
+GRANT EXECUTE ON FUNCTION public.check_ai_credit_allowance(
+  UUID,
+  TEXT,
+  TEXT,
+  INTEGER,
+  UUID
+)
+TO service_role;
+
+REVOKE EXECUTE ON FUNCTION public.deduct_ai_credits(
+  UUID,
+  TEXT,
+  INTEGER,
+  INTEGER,
+  INTEGER,
+  TEXT,
+  UUID,
+  UUID,
+  JSONB,
+  UUID,
+  INTEGER,
+  INTEGER
+)
+FROM PUBLIC, anon, authenticated;
+
+GRANT EXECUTE ON FUNCTION public.deduct_ai_credits(
+  UUID,
+  TEXT,
+  INTEGER,
+  INTEGER,
+  INTEGER,
+  TEXT,
+  UUID,
+  UUID,
+  JSONB,
+  UUID,
+  INTEGER,
+  INTEGER
+)
+TO service_role;

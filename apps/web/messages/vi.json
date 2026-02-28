@@ -1095,7 +1095,7 @@
     "credit-pack-checkout-failed-description": "Không thể bắt đầu thanh toán cho gói tín dụng này.",
     "credit-pack-description-fallback": "Bao gồm thêm {tokens} tín dụng",
     "credit-pack-processing": "Đang mở trang thanh toán...",
-    "credit-pack-validity": "Có hiệu lực {days} ngày kể từ khi mua",
+    "credit-pack-validity": "Có hiệu lực {days, plural, one {# ngày} other {# ngày}} kể từ khi mua",
     "credited-now": "Bạn sẽ nhận được {amount} hoàn tiền",
     "current": "Hiện tại",
     "current-members": "Thành viên hiện tại",

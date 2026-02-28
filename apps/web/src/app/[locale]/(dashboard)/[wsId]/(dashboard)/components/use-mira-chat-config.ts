@@ -173,10 +173,8 @@ export function useMiraChatConfig({ wsId }: UseMiraChatConfigParams) {
 
   useEffect(() => {
     if (!workspaceCreditLocked) return;
-    if (creditSource !== 'personal') {
-      setCreditSource('personal');
-    }
-  }, [creditSource, workspaceCreditLocked]);
+    setCreditSource((prev) => (prev === 'personal' ? prev : 'personal'));
+  }, [workspaceCreditLocked]);
 
   useEffect(() => {
     const key = `${WORKSPACE_CONTEXT_STORAGE_KEY_PREFIX}${wsId}`;

@@ -3,6 +3,7 @@ import {
   createClient,
 } from '@tuturuuu/supabase/next/server';
 import { NextResponse } from 'next/server';
+import { normalizeWorkspaceId } from '@/lib/workspace-helper';
 
 export async function GET(
   _req: Request,
@@ -10,6 +11,7 @@ export async function GET(
 ) {
   try {
     const { wsId } = await params;
+    const normalizedWsId = await normalizeWorkspaceId(wsId);
     const supabase = await createClient();
 
     // Auth check
@@ -26,7 +28,7 @@ export async function GET(
     const { data: memberCheck } = await supabase
       .from('workspace_members')
       .select('user_id')
-      .eq('ws_id', wsId)
+      .eq('ws_id', normalizedWsId)
       .eq('user_id', user.id)
       .maybeSingle();
 
@@ -45,7 +47,7 @@ export async function GET(
       .select(
         'id, workspace_subscriptions!left(created_at, status, workspace_subscription_products(tier))'
       )
-      .eq('id', wsId)
+      .eq('id', normalizedWsId)
       .maybeSingle();
 
     type ProductTier = 'FREE' | 'PLUS' | 'PRO' | 'ENTERPRISE';
@@ -69,7 +71,7 @@ export async function GET(
     // Get or create current period balance (pass user.id for dual-track routing)
     const { data: balanceRows, error: balanceError } = await sbAdmin.rpc(
       'get_or_create_credit_balance',
-      { p_ws_id: wsId, p_user_id: user.id }
+      { p_ws_id: normalizedWsId, p_user_id: user.id }
     );
 
     if (balanceError) {
@@ -93,7 +95,7 @@ export async function GET(
     const { data: paygRows, error: paygError } = await sbAdmin
       .from('workspace_credit_pack_purchases')
       .select('tokens_granted, tokens_remaining, expires_at, status')
-      .eq('ws_id', wsId)
+      .eq('ws_id', normalizedWsId)
       .in('status', ['active', 'canceled'])
       .gt('expires_at', new Date().toISOString());
 
@@ -158,7 +160,7 @@ export async function GET(
       const { data: subData } = await sbAdmin
         .from('workspace_subscriptions')
         .select('seat_count')
-        .eq('ws_id', wsId)
+        .eq('ws_id', normalizedWsId)
         .eq('status', 'active')
         .order('created_at', { ascending: false })
         .limit(1)

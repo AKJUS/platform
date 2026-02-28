@@ -1,5 +1,7 @@
 import { defaultModel } from '@tuturuuu/ai/models';
 
+export type { CreditSource } from '@tuturuuu/ai/chat/credit-source';
+
 if (!defaultModel) {
   throw new Error('No default Mira chat model is configured.');
 }
@@ -23,8 +25,6 @@ export const QUEUE_DEBOUNCE_MS = 500;
 export const SCROLL_END_DELAY_MS = 700;
 
 export type ThinkingMode = 'fast' | 'thinking';
-
-export type CreditSource = 'workspace' | 'personal';
 
 export type GreetingKey =
   | 'good_morning'

@@ -50,7 +50,5 @@ export function isAiCreditPackProduct(metadata: Product['metadata']): boolean {
 export function parseCreditPackTokens(
   metadata: Product['metadata']
 ): number | null {
-  const tokens = parsePositiveInteger(metadata?.tokens);
-
-  return tokens;
+  return parsePositiveInteger(metadata?.tokens);
 }

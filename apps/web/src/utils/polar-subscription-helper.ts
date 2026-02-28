@@ -1,11 +1,13 @@
 import type { Subscription } from '@tuturuuu/payment/polar';
 import type { TypedSupabaseClient } from '@tuturuuu/supabase/next/client';
 import type { Database } from '@tuturuuu/types';
-import { addDays, addMonths, addWeeks, addYears } from 'date-fns';
+import { addDays } from 'date-fns';
 import {
   isAiCreditPackProduct,
   parseCreditPackTokens,
 } from '@/utils/polar-product-metadata';
+
+const CREDIT_PACK_EXPIRY_DAYS = 60;
 
 async function upsertSubscription(
   supabase: TypedSupabaseClient,
@@ -67,15 +69,9 @@ async function upsertCreditPackPurchase(
     );
   }
 
-  // Get recurring interval from subscription product
-  const recurringInterval = subscription.product.recurringInterval ?? 'month';
-  const recurringIntervalCount =
-    subscription.product.recurringIntervalCount ?? 1;
-
-  const expiresAt = calculateExpiryDate(
+  const expiresAt = addDays(
     subscription.currentPeriodStart,
-    recurringInterval,
-    recurringIntervalCount
+    CREDIT_PACK_EXPIRY_DAYS
   );
   const expiresAtIso = expiresAt.toISOString();
 
@@ -88,6 +84,7 @@ async function upsertCreditPackPurchase(
     'past_due',
     'incomplete',
   ].includes(status);
+  const currentPeriodStartIso = subscription.currentPeriodStart.toISOString();
 
   const { data: existingPurchase, error: existingError } = await supabase
     .from('workspace_credit_pack_purchases')
@@ -105,8 +102,14 @@ async function upsertCreditPackPurchase(
 
   if (!existingPurchase) {
     tokensRemaining = tokens;
-  } else if (shouldRetainCredits) {
+  } else if (
+    shouldRetainCredits &&
+    new Date(currentPeriodStartIso).getTime() <=
+      new Date(existingPurchase.granted_at).getTime()
+  ) {
     tokensRemaining = existingPurchase.tokens_remaining;
+  } else if (shouldRetainCredits) {
+    tokensRemaining = tokens;
   }
 
   const purchaseData = {
@@ -115,7 +118,7 @@ async function upsertCreditPackPurchase(
     polar_subscription_id: subscription.id,
     tokens_granted: tokens,
     tokens_remaining: tokensRemaining,
-    granted_at: subscription.currentPeriodStart.toISOString(),
+    granted_at: currentPeriodStartIso,
     expires_at: expiresAtIso,
     status: status as Database['public']['Enums']['subscription_status'],
     updated_at: new Date().toISOString(),
@@ -164,27 +167,4 @@ export async function syncSubscriptionToDatabase(
   );
 
   return { subscriptionData, isSeatBased };
-}
-
-function calculateExpiryDate(
-  baseDate: Date,
-  recurringInterval: string,
-  recurringIntervalCount: number
-): Date {
-  switch (recurringInterval) {
-    case 'day':
-      return addDays(baseDate, recurringIntervalCount);
-
-    case 'week':
-      return addWeeks(baseDate, recurringIntervalCount);
-
-    case 'month':
-      return addMonths(baseDate, recurringIntervalCount);
-
-    case 'year':
-      return addYears(baseDate, recurringIntervalCount);
-
-    default:
-      throw new Error(`Unsupported recurring interval: ${recurringInterval}`);
-  }
 }

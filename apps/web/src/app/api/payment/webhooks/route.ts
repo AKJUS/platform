@@ -167,7 +167,6 @@ export const POST = Webhooks({
           );
           try {
             const polar = createPolarClient();
-            const sbAdmin = await createAdminClient();
             await assignSeatsToAllMembers(
               polar,
               sbAdmin,

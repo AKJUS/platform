@@ -66,6 +66,7 @@ export function AiCreditBillingCard({
   const { resolvedTheme } = useTheme();
   const [checkoutInstance, setCheckoutInstance] =
     useState<PolarEmbedCheckout | null>(null);
+  const [processingPackId, setProcessingPackId] = useState<string | null>(null);
 
   const creditsQuery = useQuery<CreditStatusResponse>({
     queryKey: ['billing-ai-credits', wsId],
@@ -84,6 +85,7 @@ export function AiCreditBillingCard({
 
   const purchaseMutation = useMutation({
     mutationFn: async (creditPackId: string) => {
+      setProcessingPackId(creditPackId);
       const response = await fetch('/api/payment/credit-packs/checkouts', {
         method: 'POST',
         headers: {
@@ -107,8 +109,10 @@ export function AiCreditBillingCard({
         theme: resolvedTheme === 'dark' ? 'dark' : 'light',
       });
       setCheckoutInstance(checkout);
+      setProcessingPackId(null);
     },
     onError: (error) => {
+      setProcessingPackId(null);
       toast.error(
         error instanceof Error
           ? error.message
@@ -120,6 +124,7 @@ export function AiCreditBillingCard({
   useEffect(() => {
     return () => {
       if (checkoutInstance) {
+        checkoutInstance.close();
         setCheckoutInstance(null);
       }
     };
@@ -164,7 +169,7 @@ export function AiCreditBillingCard({
               className="h-full rounded-full bg-dynamic-blue transition-all"
               style={{
                 width: `${barWidth(
-                  creditData?.included.totalUsed ?? 0,
+                  includedTotal - (creditData?.included.totalUsed ?? 0),
                   includedTotal
                 )}%`,
               }}
@@ -237,7 +242,7 @@ export function AiCreditBillingCard({
                 disabled={!canPurchase || purchaseMutation.isPending}
                 onClick={() => purchaseMutation.mutate(pack.id)}
               >
-                {purchaseMutation.isPending
+                {purchaseMutation.isPending && processingPackId === pack.id
                   ? t('credit-pack-processing')
                   : t('buy-now')}
               </Button>

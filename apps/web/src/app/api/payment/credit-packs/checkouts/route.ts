@@ -2,13 +2,11 @@ import { createPolarClient } from '@tuturuuu/payment/polar/server';
 import { createClient } from '@tuturuuu/supabase/next/server';
 import { getCurrentSupabaseUser } from '@tuturuuu/utils/user-helper';
 import { type NextRequest, NextResponse } from 'next/server';
-import { PORT } from '@/constants/common';
+import { BASE_URL } from '@/constants/common';
+import { normalizeWorkspaceId } from '@/lib/workspace-helper';
 
 export async function POST(request: NextRequest) {
-  const baseUrl =
-    process.env.NODE_ENV === 'development'
-      ? `http://localhost:${PORT}`
-      : 'https://tuturuuu.com';
+  const baseUrl = BASE_URL;
 
   const { wsId, creditPackId } = await request.json();
 
@@ -19,7 +17,9 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const supabase = await createClient();
+  const normalizedWsId = await normalizeWorkspaceId(wsId);
+
+  const supabase = await createClient(request);
   const user = await getCurrentSupabaseUser();
 
   if (!user) {
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     'has_workspace_permission',
     {
       p_user_id: user.id,
-      p_ws_id: wsId,
+      p_ws_id: normalizedWsId,
       p_permission: 'manage_subscription',
     }
   );
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
   const { data: workspace, error: workspaceError } = await supabase
     .from('workspaces')
     .select('id')
-    .eq('id', wsId)
+    .eq('id', normalizedWsId)
     .maybeSingle();
 
   if (workspaceError) {
@@ -87,12 +87,12 @@ export async function POST(request: NextRequest) {
     const polar = createPolarClient();
     const checkoutSession = await polar.checkouts.create({
       metadata: {
-        wsId,
+        wsId: normalizedWsId,
       },
       products: [creditPackId],
       requireBillingAddress: true,
       embedOrigin: baseUrl,
-      successUrl: `${baseUrl}/${wsId}/billing/success?checkoutId={CHECKOUT_ID}`,
+      successUrl: `${baseUrl}/${normalizedWsId}/billing/success?checkoutId={CHECKOUT_ID}`,
     });
 
     return NextResponse.json({ url: checkoutSession.url });

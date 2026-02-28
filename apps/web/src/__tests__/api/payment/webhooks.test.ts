@@ -1,6 +1,31 @@
 import { describe, expect, it, vi } from 'vitest';
 import { syncSubscriptionToDatabase } from '@/utils/polar-subscription-helper';
 
+type MockSingleResult = Promise<{
+  data: {
+    pricing_model: 'seat_based' | 'fixed';
+    price_per_seat: number | null;
+  };
+  error: null;
+}>;
+
+type MockUpsertResult = Promise<{ error: null }>;
+
+interface MockSupabaseLike {
+  from: (table: string) =>
+    | {
+        select: () => {
+          eq: () => {
+            single: () => MockSingleResult;
+          };
+        };
+      }
+    | {
+        upsert: () => MockUpsertResult;
+      }
+    | Record<string, never>;
+}
+
 // Mock dependencies that cause issues in test environment
 vi.mock('@tuturuuu/payment/polar/next', () => ({
   Webhooks: vi.fn(),
@@ -11,10 +36,10 @@ vi.mock('@tuturuuu/payment/polar/server', () => ({
 }));
 
 // Mock Supabase admin client
-const mockSingle = vi.fn();
-const mockUpsert = vi.fn();
+const mockSingle = vi.fn<() => MockSingleResult>();
+const mockUpsert = vi.fn<() => MockUpsertResult>();
 
-const mockSupabase: Record<string, unknown> = {
+const mockSupabase: MockSupabaseLike = {
   from: vi.fn().mockImplementation((table) => {
     if (table === 'workspace_subscription_products') {
       return {
@@ -33,7 +58,7 @@ const mockSupabase: Record<string, unknown> = {
 };
 
 vi.mock('@tuturuuu/supabase/next/server', () => ({
-  createAdminClient: vi.fn(() => Promise.resolve(mockSupabase as any)),
+  createAdminClient: vi.fn(() => Promise.resolve(mockSupabase)),
 }));
 
 describe('syncSubscriptionToDatabase', () => {

@@ -14,6 +14,7 @@ import {
 } from 'ai';
 
 import { type NextRequest, NextResponse } from 'next/server';
+import type { CreditSource as SharedCreditSource } from '../credit-source';
 import {
   shouldForceGoogleSearchForLatestUserMessage,
   shouldForceRenderUiForLatestUserMessage,
@@ -41,7 +42,6 @@ export const preferredRegion = 'sin1';
 
 const DEFAULT_MODEL_NAME = 'google/gemini-2.5-flash';
 type ThinkingMode = 'fast' | 'thinking';
-type CreditSource = 'workspace' | 'personal';
 export function createPOST(
   _options: {
     serverAPIKeyFallback?: boolean;
@@ -126,7 +126,7 @@ export function createPOST(
         }
       }
 
-      const requestedCreditSource: CreditSource =
+      const requestedCreditSource: SharedCreditSource =
         requestedCreditSourceRaw ?? 'workspace';
       let billingWsId: string | null = wsId ?? null;
 
@@ -400,7 +400,7 @@ export function createPOST(
             userId: user.id,
             model,
             effectiveSource,
-            wsId: billingWsId ?? undefined,
+            wsId: billingWsId ?? wsId,
           }),
       });
 

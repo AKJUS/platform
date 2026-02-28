@@ -6,6 +6,20 @@ import {
   parseWorkspaceProductTier,
 } from '@/utils/polar-product-metadata';
 
+const CREDIT_PACK_EXPIRY_DAYS = 60;
+
+type PolarPrice = Product['prices'][number];
+
+function isPolarPrice(value: unknown): value is PolarPrice {
+  if (!value || typeof value !== 'object') return false;
+  return (
+    'amountType' in value &&
+    'priceAmount' in value &&
+    'seatTiers' in value &&
+    'priceCurrency' in value
+  );
+}
+
 export type WorkspaceOrderProductKind =
   | 'subscription_product'
   | 'credit_pack'
@@ -73,7 +87,7 @@ async function upsertSubscriptionProduct(
     );
   }
 
-  const firstPrice = product.prices.find((p) => 'amountType' in p);
+  const firstPrice = product.prices.find(isPolarPrice);
   const isSeatBased = firstPrice?.amountType === 'seat_based';
   const isFixed = firstPrice?.amountType === 'fixed';
 
@@ -123,7 +137,7 @@ async function upsertCreditPackProduct(
     throw new Error(`Credit pack ${product.id} is missing metadata tokens`);
   }
 
-  const firstPrice = product.prices.find((p) => 'amountType' in p);
+  const firstPrice = product.prices.find(isPolarPrice);
   const isFixed = firstPrice?.amountType === 'fixed';
   const price = isFixed ? firstPrice.priceAmount : 0;
   const currency = firstPrice?.priceCurrency
@@ -137,10 +151,7 @@ async function upsertCreditPackProduct(
     price,
     currency,
     tokens,
-    expiry_days: calculateExpiryDays(
-      product.recurringInterval ?? 'month',
-      product.recurringIntervalCount ?? 1
-    ),
+    expiry_days: CREDIT_PACK_EXPIRY_DAYS,
     archived: product.isArchived ?? false,
   };
 
@@ -173,26 +184,4 @@ export async function syncProductToDatabase(
   );
 
   return subscriptionProductData;
-}
-
-function calculateExpiryDays(
-  recurringInterval: string,
-  recurringIntervalCount: number
-): number {
-  switch (recurringInterval) {
-    case 'day':
-      return recurringIntervalCount;
-
-    case 'week':
-      return recurringIntervalCount * 7;
-
-    case 'month':
-      return recurringIntervalCount * 30;
-
-    case 'year':
-      return recurringIntervalCount * 365;
-
-    default:
-      throw new Error(`Unsupported recurring interval: ${recurringInterval}`);
-  }
 }
