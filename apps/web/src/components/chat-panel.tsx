@@ -469,7 +469,7 @@ export async function uploadFile(
   wsId: string,
   file: StatedFile,
   id?: string
-): Promise<{ data: any; error: any }> {
+): Promise<{ data: { path: string } | null; error: Error | string | null }> {
   if (!id) return { data: null, error: 'No chat id provided' };
 
   const fileName = file.rawFile.name;
