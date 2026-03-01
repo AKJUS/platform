@@ -8,11 +8,16 @@ interface RenderUiOutput {
   recoveredFromInvalidSpec?: boolean;
   autoRecoveredFromInvalidSpec?: boolean;
   forcedFromRecoveryLoop?: boolean;
+  autoPopulatedFallback?: boolean;
 }
 
 export function isRecoveredOutput(output: unknown): boolean {
   if (!output || typeof output !== 'object') return false;
   const parsed = output as RenderUiOutput;
+  // Auto-populated fallbacks contain valid renderable UI injected by the
+  // preprocessor (e.g. MyTasks, TimeTrackingStats, or a generic Callout).
+  // They should be rendered as normal UI, not treated as failures.
+  if (parsed.autoPopulatedFallback === true) return false;
   return (
     parsed.recoveredFromInvalidSpec === true ||
     parsed.autoRecoveredFromInvalidSpec === true ||
@@ -45,6 +50,13 @@ function getStablePartKey(part: ToolPartData, fallbackIndex: number): string {
   }
 }
 
+export type RenderUiFailureMeta = {
+  /** Total render_ui attempts that failed (recovered) in this group. */
+  attemptCount: number;
+  /** Whether the model was forcibly stopped from a recovery loop. */
+  forcedStop: boolean;
+};
+
 export type MessageRenderDescriptor =
   | {
       kind: 'reasoning';
@@ -62,6 +74,8 @@ export type MessageRenderDescriptor =
       kind: 'tool';
       key: string;
       part: ToolPartData;
+      /** Present only for render_ui parts that failed after recovery attempts. */
+      renderUiFailure?: RenderUiFailureMeta;
     }
   | {
       kind: 'tool-group';
@@ -228,11 +242,39 @@ export function resolveMessageRenderGroups({
             break;
           }
 
+          // Compute failure metadata for recovered render_ui groups.
+          const allRecovered =
+            visibleParts.length > 0 &&
+            visibleParts.every(
+              (part) => getRenderUiPartAnalysis(part).recovered
+            );
+          const recoveredAttemptCount = partsWithValidity.filter(
+            (e) => e.recoveredFromInvalidSpec
+          ).length;
+          const hasForcedStop = partsWithValidity.some((e) => {
+            const output = (e.part as { output?: unknown }).output;
+            return (
+              isRecoveredOutput(output) &&
+              typeof output === 'object' &&
+              output !== null &&
+              (output as Record<string, unknown>).forcedFromRecoveryLoop ===
+                true
+            );
+          });
+
+          const failureMeta: RenderUiFailureMeta | undefined = allRecovered
+            ? {
+                attemptCount: recoveredAttemptCount,
+                forcedStop: hasForcedStop,
+              }
+            : undefined;
+
           visibleParts.forEach((part, idx) => {
             descriptors.push({
               kind: 'tool',
               key: `render-ui-${group.startIndex}-${getStablePartKey(part, idx)}`,
               part,
+              renderUiFailure: failureMeta,
             });
           });
           break;

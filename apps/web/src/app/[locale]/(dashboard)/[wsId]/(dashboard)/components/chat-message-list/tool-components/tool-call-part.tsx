@@ -1,11 +1,13 @@
 import { Renderer, VisibilityProvider } from '@json-render/react';
 import {
   AlertCircle,
+  AlertTriangle,
   Check,
   ChevronRight,
   ClipboardCopy,
   Globe,
   Loader2,
+  RotateCcw,
   Sparkles,
 } from '@tuturuuu/icons';
 import { Dialog, DialogContent, DialogTitle } from '@tuturuuu/ui/dialog';
@@ -17,6 +19,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { registry } from '@/components/json-render/dashboard-registry';
 import { resolveRenderUiSpecFromOutput } from '@/components/json-render/render-ui-spec';
 import { humanizeToolName, isObjectRecord } from '../helpers';
+import type { RenderUiFailureMeta } from '../resolve-message-render-groups';
 import type { ToolPartData } from '../types';
 import {
   buildApprovalRequestSpec,
@@ -43,7 +46,13 @@ function getPartErrorText(part: ToolPartData): string | undefined {
   return typeof part.errorText === 'string' ? part.errorText : undefined;
 }
 
-export function ToolCallPart({ part }: { part: ToolPartData }) {
+export function ToolCallPart({
+  part,
+  renderUiFailure,
+}: {
+  part: ToolPartData;
+  renderUiFailure?: RenderUiFailureMeta;
+}) {
   const t = useTranslations('dashboard.mira_chat');
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -210,7 +219,7 @@ export function ToolCallPart({ part }: { part: ToolPartData }) {
   if (rawToolName === 'render_ui' && hasOutput) {
     if (isDone && !logicalError && output) {
       const cleanedSpec = resolveRenderUiSpecFromOutput(output);
-      if (cleanedSpec) {
+      if (cleanedSpec && !renderUiFailure) {
         return (
           <div className="my-2 flex w-full max-w-full flex-col gap-1.5">
             <div className="mb-1 flex items-center gap-1.5 text-xs">
@@ -225,16 +234,25 @@ export function ToolCallPart({ part }: { part: ToolPartData }) {
         );
       }
 
+      // Compact failure state with attempt count
+      const attempts = renderUiFailure?.attemptCount ?? 1;
       return (
-        <div className="my-2 flex w-full max-w-full flex-col gap-1.5">
-          <div className="mb-1 flex items-center gap-1.5 text-xs">
-            <AlertCircle className="h-3.5 w-3.5 text-dynamic-yellow" />
-            <span className="font-medium">{toolName}</span>
-            <span className="text-muted-foreground">{t('tool_done')}</span>
-          </div>
-          <div className="rounded-lg border border-dynamic-yellow/30 bg-dynamic-yellow/5 p-3 text-muted-foreground text-sm">
-            {t('tool_render_error')}
-          </div>
+        <div className="flex items-start gap-2 rounded-lg border border-dynamic-yellow/30 bg-dynamic-yellow/5 px-3 py-2 text-xs">
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-dynamic-yellow" />
+          <span className="flex flex-col gap-0.5">
+            <span className="flex items-center gap-1.5">
+              <span className="font-medium text-dynamic-yellow">
+                {t('tool_render_failed_title')}
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-full bg-dynamic-yellow/10 px-1.5 py-0.5 font-medium text-[10px] text-dynamic-yellow/80">
+                <RotateCcw className="h-2.5 w-2.5" />
+                {t('tool_render_attempts', { count: attempts })}
+              </span>
+            </span>
+            <span className="text-muted-foreground">
+              {t('tool_render_failed_hint')}
+            </span>
+          </span>
         </div>
       );
     }

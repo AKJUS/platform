@@ -285,6 +285,7 @@ export default function ChatMessageList({
                             <ToolCallPart
                               key={descriptor.key}
                               part={descriptor.part}
+                              renderUiFailure={descriptor.renderUiFailure}
                             />
                           );
                         }

@@ -26,6 +26,8 @@ type PrepareMiraRuntimeParams = {
   chatId: string;
   supabase: SupabaseClientLike;
   timezone?: string;
+  /** Optional callback for render_ui context-aware fallback. */
+  getSteps?: () => unknown[];
 };
 
 export async function prepareMiraRuntime({
@@ -38,6 +40,7 @@ export async function prepareMiraRuntime({
   chatId,
   supabase,
   timezone,
+  getSteps,
 }: PrepareMiraRuntimeParams): Promise<{
   miraSystemPrompt?: string;
   miraTools?: ReturnType<typeof createMiraStreamTools>;
@@ -112,6 +115,6 @@ export async function prepareMiraRuntime({
 
   return {
     miraSystemPrompt,
-    miraTools: createMiraStreamTools(ctx, withoutPermission),
+    miraTools: createMiraStreamTools(ctx, withoutPermission, getSteps),
   };
 }

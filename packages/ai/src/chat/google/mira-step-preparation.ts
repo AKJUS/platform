@@ -1,5 +1,7 @@
+import { DEV_MODE } from '@tuturuuu/utils/constants';
 import {
   buildActiveToolsFromSelected,
+  countRenderUiAttemptsInSteps,
   extractSelectedToolsFromSteps,
   hasRenderableRenderUiInSteps,
   hasToolCallInSteps,
@@ -103,10 +105,17 @@ export function prepareMiraToolStep({
     };
   }
 
+  /** Maximum render_ui tool call attempts before giving up and letting the model respond with text. */
+  const MAX_RENDER_UI_ATTEMPTS = 2;
+  const renderUiAttempts = countRenderUiAttemptsInSteps(steps);
+  const renderUiExhausted = renderUiAttempts >= MAX_RENDER_UI_ATTEMPTS;
+
   if (
+    DEV_MODE &&
     forceRenderUi &&
     !preferMarkdownTables &&
-    !hasRenderableRenderUiInSteps(steps)
+    !hasRenderableRenderUiInSteps(steps) &&
+    !renderUiExhausted
   ) {
     const active = [
       ...normalizedSelectedTools.filter(
@@ -127,9 +136,11 @@ export function prepareMiraToolStep({
     normalizedSelectedTools.includes('render_ui') ||
     wasToolEverSelectedInSteps(steps, 'render_ui');
   if (
+    DEV_MODE &&
     renderUiSelectedEver &&
     !preferMarkdownTables &&
-    !hasRenderableRenderUiInSteps(steps)
+    !hasRenderableRenderUiInSteps(steps) &&
+    !renderUiExhausted
   ) {
     const active = buildActiveToolsFromSelected(normalizedSelectedTools)
       .filter((toolName) => toolName !== 'no_action_needed')

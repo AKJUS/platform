@@ -352,6 +352,10 @@ export function createPOST(
       }
       const { cappedMaxOutput } = creditPreflight;
 
+      // Mutable ref so the render_ui preprocessor can read current steps
+      // at Zod-validation time (before the execute handler runs).
+      const stepsRef: { current: unknown[] } = { current: [] };
+
       const { miraSystemPrompt, miraTools } = await prepareMiraRuntime({
         isMiraMode,
         wsId: normalizedWsId ?? undefined,
@@ -362,6 +366,7 @@ export function createPOST(
         chatId,
         supabase,
         timezone,
+        getSteps: () => stepsRef.current,
       });
 
       const effectiveSource = isMiraMode ? 'Mira' : 'Rewise';
@@ -403,8 +408,11 @@ export function createPOST(
       type PrepareStep = NonNullable<
         NonNullable<Parameters<typeof streamText>[0]>['prepareStep']
       >;
-      const prepareStep: PrepareStep = ({ steps }) =>
-        prepareMiraToolStep({
+      const prepareStep: PrepareStep = ({ steps }) => {
+        // Keep the mutable ref in sync so the render_ui preprocessor can
+        // read current steps during Zod validation.
+        stepsRef.current = steps;
+        return prepareMiraToolStep({
           steps,
           forceGoogleSearch,
           forceRenderUi,
@@ -412,6 +420,7 @@ export function createPOST(
           needsWorkspaceMembersTool,
           preferMarkdownTables,
         });
+      };
 
       const result = streamText({
         abortSignal: req.signal,
