@@ -101,7 +101,7 @@ export function CustomWhiteboard({
   } = useWhiteboardCollaboration({
     boardId,
     wsId,
-    enabled: wsPresence?.cursorsEnabled ?? false,
+    enabled: wsPresence?.realtimeEnabled ?? false,
     externalPresenceState: wsPresence ? wsPresence.presenceState : undefined,
     externalCurrentUserId: wsPresence?.currentUserId,
     onRemoteElementsChange: useCallback(
@@ -158,7 +158,7 @@ export function CustomWhiteboard({
 
   const wsUpdateLocation = wsPresence?.updateLocation;
   const whiteboardViewers = wsPresence?.getWhiteboardViewers(boardId) ?? [];
-  const cursorsEnabled = wsPresence?.cursorsEnabled ?? false;
+  const cursorsEnabled = wsPresence?.realtimeEnabled ?? false;
 
   const whiteboardViewerEntries = useMemo<PresenceViewerEntry[]>(() => {
     const byUser = new Map<
