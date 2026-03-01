@@ -7,7 +7,7 @@ import { getSelectionSignature } from '@/utils/excalidraw-selection';
 import '@excalidraw/excalidraw/index.css';
 import type {
   AppState,
-  BinaryFiles,
+  BinaryFileData,
   ExcalidrawImperativeAPI,
 } from '@excalidraw/excalidraw/types';
 import {
@@ -52,7 +52,6 @@ interface CustomWhiteboardProps {
   initialData?: {
     elements?: ExcalidrawElement[];
     appState?: Partial<AppState>;
-    files?: BinaryFiles;
   };
 }
 
@@ -89,6 +88,7 @@ export function CustomWhiteboard({
   const previousElementsRef = useRef<readonly ExcalidrawElement[]>([]);
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pendingChangesRef = useRef(false);
+  const requestedFileIdsRef = useRef<Set<string>>(new Set());
 
   // Track whiteboard location in workspace presence (stable function ref)
   const wsUpdateLocation = wsPresence?.updateLocation;
@@ -142,6 +142,105 @@ export function CustomWhiteboard({
   );
 
   const cursorsEnabled = wsPresence?.cursorsEnabled ?? false;
+
+  const blobToDataURL = useCallback((blob: Blob): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (typeof reader.result === 'string') {
+          resolve(reader.result);
+        } else {
+          reject(new Error('Failed to convert blob to data URL'));
+        }
+      };
+      reader.onerror = () => {
+        reject(reader.error ?? new Error('Failed to read file'));
+      };
+      reader.readAsDataURL(blob);
+    });
+  }, []);
+
+  const loadImageFile = useCallback(
+    async (fileId: string) => {
+      const api = excalidrawAPIRef.current;
+      if (!api) return;
+
+      if (requestedFileIdsRef.current.has(fileId)) return;
+      requestedFileIdsRef.current.add(fileId);
+
+      try {
+        const { data, error } = await supabase.storage
+          .from('workspaces')
+          .createSignedUrl(fileId, 60 * 60);
+
+        if (error || !data?.signedUrl) {
+          console.error('Failed to create signed URL for file:', fileId, error);
+          return;
+        }
+
+        const response = await fetch(data.signedUrl, { cache: 'no-store' });
+        if (!response.ok) {
+          console.error(
+            'Failed to fetch image from signed URL:',
+            fileId,
+            response.statusText
+          );
+          return;
+        }
+
+        const blob = await response.blob();
+        const mimeType = blob.type || 'image/png';
+        const dataURL = await blobToDataURL(blob);
+
+        const now = Date.now();
+        const fileData: BinaryFileData = {
+          id: fileId as BinaryFileData['id'],
+          mimeType: mimeType as BinaryFileData['mimeType'],
+          dataURL: dataURL as BinaryFileData['dataURL'],
+          created: now,
+          lastRetrieved: now,
+        };
+
+        api.addFiles([fileData]);
+      } catch (error) {
+        console.error(
+          'Error loading image file for Excalidraw:',
+          fileId,
+          error
+        );
+      }
+    },
+    [supabase, blobToDataURL]
+  );
+
+  const ensureImageFilesLoaded = useCallback(
+    (elements: readonly ExcalidrawElement[]) => {
+      const api = excalidrawAPIRef.current;
+      if (!api || elements.length === 0) return;
+
+      const files = api.getFiles();
+      const existingFileIds = new Set(
+        Object.values(files).map((file) => file.id)
+      );
+
+      const fileIdsToLoad = new Set<string>();
+
+      for (const element of elements) {
+        if (element.type === 'image' && element.fileId) {
+          if (!existingFileIds.has(element.fileId)) {
+            fileIdsToLoad.add(element.fileId);
+          }
+        }
+      }
+
+      fileIdsToLoad.forEach((fileId) => {
+        if (!requestedFileIdsRef.current.has(fileId)) {
+          void loadImageFile(fileId);
+        }
+      });
+    },
+    [loadImageFile]
+  );
 
   const handleExcalidrawAPI = useCallback(
     (api: ExcalidrawImperativeAPI | null) => {
@@ -201,11 +300,10 @@ export function CustomWhiteboard({
     if (initialData) {
       lastSavedRef.current = JSON.stringify({
         elements: initialData.elements ?? [],
-        files: initialData.files ?? {},
       });
       previousElementsRef.current = cloneElements(initialData.elements ?? []);
     } else {
-      lastSavedRef.current = JSON.stringify({ elements: [], files: {} });
+      lastSavedRef.current = JSON.stringify({ elements: [] });
       previousElementsRef.current = [];
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -222,7 +320,6 @@ export function CustomWhiteboard({
     try {
       const elements = api.getSceneElements();
       const appState = api.getAppState();
-      const files = api.getFiles();
 
       const essentialAppState: Partial<AppState> = {
         viewBackgroundColor: appState.viewBackgroundColor,
@@ -232,7 +329,6 @@ export function CustomWhiteboard({
       const snapshot = {
         elements,
         appState: essentialAppState,
-        files,
       };
 
       const { error } = await supabase
@@ -245,7 +341,7 @@ export function CustomWhiteboard({
 
       if (error) throw error;
 
-      lastSavedRef.current = JSON.stringify({ elements, files });
+      lastSavedRef.current = JSON.stringify({ elements });
       pendingChangesRef.current = false;
       setSyncStatus('synced');
     } catch (error) {
@@ -309,15 +405,12 @@ export function CustomWhiteboard({
 
   // Change detection and collaboration broadcast via onChange callback
   const handleChange = useCallback(
-    (
-      elements: readonly ExcalidrawElement[],
-      appState: AppState,
-      files: BinaryFiles
-    ) => {
-      // Only compare elements and files (not appState which changes frequently)
+    (elements: readonly ExcalidrawElement[], appState: AppState) => {
+      ensureImageFilesLoaded(elements);
+
+      // Only compare elements (not appState which changes frequently)
       const currentState = JSON.stringify({
         elements: elements.filter((el) => !el.isDeleted),
-        files,
       });
       const hasChanges = currentState !== lastSavedRef.current;
 
@@ -347,6 +440,7 @@ export function CustomWhiteboard({
       broadcastSelectionChange,
       triggerAutoSave,
       cloneElements,
+      ensureImageFilesLoaded,
     ]
   );
 
@@ -390,9 +484,9 @@ export function CustomWhiteboard({
           throw error;
         }
 
-        // Return the ID - Excalidraw will use this to reference the file
-        // The file URL will be stored in Excalidraw's files object
-        return fileId;
+        // Return the file storage path - Excalidraw will use this to reference the file
+        // The blob data will be retrieved from signed URL when the file needs to be rendered in the scene
+        return storagePath;
       } catch (error) {
         console.error('Error in handleGenerateIdForFile:', error);
         toast.error('Failed to process image');
