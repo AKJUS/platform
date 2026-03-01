@@ -14083,6 +14083,109 @@ export type Database = {
           },
         ];
       };
+      workspace_credit_pack_purchases: {
+        Row: {
+          created_at: string;
+          credit_pack_id: string;
+          expires_at: string;
+          granted_at: string;
+          id: string;
+          polar_subscription_id: string;
+          status: Database['public']['Enums']['subscription_status'];
+          tokens_granted: number;
+          tokens_remaining: number;
+          updated_at: string;
+          ws_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          credit_pack_id: string;
+          expires_at: string;
+          granted_at?: string;
+          id?: string;
+          polar_subscription_id: string;
+          status?: Database['public']['Enums']['subscription_status'];
+          tokens_granted: number;
+          tokens_remaining: number;
+          updated_at?: string;
+          ws_id: string;
+        };
+        Update: {
+          created_at?: string;
+          credit_pack_id?: string;
+          expires_at?: string;
+          granted_at?: string;
+          id?: string;
+          polar_subscription_id?: string;
+          status?: Database['public']['Enums']['subscription_status'];
+          tokens_granted?: number;
+          tokens_remaining?: number;
+          updated_at?: string;
+          ws_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'workspace_credit_pack_purchases_credit_pack_id_fkey';
+            columns: ['credit_pack_id'];
+            isOneToOne: false;
+            referencedRelation: 'workspace_credit_packs';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'workspace_credit_pack_purchases_ws_id_fkey';
+            columns: ['ws_id'];
+            isOneToOne: false;
+            referencedRelation: 'workspace_link_counts';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'workspace_credit_pack_purchases_ws_id_fkey';
+            columns: ['ws_id'];
+            isOneToOne: false;
+            referencedRelation: 'workspaces';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      workspace_credit_packs: {
+        Row: {
+          archived: boolean;
+          created_at: string;
+          currency: string;
+          description: string | null;
+          expiry_days: number;
+          id: string;
+          name: string;
+          price: number;
+          tokens: number;
+          updated_at: string;
+        };
+        Insert: {
+          archived?: boolean;
+          created_at?: string;
+          currency?: string;
+          description?: string | null;
+          expiry_days: number;
+          id: string;
+          name: string;
+          price?: number;
+          tokens: number;
+          updated_at?: string;
+        };
+        Update: {
+          archived?: boolean;
+          created_at?: string;
+          currency?: string;
+          description?: string | null;
+          expiry_days?: number;
+          id?: string;
+          name?: string;
+          price?: number;
+          tokens?: number;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       workspace_cron_executions: {
         Row: {
           created_at: string;
@@ -15378,11 +15481,13 @@ export type Database = {
         Row: {
           billing_reason: Database['public']['Enums']['billing_reason'] | null;
           created_at: string;
+          credit_pack_id: string | null;
           currency: string | null;
           id: string;
           polar_order_id: string;
           polar_subscription_id: string | null;
           product_id: string | null;
+          product_kind: Database['public']['Enums']['workspace_order_product_kind'];
           status: Database['public']['Enums']['order_status'];
           total_amount: number | null;
           updated_at: string | null;
@@ -15391,11 +15496,13 @@ export type Database = {
         Insert: {
           billing_reason?: Database['public']['Enums']['billing_reason'] | null;
           created_at?: string;
+          credit_pack_id?: string | null;
           currency?: string | null;
           id?: string;
           polar_order_id: string;
           polar_subscription_id?: string | null;
           product_id?: string | null;
+          product_kind?: Database['public']['Enums']['workspace_order_product_kind'];
           status?: Database['public']['Enums']['order_status'];
           total_amount?: number | null;
           updated_at?: string | null;
@@ -15404,17 +15511,26 @@ export type Database = {
         Update: {
           billing_reason?: Database['public']['Enums']['billing_reason'] | null;
           created_at?: string;
+          credit_pack_id?: string | null;
           currency?: string | null;
           id?: string;
           polar_order_id?: string;
           polar_subscription_id?: string | null;
           product_id?: string | null;
+          product_kind?: Database['public']['Enums']['workspace_order_product_kind'];
           status?: Database['public']['Enums']['order_status'];
           total_amount?: number | null;
           updated_at?: string | null;
           ws_id?: string;
         };
         Relationships: [
+          {
+            foreignKeyName: 'workspace_orders_credit_pack_id_fkey';
+            columns: ['credit_pack_id'];
+            isOneToOne: false;
+            referencedRelation: 'workspace_credit_packs';
+            referencedColumns: ['id'];
+          },
           {
             foreignKeyName: 'workspace_orders_polar_subscription_id_fkey';
             columns: ['polar_subscription_id'];
@@ -19065,6 +19181,11 @@ export type Database = {
       };
     };
     Functions: {
+      _consume_payg_credits: {
+        Args: { p_amount: number; p_ws_id: string };
+        Returns: number;
+      };
+      _get_active_payg_credits: { Args: { p_ws_id: string }; Returns: number };
       _release_expired_ai_credit_reservations: {
         Args: { p_balance_id: string };
         Returns: undefined;
@@ -23916,6 +24037,10 @@ export type Database = {
         | 'gemini-2.0-flash-lite'
         | 'gemini-2.5-flash-lite';
       workspace_calendar_type: 'primary' | 'tasks' | 'habits' | 'custom';
+      workspace_order_product_kind:
+        | 'subscription_product'
+        | 'credit_pack'
+        | 'unknown';
       workspace_pricing_model:
         | 'fixed'
         | 'seat_based'
@@ -26012,6 +26137,11 @@ export const Constants = {
         'gemini-2.5-flash-lite',
       ],
       workspace_calendar_type: ['primary', 'tasks', 'habits', 'custom'],
+      workspace_order_product_kind: [
+        'subscription_product',
+        'credit_pack',
+        'unknown',
+      ],
       workspace_pricing_model: [
         'fixed',
         'seat_based',

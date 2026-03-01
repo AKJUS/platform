@@ -101,15 +101,19 @@ export default function MiraChatPanel({
   );
 
   const {
+    activeCreditSource,
     chatRequestBody,
+    creditWsId,
     gatewayModelId,
     model,
+    setCreditSource,
     setModel,
     supportsFileInput,
     thinkingMode,
     setThinkingMode,
     setWorkspaceContextId,
     transport,
+    workspaceCreditLocked,
   } = useMiraChatConfig({ wsId });
 
   const {
@@ -142,6 +146,7 @@ export default function MiraChatPanel({
   });
 
   const stableChatId = chat?.id ?? fallbackChatId;
+
   const {
     id: chatId,
     messages,
@@ -188,6 +193,16 @@ export default function MiraChatPanel({
       if (status === 'submitted' || status === 'streaming') stop();
     },
     [setThinkingMode, status, stop, thinkingMode]
+  );
+
+  const handleCreditSourceChange = useCallback(
+    (nextSource: typeof activeCreditSource) => {
+      if (nextSource === activeCreditSource) return;
+      if (nextSource === 'workspace' && workspaceCreditLocked) return;
+      setCreditSource(nextSource);
+      if (status === 'submitted' || status === 'streaming') stop();
+    },
+    [activeCreditSource, setCreditSource, status, stop, workspaceCreditLocked]
   );
 
   const { createChat, handleExportChat, resetConversationState } =
@@ -275,8 +290,16 @@ export default function MiraChatPanel({
     }
     resetQueue();
     void resetConversationState();
+    setCreditSource('personal');
     onResetPanelState?.();
-  }, [onResetPanelState, resetConversationState, resetQueue, status, stop]);
+  }, [
+    onResetPanelState,
+    resetConversationState,
+    resetQueue,
+    setCreditSource,
+    status,
+    stop,
+  ]);
 
   const { hotkeyLabels, modelPickerHotkeySignal } = useMiraChatHotkeys({
     hasMessages,
@@ -290,13 +313,15 @@ export default function MiraChatPanel({
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       <MiraChatHeader
-        wsId={wsId}
+        activeCreditSource={activeCreditSource}
+        creditWsId={creditWsId}
         hasMessages={hasMessages}
         hotkeyLabels={hotkeyLabels}
         insightsDock={insightsDock}
         isFullscreen={isFullscreen}
         model={model}
         modelPickerHotkeySignal={modelPickerHotkeySignal}
+        onCreditSourceChange={handleCreditSourceChange}
         onExportChat={handleExportChat}
         onModelChange={handleModelChange}
         onNewConversation={handleNewConversation}
@@ -306,6 +331,8 @@ export default function MiraChatPanel({
         t={t}
         thinkingMode={thinkingMode}
         viewOnly={viewOnly}
+        workspaceCreditLocked={workspaceCreditLocked}
+        wsId={wsId}
         workspaceContextBadge={workspaceContextBadge}
       />
 

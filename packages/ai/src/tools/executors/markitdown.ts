@@ -72,6 +72,7 @@ function resolveMarkitdownTimeoutMs(): number {
 
 async function reserveMarkitdownCredits(
   sbAdmin: { rpc: unknown },
+  billingWsId: string,
   ctx: MiraToolContext,
   metadata: Record<string, unknown>
 ): Promise<
@@ -80,7 +81,7 @@ async function reserveMarkitdownCredits(
 > {
   const result = await reserveFixedAiCredits(
     {
-      wsId: ctx.wsId,
+      wsId: billingWsId,
       userId: ctx.userId,
       amount: MARKITDOWN_COST_CREDITS,
       modelId: MARKITDOWN_LEDGER_MODEL,
@@ -172,6 +173,7 @@ export async function executeConvertFileToMarkdown(
   args: Record<string, unknown>,
   ctx: MiraToolContext
 ) {
+  const billingWsId = ctx.creditWsId ?? ctx.wsId;
   const markitdownUrl = resolveDiscordMarkitdownUrl();
   const markitdownSecret = resolveDiscordMarkitdownSecret();
 
@@ -265,10 +267,15 @@ export async function executeConvertFileToMarkdown(
     targetPath = `${chatFolder}/${pickedFile.name}`;
   }
 
-  const reservation = await reserveMarkitdownCredits(sbAdmin, ctx, {
-    targetPath,
-    selectedFileName: stripTimestampPrefix(selectedFileName),
-  });
+  const reservation = await reserveMarkitdownCredits(
+    sbAdmin,
+    billingWsId,
+    ctx,
+    {
+      targetPath,
+      selectedFileName: stripTimestampPrefix(selectedFileName),
+    }
+  );
 
   if (!reservation.ok) {
     return {

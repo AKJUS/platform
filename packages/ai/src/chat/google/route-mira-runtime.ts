@@ -20,6 +20,7 @@ type PrepareMiraRuntimeParams = {
   isMiraMode?: boolean;
   wsId?: string;
   workspaceContextId?: string;
+  creditWsId?: string;
   request: NextRequest;
   userId: string;
   chatId: string;
@@ -31,6 +32,7 @@ export async function prepareMiraRuntime({
   isMiraMode,
   wsId,
   workspaceContextId,
+  creditWsId,
   request,
   userId,
   chatId,
@@ -82,6 +84,7 @@ export async function prepareMiraRuntime({
   const ctx: MiraToolContext = {
     userId,
     wsId,
+    creditWsId,
     workspaceContext: resolvedWorkspaceContext,
     chatId,
     supabase,

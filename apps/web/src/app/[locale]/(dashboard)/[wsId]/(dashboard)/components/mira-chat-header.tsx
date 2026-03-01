@@ -23,11 +23,13 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@tuturuuu/ui/tooltip';
 import type { ReactNode } from 'react';
 import { useState } from 'react';
-import type { ThinkingMode } from './mira-chat-constants';
+import type { CreditSource, ThinkingMode } from './mira-chat-constants';
 import MiraCreditBar from './mira-credit-bar';
 import MiraModelSelector from './mira-model-selector';
 
 interface MiraChatHeaderProps {
+  activeCreditSource: CreditSource;
+  creditWsId?: string;
   wsId: string;
   hasMessages: boolean;
   hotkeyLabels: {
@@ -43,6 +45,7 @@ interface MiraChatHeaderProps {
   isFullscreen?: boolean;
   model: Model;
   modelPickerHotkeySignal: number;
+  onCreditSourceChange: (source: CreditSource) => void;
   onExportChat: () => void;
   onModelChange: (model: Model) => void;
   onNewConversation: () => void;
@@ -52,10 +55,13 @@ interface MiraChatHeaderProps {
   t: (...args: any[]) => string;
   thinkingMode: ThinkingMode;
   viewOnly: boolean;
+  workspaceCreditLocked: boolean;
   workspaceContextBadge?: ReactNode;
 }
 
 export function MiraChatHeader({
+  activeCreditSource,
+  creditWsId,
   wsId,
   hasMessages,
   hotkeyLabels,
@@ -63,6 +69,7 @@ export function MiraChatHeader({
   isFullscreen,
   model,
   modelPickerHotkeySignal,
+  onCreditSourceChange,
   onExportChat,
   onModelChange,
   onNewConversation,
@@ -72,8 +79,10 @@ export function MiraChatHeader({
   t,
   thinkingMode,
   viewOnly,
+  workspaceCreditLocked,
   workspaceContextBadge,
 }: MiraChatHeaderProps) {
+  const [isCreditSourceMenuOpen, setIsCreditSourceMenuOpen] = useState(false);
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState(false);
   const [isThinkingMenuOpen, setIsThinkingMenuOpen] = useState(false);
 
@@ -91,6 +100,64 @@ export function MiraChatHeader({
       </div>
       <div className="flex shrink-0 items-center gap-1">
         {workspaceContextBadge}
+        <DropdownMenu
+          open={isCreditSourceMenuOpen}
+          onOpenChange={setIsCreditSourceMenuOpen}
+        >
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="h-8 px-2 text-xs"
+              title={t('credit_source_label')}
+              aria-label={t('credit_source_label')}
+            >
+              {activeCreditSource === 'personal'
+                ? t('credit_source_personal')
+                : t('credit_source_workspace')}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-64">
+            <DropdownMenuItem
+              className="items-start"
+              disabled={workspaceCreditLocked}
+              onSelect={() => {
+                onCreditSourceChange('workspace');
+                setIsCreditSourceMenuOpen(false);
+              }}
+              title={
+                workspaceCreditLocked
+                  ? t('credit_source_workspace_locked_free')
+                  : t('credit_source_workspace_desc')
+              }
+            >
+              <div className="flex flex-col gap-0.5">
+                <span>{t('credit_source_workspace')}</span>
+                <span className="text-muted-foreground text-xs">
+                  {workspaceCreditLocked
+                    ? t('credit_source_workspace_locked_free')
+                    : t('credit_source_workspace_desc')}
+                </span>
+              </div>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="items-start"
+              onSelect={() => {
+                onCreditSourceChange('personal');
+                setIsCreditSourceMenuOpen(false);
+              }}
+              title={t('credit_source_personal_desc')}
+            >
+              <div className="flex flex-col gap-0.5">
+                <span>{t('credit_source_personal')}</span>
+                <span className="text-muted-foreground text-xs">
+                  {t('credit_source_personal_desc')}
+                </span>
+              </div>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <DropdownMenu
           open={isThinkingMenuOpen}
           onOpenChange={setIsThinkingMenuOpen}
@@ -146,7 +213,7 @@ export function MiraChatHeader({
           </DropdownMenuContent>
         </DropdownMenu>
         <div className="ml-2">
-          <MiraCreditBar wsId={wsId} />
+          <MiraCreditBar wsId={creditWsId} />
         </div>
         <Tooltip>
           <TooltipTrigger asChild>

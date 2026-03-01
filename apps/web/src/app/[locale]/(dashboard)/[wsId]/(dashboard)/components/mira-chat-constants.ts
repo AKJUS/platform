@@ -1,5 +1,7 @@
 import { defaultModel } from '@tuturuuu/ai/models';
 
+export type { CreditSource } from '@tuturuuu/ai/chat/credit-source';
+
 if (!defaultModel) {
   throw new Error('No default Mira chat model is configured.');
 }
@@ -7,6 +9,7 @@ if (!defaultModel) {
 export const INITIAL_MODEL = defaultModel;
 export const STORAGE_KEY_PREFIX = 'mira-dashboard-chat-';
 export const THINKING_MODE_STORAGE_KEY_PREFIX = 'mira-dashboard-thinking-mode-';
+export const CREDIT_SOURCE_STORAGE_KEY_PREFIX = 'mira-dashboard-credit-source-';
 export const WORKSPACE_CONTEXT_STORAGE_KEY_PREFIX =
   'mira-dashboard-workspace-context-';
 export const WORKSPACE_CONTEXT_EVENT =

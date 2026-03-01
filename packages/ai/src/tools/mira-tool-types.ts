@@ -4,6 +4,7 @@ import type { MiraWorkspaceContextState } from './workspace-context';
 export interface MiraToolContext {
   userId: string;
   wsId: string;
+  creditWsId?: string;
   workspaceContext?: MiraWorkspaceContextState;
   chatId?: string;
   supabase: TypedSupabaseClient;

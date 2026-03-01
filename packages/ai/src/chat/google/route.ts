@@ -4,7 +4,7 @@ import {
   createClient,
   createDynamicClient,
 } from '@tuturuuu/supabase/next/server';
-
+import { normalizeWorkspaceId } from '@tuturuuu/utils/workspace-helper';
 import {
   consumeStream,
   gateway,
@@ -12,8 +12,8 @@ import {
   stepCountIs,
   streamText,
 } from 'ai';
-
 import { type NextRequest, NextResponse } from 'next/server';
+import type { CreditSource as SharedCreditSource } from '../credit-source';
 import {
   shouldForceGoogleSearchForLatestUserMessage,
   shouldForceRenderUiForLatestUserMessage,
@@ -41,7 +41,6 @@ export const preferredRegion = 'sin1';
 
 const DEFAULT_MODEL_NAME = 'google/gemini-2.5-flash';
 type ThinkingMode = 'fast' | 'thinking';
-
 export function createPOST(
   _options: {
     serverAPIKeyFallback?: boolean;
@@ -89,6 +88,8 @@ export function createPOST(
         isMiraMode,
         timezone,
         thinkingMode: rawThinkingMode,
+        creditSource: requestedCreditSourceRaw,
+        creditWsId: rawCreditWsId,
       } = parsedBody.data;
       const thinkingMode: ThinkingMode =
         rawThinkingMode === 'thinking' ? 'thinking' : 'fast';
@@ -106,6 +107,148 @@ export function createPOST(
       if (!user) {
         console.error('Unauthorized');
         return new Response('Unauthorized', { status: 401 });
+      }
+
+      // Normalize both workspace identifiers so slugs like 'personal' resolve to UUIDs.
+      let normalizedWsId: string | null = null;
+      let requestedCreditWsId: string | undefined;
+      try {
+        normalizedWsId = wsId ? await normalizeWorkspaceId(wsId) : null;
+        requestedCreditWsId = rawCreditWsId
+          ? await normalizeWorkspaceId(rawCreditWsId)
+          : undefined;
+      } catch (normError) {
+        console.error(
+          'Workspace ID normalization failed:',
+          normError instanceof Error ? normError.message : normError
+        );
+        return NextResponse.json(
+          { error: 'Invalid workspace identifier' },
+          { status: 422 }
+        );
+      }
+
+      if (normalizedWsId) {
+        const { data: contextMembership, error: contextMembershipError } =
+          await sbAdmin
+            .from('workspace_members')
+            .select('user_id')
+            .eq('ws_id', normalizedWsId)
+            .eq('user_id', user.id)
+            .maybeSingle();
+
+        if (contextMembershipError) {
+          console.error(
+            'DB error checking workspace membership:',
+            contextMembershipError.message
+          );
+          return NextResponse.json(
+            { error: 'Internal error verifying workspace access' },
+            { status: 500 }
+          );
+        }
+
+        if (!contextMembership) {
+          return NextResponse.json(
+            { error: 'Workspace access denied' },
+            { status: 403 }
+          );
+        }
+      }
+
+      const requestedCreditSource: SharedCreditSource =
+        requestedCreditSourceRaw ?? 'workspace';
+      let billingWsId: string | null = normalizedWsId ?? null;
+
+      if (requestedCreditSource === 'personal') {
+        const { data: personalWorkspace, error: personalWorkspaceError } =
+          await sbAdmin
+            .from('workspaces')
+            .select('id, workspace_members!inner(user_id)')
+            .eq('personal', true)
+            .eq('workspace_members.user_id', user.id)
+            .maybeSingle();
+
+        if (personalWorkspaceError) {
+          console.error(
+            'DB error looking up personal workspace:',
+            personalWorkspaceError.message
+          );
+          return NextResponse.json(
+            { error: 'Internal error resolving personal workspace' },
+            { status: 500 }
+          );
+        }
+
+        if (!personalWorkspace?.id) {
+          return NextResponse.json(
+            {
+              error:
+                'Personal workspace not found. Please ensure your account has a personal workspace.',
+              code: 'PERSONAL_WORKSPACE_NOT_FOUND',
+            },
+            { status: 403 }
+          );
+        }
+
+        if (
+          requestedCreditWsId &&
+          requestedCreditWsId !== personalWorkspace.id
+        ) {
+          return NextResponse.json(
+            {
+              error:
+                'Invalid credit workspace for personal credit source selection.',
+              code: 'INVALID_CREDIT_SOURCE',
+            },
+            { status: 403 }
+          );
+        }
+
+        billingWsId = personalWorkspace.id;
+      } else if (requestedCreditWsId) {
+        if (normalizedWsId && requestedCreditWsId !== normalizedWsId) {
+          return NextResponse.json(
+            {
+              error: 'Invalid credit workspace for workspace source selection.',
+              code: 'INVALID_CREDIT_SOURCE',
+            },
+            { status: 403 }
+          );
+        }
+
+        if (!normalizedWsId) {
+          const { data: billingMembership, error: billingMembershipError } =
+            await sbAdmin
+              .from('workspace_members')
+              .select('user_id')
+              .eq('ws_id', requestedCreditWsId)
+              .eq('user_id', user.id)
+              .maybeSingle();
+
+          if (billingMembershipError) {
+            console.error(
+              'Failed to check billing workspace membership',
+              billingMembershipError.message
+            );
+            return NextResponse.json(
+              { error: 'Internal server error' },
+              { status: 500 }
+            );
+          }
+
+          if (!billingMembership) {
+            return NextResponse.json(
+              {
+                error: 'Workspace access denied for selected credit workspace.',
+                code: 'INVALID_CREDIT_SOURCE',
+              },
+              { status: 403 }
+            );
+          }
+
+          billingWsId = requestedCreditWsId;
+        }
       }
 
       const resolvedChatId = await resolveChatIdForUser(id, () =>
@@ -130,7 +273,7 @@ export function createPOST(
           sbDynamic.storage.from('workspaces').list(tempStoragePath),
         moveFile: (fromPath, toPath) =>
           sbAdmin.storage.from('workspaces').move(fromPath, toPath),
-        wsId,
+        wsId: normalizedWsId ?? undefined,
         chatId,
         userId: user.id,
       });
@@ -141,7 +284,7 @@ export function createPOST(
       const normalizedMessages = mapToUIMessages(messages);
       const preparedMessages = await prepareProcessedMessages(
         normalizedMessages,
-        wsId,
+        normalizedWsId ?? undefined,
         chatId
       );
       if ('error' in preparedMessages) {
@@ -161,7 +304,7 @@ export function createPOST(
       }
 
       const creditPreflight = await performCreditPreflight({
-        wsId,
+        wsId: billingWsId ?? normalizedWsId ?? undefined,
         model,
         userId: user.id,
         sbAdmin,
@@ -173,8 +316,9 @@ export function createPOST(
 
       const { miraSystemPrompt, miraTools } = await prepareMiraRuntime({
         isMiraMode,
-        wsId,
+        wsId: normalizedWsId ?? undefined,
         workspaceContextId,
+        creditWsId: billingWsId ?? normalizedWsId ?? undefined,
         request: req,
         userId: user.id,
         chatId,
@@ -309,7 +453,7 @@ export function createPOST(
             userId: user.id,
             model,
             effectiveSource,
-            wsId,
+            wsId: billingWsId ?? normalizedWsId ?? undefined,
           }),
       });
 
