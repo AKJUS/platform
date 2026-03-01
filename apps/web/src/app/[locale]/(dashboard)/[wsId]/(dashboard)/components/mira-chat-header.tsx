@@ -25,6 +25,7 @@ import type { ReactNode } from 'react';
 import { useState } from 'react';
 import type { CreditSource, ThinkingMode } from './mira-chat-constants';
 import MiraCreditBar from './mira-credit-bar';
+import { CreditSourceInlineBar } from './mira-credit-source-inline-bar';
 import MiraModelSelector from './mira-model-selector';
 
 interface MiraChatHeaderProps {
@@ -33,6 +34,7 @@ interface MiraChatHeaderProps {
   wsId: string;
   hasMessages: boolean;
   hotkeyLabels: {
+    creditSource: string;
     export: string;
     fastMode: string;
     fullscreen: string;
@@ -43,6 +45,7 @@ interface MiraChatHeaderProps {
   };
   insightsDock?: ReactNode;
   isFullscreen?: boolean;
+  isPersonalWorkspace: boolean;
   model: Model;
   modelPickerHotkeySignal: number;
   onCreditSourceChange: (source: CreditSource) => void;
@@ -52,6 +55,7 @@ interface MiraChatHeaderProps {
   onThinkingModeChange: (mode: ThinkingMode) => void;
   onToggleFullscreen?: () => void;
   onToggleViewOnly: () => void;
+  personalWsId?: string;
   t: (...args: any[]) => string;
   thinkingMode: ThinkingMode;
   viewOnly: boolean;
@@ -67,6 +71,7 @@ export function MiraChatHeader({
   hotkeyLabels,
   insightsDock,
   isFullscreen,
+  isPersonalWorkspace,
   model,
   modelPickerHotkeySignal,
   onCreditSourceChange,
@@ -76,6 +81,7 @@ export function MiraChatHeader({
   onThinkingModeChange,
   onToggleFullscreen,
   onToggleViewOnly,
+  personalWsId,
   t,
   thinkingMode,
   viewOnly,
@@ -100,121 +106,178 @@ export function MiraChatHeader({
       </div>
       <div className="flex shrink-0 items-center gap-1">
         {workspaceContextBadge}
-        <DropdownMenu
-          open={isCreditSourceMenuOpen}
-          onOpenChange={setIsCreditSourceMenuOpen}
-        >
-          <DropdownMenuTrigger asChild>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="h-8 px-2 text-xs"
-              title={t('credit_source_label')}
-              aria-label={t('credit_source_label')}
+
+        {/* Credit source: static tooltip in personal workspace, dropdown otherwise */}
+        {isPersonalWorkspace ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="h-8 px-2 text-xs"
+                aria-label={t('credit_source_label')}
+              >
+                {t('credit_source_personal')}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{t('credit_source_personal_desc')}</TooltipContent>
+          </Tooltip>
+        ) : (
+          <Tooltip open={isCreditSourceMenuOpen ? false : undefined}>
+            <DropdownMenu
+              open={isCreditSourceMenuOpen}
+              onOpenChange={setIsCreditSourceMenuOpen}
             >
-              {activeCreditSource === 'personal'
-                ? t('credit_source_personal')
-                : t('credit_source_workspace')}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-64">
-            <DropdownMenuItem
-              className="items-start"
-              disabled={workspaceCreditLocked}
-              onSelect={() => {
-                onCreditSourceChange('workspace');
-                setIsCreditSourceMenuOpen(false);
-              }}
-              title={
-                workspaceCreditLocked
-                  ? t('credit_source_workspace_locked_free')
-                  : t('credit_source_workspace_desc')
-              }
-            >
-              <div className="flex flex-col gap-0.5">
-                <span>{t('credit_source_workspace')}</span>
-                <span className="text-muted-foreground text-xs">
-                  {workspaceCreditLocked
-                    ? t('credit_source_workspace_locked_free')
-                    : t('credit_source_workspace_desc')}
-                </span>
-              </div>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              className="items-start"
-              onSelect={() => {
-                onCreditSourceChange('personal');
-                setIsCreditSourceMenuOpen(false);
-              }}
-              title={t('credit_source_personal_desc')}
-            >
-              <div className="flex flex-col gap-0.5">
-                <span>{t('credit_source_personal')}</span>
-                <span className="text-muted-foreground text-xs">
-                  {t('credit_source_personal_desc')}
-                </span>
-              </div>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-        <DropdownMenu
-          open={isThinkingMenuOpen}
-          onOpenChange={setIsThinkingMenuOpen}
-        >
-          <DropdownMenuTrigger asChild>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="h-8 gap-1.5 px-2 text-xs"
-              title={t('thinking_mode_label')}
-              aria-label={t('thinking_mode_label')}
-            >
-              {thinkingMode === 'thinking' ? (
-                <Brain className="h-3.5 w-3.5" />
-              ) : (
-                <Zap className="h-3.5 w-3.5" />
-              )}
+              <TooltipTrigger asChild>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="h-8 gap-1.5 px-2 text-xs"
+                    aria-label={t('credit_source_label')}
+                  >
+                    {activeCreditSource === 'personal'
+                      ? t('credit_source_personal')
+                      : t('credit_source_workspace')}
+                  </Button>
+                </DropdownMenuTrigger>
+              </TooltipTrigger>
+              <TooltipContent>
+                {`${t('credit_source_label')} (${hotkeyLabels.creditSource})`}
+              </TooltipContent>
+              <DropdownMenuContent align="end" className="w-72">
+                <DropdownMenuItem
+                  className="items-start"
+                  disabled={workspaceCreditLocked}
+                  onSelect={() => {
+                    onCreditSourceChange('workspace');
+                    setIsCreditSourceMenuOpen(false);
+                  }}
+                  title={
+                    workspaceCreditLocked
+                      ? t('credit_source_workspace_locked_free')
+                      : t('credit_source_workspace_desc')
+                  }
+                >
+                  <div className="flex w-full flex-col gap-1">
+                    <div className="flex items-center justify-between">
+                      <span>{t('credit_source_workspace')}</span>
+                      {!workspaceCreditLocked && (
+                        <span className="text-muted-foreground text-xs">
+                          {hotkeyLabels.creditSource}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-muted-foreground text-xs">
+                      {workspaceCreditLocked
+                        ? t('credit_source_workspace_locked_free')
+                        : t('credit_source_workspace_desc')}
+                    </span>
+                    {!workspaceCreditLocked && (
+                      <CreditSourceInlineBar wsId={wsId} t={t} />
+                    )}
+                  </div>
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="items-start"
+                  onSelect={() => {
+                    onCreditSourceChange('personal');
+                    setIsCreditSourceMenuOpen(false);
+                  }}
+                  title={t('credit_source_personal_desc')}
+                >
+                  <div className="flex w-full flex-col gap-1">
+                    <div className="flex items-center justify-between">
+                      <span>{t('credit_source_personal')}</span>
+                      {!workspaceCreditLocked && (
+                        <span className="text-muted-foreground text-xs">
+                          {hotkeyLabels.creditSource}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-muted-foreground text-xs">
+                      {t('credit_source_personal_desc')}
+                    </span>
+                    <CreditSourceInlineBar wsId={personalWsId} t={t} />
+                  </div>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </Tooltip>
+        )}
+
+        {/* Thinking mode dropdown with tooltip */}
+        <Tooltip open={isThinkingMenuOpen ? false : undefined}>
+          <DropdownMenu
+            open={isThinkingMenuOpen}
+            onOpenChange={setIsThinkingMenuOpen}
+          >
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="h-8 gap-1.5 px-2 text-xs"
+                  aria-label={t('thinking_mode_label')}
+                >
+                  {thinkingMode === 'thinking' ? (
+                    <Brain className="h-3.5 w-3.5" />
+                  ) : (
+                    <Zap className="h-3.5 w-3.5" />
+                  )}
+                  {thinkingMode === 'thinking'
+                    ? t('thinking_mode_thinking')
+                    : t('thinking_mode_fast')}
+                </Button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent>
               {thinkingMode === 'thinking'
-                ? t('thinking_mode_thinking')
-                : t('thinking_mode_fast')}
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-44">
-            <DropdownMenuItem
-              onSelect={() => {
-                onThinkingModeChange('fast');
-                setIsThinkingMenuOpen(false);
-              }}
-              title={t('thinking_mode_fast_desc')}
-              className="gap-2"
-            >
-              <Zap className="h-3.5 w-3.5" />
-              {t('thinking_mode_fast')}
-              <span className="ml-auto text-muted-foreground text-xs">
-                {hotkeyLabels.fastMode}
-              </span>
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onSelect={() => {
-                onThinkingModeChange('thinking');
-                setIsThinkingMenuOpen(false);
-              }}
-              title={t('thinking_mode_thinking_desc')}
-              className="gap-2"
-            >
-              <Brain className="h-3.5 w-3.5" />
-              {t('thinking_mode_thinking')}
-              <span className="ml-auto text-muted-foreground text-xs">
-                {hotkeyLabels.thinkingMode}
-              </span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+                ? `${t('thinking_mode_thinking')} — ${t('thinking_mode_thinking_desc')}`
+                : `${t('thinking_mode_fast')} — ${t('thinking_mode_fast_desc')}`}
+            </TooltipContent>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem
+                onSelect={() => {
+                  onThinkingModeChange('fast');
+                  setIsThinkingMenuOpen(false);
+                }}
+                title={t('thinking_mode_fast_desc')}
+                className="gap-2"
+              >
+                <Zap className="h-3.5 w-3.5" />
+                {t('thinking_mode_fast')}
+                <span className="ml-auto text-muted-foreground text-xs">
+                  {hotkeyLabels.fastMode}
+                </span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => {
+                  onThinkingModeChange('thinking');
+                  setIsThinkingMenuOpen(false);
+                }}
+                title={t('thinking_mode_thinking_desc')}
+                className="gap-2"
+              >
+                <Brain className="h-3.5 w-3.5" />
+                {t('thinking_mode_thinking')}
+                <span className="ml-auto text-muted-foreground text-xs">
+                  {hotkeyLabels.thinkingMode}
+                </span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </Tooltip>
+
+        {/* Credit meter */}
         <div className="ml-2">
           <MiraCreditBar wsId={creditWsId} />
         </div>
+
+        {/* New conversation button with tooltip */}
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -231,73 +294,81 @@ export function MiraChatHeader({
             {`${t('new_conversation')} (${hotkeyLabels.newChat})`}
           </TooltipContent>
         </Tooltip>
-        <DropdownMenu open={isMoreMenuOpen} onOpenChange={setIsMoreMenuOpen}>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 gap-1.5 px-2"
-              title={t('more_actions')}
-            >
-              <Ellipsis className="h-4 w-4" />
-              <span className="text-xs">{t('more_actions')}</span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-56">
-            {hasMessages && (
-              <DropdownMenuItem
-                onSelect={() => {
-                  onExportChat();
-                  setIsMoreMenuOpen(false);
-                }}
-              >
-                <Download className="h-4 w-4" />
-                {t('export_chat')}
-                <span className="ml-auto text-muted-foreground text-xs">
-                  {hotkeyLabels.export}
-                </span>
-              </DropdownMenuItem>
-            )}
-            <DropdownMenuItem
-              disabled={!hasMessages}
-              onSelect={() => {
-                onToggleViewOnly();
-                setIsMoreMenuOpen(false);
-              }}
-            >
-              {viewOnly ? (
-                <PanelBottomOpen className="h-4 w-4" />
-              ) : (
-                <Eye className="h-4 w-4" />
-              )}
-              {viewOnly ? t('show_input_panel') : t('view_only')}
-              <span className="ml-auto text-muted-foreground text-xs">
-                {hotkeyLabels.viewOnly}
-              </span>
-            </DropdownMenuItem>
-            {onToggleFullscreen && (
-              <>
-                <DropdownMenuSeparator />
+
+        {/* More actions dropdown with tooltip */}
+        <Tooltip open={isMoreMenuOpen ? false : undefined}>
+          <DropdownMenu open={isMoreMenuOpen} onOpenChange={setIsMoreMenuOpen}>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 gap-1.5 px-2"
+                  aria-label={t('more_actions')}
+                >
+                  <Ellipsis className="h-4 w-4" />
+                  <span className="text-xs">{t('more_actions')}</span>
+                </Button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent>{t('more_actions')}</TooltipContent>
+            <DropdownMenuContent align="end" className="w-56">
+              {hasMessages && (
                 <DropdownMenuItem
                   onSelect={() => {
-                    onToggleFullscreen();
+                    onExportChat();
                     setIsMoreMenuOpen(false);
                   }}
                 >
-                  {isFullscreen ? (
-                    <Minimize2 className="h-4 w-4" />
-                  ) : (
-                    <Maximize2 className="h-4 w-4" />
-                  )}
-                  {isFullscreen ? t('exit_fullscreen') : t('fullscreen')}
+                  <Download className="h-4 w-4" />
+                  {t('export_chat')}
                   <span className="ml-auto text-muted-foreground text-xs">
-                    {hotkeyLabels.fullscreen}
+                    {hotkeyLabels.export}
                   </span>
                 </DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+              )}
+              <DropdownMenuItem
+                disabled={!hasMessages}
+                onSelect={() => {
+                  onToggleViewOnly();
+                  setIsMoreMenuOpen(false);
+                }}
+              >
+                {viewOnly ? (
+                  <PanelBottomOpen className="h-4 w-4" />
+                ) : (
+                  <Eye className="h-4 w-4" />
+                )}
+                {viewOnly ? t('show_input_panel') : t('view_only')}
+                <span className="ml-auto text-muted-foreground text-xs">
+                  {hotkeyLabels.viewOnly}
+                </span>
+              </DropdownMenuItem>
+              {onToggleFullscreen && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      onToggleFullscreen();
+                      setIsMoreMenuOpen(false);
+                    }}
+                  >
+                    {isFullscreen ? (
+                      <Minimize2 className="h-4 w-4" />
+                    ) : (
+                      <Maximize2 className="h-4 w-4" />
+                    )}
+                    {isFullscreen ? t('exit_fullscreen') : t('fullscreen')}
+                    <span className="ml-auto text-muted-foreground text-xs">
+                      {hotkeyLabels.fullscreen}
+                    </span>
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </Tooltip>
+
         {insightsDock && <div className="shrink-0">{insightsDock}</div>}
       </div>
     </div>
