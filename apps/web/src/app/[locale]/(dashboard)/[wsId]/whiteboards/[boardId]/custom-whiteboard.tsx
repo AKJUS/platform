@@ -115,7 +115,7 @@ export function CustomWhiteboard({
           remoteElements
         );
 
-        previousElementsRef.current = remoteElements.map((el) => ({ ...el }));
+        previousElementsRef.current = mergedElements.map((el) => ({ ...el }));
 
         // Update the scene with merged elements
         api.updateScene({ elements: mergedElements });
@@ -153,6 +153,8 @@ export function CustomWhiteboard({
     refetchOnWindowFocus: 'always',
     refetchOnReconnect: true,
   });
+
+  const { refetch: refetchSnapshot } = snapshotQuery;
 
   const wsUpdateLocation = wsPresence?.updateLocation;
   const whiteboardViewers = wsPresence?.getWhiteboardViewers(boardId) ?? [];
@@ -673,11 +675,11 @@ export function CustomWhiteboard({
     }
 
     if (!previousConnectionStatusRef.current && isConnected) {
-      void snapshotQuery.refetch();
+      void refetchSnapshot();
     }
 
     previousConnectionStatusRef.current = isConnected;
-  }, [isConnected, snapshotQuery]);
+  }, [isConnected, refetchSnapshot]);
 
   return (
     <div className="absolute inset-0 flex h-screen flex-col">
