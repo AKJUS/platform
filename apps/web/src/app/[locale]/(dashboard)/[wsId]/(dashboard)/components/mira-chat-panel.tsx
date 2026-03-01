@@ -105,7 +105,9 @@ export default function MiraChatPanel({
     chatRequestBody,
     creditWsId,
     gatewayModelId,
+    isPersonalDashboardWorkspace,
     model,
+    personalWorkspaceId,
     setCreditSource,
     setModel,
     supportsFileInput,
@@ -205,6 +207,13 @@ export default function MiraChatPanel({
     [activeCreditSource, setCreditSource, status, stop, workspaceCreditLocked]
   );
 
+  const handleCreditSourceToggle = useCallback(() => {
+    if (workspaceCreditLocked) return;
+    handleCreditSourceChange(
+      activeCreditSource === 'personal' ? 'workspace' : 'personal'
+    );
+  }, [activeCreditSource, handleCreditSourceChange, workspaceCreditLocked]);
+
   const { createChat, handleExportChat, resetConversationState } =
     useMiraChatActions({
       chat,
@@ -303,6 +312,9 @@ export default function MiraChatPanel({
 
   const { hotkeyLabels, modelPickerHotkeySignal } = useMiraChatHotkeys({
     hasMessages,
+    onCreditSourceToggle: workspaceCreditLocked
+      ? undefined
+      : handleCreditSourceToggle,
     onExportChat: handleExportChat,
     onNewConversation: handleNewConversation,
     onThinkingModeChange: handleThinkingModeChange,
@@ -319,6 +331,7 @@ export default function MiraChatPanel({
         hotkeyLabels={hotkeyLabels}
         insightsDock={insightsDock}
         isFullscreen={isFullscreen}
+        isPersonalWorkspace={isPersonalDashboardWorkspace}
         model={model}
         modelPickerHotkeySignal={modelPickerHotkeySignal}
         onCreditSourceChange={handleCreditSourceChange}
@@ -328,6 +341,7 @@ export default function MiraChatPanel({
         onThinkingModeChange={handleThinkingModeChange}
         onToggleFullscreen={onToggleFullscreen}
         onToggleViewOnly={() => setViewOnly((value) => !value)}
+        personalWsId={personalWorkspaceId ?? undefined}
         t={t}
         thinkingMode={thinkingMode}
         viewOnly={viewOnly}

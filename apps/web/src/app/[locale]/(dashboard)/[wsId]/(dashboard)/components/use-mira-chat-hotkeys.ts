@@ -3,6 +3,7 @@
 import { formatForDisplay, useHotkey } from '@tanstack/react-hotkeys';
 import { useMemo, useState } from 'react';
 import {
+  HOTKEY_CREDIT_SOURCE,
   HOTKEY_EXPORT,
   HOTKEY_FAST_MODE,
   HOTKEY_FULLSCREEN,
@@ -15,6 +16,7 @@ import {
 
 interface UseMiraChatHotkeysParams {
   hasMessages: boolean;
+  onCreditSourceToggle?: () => void;
   onExportChat: () => void;
   onNewConversation: () => void;
   onThinkingModeChange: (mode: ThinkingMode) => void;
@@ -24,6 +26,7 @@ interface UseMiraChatHotkeysParams {
 
 export function useMiraChatHotkeys({
   hasMessages,
+  onCreditSourceToggle,
   onExportChat,
   onNewConversation,
   onThinkingModeChange,
@@ -34,6 +37,7 @@ export function useMiraChatHotkeys({
 
   const hotkeyLabels = useMemo(
     () => ({
+      creditSource: formatForDisplay(HOTKEY_CREDIT_SOURCE),
       export: formatForDisplay(HOTKEY_EXPORT),
       fastMode: formatForDisplay(HOTKEY_FAST_MODE),
       fullscreen: formatForDisplay(HOTKEY_FULLSCREEN),
@@ -96,6 +100,17 @@ export function useMiraChatHotkeys({
     },
     {
       enabled: hasMessages,
+      preventDefault: true,
+    }
+  );
+
+  useHotkey(
+    HOTKEY_CREDIT_SOURCE,
+    () => {
+      onCreditSourceToggle?.();
+    },
+    {
+      enabled: Boolean(onCreditSourceToggle),
       preventDefault: true,
     }
   );
