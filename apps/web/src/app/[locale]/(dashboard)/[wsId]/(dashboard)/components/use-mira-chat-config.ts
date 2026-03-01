@@ -125,6 +125,7 @@ export function useMiraChatConfig({ wsId }: UseMiraChatConfigParams) {
   );
   const chatRequestBodyRef = useRef(chatRequestBody);
   chatRequestBodyRef.current = chatRequestBody;
+  const skipNextPersistenceRef = useRef(false);
 
   const transport = useMemo(
     () =>
@@ -140,7 +141,11 @@ export function useMiraChatConfig({ wsId }: UseMiraChatConfigParams) {
   useEffect(() => {
     const key = `${MODEL_STORAGE_KEY_PREFIX}${wsId}`;
     const stored = localStorage.getItem(key);
-    if (!stored) return;
+    if (!stored) {
+      setModel(INITIAL_MODEL);
+      skipNextPersistenceRef.current = true;
+      return;
+    }
     try {
       const parsed = JSON.parse(stored) as {
         value: string;
@@ -153,14 +158,23 @@ export function useMiraChatConfig({ wsId }: UseMiraChatConfigParams) {
           provider: parsed.provider,
           label: parsed.label ?? parsed.value.split('/').pop() ?? parsed.value,
         });
+      } else {
+        setModel(INITIAL_MODEL);
       }
+      skipNextPersistenceRef.current = true;
     } catch {
       // Corrupt data — ignore and use default
+      setModel(INITIAL_MODEL);
+      skipNextPersistenceRef.current = true;
     }
   }, [wsId]);
 
   // Persist model to localStorage on change
   useEffect(() => {
+    if (skipNextPersistenceRef.current) {
+      skipNextPersistenceRef.current = false;
+      return;
+    }
     localStorage.setItem(
       `${MODEL_STORAGE_KEY_PREFIX}${wsId}`,
       JSON.stringify({ value: model.value, provider: model.provider })

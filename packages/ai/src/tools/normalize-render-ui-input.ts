@@ -296,7 +296,7 @@ export function createRenderUiPreprocessor(getSteps?: () => unknown[]): {
         // Auto-populate on the first empty-elements call. The model never
         // self-corrects after Zod rejection, so the first rejection just
         // wastes a step and tokens.
-        if (emptyElementsAttempts >= 1) {
+        if (emptyElementsAttempts === 1) {
           lastCallAutoPopulated = true;
           const steps = getSteps?.() ?? [];
           return autoPopulateEmptyElements(normalized as AnyRecord, steps);

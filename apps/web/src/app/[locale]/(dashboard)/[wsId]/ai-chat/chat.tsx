@@ -30,8 +30,8 @@ export interface ChatProps extends React.ComponentProps<'div'> {
 }
 
 const DEFAULT_MODEL: AIModelUI = {
-  value: 'google/gemini-2.5-flash',
-  label: 'gemini-2.5-flash',
+  value: 'google/gemini-3-flash',
+  label: 'gemini-3-flash',
   provider: 'google',
 };
 

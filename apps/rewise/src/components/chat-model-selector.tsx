@@ -94,11 +94,7 @@ export function ChatModelSelector({
                         )
                           return;
 
-                        onChange(
-                          models.find(
-                            (m) => `${m.provider}-${m.value}` === currentValue
-                          ) as AIModelUI
-                        );
+                        onChange(m);
                       }}
                       onClick={() => setPreviewModel(m)}
                       onMouseOver={() => setPreviewModel(m)}

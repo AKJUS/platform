@@ -265,7 +265,7 @@ export function AiCreditBillingCard({
         </div>
       </div>
 
-      {packs && packs.length > 0 && (
+      {packs.length > 0 && (
         <div className="mt-6">
           <h3 className="mb-3 font-semibold text-base">
             {t('buy-credit-packs')}

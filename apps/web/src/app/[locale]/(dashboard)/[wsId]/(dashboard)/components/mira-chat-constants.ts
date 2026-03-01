@@ -3,8 +3,8 @@ import type { AIModelUI } from '@tuturuuu/types';
 export type { CreditSource } from '@tuturuuu/ai/chat/credit-source';
 
 export const INITIAL_MODEL: AIModelUI = {
-  value: 'google/gemini-2.5-flash',
-  label: 'gemini-2.5-flash',
+  value: 'google/gemini-3-flash',
+  label: 'gemini-3-flash',
   provider: 'google',
 };
 export const STORAGE_KEY_PREFIX = 'mira-dashboard-chat-';

@@ -1,5 +1,6 @@
 'use client';
 
+import { useMutation } from '@tanstack/react-query';
 import { DefaultChatTransport } from '@tuturuuu/ai/core';
 import { useChat } from '@tuturuuu/ai/react';
 import type { UIMessage } from '@tuturuuu/ai/types';
@@ -30,8 +31,8 @@ export interface ChatProps extends React.ComponentProps<'div'> {
 }
 
 const DEFAULT_MODEL: AIModelUI = {
-  value: 'google/gemini-2.5-flash',
-  label: 'gemini-2.5-flash',
+  value: 'google/gemini-3-flash',
+  label: 'gemini-3-flash',
   provider: 'google',
 };
 
@@ -75,7 +76,7 @@ export default function Chat({
     transport: new DefaultChatTransport({
       api:
         chat?.model || model?.value
-          ? `/api/ai/chat/${extractProvider(chat?.model ?? model?.value ?? 'google/gemini-2.5-flash')}`
+          ? `/api/ai/chat/${extractProvider(chat?.model ?? model?.value ?? 'google/gemini-3-flash')}`
           : undefined,
       credentials: 'include',
       headers: { 'Custom-Header': 'value' },
@@ -110,6 +111,60 @@ export default function Chat({
     chat?.summary || ''
   );
 
+  const updateChatSummaryMutation = useMutation({
+    mutationFn: async ({
+      id,
+      model: modelId,
+    }: {
+      id: string;
+      model: string;
+    }) => {
+      const res = await fetch(
+        `/api/ai/chat/${extractProvider(modelId)}/summary`,
+        {
+          credentials: 'include',
+          method: 'PATCH',
+          body: JSON.stringify({ id, model: modelId }),
+        }
+      );
+      if (!res.ok) throw new Error(res.statusText);
+      const data = (await res.json()) as { response: string };
+      return data.response;
+    },
+    onError: (error) => {
+      toast({
+        title: t('ai_chat.something_went_wrong'),
+        description: error instanceof Error ? error.message : String(error),
+      });
+    },
+  });
+
+  const createChatMutation = useMutation({
+    mutationFn: async ({
+      id,
+      model: modelId,
+      message,
+    }: {
+      id: string;
+      model: string;
+      message: string;
+    }) => {
+      const res = await fetch(`/api/ai/chat/${extractProvider(modelId)}/new`, {
+        credentials: 'include',
+        method: 'POST',
+        body: JSON.stringify({ id, model: modelId, message }),
+      });
+      if (!res.ok) throw new Error(res.statusText);
+      return (await res.json()) as AIChat;
+    },
+    onError: (error) => {
+      toast({
+        title: t('ai_chat.something_went_wrong'),
+        description: error instanceof Error ? error.message : String(error),
+      });
+    },
+  });
+
   useEffect(() => {
     setSummary(chat?.summary || '');
     setSummarizing(false);
@@ -122,7 +177,6 @@ export default function Chat({
       if (
         summary ||
         summarizing ||
-        !model ||
         !chat?.id ||
         !chat?.model ||
         !messages?.length ||
@@ -133,29 +187,15 @@ export default function Chat({
         return;
 
       setSummarizing(true);
-
-      const res = await fetch(
-        `/api/ai/chat/${extractProvider(model.value)}/summary`,
-        {
-          credentials: 'include',
-          method: 'PATCH',
-          body: JSON.stringify({
-            id: chat.id,
-            model: chat.model,
-          }),
-        }
-      );
-
-      if (!res.ok) {
-        toast({
-          title: t('ai_chat.something_went_wrong'),
-          description: res.statusText,
+      try {
+        const response = await updateChatSummaryMutation.mutateAsync({
+          id: chat.id,
+          model: chat.model,
         });
-        return;
+        if (response) setSummary(response);
+      } finally {
+        setSummarizing(false);
       }
-
-      const { response } = (await res.json()) as { response: string };
-      if (response) setSummary(response);
     };
 
     // Generate the chat summary if the chat's latest summarized message id
@@ -170,7 +210,7 @@ export default function Chat({
       lastMessage?.role !== 'user'
     )
       generateSummary(messages);
-  }, [chat, messages, model, status, summarizing, summary, t]);
+  }, [chat, messages, status, summarizing, summary, updateChatSummaryMutation]);
 
   const [initialScroll, setInitialScroll] = useState(true);
 
@@ -231,31 +271,18 @@ export default function Chat({
 
     setPendingPrompt(input);
 
-    const res = await fetch(
-      `/api/ai/chat/${extractProvider(model.value)}/new`,
-      {
-        credentials: 'include',
-        method: 'POST',
-        body: JSON.stringify({
-          id: chatId,
-          model: model.value,
-          message: input,
-        }),
-      }
-    );
-
-    if (!res.ok) {
-      toast({
-        title: t('ai_chat.something_went_wrong'),
-        description: res.statusText,
+    try {
+      const { id, title } = await createChatMutation.mutateAsync({
+        id: chatId,
+        model: model.value,
+        message: input,
       });
-      return;
-    }
-
-    const { id, title } = (await res.json()) as AIChat;
-    if (id) {
-      setCollapsed(true);
-      setChat({ id, title, model: model.value, is_public: false });
+      if (id) {
+        setCollapsed(true);
+        setChat({ id, title, model: model.value, is_public: false });
+      }
+    } catch {
+      // Error handled by mutation onError
     }
   };
 

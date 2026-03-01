@@ -210,6 +210,7 @@ export async function executeMiraTool(
         );
       } else if (
         typeof args.root === 'string' &&
+        args.root.length > 0 &&
         !(args.root in (elements as Record<string, unknown>))
       ) {
         diagnosisParts.push(

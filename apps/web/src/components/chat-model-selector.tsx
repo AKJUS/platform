@@ -89,11 +89,7 @@ export function ChatModelSelector({
                         if (currentValue === model?.value) return;
                         if (m.disabled) return;
 
-                        onChange(
-                          models.find(
-                            (m) => m.value === currentValue
-                          ) as AIModelUI
-                        );
+                        onChange(m);
                       }}
                       onClick={() => setPreviewModel(m)}
                       onMouseOver={() => setPreviewModel(m)}

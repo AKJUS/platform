@@ -23,7 +23,7 @@ export default async function AIPage({ searchParams }: Props) {
     <Chat
       inputModel={IMAGEN_MODEL}
       defaultChat={{
-        model: 'imagen3',
+        model: IMAGEN_MODEL.value,
       }}
       chats={chats}
       count={count}
