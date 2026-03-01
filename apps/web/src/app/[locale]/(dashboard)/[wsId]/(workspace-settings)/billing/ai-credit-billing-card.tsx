@@ -40,12 +40,6 @@ interface AiCreditBillingCardProps {
   canPurchase: boolean;
 }
 
-function formatAmount(value: number, locale: string): string {
-  return new Intl.NumberFormat(locale, {
-    maximumFractionDigits: 0,
-  }).format(Math.max(0, value));
-}
-
 function barWidth(used: number, total: number): number {
   if (total <= 0) return 0;
   return Math.max(0, Math.min(100, (used / total) * 100));
@@ -224,8 +218,7 @@ export function AiCreditBillingCard({
           <div className="mb-2 flex items-center justify-between">
             <span className="font-medium text-sm">{t('included-credits')}</span>
             <span className="text-muted-foreground text-xs">
-              {formatAmount(creditData?.included.remaining ?? 0, locale)} /{' '}
-              {formatAmount(includedTotal, locale)}
+              {creditData?.included.remaining ?? 0} / {includedTotal}
             </span>
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-muted">
@@ -245,8 +238,7 @@ export function AiCreditBillingCard({
           <div className="mb-2 flex items-center justify-between">
             <span className="font-medium text-sm">{t('payg-credits')}</span>
             <span className="text-muted-foreground text-xs">
-              {formatAmount(creditData?.payg.remaining ?? 0, locale)} /{' '}
-              {formatAmount(paygTotal, locale)}
+              {creditData?.payg.remaining ?? 0} / {paygTotal}
             </span>
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-muted">
@@ -290,7 +282,7 @@ export function AiCreditBillingCard({
                     <p className="mt-1 text-muted-foreground text-xs">
                       {pack.description ||
                         t('credit-pack-description-fallback', {
-                          tokens: formatAmount(pack.tokens, locale),
+                          tokens: pack.tokens,
                         })}
                     </p>
                   </div>
