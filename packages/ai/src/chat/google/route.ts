@@ -93,6 +93,44 @@ export function createPOST(
       } = parsedBody.data;
       const thinkingMode: ThinkingMode =
         rawThinkingMode === 'thinking' ? 'thinking' : 'fast';
+
+      // Normalize to gateway format for validation
+      const gatewayModel = model.includes('/')
+        ? model
+        : `${defaultProvider}/${model}`;
+
+      // Validate model exists in gateway models table
+      const { data: gatewayModelRow, error: gatewayModelError } = await sbAdmin
+        .from('ai_gateway_models')
+        .select('id')
+        .eq('id', gatewayModel)
+        .eq('is_enabled', true)
+        .maybeSingle();
+
+      if (gatewayModelError) {
+        console.error(
+          '[AI Chat] Error checking gateway model:',
+          gatewayModelError.message
+        );
+        return NextResponse.json(
+          { error: 'Internal error validating model' },
+          { status: 500 }
+        );
+      }
+
+      if (!gatewayModelRow) {
+        console.warn(
+          `[AI Chat] Rejected unknown model: "${model}" (resolved: "${gatewayModel}")`
+        );
+        return NextResponse.json(
+          {
+            error: 'Invalid model',
+            message: `Model "${model}" is not available.`,
+          },
+          { status: 400 }
+        );
+      }
+
       if (!messages) {
         console.error('Missing messages');
         return new Response('Missing messages', { status: 400 });
@@ -314,6 +352,10 @@ export function createPOST(
       }
       const { cappedMaxOutput } = creditPreflight;
 
+      // Mutable ref so the render_ui preprocessor can read current steps
+      // at Zod-validation time (before the execute handler runs).
+      const stepsRef: { current: unknown[] } = { current: [] };
+
       const { miraSystemPrompt, miraTools } = await prepareMiraRuntime({
         isMiraMode,
         wsId: normalizedWsId ?? undefined,
@@ -324,6 +366,7 @@ export function createPOST(
         chatId,
         supabase,
         timezone,
+        getSteps: () => stepsRef.current,
       });
 
       const effectiveSource = isMiraMode ? 'Mira' : 'Rewise';
@@ -365,8 +408,11 @@ export function createPOST(
       type PrepareStep = NonNullable<
         NonNullable<Parameters<typeof streamText>[0]>['prepareStep']
       >;
-      const prepareStep: PrepareStep = ({ steps }) =>
-        prepareMiraToolStep({
+      const prepareStep: PrepareStep = ({ steps }) => {
+        // Keep the mutable ref in sync so the render_ui preprocessor can
+        // read current steps during Zod validation.
+        stepsRef.current = steps;
+        return prepareMiraToolStep({
           steps,
           forceGoogleSearch,
           forceRenderUi,
@@ -374,6 +420,7 @@ export function createPOST(
           needsWorkspaceMembersTool,
           preferMarkdownTables,
         });
+      };
 
       const result = streamText({
         abortSignal: req.signal,

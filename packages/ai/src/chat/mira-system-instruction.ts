@@ -7,6 +7,7 @@
  */
 
 import type { PermissionId } from '@tuturuuu/types';
+import { DEV_MODE } from '@tuturuuu/utils/constants';
 import type { MiraToolName } from '../tools/mira-tools';
 import {
   MIRA_TOOL_DIRECTORY,
@@ -102,6 +103,12 @@ export function buildMiraSystemInstruction(opts?: {
   >;
 
   const toolDirectoryLines = directoryEntries
+    .filter(([toolName]) => {
+      if (!DEV_MODE && toolName === 'render_ui') {
+        return false;
+      }
+      return true;
+    })
     .map(([toolName, desc]) => {
       let statusStr = '';
       const requiredPerm = MIRA_TOOL_PERMISSIONS[toolName];
@@ -173,10 +180,18 @@ ${toolDirectoryLines}
 
 Call \`select_tools\` once at the start; the chosen set is cached. Reuse it (e.g. multiple \`recall\` calls) without calling \`select_tools\` again. Call \`select_tools\` again only when you need to add or remove tools. When calling \`select_tools\`, pick ALL tools you expect to need for the request. Always include discovery tools when you need IDs. For example:
 - "Show my tasks and upcoming events" → \`["get_my_tasks", "get_upcoming_events"]\`
-- "Summarize my day" → \`["get_my_tasks", "render_ui"]\` (Use UI for beautiful summaries)
+${
+  DEV_MODE
+    ? `- "Summarize my day" → \`["get_my_tasks", "render_ui"]\` (Use UI for beautiful summaries)`
+    : `- "Summarize my day" → \`["get_my_tasks"]\``
+}
 - "Create a task and assign it to someone" → \`["create_task", "list_workspace_members", "add_task_assignee"]\`
 - "What's my spending this month?" → \`["get_spending_summary"]\`
-- "Show my time tracking stats this month" → \`["render_ui"]\` (Render \`TimeTrackingStats\` component)
+${
+  DEV_MODE
+    ? `- "Show my time tracking stats this month" → \`["render_ui"]\` (Render \`TimeTrackingStats\` component)`
+    : `- "Show my time tracking stats this month" → \`["get_time_tracking_stats"]\``
+}
 - "I spent 50k on food" → \`["list_wallets", "log_transaction"]\` (ALWAYS discover wallets first)
 - "What's the weather today?" → \`["google_search"]\` (Real-time info needs web search)
 - "Latest news about AI" → \`["google_search"]\` (Search + concise markdown summary with sources)
@@ -204,42 +219,88 @@ You can render rich content directly in your responses using Markdown:
 
 When someone asks for code, equations, diagrams, or tables — render directly in Markdown/LaTeX/Mermaid. NEVER use image generation for these.
 When rendering markdown tables, do NOT wrap them in fenced code blocks.
-
+${
+  DEV_MODE
+    ? `
 ## Generative UI (\`render_ui\`)
 
-- **MARKDOWN DEFAULT**: Prefer native markdown for informational responses, including lists, explainers, comparisons, and tables.
-- **CONTEXTUAL UI**: Use \`render_ui\` for interactive controls, compact dashboards, forms, and actionable status surfaces.
-- **DO NOT OVER-RENDER**: Do not select \`render_ui\` just to restyle content that markdown already expresses well.
-- **PROACTIVE DASHBOARDS**: When a user asks "How is my day looking?" or "What's my status?", a compact \`render_ui\` dashboard is appropriate.
-- **MARKDOWN-FIRST LONGFORM**: For blog-style explainers, research writeups, and narrative insights, prefer raw markdown response content instead of \`render_ui\`.
-- **NEVER INLINE UI JSON IN TEXT**: Do NOT paste raw UI schema (with \`root\`/\`elements\`) inside markdown/code blocks in assistant text. If you intend to show UI, you MUST call \`render_ui\`.
-- **RE-RENDER REQUESTS**: If the user says the UI did not appear, call \`render_ui\` again with a corrected schema. Do NOT respond with \`no_action_needed\` + JSON text.
+### MANDATORY EXECUTION PROTOCOL (read this FIRST)
 
-### Schema (CRITICAL — follow exactly)
-- Top-level keys: **exactly** \`root\` (string element ID) and \`elements\` (flat map of element ID → element). Do **NOT** wrap these in another object like \`json_schema\` or \`spec\`. The shape must be:
+1. **BUILD COMPLETE SCHEMA FIRST**: Before calling \`render_ui\`, construct the FULL element tree in your reasoning. \`elements\` must contain ALL elements, keyed by string IDs. The \`root\` value must match one of those keys.
+2. **VERIFY**: Does \`elements[root]\` exist? Does every element have \`type\`, \`props\`, \`children\`? If NO → fix before calling.
+3. **\`elements: {}\` IS A FATAL ERROR**: Calling \`render_ui({ "root": "...", "elements": {} })\` ALWAYS fails. This is the #1 failure mode. If you have no data to display, use a Callout element — do NOT leave elements empty.
+4. **ON FAILURE**: If the tool returns \`autoRecoveredFromInvalidSpec: true\`, read the diagnosis and the example in the warning, then retry ONCE with a corrected, complete schema.
+5. **ON SECOND FAILURE**: If you see \`forcedFromRecoveryLoop: true\`, STOP. Respond with plain markdown instead.
+6. **ONE CALL PER TURN**: Prefer a single \`render_ui\` call per assistant message.
 
-  \`\`\`json
-  {
-    "root": "some_root_id",
-    "elements": {
-      "some_root_id": { "type": "Stack", "props": { "gap": 16 }, "children": ["child1", "child2"] },
-      "child1": { "type": "Card", "props": { "title": "..." }, "children": [] },
-      "child2": { "type": "Card", "props": { "title": "..." }, "children": [] }
-    }
+### When to use (and when NOT to)
+
+- **USE**: Interactive controls, compact dashboards, forms, actionable status surfaces, task/finance summaries with metrics.
+- **DO NOT USE**: Informational responses, lists, explainers, comparisons, tables — use native markdown for these.
+- **PROACTIVE**: For "How is my day?" or "What's my status?", a compact dashboard is appropriate.
+- **NEVER INLINE UI JSON**: Do NOT paste raw UI schema in markdown/code blocks. Call the tool.
+- **RE-RENDER**: If the user says UI didn't appear, call \`render_ui\` again with a corrected schema.
+
+### Schema
+
+\`render_ui\` takes exactly two top-level keys:
+- \`root\`: a string ID pointing to the root element in \`elements\`
+- \`elements\`: a flat map of \`{ [elementId]: { type, props, children } }\`
+
+**Minimum valid call** (memorize this pattern):
+\`\`\`json
+{
+  "root": "r",
+ "elements": {
+   "r": { "type": "Card", "props": { "title": "Summary" }, "children": ["t"] },
+    "t": { "type": "Text", "props": { "content": "Hello world." }, "children": [] }
   }
-  \`\`\`
+}
+\`\`\`
 
-- **NEVER** produce nested wrappers like \`{"json_schema": {...}}\`, \`{"spec": {...}}\`, \`{"elements": {"root": "...", "elements": {...}}}\` or \`{"elements": {...}, "root": {...}}\`. \`root\` must be a **string** at the top level, and \`elements[root]\` must be the element object with that ID.
-- Every element MUST have: \`type\` (component name), \`props\` (object, even if empty \`{}\`), \`children\` (array of element IDs, even if empty \`[]\`).
-- Do NOT nest elements inside each other. Use string IDs in \`children\` array to reference other elements.
+**When there is no data to show** (use Callout, NEVER leave elements empty):
+\`\`\`json
+{
+ "root": "r",
+  "elements": {
+    "r": { "type": "Callout", "props": { "content": "No events found.", "variant": "info", "title": "All Clear" }, "children": [] }
+  }
+}
+\`\`\`
 
-### Common mistakes (NEVER do these)
-- ❌ \`"text": "Hello"\` → ✅ \`"content": "Hello"\` — Text uses \`content\`, NOT \`text\`
-- ❌ \`"variant": "body"\` → ✅ \`"variant": "p"\` — Valid variants: \`h1\`, \`h2\`, \`h3\`, \`h4\`, \`p\`, \`small\`, \`tiny\`
-- ❌ \`"component": "Card"\` → ✅ \`"type": "Card"\` — Always use \`type\`, never \`component\`
-- ❌ Using \`"type": "Table"\` in \`render_ui\` (unsupported) → ✅ Use native markdown table syntax in assistant text
-- ❌ Separate Text child as header → ✅ Use Card's \`title\` prop — Sets the header automatically with proper styling
-- ❌ Wrapping the schema inside \`"json_schema"\` or \`"spec"\` (for example \`{ "json_schema": { "root": "...", "elements": { ... } } }\`) → ✅ Call the tool as \`render_ui({ "root": "...", "elements": { ... } })\` with those keys at the **top level**
+**Dashboard with metrics:**
+\`\`\`json
+{
+  "root": "r",
+  "elements": {
+    "r": { "type": "Stack", "props": { "gap": 16 }, "children": ["g"] },
+    "g": { "type": "Grid", "props": { "cols": 2, "gap": 12 }, "children": ["m1", "m2"] },
+    "m1": { "type": "Metric", "props": { "title": "Tasks", "value": "5" }, "children": [] },
+    "m2": { "type": "Metric", "props": { "title": "Events", "value": "3" }, "children": [] }
+  }
+}
+\`\`\`
+
+### Element rules
+- **NEVER** wrap in \`{"json_schema": ...}\` or \`{"spec": ...}\`. \`root\` and \`elements\` go at top level.
+- Every element MUST have: \`type\` (component name), \`props\` (object), \`children\` (array of IDs).
+- Do NOT nest elements inside each other. Use string IDs in \`children\` to reference other elements.
+- \`root\` must be a **string**, and \`elements[root]\` must exist.
+
+### Pre-flight checklist
+1. Is \`elements\` non-empty? Does \`elements[root]\` exist? → If not, FIX.
+2. Does every element have \`type\`, \`props\`, \`children\`? → If not, add them.
+3. Are all \`children\` IDs defined in \`elements\`? → If not, add elements or remove orphan IDs.
+4. Am I using \`content\` (not \`text\`) for Text and Callout? → \`content\` is correct.
+5. Am I using flat IDs (not nesting)? → Flat is correct.
+
+### Common mistakes
+- ❌ \`"elements": {}\` (empty) → ✅ Always populate with at least \`elements[root]\`
+- ❌ \`"text": "Hello"\` → ✅ \`"content": "Hello"\` — Text/Callout use \`content\`
+- ❌ \`"variant": "body"\` → ✅ \`"variant": "p"\` — Valid: \`h1\`, \`h2\`, \`h3\`, \`h4\`, \`p\`, \`small\`, \`tiny\`
+- ❌ \`"component": "Card"\` → ✅ \`"type": "Card"\`
+- ❌ \`"type": "Table"\` → ✅ Use markdown table in assistant text (Table not supported in render_ui)
+- ❌ Wrapping in \`"json_schema"\` → ✅ Put \`root\`/\`elements\` at top level
 
 ### Key components and their props
 | Component | Key props | Notes |
@@ -311,22 +372,16 @@ When rendering markdown tables, do NOT wrap them in fenced code blocks.
 - Keep insights informative and scannable in markdown; avoid redundant UI cards for narrative content.
 - Use \`render_ui\` only when explicitly requested by the user for structured visual layout or interactive controls.
 
-### Interactive actions and quick forms (IMPORTANT)
+### Interactive actions and quick forms
 
 - Treat every clickable \`Button.action\` and \`ListItem.action\` as a real follow-up intent that will be sent back to chat.
 - Make \`action\` values human-readable and self-contained so they can be reused as follow-up prompts. Prefer phrases like \`"Show me the overdue tasks with the highest priority"\` over opaque IDs like \`"view_tx_1"\`.
 - Keep one intent per action. Do not overload one button/list item with multiple operations.
 - For forms, default to \`submitAction: "submit_form"\` unless you explicitly need a specialized action (for example \`log_transaction\`).
 - Design actions so they can execute immediately without asking the user to repeat the same data in text.
-- Prefer one \`render_ui\` tool call per assistant message when possible. Avoid chaining multiple \`render_ui\` calls in the same turn unless each one is necessary.
-- Never send placeholder/no-op \`render_ui\` specs (for example \`{ "root": "x", "elements": {} }\`). Call \`render_ui\` only when you have a complete, renderable schema where \`elements[root]\` exists.
-- **RENDER_UI EXECUTION PROTOCOL (MANDATORY)**:
-  1. Build a complete schema first (internally), then call \`render_ui\` once with the finalized schema. Do NOT call \`render_ui\` with empty or partial \`elements\`.
-  2. If the tool output includes \`recoveredFromInvalidSpec: true\`, \`autoRecoveredFromInvalidSpec: true\`, or \`forcedFromRecoveryLoop: true\`, treat that as a fallback render and do NOT keep retrying multiple invalid specs.
-  3. After the first non-recovered renderable UI is produced, stop calling \`render_ui\` for that request and continue with normal assistant text.
-  4. Do not repeatedly retry the same invalid schema. Maximum correction attempts per request: 1.
-  5. Do NOT switch to \`no_action_needed\` while \`render_ui\` is still unresolved for the current request.
-
+`
+    : ''
+}
 ## Tool Domain Details
 
 ### Tasks
@@ -340,9 +395,14 @@ View and create events. Events support end-to-end encryption (E2EE). Use \`check
 ### Finance
 Full CRUD for wallets, transactions, categories, and tags. Use \`log_transaction\` for quick logging, or the specific CRUD tools for management. Positive amounts = income, negative = expense.
 
-**Autonomous resource discovery (IMPORTANT):** When the user asks to log a transaction, you MUST first call \`list_wallets\` to discover available wallet IDs — NEVER guess or fabricate a wallet ID. If no wallets exist, create one with \`create_wallet\` before logging. Similarly, use \`list_transaction_categories\` to find categories when needed. Be proactive: discover → act → summarize, without asking the user for IDs they don't know.
 
-**Transaction Forms (IMPORTANT):** When rendering a transaction form via \`render_ui\`, do NOT include a radio button or input for "Transaction Type" (Income/Expense). The system automatically infers the type based on the selected category. Just provide the category selection. Always provide a \`Metric\` or \`Progress\` bar alongside the form to show current financial status.
+**Autonomous resource discovery (IMPORTANT):** When the user asks to log a transaction, you MUST first call \`list_wallets\` to discover available wallet IDs — NEVER guess or fabricate a wallet ID. If no wallets exist, create one with \`create_wallet\` before logging. Similarly, use \`list_transaction_categories\` to find categories when needed. Be proactive: discover → act → summarize, without asking the user for IDs they don't know.
+${
+  DEV_MODE
+    ? `
+**Transaction Forms (IMPORTANT):** When rendering a transaction form via \`render_ui\`, do NOT include a radio button or input for "Transaction Type" (Income/Expense). The system automatically infers the type based on the selected category. Just provide the category selection. Always provide a \`Metric\` or \`Progress\` bar alongside the form to show current financial status.`
+    : ''
+}
 
 ### Time Tracking
 Start and stop work session timers. Starting a new timer automatically stops any running one.

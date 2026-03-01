@@ -126,6 +126,16 @@ function isRecoveredRenderUiOutput(output: unknown): boolean {
   return false;
 }
 
+/**
+ * Detect whether the render_ui output was an auto-populated fallback injected
+ * by the preprocessor (context-aware smart component or generic Callout).
+ * These specs are valid renderable UI and should stop the retry loop.
+ */
+function isAutoPopulatedFallback(output: unknown): boolean {
+  if (!isRecord(output)) return false;
+  return output.autoPopulatedFallback === true;
+}
+
 function extractTextFromUserMessage(message: ModelMessage): string {
   if (typeof message.content === 'string') return message.content;
   if (!Array.isArray(message.content)) return '';
@@ -379,13 +389,33 @@ export function hasToolCallInSteps(
 export function hasRenderableRenderUiInSteps(steps: unknown[]): boolean {
   return steps.some((step) => {
     const typedStep = step as ToolStepLike | undefined;
-    return (typedStep?.toolResults ?? []).some(
-      (toolResult) =>
-        toolResult.toolName === 'render_ui' &&
+    return (typedStep?.toolResults ?? []).some((toolResult) => {
+      if (toolResult.toolName !== 'render_ui') return false;
+      if (!toolResult.output) return false;
+
+      // Auto-populated fallbacks (from the preprocessor injecting context-aware
+      // UI when the model sends empty elements) are valid renderable specs —
+      // they should stop the retry loop.
+      if (isAutoPopulatedFallback(toolResult.output)) return true;
+
+      return (
         hasRenderableSpecInOutput(toolResult.output) &&
         !isRecoveredRenderUiOutput(toolResult.output)
-    );
+      );
+    });
   });
+}
+
+/** Count how many render_ui tool calls have been attempted across all steps. */
+export function countRenderUiAttemptsInSteps(steps: unknown[]): number {
+  let count = 0;
+  for (const step of steps) {
+    const typedStep = step as ToolStepLike | undefined;
+    for (const toolCall of typedStep?.toolCalls ?? []) {
+      if (toolCall.toolName === 'render_ui') count += 1;
+    }
+  }
+  return count;
 }
 
 export function buildActiveToolsFromSelected(

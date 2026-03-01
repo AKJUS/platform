@@ -1,13 +1,14 @@
-import { defaultModel } from '@tuturuuu/ai/models';
+import type { AIModelUI } from '@tuturuuu/types';
 
 export type { CreditSource } from '@tuturuuu/ai/chat/credit-source';
 
-if (!defaultModel) {
-  throw new Error('No default Mira chat model is configured.');
-}
-
-export const INITIAL_MODEL = defaultModel;
+export const INITIAL_MODEL: AIModelUI = {
+  value: 'google/gemini-3-flash',
+  label: 'gemini-3-flash',
+  provider: 'google',
+};
 export const STORAGE_KEY_PREFIX = 'mira-dashboard-chat-';
+export const MODEL_STORAGE_KEY_PREFIX = 'mira-dashboard-model-';
 export const THINKING_MODE_STORAGE_KEY_PREFIX = 'mira-dashboard-thinking-mode-';
 export const CREDIT_SOURCE_STORAGE_KEY_PREFIX = 'mira-dashboard-credit-source-';
 export const WORKSPACE_CONTEXT_STORAGE_KEY_PREFIX =

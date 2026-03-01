@@ -2,11 +2,6 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
-  defaultModel,
-  type Model,
-  models as staticModels,
-} from '@tuturuuu/ai/models';
-import {
   ArrowBigUpDash,
   Check,
   ChevronDown,
@@ -17,6 +12,7 @@ import {
   Star,
 } from '@tuturuuu/icons';
 import { createClient } from '@tuturuuu/supabase/next/client';
+import type { AIModelUI } from '@tuturuuu/types';
 import {
   Accordion,
   AccordionContent,
@@ -57,10 +53,10 @@ import {
 import { ProviderLogo, toProviderId } from './provider-logo';
 
 const EMPTY_FAVORITES = new Set<string>();
-const EMPTY_GROUPED_MODELS: Record<string, Model[]> = {};
+const EMPTY_GROUPED_MODELS: Record<string, AIModelUI[]> = {};
 interface RenderedGroup {
   provider: string;
-  models: Model[];
+  models: AIModelUI[];
   isFavoritesGroup?: boolean;
 }
 
@@ -90,15 +86,15 @@ async function checkProviderLogo(provider: string): Promise<boolean> {
 
 interface MiraModelSelectorProps {
   wsId: string;
-  model: Model;
-  onChange: (model: Model) => void;
+  model: AIModelUI;
+  onChange: (model: AIModelUI) => void;
   disabled?: boolean;
   hotkeySignal?: number;
   shortcutLabel?: string;
 }
 
 /** Fetches enabled models from the ai_gateway_models table */
-async function fetchGatewayModels(): Promise<Model[]> {
+async function fetchGatewayModels(): Promise<AIModelUI[]> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from('ai_gateway_models')
@@ -132,7 +128,7 @@ async function fetchGatewayModels(): Promise<Model[]> {
         Number.isFinite(outputPricePerToken) && outputPricePerToken > 0
           ? outputPricePerToken
           : undefined,
-    } as Model & {
+    } as AIModelUI & {
       maxTokens?: number;
       tags?: string[];
       inputPricePerToken?: number;
@@ -197,7 +193,7 @@ function formatProvider(provider: string): string {
     .join(' ');
 }
 
-function modelMatchesSearch(m: Model, search: string): boolean {
+function modelMatchesSearch(m: AIModelUI, search: string): boolean {
   if (!search.trim()) return true;
   const q = search.toLowerCase().trim();
   return (
@@ -307,8 +303,7 @@ export default function MiraModelSelector({
   );
 
   const availableModels = useMemo(() => {
-    if (gatewayModels?.length) return gatewayModels;
-    return staticModels.filter((m) => !m.disabled);
+    return gatewayModels ?? [];
   }, [gatewayModels]);
 
   // Fetch logo status for all available providers
@@ -372,7 +367,7 @@ export default function MiraModelSelector({
   const groupedModels = useMemo(() => {
     if (!deferredOpen) return EMPTY_GROUPED_MODELS;
 
-    const groups: Record<string, Model[]> = {};
+    const groups: Record<string, AIModelUI[]> = {};
     for (const m of availableModels) {
       const key = m.provider;
       if (!groups[key]) groups[key] = [];
@@ -908,5 +903,3 @@ export default function MiraModelSelector({
     </Popover>
   );
 }
-
-export { defaultModel };

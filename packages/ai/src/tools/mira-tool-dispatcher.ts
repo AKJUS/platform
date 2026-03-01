@@ -193,11 +193,39 @@ export async function executeMiraTool(
 ): Promise<unknown> {
   if (toolName === 'render_ui') {
     if (!isRenderableRenderUiSpec(args)) {
+      const diagnosisParts: string[] = [];
+      if (typeof args.root !== 'string' || args.root.length === 0) {
+        diagnosisParts.push('`root` is missing or not a string');
+      }
+      const elements = args.elements;
+      if (
+        !elements ||
+        typeof elements !== 'object' ||
+        Array.isArray(elements)
+      ) {
+        diagnosisParts.push('`elements` is missing or not an object');
+      } else if (Object.keys(elements as object).length === 0) {
+        diagnosisParts.push(
+          '`elements` is empty — you must define at least elements[root]'
+        );
+      } else if (
+        typeof args.root === 'string' &&
+        args.root.length > 0 &&
+        !(args.root in (elements as Record<string, unknown>))
+      ) {
+        diagnosisParts.push(
+          `elements["${args.root}"] does not exist — the root element ID must be a key in elements`
+        );
+      }
+      const diagnosis =
+        diagnosisParts.length > 0
+          ? ` Diagnosis: ${diagnosisParts.join('; ')}.`
+          : '';
+
       return {
         spec: buildRenderUiRecoverySpec(args),
         recoveredFromInvalidSpec: true,
-        warning:
-          'Invalid render_ui spec was auto-recovered because elements was empty or root was missing.',
+        warning: `Invalid render_ui spec was auto-recovered.${diagnosis} Fix: elements MUST contain the root element. Example: { "root": "r", "elements": { "r": { "type": "Card", "props": { "title": "Result" }, "children": ["t"] }, "t": { "type": "Text", "props": { "content": "Your content here" }, "children": [] } } }.`,
       };
     }
     return { spec: args };
