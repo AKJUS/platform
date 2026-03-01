@@ -67,7 +67,6 @@ interface RichTextEditorProps {
   availableLists?: TaskList[];
   queryClient?: QueryClient;
   allowCollaboration?: boolean;
-  editable?: boolean;
   /** Translations for mention chip dialogs */
   mentionTranslations?: {
     delete_task?: string;
@@ -115,7 +114,6 @@ export function RichTextEditor({
   yjsProvider = null,
   collaborationUser = null,
   allowCollaboration = false,
-  editable = true,
   mentionTranslations,
 }: RichTextEditorProps) {
   // Use refs to ensure we have stable references for handlers
@@ -282,7 +280,7 @@ export function RichTextEditor({
     content: allowCollaboration
       ? undefined
       : migrateInlineImagesToBlock(content),
-    editable: editable && !readOnly,
+    editable: !readOnly,
     immediatelyRender: false,
     editorProps: {
       attributes: {
@@ -514,8 +512,8 @@ export function RichTextEditor({
 
   // Update editor's editable state when props change
   useEffect(() => {
-    if (editor) editor.setEditable(editable && !readOnly);
-  }, [editor, editable, readOnly]);
+    if (editor) editor.setEditable(!readOnly);
+  }, [editor, readOnly]);
 
   // Update editor content when the content prop changes externally
   useEffect(() => {
