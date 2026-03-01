@@ -164,18 +164,15 @@ export async function executeGenerateImage(
         sbAdmin
       );
 
-      if (
-        !releaseResult.success &&
-        releaseResult.errorCode === 'RESERVATION_ALREADY_COMMITTED'
-      ) {
-        console.error('Reservation already committed after failure', {
+      if (!releaseResult.success) {
+        console.error('Failed to release AI credit reservation', {
           reservationId: reservation.reservationId,
-          commitResult,
-          releaseResult,
           storagePath,
+          releaseResult,
+          commitResult,
         });
         commitOrReleaseError = new Error(
-          `AI credit reservation already committed after failure: ${JSON.stringify(
+          `AI credit reservation release failed (${releaseResult.errorCode ?? 'UNKNOWN'}): ${JSON.stringify(
             {
               commitResult,
               releaseResult,

@@ -252,6 +252,16 @@ BEGIN
     v_markup := 1.0;
   END IF;
 
+  -- Validate that usage inputs are non-negative before computing cost.
+  IF COALESCE(p_input_tokens, 0) < 0
+    OR COALESCE(p_output_tokens, 0) < 0
+    OR COALESCE(p_reasoning_tokens, 0) < 0
+    OR COALESCE(p_image_count, 0) < 0
+    OR COALESCE(p_search_count, 0) < 0 THEN
+    RAISE EXCEPTION 'deduct_ai_credits: negative usage input (in=%, out=%, reason=%, img=%, search=%)',
+      p_input_tokens, p_output_tokens, p_reasoning_tokens, p_image_count, p_search_count;
+  END IF;
+
   v_cost_usd := public.compute_ai_cost_from_gateway(
     p_model_id,
     p_input_tokens,
@@ -295,8 +305,10 @@ BEGIN
     v_payg_consumed := public._consume_payg_credits(p_ws_id, v_payg_to_consume);
 
     IF v_payg_consumed < v_payg_to_consume THEN
-      RETURN QUERY SELECT FALSE, 0::NUMERIC, 0::NUMERIC, 'INSUFFICIENT_CREDITS'::TEXT;
-      RETURN;
+      -- _consume_payg_credits already deducted tokens; RAISE forces a
+      -- transaction rollback so those partial deductions are reverted.
+      RAISE EXCEPTION 'INSUFFICIENT_CREDITS: PAYG shortfall (needed=%, got=%)',
+        v_payg_to_consume, v_payg_consumed;
     END IF;
   END IF;
 
@@ -420,8 +432,10 @@ BEGIN
     v_payg_consumed := public._consume_payg_credits(p_ws_id, v_payg_to_consume);
 
     IF v_payg_consumed < v_payg_to_consume THEN
-      RETURN QUERY SELECT FALSE, 0::NUMERIC, 'INSUFFICIENT_CREDITS'::TEXT;
-      RETURN;
+      -- _consume_payg_credits already deducted tokens; RAISE forces a
+      -- transaction rollback so those partial deductions are reverted.
+      RAISE EXCEPTION 'INSUFFICIENT_CREDITS: PAYG shortfall (needed=%, got=%)',
+        v_payg_to_consume, v_payg_consumed;
     END IF;
   END IF;
 

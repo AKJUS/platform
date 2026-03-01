@@ -196,12 +196,15 @@ test.describe('AI Credit Indicator UI', () => {
 });
 
 test.describe('Gateway Model Sync', () => {
-  test.use({ storageState: { cookies: [], origins: [] } });
-
   test('POST /api/v1/admin/ai-credits/sync-models requires authentication', async ({
-    request,
+    playwright,
   }) => {
-    const response = await request.fetch(
+    const unauthCtx = await playwright.request.newContext({
+      baseURL: BASE_URL,
+      storageState: { cookies: [], origins: [] },
+    });
+
+    const response = await unauthCtx.fetch(
       '/api/v1/admin/ai-credits/sync-models',
       {
         method: 'POST',
@@ -210,6 +213,7 @@ test.describe('Gateway Model Sync', () => {
     );
 
     expect([401, 403]).toContain(response.status());
+    await unauthCtx.dispose();
   });
 });
 
