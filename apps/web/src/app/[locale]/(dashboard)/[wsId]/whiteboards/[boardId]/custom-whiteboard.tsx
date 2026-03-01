@@ -74,16 +74,14 @@ export function CustomWhiteboard({
   const t = useTranslations('ws-presence');
   const wsPresence = useOptionalWorkspacePresenceContext();
 
-  const excalidrawAPIRef = useRef<ExcalidrawImperativeAPI | null>(null);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>('synced');
   const [lastSyncError, setLastSyncError] = useState<string | null>(null);
-
-  // Inline title editing
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [editedTitle, setEditedTitle] = useState(boardName);
+
+  const excalidrawAPIRef = useRef<ExcalidrawImperativeAPI | null>(null);
   const titleInputRef = useRef<HTMLInputElement>(null);
   const titleSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
   const lastSavedRef = useRef<string | null>(null);
   const lastSelectionSignatureRef = useRef('');
   const previousElementsRef = useRef<readonly ExcalidrawElement[]>([]);
@@ -91,18 +89,75 @@ export function CustomWhiteboard({
   const pendingChangesRef = useRef(false);
   const requestedFileIdsRef = useRef<Set<string>>(new Set());
   const lastSnapshotUpdatedAtRef = useRef<string | null>(null);
-
   const previousConnectionStatusRef = useRef<boolean | null>(null);
 
-  // Track whiteboard location in workspace presence (stable function ref)
-  const wsUpdateLocation = wsPresence?.updateLocation;
-  useEffect(() => {
-    if (!wsUpdateLocation) return;
-    wsUpdateLocation({ type: 'whiteboard', boardId });
-  }, [wsUpdateLocation, boardId]);
+  const {
+    collaborators,
+    isConnected,
+    currentUserId,
+    broadcastElementChanges,
+    broadcastCursorPosition,
+    broadcastSelectionChange,
+  } = useWhiteboardCollaboration({
+    boardId,
+    wsId,
+    enabled: wsPresence?.cursorsEnabled ?? false,
+    externalPresenceState: wsPresence ? wsPresence.presenceState : undefined,
+    externalCurrentUserId: wsPresence?.currentUserId,
+    onRemoteElementsChange: useCallback(
+      (remoteElements: ExcalidrawElement[]) => {
+        const api = excalidrawAPIRef.current;
+        if (!api) return;
 
-  // Build viewer entries for the shared PresenceAvatarList component
+        const currentElements = api.getSceneElements();
+        const mergedElements = mergeElements(
+          [...currentElements],
+          remoteElements
+        );
+
+        previousElementsRef.current = remoteElements.map((el) => ({ ...el }));
+
+        // Update the scene with merged elements
+        api.updateScene({ elements: mergedElements });
+      },
+      []
+    ),
+    onError: useCallback((error: Error) => {
+      console.error('Collaboration error:', error);
+      toast.error('Collaboration connection issue. Changes may not sync.');
+    }, []),
+  });
+
+  const snapshotQuery = useQuery({
+    queryKey: ['whiteboard-snapshot', wsId, boardId],
+    queryFn: async () => {
+      const client = createClient();
+      const { data, error } = await client
+        .from('workspace_whiteboards')
+        .select('snapshot, updated_at')
+        .eq('id', boardId)
+        .eq('ws_id', wsId)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Failed to fetch whiteboard snapshot:', error);
+        throw error;
+      }
+
+      return {
+        snapshot: data?.snapshot as string | null | undefined,
+        updated_at: data?.updated_at as string | null | undefined,
+      };
+    },
+    staleTime: 0,
+    refetchOnWindowFocus: 'always',
+    refetchOnReconnect: true,
+  });
+
+  const wsUpdateLocation = wsPresence?.updateLocation;
   const whiteboardViewers = wsPresence?.getWhiteboardViewers(boardId) ?? [];
+  const cursorsEnabled = wsPresence?.cursorsEnabled ?? false;
+
   const whiteboardViewerEntries = useMemo<PresenceViewerEntry[]>(() => {
     const byUser = new Map<
       string,
@@ -136,16 +191,6 @@ export function CustomWhiteboard({
       presenceCount: v.count,
     }));
   }, [whiteboardViewers]);
-
-  // Helper to deep clone elements array
-  const cloneElements = useCallback(
-    (elements: readonly ExcalidrawElement[]): ExcalidrawElement[] => {
-      return elements.map((el) => ({ ...el }));
-    },
-    []
-  );
-
-  const cursorsEnabled = wsPresence?.cursorsEnabled ?? false;
 
   const blobToDataURL = useCallback((blob: Blob): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -253,127 +298,6 @@ export function CustomWhiteboard({
     []
   );
 
-  // Set up collaboration (cursor + element sync only — presence is handled by workspace provider)
-  const {
-    collaborators,
-    isConnected,
-    currentUserId,
-    broadcastElementChanges,
-    broadcastCursorPosition,
-    broadcastSelectionChange,
-  } = useWhiteboardCollaboration({
-    boardId,
-    wsId,
-    enabled: cursorsEnabled,
-    externalPresenceState: wsPresence ? wsPresence.presenceState : undefined,
-    externalCurrentUserId: wsPresence?.currentUserId,
-    onRemoteElementsChange: useCallback(
-      (remoteElements: ExcalidrawElement[]) => {
-        const api = excalidrawAPIRef.current;
-        if (!api) return;
-
-        const currentElements = api.getSceneElements();
-        const mergedElements = mergeElements(
-          [...currentElements],
-          remoteElements
-        );
-
-        previousElementsRef.current = cloneElements(mergedElements);
-
-        // Update the scene with merged elements
-        api.updateScene({ elements: mergedElements });
-      },
-      [cloneElements]
-    ),
-    onError: useCallback((error: Error) => {
-      console.error('Collaboration error:', error);
-      toast.error('Collaboration connection issue. Changes may not sync.');
-    }, []),
-  });
-
-  const snapshotQuery = useQuery({
-    queryKey: ['whiteboard-snapshot', wsId, boardId],
-    queryFn: async () => {
-      const client = createClient();
-      const { data, error } = await client
-        .from('workspace_whiteboards')
-        .select('snapshot, updated_at')
-        .eq('id', boardId)
-        .eq('ws_id', wsId)
-        .maybeSingle();
-
-      if (error) {
-        console.error('Failed to fetch whiteboard snapshot:', error);
-        throw error;
-      }
-
-      return {
-        snapshot: data?.snapshot as string | null | undefined,
-        updated_at: data?.updated_at as string | null | undefined,
-      };
-    },
-    staleTime: 0,
-    refetchOnWindowFocus: 'always',
-    refetchOnReconnect: true,
-  });
-
-  // Update Excalidraw collaborators when they change
-  useEffect(() => {
-    const api = excalidrawAPIRef.current;
-    if (!api) return;
-
-    api.updateScene({ collaborators });
-  }, [collaborators]);
-
-  // Initialize last saved state and previous elements on mount
-  useEffect(() => {
-    if (initialData) {
-      lastSavedRef.current = JSON.stringify({
-        elements: initialData.elements ?? [],
-      });
-      previousElementsRef.current = cloneElements(initialData.elements ?? []);
-    } else {
-      lastSavedRef.current = JSON.stringify({ elements: [] });
-      previousElementsRef.current = [];
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialData, cloneElements]);
-
-  useEffect(() => {
-    if (!snapshotQuery.data || snapshotQuery.isLoading) return;
-
-    const { snapshot, updated_at } = snapshotQuery.data;
-
-    if (!updated_at || updated_at === lastSnapshotUpdatedAtRef.current) return;
-
-    if (pendingChangesRef.current) return;
-
-    if (!snapshot) return;
-
-    try {
-      const parsed = JSON.parse(snapshot) as {
-        elements?: ExcalidrawElement[];
-        appState?: Partial<AppState>;
-      };
-
-      const api = excalidrawAPIRef.current;
-      if (!api) return;
-
-      const nextElements = parsed.elements ?? [];
-
-      api.updateScene({
-        elements: nextElements,
-      });
-
-      previousElementsRef.current = cloneElements(nextElements);
-      lastSavedRef.current = JSON.stringify({ elements: nextElements });
-      lastSnapshotUpdatedAtRef.current = updated_at;
-    } catch (error) {
-      console.error('Failed to apply whiteboard snapshot catchup:', error);
-    }
-  }, [snapshotQuery.data, snapshotQuery.isLoading, cloneElements]);
-
-  // Perform the actual save to database
   const performSave = useCallback(async () => {
     const api = excalidrawAPIRef.current;
     if (!api) return;
@@ -424,7 +348,6 @@ export function CustomWhiteboard({
     }
   }, [supabase, boardId]);
 
-  // Auto-save function with debounce
   const triggerAutoSave = useCallback(() => {
     if (autoSaveTimeoutRef.current) {
       clearTimeout(autoSaveTimeoutRef.current);
@@ -438,49 +361,6 @@ export function CustomWhiteboard({
     }, AUTO_SAVE_DEBOUNCE_MS);
   }, [performSave]);
 
-  // Clean up auto-save timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (autoSaveTimeoutRef.current) {
-        clearTimeout(autoSaveTimeoutRef.current);
-      }
-      if (titleSaveTimeoutRef.current) {
-        clearTimeout(titleSaveTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  // Handle keyboard shortcuts (Cmd+S / Ctrl+S)
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
-        e.preventDefault();
-        // Force immediate save
-        if (autoSaveTimeoutRef.current) {
-          clearTimeout(autoSaveTimeoutRef.current);
-        }
-        performSave();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [performSave]);
-
-  useEffect(() => {
-    if (previousConnectionStatusRef.current === null) {
-      previousConnectionStatusRef.current = isConnected;
-      return;
-    }
-
-    if (!previousConnectionStatusRef.current && isConnected) {
-      void snapshotQuery.refetch();
-    }
-
-    previousConnectionStatusRef.current = isConnected;
-  }, [isConnected, snapshotQuery]);
-
-  // Change detection and collaboration broadcast via onChange callback
   const handleChange = useCallback(
     (elements: readonly ExcalidrawElement[], appState: AppState) => {
       ensureImageFilesLoaded(elements);
@@ -504,8 +384,8 @@ export function CustomWhiteboard({
         broadcastSelectionChange(appState.selectedElementIds);
       }
 
-      // Update previous elements reference with deep clone
-      previousElementsRef.current = cloneElements(elements);
+      // Update previous elements reference
+      previousElementsRef.current = elements.map((el) => ({ ...el }));
 
       // Trigger auto-save if there are changes
       if (hasChanges) {
@@ -516,12 +396,10 @@ export function CustomWhiteboard({
       broadcastElementChanges,
       broadcastSelectionChange,
       triggerAutoSave,
-      cloneElements,
       ensureImageFilesLoaded,
     ]
   );
 
-  // Handle pointer/cursor updates
   const handlePointerUpdate = useCallback(
     (payload: { pointer: { x: number; y: number; tool: string } }) => {
       broadcastCursorPosition(
@@ -533,7 +411,6 @@ export function CustomWhiteboard({
     [broadcastCursorPosition]
   );
 
-  // Handle image upload
   const handleGenerateIdForFile = useCallback(
     async (file: File) => {
       try {
@@ -573,7 +450,6 @@ export function CustomWhiteboard({
     [supabase, wsId, boardId]
   );
 
-  // Title editing handlers
   const handleTitleClick = useCallback(() => {
     setIsEditingTitle(true);
     setTimeout(() => titleInputRef.current?.select(), 0);
@@ -644,7 +520,6 @@ export function CustomWhiteboard({
     [boardName]
   );
 
-  // Sync status indicator component
   const SyncStatusIndicator = useMemo(() => {
     const config = {
       synced: {
@@ -694,6 +569,115 @@ export function CustomWhiteboard({
       </Tooltip>
     );
   }, [syncStatus, lastSyncError, performSave]);
+
+  // Track whiteboard location in workspace presence
+  useEffect(() => {
+    if (!wsUpdateLocation) return;
+    wsUpdateLocation({ type: 'whiteboard', boardId });
+  }, [wsUpdateLocation, boardId]);
+
+  // Update Excalidraw collaborators when they change
+  useEffect(() => {
+    const api = excalidrawAPIRef.current;
+    if (!api) return;
+
+    api.updateScene({ collaborators });
+  }, [collaborators]);
+
+  // Initialize last saved state and previous elements on mount
+  useEffect(() => {
+    if (initialData) {
+      lastSavedRef.current = JSON.stringify({
+        elements: initialData.elements ?? [],
+      });
+      previousElementsRef.current =
+        initialData.elements?.map((el) => ({
+          ...el,
+        })) ?? [];
+    } else {
+      lastSavedRef.current = JSON.stringify({ elements: [] });
+      previousElementsRef.current = [];
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialData]);
+
+  // Apply snapshot catchup when snapshot data changes
+  useEffect(() => {
+    if (!snapshotQuery.data || snapshotQuery.isLoading) return;
+
+    const { snapshot, updated_at } = snapshotQuery.data;
+
+    if (!updated_at || updated_at === lastSnapshotUpdatedAtRef.current) return;
+
+    if (pendingChangesRef.current) return;
+
+    if (!snapshot) return;
+
+    try {
+      const parsed = JSON.parse(snapshot) as {
+        elements?: ExcalidrawElement[];
+        appState?: Partial<AppState>;
+      };
+
+      const api = excalidrawAPIRef.current;
+      if (!api) return;
+
+      const nextElements = parsed.elements ?? [];
+
+      api.updateScene({
+        elements: nextElements,
+      });
+
+      previousElementsRef.current = nextElements.map((el) => ({ ...el }));
+      lastSavedRef.current = JSON.stringify({ elements: nextElements });
+      lastSnapshotUpdatedAtRef.current = updated_at;
+    } catch (error) {
+      console.error('Failed to apply whiteboard snapshot catchup:', error);
+    }
+  }, [snapshotQuery.data, snapshotQuery.isLoading]);
+
+  // Clean up auto-save timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (autoSaveTimeoutRef.current) {
+        clearTimeout(autoSaveTimeoutRef.current);
+      }
+      if (titleSaveTimeoutRef.current) {
+        clearTimeout(titleSaveTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Handle keyboard shortcuts (Cmd+S / Ctrl+S)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+        // Force immediate save
+        if (autoSaveTimeoutRef.current) {
+          clearTimeout(autoSaveTimeoutRef.current);
+        }
+        performSave();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [performSave]);
+
+  // Refetch snapshot when connection is restored
+  useEffect(() => {
+    if (previousConnectionStatusRef.current === null) {
+      previousConnectionStatusRef.current = isConnected;
+      return;
+    }
+
+    if (!previousConnectionStatusRef.current && isConnected) {
+      void snapshotQuery.refetch();
+    }
+
+    previousConnectionStatusRef.current = isConnected;
+  }, [isConnected, snapshotQuery]);
 
   return (
     <div className="absolute inset-0 flex h-screen flex-col">
