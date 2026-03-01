@@ -216,7 +216,6 @@ export async function WorkspaceNavigationLinks({
       : String(userInvoiceValue) === 'true';
 
   const navLinks: (NavLink | null)[] = [
-    // ── Vertical 1: Mira (Home + AI companion) ──
     {
       title: t('common.dashboard'),
       href: `/${personalOrWsId}`,
@@ -224,7 +223,6 @@ export async function WorkspaceNavigationLinks({
       matchExact: true,
     },
     null,
-    // ── Vertical 2: Tasks ──
     {
       title: t('sidebar_tabs.tasks'),
       href: `/${personalOrWsId}/tasks`,
@@ -308,14 +306,20 @@ export async function WorkspaceNavigationLinks({
         },
       ],
     },
-    // ── Vertical 3: Calendar ──
     {
       title: t('sidebar_tabs.calendar'),
       icon: <Calendar className="h-5 w-5" />,
       href: `/${personalOrWsId}/calendar`,
       disabled: ENABLE_AI_ONLY || withoutPermission('manage_calendar'),
     },
-    // ── Vertical 4: Finance & Track ──
+    {
+      title: t('sidebar_tabs.whiteboards'),
+      href: `/${personalOrWsId}/whiteboards`,
+      icon: <PencilRuler className="h-5 w-5" />,
+      requiredWorkspaceTier: createTierRequirement('whiteboards', {
+        alwaysShow: true,
+      }),
+    },
     {
       title: t('sidebar_tabs.finance'),
       href: `/${personalOrWsId}/finance`,
@@ -487,14 +491,6 @@ export async function WorkspaceNavigationLinks({
             alwaysShow: true,
           }),
           experimental: 'beta',
-        },
-        {
-          title: t('sidebar_tabs.whiteboards'),
-          href: `/${personalOrWsId}/whiteboards`,
-          icon: <PencilRuler className="h-5 w-5" />,
-          requiredWorkspaceTier: createTierRequirement('whiteboards', {
-            alwaysShow: true,
-          }),
         },
         {
           title: t('sidebar_tabs.chat'),
