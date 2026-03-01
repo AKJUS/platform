@@ -10,6 +10,7 @@ import type {
   BinaryFileData,
   ExcalidrawImperativeAPI,
 } from '@excalidraw/excalidraw/types';
+import { useQuery } from '@tanstack/react-query';
 import {
   ArrowLeftIcon,
   CloudIcon,
@@ -89,6 +90,9 @@ export function CustomWhiteboard({
   const autoSaveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const pendingChangesRef = useRef(false);
   const requestedFileIdsRef = useRef<Set<string>>(new Set());
+  const lastSnapshotUpdatedAtRef = useRef<string | null>(null);
+
+  const previousConnectionStatusRef = useRef<boolean | null>(null);
 
   // Track whiteboard location in workspace presence (stable function ref)
   const wsUpdateLocation = wsPresence?.updateLocation;
@@ -287,6 +291,32 @@ export function CustomWhiteboard({
     }, []),
   });
 
+  const snapshotQuery = useQuery({
+    queryKey: ['whiteboard-snapshot', wsId, boardId],
+    queryFn: async () => {
+      const client = createClient();
+      const { data, error } = await client
+        .from('workspace_whiteboards')
+        .select('snapshot, updated_at')
+        .eq('id', boardId)
+        .eq('ws_id', wsId)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Failed to fetch whiteboard snapshot:', error);
+        throw error;
+      }
+
+      return {
+        snapshot: data?.snapshot as string | null | undefined,
+        updated_at: data?.updated_at as string | null | undefined,
+      };
+    },
+    staleTime: 0,
+    refetchOnWindowFocus: 'always',
+    refetchOnReconnect: true,
+  });
+
   // Update Excalidraw collaborators when they change
   useEffect(() => {
     const api = excalidrawAPIRef.current;
@@ -308,6 +338,40 @@ export function CustomWhiteboard({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialData, cloneElements]);
+
+  useEffect(() => {
+    if (!snapshotQuery.data || snapshotQuery.isLoading) return;
+
+    const { snapshot, updated_at } = snapshotQuery.data;
+
+    if (!updated_at || updated_at === lastSnapshotUpdatedAtRef.current) return;
+
+    if (pendingChangesRef.current) return;
+
+    if (!snapshot) return;
+
+    try {
+      const parsed = JSON.parse(snapshot) as {
+        elements?: ExcalidrawElement[];
+        appState?: Partial<AppState>;
+      };
+
+      const api = excalidrawAPIRef.current;
+      if (!api) return;
+
+      const nextElements = parsed.elements ?? [];
+
+      api.updateScene({
+        elements: nextElements,
+      });
+
+      previousElementsRef.current = cloneElements(nextElements);
+      lastSavedRef.current = JSON.stringify({ elements: nextElements });
+      lastSnapshotUpdatedAtRef.current = updated_at;
+    } catch (error) {
+      console.error('Failed to apply whiteboard snapshot catchup:', error);
+    }
+  }, [snapshotQuery.data, snapshotQuery.isLoading, cloneElements]);
 
   // Perform the actual save to database
   const performSave = useCallback(async () => {
@@ -402,6 +466,19 @@ export function CustomWhiteboard({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [performSave]);
+
+  useEffect(() => {
+    if (previousConnectionStatusRef.current === null) {
+      previousConnectionStatusRef.current = isConnected;
+      return;
+    }
+
+    if (!previousConnectionStatusRef.current && isConnected) {
+      void snapshotQuery.refetch();
+    }
+
+    previousConnectionStatusRef.current = isConnected;
+  }, [isConnected, snapshotQuery]);
 
   // Change detection and collaboration broadcast via onChange callback
   const handleChange = useCallback(
