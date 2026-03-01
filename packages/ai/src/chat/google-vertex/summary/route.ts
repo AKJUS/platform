@@ -6,4 +6,3 @@ import { createPATCH } from '../../google/summary/route';
 const PATCH = createPATCH();
 
 export { PATCH };
-export { maxDuration, preferredRegion } from '../../google/summary/route';

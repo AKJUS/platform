@@ -8,4 +8,3 @@ import { createPOST } from '../google/route';
 const POST = createPOST({ defaultProvider: 'vertex' });
 
 export { POST };
-export { maxDuration, preferredRegion } from '../google/route';

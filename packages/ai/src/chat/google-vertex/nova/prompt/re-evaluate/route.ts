@@ -17,9 +17,6 @@ import { gateway, generateObject, streamObject } from 'ai';
 import type { NextRequest } from 'next/server';
 import { z } from 'zod';
 
-export const maxDuration = 60;
-export const preferredRegion = 'sin1';
-
 const modelSafetySettings = [
   { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
   { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },

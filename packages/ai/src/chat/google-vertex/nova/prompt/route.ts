@@ -22,9 +22,6 @@ import {
   TEST_CASE_EVALUATION_PROMPT,
 } from './prompts';
 
-export const maxDuration = 60;
-export const preferredRegion = 'sin1';
-
 const modelSafetySettings = [
   { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
   { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },

@@ -99,5 +99,3 @@ export async function GET(req: NextRequest) {
     );
   }
 }
-
-export const maxDuration = 300; // 5 minutes

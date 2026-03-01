@@ -36,9 +36,6 @@ import {
 import { prepareMiraRuntime } from './route-mira-runtime';
 import { persistAssistantResponse } from './stream-finish-persistence';
 
-export const maxDuration = 60;
-export const preferredRegion = 'sin1';
-
 const DEFAULT_MODEL_NAME = 'google/gemini-2.5-flash';
 type ThinkingMode = 'fast' | 'thinking';
 export function createPOST(

@@ -263,5 +263,3 @@ export async function POST() {
     });
   });
 }
-
-export const maxDuration = 600; // 10 minutes

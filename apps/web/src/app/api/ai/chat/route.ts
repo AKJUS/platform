@@ -1,7 +1,7 @@
 import { createPOST } from '@tuturuuu/ai/chat/google/route';
 
-export const maxDuration = 60;
 export const preferredRegion = 'sin1';
+export const runtime = 'edge';
 
 // Unified chat endpoint — accepts any gateway model ID (e.g. "google/gemini-2.5-flash").
 // The Google route's createPOST already handles full gateway model IDs via the
