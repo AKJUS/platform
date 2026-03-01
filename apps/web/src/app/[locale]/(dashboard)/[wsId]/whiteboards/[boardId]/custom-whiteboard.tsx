@@ -620,6 +620,7 @@ export function CustomWhiteboard({
 
   return (
     <div className="absolute inset-0 flex h-screen flex-col">
+      <div className="h-17 md:hidden" />
       {/* Toolbar */}
       <div className="pointer-events-auto flex items-center gap-4 border-border border-b bg-background p-4">
         <Link href={`/${wsId}/whiteboards`}>
