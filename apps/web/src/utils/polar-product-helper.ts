@@ -116,7 +116,7 @@ async function upsertSubscriptionProduct(
     name: product.name,
     description: product.description || '',
     price,
-    recurring_interval: product.recurringInterval || 'month',
+    recurring_interval: product.recurringInterval ?? 'month',
     tier,
     archived: product.isArchived ?? false,
     pricing_model: firstPrice.amountType,

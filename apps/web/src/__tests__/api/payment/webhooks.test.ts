@@ -34,11 +34,14 @@ const mockCreditPackUpsert = vi.fn<() => MockUpsertResult>();
 const mockSupabase = {
   from: vi.fn().mockImplementation((table) => {
     if (table === 'workspace_subscription_products') {
-      return {
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        single: mockSingle,
+      const chainable = {
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            single: mockSingle,
+          }),
+        }),
       };
+      return chainable;
     }
     if (table === 'workspace_subscriptions') {
       return {
@@ -47,9 +50,11 @@ const mockSupabase = {
     }
     if (table === 'workspace_credit_pack_purchases') {
       return {
-        select: vi.fn().mockReturnThis(),
-        eq: vi.fn().mockReturnThis(),
-        maybeSingle: mockCreditPackMaybeSingle,
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            maybeSingle: mockCreditPackMaybeSingle,
+          }),
+        }),
         upsert: mockCreditPackUpsert,
       };
     }
@@ -236,6 +241,7 @@ describe('syncSubscriptionToDatabase', () => {
       );
       expect(result.purchaseData.polar_subscription_id).toBe('sub_pack_123');
       expect(result.purchaseData.credit_pack_id).toBe('pack_123');
+      expect(result.purchaseData.tokens_granted).toBe(5000);
     }
 
     expect(mockCreditPackUpsert).toHaveBeenCalledWith(

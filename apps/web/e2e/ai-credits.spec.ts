@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+const BASE_URL = process.env.BASE_URL || 'http://localhost:7803';
+
 // Test user: local@tuturuuu.com (ID: 00000000-0000-0000-0000-000000000001)
 // Auth state loaded from storageState
 
@@ -44,13 +46,13 @@ test.describe('AI Credits API', () => {
     }
   });
 
-  test('GET /api/v1/workspaces/{wsId}/ai/credits returns 401 for unauthenticated request', async ({
+  test('GET /api/v1/workspaces/{wsId}/ai/credits returns 401/403 for unauthenticated request', async ({
     playwright,
   }) => {
     // Create a fresh API context with no cookies/storageState so the request
     // is truly unauthenticated.
     const unauthCtx = await playwright.request.newContext({
-      baseURL: 'http://localhost:7803',
+      baseURL: BASE_URL,
       storageState: { cookies: [], origins: [] },
     });
     try {

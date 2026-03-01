@@ -17,7 +17,7 @@ export async function executeGenerateImage(
       const { getWorkspaceTier } = await import(
         '@tuturuuu/utils/workspace-helper'
       );
-      const tier = await getWorkspaceTier(ctx.wsId, { useAdmin: true });
+      const tier = await getWorkspaceTier(billingWsId, { useAdmin: true });
       return tier === 'FREE' ? IMAGEN_4_FAST : IMAGEN_4;
     })());
   const selectedModel = resolvedModel;
@@ -57,10 +57,14 @@ export async function executeGenerateImage(
 
   const sbAdmin = await createAdminClient();
   const reservationMetadata = {
-    prompt,
     aspectRatio,
     model: selectedModel,
     feature: 'image_generation',
+  };
+  // Full metadata including prompt for storage — never logged directly.
+  const fullReservationMetadata = {
+    prompt,
+    ...reservationMetadata,
   };
 
   const reservation = await reserveFixedAiCredits(
@@ -70,7 +74,7 @@ export async function executeGenerateImage(
       amount: 1,
       modelId: selectedModel,
       feature: 'image_generation',
-      metadata: reservationMetadata,
+      metadata: fullReservationMetadata,
     },
     sbAdmin
   );
@@ -121,7 +125,7 @@ export async function executeGenerateImage(
     commitResult = await commitFixedAiCreditReservation(
       reservation.reservationId,
       {
-        ...reservationMetadata,
+        ...fullReservationMetadata,
         storagePath,
       },
       sbAdmin
@@ -140,22 +144,9 @@ export async function executeGenerateImage(
   } catch (error) {
     let commitOrReleaseError: Error | null = null;
 
-    // Only delete the image if the credit commit did NOT succeed.
-    // If commit succeeded (e.g. HTTP response was lost), keep the image
-    // so the user isn't charged for nothing.
-    if (storagePath && !commitResult?.success) {
-      const { error: removeError } = await sbAdmin.storage
-        .from('workspaces')
-        .remove([storagePath]);
-      if (removeError) {
-        console.error('Failed to cleanup image upload', {
-          storagePath,
-          error: removeError.message,
-        });
-      }
-    }
-
-    // Attempt to release the reservation, with defensive error handling.
+    // Attempt to release the reservation first, with defensive error handling.
+    // Releasing before storage cleanup ensures we know the reservation's final
+    // state before deciding whether to keep or remove the image.
     let releaseResult: Awaited<
       ReturnType<typeof releaseFixedAiCreditReservation>
     > | null = null;
@@ -182,7 +173,6 @@ export async function executeGenerateImage(
           commitResult,
           releaseResult,
           storagePath,
-          metadata: reservationMetadata,
         });
         commitOrReleaseError = new Error(
           `AI credit reservation already committed after failure: ${JSON.stringify(
@@ -197,7 +187,6 @@ export async function executeGenerateImage(
       console.error('Failed to release AI credit reservation', {
         reservationId: reservation.reservationId,
         storagePath,
-        metadata: reservationMetadata,
         releaseError:
           releaseError instanceof Error
             ? releaseError.message
@@ -210,6 +199,24 @@ export async function executeGenerateImage(
             : 'Unknown release error'
         }`
       );
+    }
+
+    // Only delete the image if the credit commit did NOT succeed AND
+    // the reservation was not already committed (confirmed by release).
+    // If commit succeeded (e.g. HTTP response was lost), keep the image
+    // so the user isn't charged for nothing.
+    const alreadyCommitted =
+      releaseResult?.errorCode === 'RESERVATION_ALREADY_COMMITTED';
+    if (storagePath && !commitResult?.success && !alreadyCommitted) {
+      const { error: removeError } = await sbAdmin.storage
+        .from('workspaces')
+        .remove([storagePath]);
+      if (removeError) {
+        console.error('Failed to cleanup image upload', {
+          storagePath,
+          error: removeError.message,
+        });
+      }
     }
 
     return {

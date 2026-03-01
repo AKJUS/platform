@@ -113,7 +113,10 @@ async function upsertCreditPackPurchase(
   let tokensRemaining = 0;
   let grantedAt = currentPeriodStartIso;
   let expiresAt = expiresAtIso;
-  const shouldRetainDates = !shouldRetainCredits;
+  // When the subscription is in a non-retainable status (cancelled, revoked,
+  // unpaid) we zero out tokens but preserve the historical grant/expiry dates
+  // so the audit trail remains intact.
+  const keepHistoricalDates = !shouldRetainCredits;
 
   if (!existingPurchase) {
     tokensRemaining = tokens;
@@ -127,7 +130,7 @@ async function upsertCreditPackPurchase(
     } else {
       tokensRemaining = tokens;
     }
-  } else if (shouldRetainDates) {
+  } else if (keepHistoricalDates) {
     const existingGrantedAt = new Date(existingPurchase.granted_at).getTime();
     const currentGrantedAt = new Date(currentPeriodStartIso).getTime();
     if (existingGrantedAt >= currentGrantedAt) {

@@ -110,10 +110,23 @@ export function createPOST(
       }
 
       // Normalize both workspace identifiers so slugs like 'personal' resolve to UUIDs.
-      const normalizedWsId = wsId ? await normalizeWorkspaceId(wsId) : null;
-      const requestedCreditWsId = rawCreditWsId
-        ? await normalizeWorkspaceId(rawCreditWsId)
-        : undefined;
+      let normalizedWsId: string | null = null;
+      let requestedCreditWsId: string | undefined;
+      try {
+        normalizedWsId = wsId ? await normalizeWorkspaceId(wsId) : null;
+        requestedCreditWsId = rawCreditWsId
+          ? await normalizeWorkspaceId(rawCreditWsId)
+          : undefined;
+      } catch (normError) {
+        console.error(
+          'Workspace ID normalization failed:',
+          normError instanceof Error ? normError.message : normError
+        );
+        return NextResponse.json(
+          { error: 'Invalid workspace identifier' },
+          { status: 422 }
+        );
+      }
 
       if (normalizedWsId) {
         const { data: contextMembership, error: contextMembershipError } =
@@ -156,7 +169,18 @@ export function createPOST(
             .eq('workspace_members.user_id', user.id)
             .maybeSingle();
 
-        if (personalWorkspaceError || !personalWorkspace?.id) {
+        if (personalWorkspaceError) {
+          console.error(
+            'DB error looking up personal workspace:',
+            personalWorkspaceError.message
+          );
+          return NextResponse.json(
+            { error: 'Internal error resolving personal workspace' },
+            { status: 500 }
+          );
+        }
+
+        if (!personalWorkspace?.id) {
           return NextResponse.json(
             {
               error:

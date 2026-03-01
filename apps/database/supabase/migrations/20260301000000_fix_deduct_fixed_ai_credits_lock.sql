@@ -409,7 +409,12 @@ BEGIN
   v_included_to_consume := LEAST(GREATEST(v_included_remaining, 0), p_amount);
   v_payg_to_consume := p_amount - v_included_to_consume;
 
-  -- Consume PAYG credits first; if this fails we have not touched included balance.
+  -- Credit consumption order:
+  --   1. Included (plan) credits are preferred and consumed from the balance row.
+  --   2. PAYG (credit-pack) credits cover any spillover beyond the included pool.
+  -- PAYG is processed first below for atomicity: _consume_payg_credits is
+  -- irreversible within this transaction, so we confirm the PAYG portion is
+  -- available before touching the included balance row.
   v_payg_consumed := 0;
   IF v_payg_to_consume > 0 THEN
     v_payg_consumed := public._consume_payg_credits(p_ws_id, v_payg_to_consume);
@@ -420,7 +425,7 @@ BEGIN
     END IF;
   END IF;
 
-  -- Only now update included balance (safe: PAYG already committed above).
+  -- Now update included balance (safe: PAYG portion already committed above).
   IF v_included_to_consume > 0 THEN
     UPDATE public.workspace_ai_credit_balances
        SET total_used = total_used + v_included_to_consume,
