@@ -51,6 +51,8 @@ export default async function WorkspaceHomePage({ params }: Props) {
               />
             )}
 
+            <UserGroupQuickActions wsId={wsId} />
+
             <MiraDashboardClient
               currentUser={currentUser}
               initialAssistantName={assistantName}
@@ -58,8 +60,6 @@ export default async function WorkspaceHomePage({ params }: Props) {
             >
               <DashboardInsights wsId={wsId} userId={currentUser.id} />
             </MiraDashboardClient>
-
-            <UserGroupQuickActions wsId={wsId} />
           </>
         );
       }}
