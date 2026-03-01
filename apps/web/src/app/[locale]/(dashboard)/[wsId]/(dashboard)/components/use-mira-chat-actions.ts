@@ -1,9 +1,8 @@
 'use client';
 
 import { useMutation } from '@tanstack/react-query';
-import type { Model } from '@tuturuuu/ai/models';
 import type { UIMessage } from '@tuturuuu/ai/types';
-import type { AIChat } from '@tuturuuu/types';
+import type { AIChat, AIModelUI } from '@tuturuuu/types';
 import { toast } from '@tuturuuu/ui/sonner';
 import { generateRandomUUID } from '@tuturuuu/utils/uuid-helper';
 import type { Dispatch, SetStateAction } from 'react';
@@ -27,7 +26,7 @@ interface UseMiraChatActionsParams {
   gatewayModelId: string;
   messageAttachments: Map<string, MessageFileAttachment[]>;
   messages: UIMessage[];
-  model: Model;
+  model: AIModelUI;
   sendMessageWithCurrentConfig: (message: UIMessage) => void | Promise<void>;
   setChat: Dispatch<SetStateAction<Partial<AIChat> | undefined>>;
   setFallbackChatId: (value: string) => void;

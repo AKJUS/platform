@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { DefaultChatTransport } from '@tuturuuu/ai/core';
-import { getGatewayModelId, type Model } from '@tuturuuu/ai/models';
+import type { AIModelUI } from '@tuturuuu/types';
 import { useAiCredits } from '@tuturuuu/ui/hooks/use-ai-credits';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { resolveTimezone } from '@/lib/calendar-settings-resolver';
@@ -10,6 +10,7 @@ import {
   CREDIT_SOURCE_STORAGE_KEY_PREFIX,
   type CreditSource,
   INITIAL_MODEL,
+  MODEL_STORAGE_KEY_PREFIX,
   THINKING_MODE_STORAGE_KEY_PREFIX,
   type ThinkingMode,
   WORKSPACE_CONTEXT_EVENT,
@@ -21,7 +22,7 @@ interface UseMiraChatConfigParams {
 }
 
 export function useMiraChatConfig({ wsId }: UseMiraChatConfigParams) {
-  const [model, setModel] = useState<Model>(INITIAL_MODEL);
+  const [model, setModel] = useState<AIModelUI>(INITIAL_MODEL);
   const [thinkingMode, setThinkingMode] = useState<ThinkingMode>('fast');
   const [creditSource, setCreditSource] = useState<CreditSource>('workspace');
   const [workspaceContextId, setWorkspaceContextId] =
@@ -32,10 +33,8 @@ export function useMiraChatConfig({ wsId }: UseMiraChatConfigParams) {
     return Array.isArray(tags) && tags.includes('file-input');
   }, [model]);
 
-  const gatewayModelId = useMemo(
-    () => getGatewayModelId(model.value, model.provider),
-    [model]
-  );
+  // model.value is already the gateway ID (e.g. "google/gemini-2.5-flash")
+  const gatewayModelId = model.value;
 
   const { data: userCalendarSettings } = useQuery({
     queryKey: ['users', 'calendar-settings'],
@@ -136,6 +135,37 @@ export function useMiraChatConfig({ wsId }: UseMiraChatConfigParams) {
       }),
     []
   );
+
+  // Restore model from localStorage on mount
+  useEffect(() => {
+    const key = `${MODEL_STORAGE_KEY_PREFIX}${wsId}`;
+    const stored = localStorage.getItem(key);
+    if (!stored) return;
+    try {
+      const parsed = JSON.parse(stored) as {
+        value: string;
+        provider: string;
+        label?: string;
+      };
+      if (parsed.value && parsed.provider) {
+        setModel({
+          value: parsed.value,
+          provider: parsed.provider,
+          label: parsed.label ?? parsed.value.split('/').pop() ?? parsed.value,
+        });
+      }
+    } catch {
+      // Corrupt data — ignore and use default
+    }
+  }, [wsId]);
+
+  // Persist model to localStorage on change
+  useEffect(() => {
+    localStorage.setItem(
+      `${MODEL_STORAGE_KEY_PREFIX}${wsId}`,
+      JSON.stringify({ value: model.value, provider: model.provider })
+    );
+  }, [model, wsId]);
 
   useEffect(() => {
     const key = `${THINKING_MODE_STORAGE_KEY_PREFIX}${wsId}`;

@@ -147,6 +147,23 @@ export default function MiraChatPanel({
     setMessageAttachments,
   });
 
+  // When restoring a chat from DB, sync the model to match what was used
+  useEffect(() => {
+    if (!chat?.model) return;
+    // chat.model may be a gateway ID like "google/gemini-2.5-flash"
+    // or a bare name like "gemini-2.5-flash"
+    const gatewayId = chat.model.includes('/')
+      ? chat.model
+      : `google/${chat.model}`;
+    const provider = gatewayId.split('/')[0] ?? 'google';
+    const bareName = gatewayId.split('/').slice(1).join('/');
+    setModel({
+      value: gatewayId,
+      label: bareName,
+      provider,
+    });
+  }, [chat?.model, setModel]);
+
   const stableChatId = chat?.id ?? fallbackChatId;
 
   const {

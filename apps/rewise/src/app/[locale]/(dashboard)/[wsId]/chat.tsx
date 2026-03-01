@@ -1,11 +1,10 @@
 'use client';
 
 import { DefaultChatTransport } from '@tuturuuu/ai/core';
-import { defaultModel, type Model, models } from '@tuturuuu/ai/models';
 import { useChat } from '@tuturuuu/ai/react';
 import type { UIMessage } from '@tuturuuu/ai/types';
 import { createClient } from '@tuturuuu/supabase/next/client';
-import type { AIChat } from '@tuturuuu/types';
+import type { AIChat, AIModelUI } from '@tuturuuu/types';
 import { toast } from '@tuturuuu/ui/hooks/use-toast';
 import { ROOT_WORKSPACE_ID } from '@tuturuuu/utils/constants';
 import { cn } from '@tuturuuu/utils/format';
@@ -20,7 +19,7 @@ import { ChatScrollAnchor } from '@/components/chat-scroll-anchor';
 import { EmptyScreen } from '@/components/empty-screen';
 
 export interface ChatProps extends React.ComponentProps<'div'> {
-  inputModel?: Model;
+  inputModel?: AIModelUI;
   defaultChat?: Partial<AIChat>;
   initialMessages?: UIMessage[];
   chats?: AIChat[];
@@ -30,8 +29,19 @@ export interface ChatProps extends React.ComponentProps<'div'> {
   disabled?: boolean;
 }
 
+const DEFAULT_MODEL: AIModelUI = {
+  value: 'google/gemini-2.5-flash',
+  label: 'gemini-2.5-flash',
+  provider: 'google',
+};
+
+/** Extract provider from a gateway ID like "google/gemini-2.5-flash" → "google" */
+function extractProvider(modelId: string): string {
+  return modelId.includes('/') ? modelId.split('/')[0]! : 'google';
+}
+
 export default function Chat({
-  inputModel = defaultModel,
+  inputModel = DEFAULT_MODEL,
   defaultChat,
   initialMessages,
   chats,
@@ -48,7 +58,7 @@ export default function Chat({
   const searchParams = useSearchParams();
 
   const [chat, setChat] = useState<Partial<AIChat> | undefined>(defaultChat);
-  const [model, setModel] = useState<Model | undefined>(inputModel);
+  const [model, setModel] = useState<AIModelUI | undefined>(inputModel);
   const [currentUserId, setCurrentUserId] = useState<string>();
   const [input, setInput] = useState('');
 
@@ -65,13 +75,7 @@ export default function Chat({
     transport: new DefaultChatTransport({
       api:
         chat?.model || model?.value
-          ? `/api/ai/chat/${(
-              chat?.model
-                ? models
-                    .find((m) => m.value === chat.model)
-                    ?.provider.toLowerCase() || model?.provider.toLowerCase()
-                : model?.provider.toLowerCase()
-            )?.replace(' ', '-')}`
+          ? `/api/ai/chat/${extractProvider(chat?.model ?? model?.value ?? 'google/gemini-2.5-flash')}`
           : undefined,
       credentials: 'include',
       headers: { 'Custom-Header': 'value' },
@@ -131,7 +135,7 @@ export default function Chat({
       setSummarizing(true);
 
       const res = await fetch(
-        `/api/ai/chat/${model.provider.toLowerCase().replace(' ', '-')}/summary`,
+        `/api/ai/chat/${extractProvider(model.value)}/summary`,
         {
           credentials: 'include',
           method: 'PATCH',
@@ -228,7 +232,7 @@ export default function Chat({
     setPendingPrompt(input);
 
     const res = await fetch(
-      `/api/ai/chat/${model.provider.toLowerCase().replace(' ', '-')}/new`,
+      `/api/ai/chat/${extractProvider(model.value)}/new`,
       {
         credentials: 'include',
         method: 'POST',
@@ -347,7 +351,17 @@ export default function Chat({
         setInput={setInput}
         model={
           chat?.model
-            ? models.find((m) => m.value === chat.model) || model
+            ? {
+                value: chat.model.includes('/')
+                  ? chat.model
+                  : `google/${chat.model}`,
+                label: chat.model.includes('/')
+                  ? chat.model.split('/').slice(1).join('/')
+                  : chat.model,
+                provider: chat.model.includes('/')
+                  ? chat.model.split('/')[0]!
+                  : 'google',
+              }
             : model
         }
         setModel={setModel}

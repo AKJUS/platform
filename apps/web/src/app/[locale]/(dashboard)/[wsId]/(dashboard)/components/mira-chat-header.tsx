@@ -1,6 +1,5 @@
 'use client';
 
-import type { Model } from '@tuturuuu/ai/models';
 import {
   Brain,
   Download,
@@ -12,6 +11,7 @@ import {
   PanelBottomOpen,
   Zap,
 } from '@tuturuuu/icons';
+import type { AIModelUI } from '@tuturuuu/types';
 import { Button } from '@tuturuuu/ui/button';
 import {
   DropdownMenu,
@@ -46,11 +46,11 @@ interface MiraChatHeaderProps {
   insightsDock?: ReactNode;
   isFullscreen?: boolean;
   isPersonalWorkspace: boolean;
-  model: Model;
+  model: AIModelUI;
   modelPickerHotkeySignal: number;
   onCreditSourceChange: (source: CreditSource) => void;
   onExportChat: () => void;
-  onModelChange: (model: Model) => void;
+  onModelChange: (model: AIModelUI) => void;
   onNewConversation: () => void;
   onThinkingModeChange: (mode: ThinkingMode) => void;
   onToggleFullscreen?: () => void;
