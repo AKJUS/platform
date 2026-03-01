@@ -1,7 +1,6 @@
 import { createPOST } from '@tuturuuu/ai/chat/google/new/route';
 
 export const preferredRegion = 'sin1';
-export const runtime = 'edge';
 
 const POST = createPOST();
 
