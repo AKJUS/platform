@@ -1,10 +1,11 @@
 'use client';
 
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { Clock, Package, Zap } from '@tuturuuu/icons';
+import { AlertCircle, Clock, Package, RefreshCw, Zap } from '@tuturuuu/icons';
 import { PolarEmbedCheckout } from '@tuturuuu/payment/polar/checkout/embed';
 import { Badge } from '@tuturuuu/ui/badge';
 import { Button } from '@tuturuuu/ui/button';
+import { Skeleton } from '@tuturuuu/ui/skeleton';
 import { toast } from '@tuturuuu/ui/sonner';
 import { cn } from '@tuturuuu/utils/format';
 import { useLocale, useTranslations } from 'next-intl';
@@ -140,6 +141,68 @@ export function AiCreditBillingCard({
     [creditData]
   );
   const paygTotal = creditData?.payg.totalGranted ?? 0;
+
+  if (creditsQuery.isLoading) {
+    return (
+      <div className="mb-8 overflow-hidden rounded-2xl border border-border/50 bg-card p-6">
+        <div className="mb-6 flex items-center justify-between gap-3">
+          <div>
+            <h2 className="font-bold text-xl">{t('ai-credits-title')}</h2>
+            <p className="text-muted-foreground text-sm">
+              {t('ai-credits-description')}
+            </p>
+          </div>
+          <Badge variant="outline" className="border-dynamic-blue/30">
+            <Zap className="mr-1 h-3 w-3" />
+            {t('ai-credits-wallet')}
+          </Badge>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="rounded-xl border border-border/50 bg-background/50 p-4">
+            <Skeleton className="mb-2 h-4 w-1/3" />
+            <Skeleton className="h-2 w-full rounded-full" />
+          </div>
+          <div className="rounded-xl border border-border/50 bg-background/50 p-4">
+            <Skeleton className="mb-2 h-4 w-1/3" />
+            <Skeleton className="h-2 w-full rounded-full" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (creditsQuery.isError) {
+    return (
+      <div className="mb-8 overflow-hidden rounded-2xl border border-border/50 bg-card p-6">
+        <div className="mb-6 flex items-center justify-between gap-3">
+          <div>
+            <h2 className="font-bold text-xl">{t('ai-credits-title')}</h2>
+            <p className="text-muted-foreground text-sm">
+              {t('ai-credits-description')}
+            </p>
+          </div>
+          <Badge variant="outline" className="border-dynamic-blue/30">
+            <Zap className="mr-1 h-3 w-3" />
+            {t('ai-credits-wallet')}
+          </Badge>
+        </div>
+        <div className="flex flex-col items-center justify-center gap-3 py-8 text-center">
+          <AlertCircle className="h-10 w-10 text-destructive" />
+          <p className="text-muted-foreground text-sm">
+            {t('ai-credits-error')}
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => creditsQuery.refetch()}
+          >
+            <RefreshCw className="mr-2 h-4 w-4" />
+            {t('retry')}
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="mb-8 overflow-hidden rounded-2xl border border-border/50 bg-card p-6">

@@ -1,4 +1,5 @@
 import type { Subscription } from '@tuturuuu/payment/polar';
+import type { TypedSupabaseClient } from '@tuturuuu/supabase/next/client';
 import { describe, expect, it, vi } from 'vitest';
 import { syncSubscriptionToDatabase } from '@/utils/polar-subscription-helper';
 
@@ -11,41 +12,6 @@ type MockSingleResult = Promise<{
 }>;
 
 type MockUpsertResult = Promise<{ error: null }>;
-
-interface MockSupabaseLike {
-  from: (table: 'workspace_subscription_products') => {
-    select: (columns: string) => {
-      eq: (
-        column: string,
-        value: string
-      ) => {
-        single: () => MockSingleResult;
-      };
-    };
-  };
-  from: (table: 'workspace_subscriptions') => {
-    upsert: (data: unknown[], options: unknown) => MockUpsertResult;
-  };
-  from: (table: 'workspace_credit_pack_purchases') => {
-    select: (columns: string) => {
-      eq: (
-        column: string,
-        value: string
-      ) => {
-        maybeSingle: () => Promise<{
-          data: {
-            id: string;
-            tokens_remaining: number;
-            granted_at: string;
-            expires_at: string;
-          } | null;
-          error: null;
-        }>;
-      };
-    };
-    upsert: (data: unknown, options: unknown) => MockUpsertResult;
-  };
-}
 
 // Mock dependencies that cause issues in test environment
 vi.mock('@tuturuuu/payment/polar/next', () => ({
@@ -89,14 +55,14 @@ const mockSupabase = {
     }
     return {};
   }),
-} satisfies MockSupabaseLike;
+} as unknown as TypedSupabaseClient;
 
 vi.mock('@tuturuuu/supabase/next/server', () => ({
   createAdminClient: vi.fn(() => Promise.resolve(mockSupabase)),
 }));
 
 describe('syncSubscriptionToDatabase', () => {
-  const mockSubscription: Subscription = {
+  const mockSubscription = {
     id: 'sub_123',
     customer: { id: 'cust_123' },
     status: 'active',
@@ -108,7 +74,7 @@ describe('syncSubscriptionToDatabase', () => {
     cancelAtPeriodEnd: false,
     createdAt: new Date('2026-01-01T00:00:00Z'),
     modifiedAt: new Date('2026-01-01T00:00:00Z'),
-  };
+  } as unknown as Subscription;
 
   it('should identify seat-based pricing and save seat count', async () => {
     // Mock product to be seat-based
@@ -166,7 +132,7 @@ describe('syncSubscriptionToDatabase', () => {
     const result = await syncSubscriptionToDatabase(mockSupabase, {
       ...mockSubscription,
       seats: null,
-    });
+    } as unknown as Subscription);
 
     expect(result.isSeatBased).toBe(false);
     expect(result.subscriptionData!.seat_count).toBeNull();
@@ -197,7 +163,7 @@ describe('syncSubscriptionToDatabase', () => {
     const subscriptionWithoutWsId = {
       ...mockSubscription,
       metadata: {},
-    };
+    } as unknown as Subscription;
 
     await expect(
       syncSubscriptionToDatabase(mockSupabase, subscriptionWithoutWsId)
@@ -217,7 +183,7 @@ describe('syncSubscriptionToDatabase', () => {
       currentPeriodEnd: '2026-02-15T10:30:00Z',
       createdAt: '2026-01-15T10:30:00Z',
       modifiedAt: '2026-01-15T10:30:00Z',
-    };
+    } as unknown as Subscription;
 
     const result = await syncSubscriptionToDatabase(
       mockSupabase,
@@ -239,7 +205,7 @@ describe('syncSubscriptionToDatabase', () => {
   });
 
   it('should sync AI credit pack purchases', async () => {
-    const creditPackSubscription: Subscription = {
+    const creditPackSubscription = {
       ...mockSubscription,
       id: 'sub_pack_123',
       product: {
@@ -250,7 +216,7 @@ describe('syncSubscriptionToDatabase', () => {
         },
       },
       currentPeriodStart: new Date('2026-03-01T00:00:00Z'),
-    };
+    } as unknown as Subscription;
 
     mockCreditPackMaybeSingle.mockResolvedValue({
       data: null,
@@ -264,7 +230,7 @@ describe('syncSubscriptionToDatabase', () => {
     );
 
     expect('purchaseData' in result).toBe(true);
-    if ('purchaseData' in result) {
+    if ('purchaseData' in result && result.purchaseData) {
       expect(result.purchaseData.ws_id).toBe(
         '00000000-0000-0000-0000-000000000000'
       );

@@ -139,7 +139,11 @@ export async function executeGenerateImage(
     };
   } catch (error) {
     let commitOrReleaseError: Error | null = null;
-    if (storagePath) {
+
+    // Only delete the image if the credit commit did NOT succeed.
+    // If commit succeeded (e.g. HTTP response was lost), keep the image
+    // so the user isn't charged for nothing.
+    if (storagePath && !commitResult?.success) {
       const { error: removeError } = await sbAdmin.storage
         .from('workspaces')
         .remove([storagePath]);
@@ -151,35 +155,60 @@ export async function executeGenerateImage(
       }
     }
 
-    const releaseResult = await releaseFixedAiCreditReservation(
-      reservation.reservationId,
-      {
-        ...reservationMetadata,
-        storagePath,
-        error:
-          error instanceof Error
-            ? error.message
-            : 'Unknown image generation error',
-      },
-      sbAdmin
-    );
+    // Attempt to release the reservation, with defensive error handling.
+    let releaseResult: Awaited<
+      ReturnType<typeof releaseFixedAiCreditReservation>
+    > | null = null;
+    try {
+      releaseResult = await releaseFixedAiCreditReservation(
+        reservation.reservationId,
+        {
+          ...reservationMetadata,
+          storagePath,
+          error:
+            error instanceof Error
+              ? error.message
+              : 'Unknown image generation error',
+        },
+        sbAdmin
+      );
 
-    if (
-      !releaseResult.success &&
-      releaseResult.errorCode === 'RESERVATION_ALREADY_COMMITTED'
-    ) {
-      console.error('Reservation already committed after failure', {
-        commitResult,
-        releaseResult,
+      if (
+        !releaseResult.success &&
+        releaseResult.errorCode === 'RESERVATION_ALREADY_COMMITTED'
+      ) {
+        console.error('Reservation already committed after failure', {
+          reservationId: reservation.reservationId,
+          commitResult,
+          releaseResult,
+          storagePath,
+          metadata: reservationMetadata,
+        });
+        commitOrReleaseError = new Error(
+          `AI credit reservation already committed after failure: ${JSON.stringify(
+            {
+              commitResult,
+              releaseResult,
+            }
+          )}`
+        );
+      }
+    } catch (releaseError) {
+      console.error('Failed to release AI credit reservation', {
+        reservationId: reservation.reservationId,
         storagePath,
+        metadata: reservationMetadata,
+        releaseError:
+          releaseError instanceof Error
+            ? releaseError.message
+            : String(releaseError),
       });
       commitOrReleaseError = new Error(
-        `AI credit reservation already committed after failure: ${JSON.stringify(
-          {
-            commitResult,
-            releaseResult,
-          }
-        )}`
+        `Failed to release reservation: ${
+          releaseError instanceof Error
+            ? releaseError.message
+            : 'Unknown release error'
+        }`
       );
     }
 

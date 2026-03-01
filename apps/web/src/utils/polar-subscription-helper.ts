@@ -1,6 +1,6 @@
 import type { Subscription } from '@tuturuuu/payment/polar';
 import type { TypedSupabaseClient } from '@tuturuuu/supabase/next/client';
-import type { Database } from '@tuturuuu/types/db';
+import type { Database } from '@tuturuuu/types';
 import { addDays } from 'date-fns';
 import {
   isAiCreditPackProduct,

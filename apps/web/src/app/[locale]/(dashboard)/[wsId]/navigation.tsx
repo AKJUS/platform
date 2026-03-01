@@ -318,15 +318,10 @@ export async function WorkspaceNavigationLinks({
     // ── Vertical 4: Finance & Track ──
     {
       title: t('sidebar_tabs.finance'),
-      href: `/${personalOrWsId}/time-tracker`,
+      href: `/${personalOrWsId}/finance`,
       icon: <BadgeDollarSign className="h-5 w-5" />,
       experimental: 'beta',
       aliases: [
-        `/${personalOrWsId}/time-tracker`,
-        `/${personalOrWsId}/time-tracker/timer`,
-        `/${personalOrWsId}/time-tracker/history`,
-        `/${personalOrWsId}/time-tracker/management`,
-        `/${personalOrWsId}/time-tracker/requests`,
         `/${personalOrWsId}/finance`,
         `/${personalOrWsId}/finance/transactions`,
         `/${personalOrWsId}/finance/recurring`,
@@ -423,17 +418,6 @@ export async function WorkspaceNavigationLinks({
         `/${personalOrWsId}/time-tracker/history`,
         `/${personalOrWsId}/time-tracker/management`,
         `/${personalOrWsId}/time-tracker/requests`,
-        `/${personalOrWsId}/finance`,
-        `/${personalOrWsId}/finance/transactions`,
-        `/${personalOrWsId}/finance/recurring`,
-        `/${personalOrWsId}/finance/wallets`,
-        `/${personalOrWsId}/finance/budgets`,
-        `/${personalOrWsId}/finance/analytics`,
-        `/${personalOrWsId}/finance/transactions/categories`,
-        `/${personalOrWsId}/finance/tags`,
-        `/${personalOrWsId}/finance/invoices`,
-        `/${personalOrWsId}/finance/debts`,
-        `/${personalOrWsId}/finance/settings`,
       ],
       children: [
         // ── Time Tracking ──

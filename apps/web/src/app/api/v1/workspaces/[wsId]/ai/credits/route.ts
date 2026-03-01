@@ -11,10 +11,10 @@ export async function GET(
 ) {
   try {
     const { wsId } = await params;
-    const normalizedWsId = await normalizeWorkspaceId(wsId);
     const supabase = await createClient();
 
-    // Auth check
+    // Auth check — must run BEFORE normalizeWorkspaceId because resolving
+    // "personal" requires an authenticated session.
     const {
       data: { user },
       error: authError,
@@ -23,6 +23,8 @@ export async function GET(
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const normalizedWsId = await normalizeWorkspaceId(wsId);
 
     // Workspace membership check
     const { data: memberCheck } = await supabase

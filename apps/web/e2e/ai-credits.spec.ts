@@ -45,16 +45,22 @@ test.describe('AI Credits API', () => {
   });
 
   test('GET /api/v1/workspaces/{wsId}/ai/credits returns 401 for unauthenticated request', async ({
-    request,
+    playwright,
   }) => {
-    const response = await request.fetch(
-      '/api/v1/workspaces/personal/ai/credits',
-      {
-        headers: {},
-      }
-    );
-
-    expect([401, 403]).toContain(response.status());
+    // Create a fresh API context with no cookies/storageState so the request
+    // is truly unauthenticated.
+    const unauthCtx = await playwright.request.newContext({
+      baseURL: 'http://localhost:7803',
+      storageState: { cookies: [], origins: [] },
+    });
+    try {
+      const response = await unauthCtx.get(
+        '/api/v1/workspaces/personal/ai/credits'
+      );
+      expect([401, 403]).toContain(response.status());
+    } finally {
+      await unauthCtx.dispose();
+    }
   });
 
   test('Response includes tier, allowedModels, allowedFeatures, maxOutputTokens', async ({

@@ -96,20 +96,20 @@ async function upsertSubscriptionProduct(
   }
 
   const firstPrice = product.prices.find(isPolarPrice);
-  if (!firstPrice && product.recurringInterval) {
+  if (!firstPrice) {
     throw new Error(
       `Subscription product ${product.id} is missing valid pricing data`
     );
   }
-  const isSeatBased = firstPrice?.amountType === 'seat_based';
-  const isFixed = firstPrice?.amountType === 'fixed';
+  const isSeatBased = firstPrice.amountType === 'seat_based';
+  const isFixed = firstPrice.amountType === 'fixed';
 
-  const price = isFixed && firstPrice ? firstPrice.priceAmount : null;
+  const price = isFixed ? firstPrice.priceAmount : null;
   const pricePerSeat = isSeatBased
-    ? (firstPrice?.seatTiers?.tiers?.[0]?.pricePerSeat ?? null)
+    ? (firstPrice.seatTiers?.tiers?.[0]?.pricePerSeat ?? null)
     : null;
-  const minSeats = isSeatBased ? firstPrice?.seatTiers?.minimumSeats : null;
-  const maxSeats = isSeatBased ? firstPrice?.seatTiers?.maximumSeats : null;
+  const minSeats = isSeatBased ? firstPrice.seatTiers?.minimumSeats : null;
+  const maxSeats = isSeatBased ? firstPrice.seatTiers?.maximumSeats : null;
 
   const productData = {
     id: product.id,
@@ -119,7 +119,7 @@ async function upsertSubscriptionProduct(
     recurring_interval: product.recurringInterval || 'month',
     tier,
     archived: product.isArchived ?? false,
-    pricing_model: firstPrice?.amountType,
+    pricing_model: firstPrice.amountType,
     price_per_seat: pricePerSeat,
     min_seats: minSeats,
     max_seats: maxSeats,

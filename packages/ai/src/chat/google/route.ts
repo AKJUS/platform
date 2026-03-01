@@ -89,7 +89,7 @@ export function createPOST(
         timezone,
         thinkingMode: rawThinkingMode,
         creditSource: requestedCreditSourceRaw,
-        creditWsId: requestedCreditWsId,
+        creditWsId: rawCreditWsId,
       } = parsedBody.data;
       const thinkingMode: ThinkingMode =
         rawThinkingMode === 'thinking' ? 'thinking' : 'fast';
@@ -109,15 +109,31 @@ export function createPOST(
         return new Response('Unauthorized', { status: 401 });
       }
 
+      // Normalize both workspace identifiers so slugs like 'personal' resolve to UUIDs.
       const normalizedWsId = wsId ? await normalizeWorkspaceId(wsId) : null;
+      const requestedCreditWsId = rawCreditWsId
+        ? await normalizeWorkspaceId(rawCreditWsId)
+        : undefined;
 
       if (normalizedWsId) {
-        const { data: contextMembership } = await sbAdmin
-          .from('workspace_members')
-          .select('user_id')
-          .eq('ws_id', normalizedWsId)
-          .eq('user_id', user.id)
-          .maybeSingle();
+        const { data: contextMembership, error: contextMembershipError } =
+          await sbAdmin
+            .from('workspace_members')
+            .select('user_id')
+            .eq('ws_id', normalizedWsId)
+            .eq('user_id', user.id)
+            .maybeSingle();
+
+        if (contextMembershipError) {
+          console.error(
+            'DB error checking workspace membership:',
+            contextMembershipError.message
+          );
+          return NextResponse.json(
+            { error: 'Internal error verifying workspace access' },
+            { status: 500 }
+          );
+        }
 
         if (!contextMembership) {
           return NextResponse.json(
@@ -178,12 +194,24 @@ export function createPOST(
         }
 
         if (!normalizedWsId) {
-          const { data: billingMembership } = await sbAdmin
-            .from('workspace_members')
-            .select('user_id')
-            .eq('ws_id', requestedCreditWsId)
-            .eq('user_id', user.id)
-            .maybeSingle();
+          const { data: billingMembership, error: billingMembershipError } =
+            await sbAdmin
+              .from('workspace_members')
+              .select('user_id')
+              .eq('ws_id', requestedCreditWsId)
+              .eq('user_id', user.id)
+              .maybeSingle();
+
+          if (billingMembershipError) {
+            console.error(
+              'Failed to check billing workspace membership',
+              billingMembershipError.message
+            );
+            return NextResponse.json(
+              { error: 'Internal server error' },
+              { status: 500 }
+            );
+          }
 
           if (!billingMembership) {
             return NextResponse.json(
