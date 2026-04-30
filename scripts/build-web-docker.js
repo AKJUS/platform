@@ -7,7 +7,7 @@ const {
 
 const env = applyCoolifyAppUrlFallbacks({ ...process.env });
 
-const result = spawnSync('bun', ['run', 'build:web'], {
+const result = spawnSync('bun', ['run', 'build:web:docker'], {
   env,
   stdio: 'inherit',
 });
