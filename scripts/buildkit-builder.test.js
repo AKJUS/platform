@@ -239,10 +239,10 @@ test('production Docker root scripts keep the default build caps', () => {
 
   assert.match(
     packageJson.scripts['serve:web:docker'],
-    /--build-memory 16g --build-cpus 8/
+    /--build-memory 8g --build-cpus 4 --build-max-parallelism 2/
   );
   assert.match(
     packageJson.scripts['serve:web:docker:bg'],
-    /--build-memory 16g --build-cpus 8/
+    /--build-memory 8g --build-cpus 4 --build-max-parallelism 2/
   );
 });

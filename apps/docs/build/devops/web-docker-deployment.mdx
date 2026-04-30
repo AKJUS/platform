@@ -328,8 +328,8 @@ bun serve:web:docker:bg -- --build-memory 4g --build-cpus 2 --build-max-parallel
 
 Current root-script defaults:
 
-- `bun serve:web:docker` defaults to `--build-memory 16g --build-cpus 8`
-- `bun serve:web:docker:bg` defaults to `--build-memory 16g --build-cpus 8`
+- `bun serve:web:docker` defaults to `--build-memory 8g --build-cpus 4 --build-max-parallelism 2`
+- `bun serve:web:docker:bg` defaults to `--build-memory 8g --build-cpus 4 --build-max-parallelism 2`
 
 You can still override those defaults per run by appending your own flags after
 `--`, for example:
@@ -363,6 +363,9 @@ Operational notes:
 - If no build caps are configured, the helper continues using Docker's default
   builder behavior.
 - A lower parallelism setting usually trades build speed for host stability.
+- If BuildKit fails with `ResourceExhausted` or `cannot allocate memory`, lower
+  `--build-memory` and `--build-max-parallelism` before retrying the same
+  commit.
 
 ## Redis Profile
 
@@ -538,7 +541,9 @@ Dashboard details:
 - Build/deploy failures also stay inside the watcher loop. The watcher records
   failed attempts in deployment history, clears stale pending handoff files
   after recovery failures, and stops retrying the same commit after the third
-  failed deployment attempt.
+  failed deployment attempt. Once that cap is reached, it reports the
+  retry-limited state once for that commit instead of logging the same skip on
+  every poll.
 - Normal promotions keep the long-lived `web-proxy` container and bound port
   stable, which avoids transient listener drops for upstreams such as
   Cloudflare Tunnel that are connected to `:7803`.

@@ -3846,6 +3846,7 @@ test('runDeployWatchIteration stops retrying a commit after three failed deploym
   const paths = getWatchPaths(tempDir);
   const envFilePath = path.join(tempDir, 'apps', 'web', '.env.local');
   const calls = [];
+  const warnings = [];
   const latestCommitHash = 'bbb222222222222222222';
 
   try {
@@ -3906,7 +3907,13 @@ test('runDeployWatchIteration stops retrying a commit after three failed deploym
       {
         envFilePath,
         fsImpl: fs,
-        log: { error() {}, info() {}, warn() {} },
+        log: {
+          error() {},
+          info() {},
+          warn(message) {
+            warnings.push(message);
+          },
+        },
         paths,
         rootDir: tempDir,
         runCommand: async (command, args) => {
@@ -3967,12 +3974,100 @@ test('runDeployWatchIteration stops retrying a commit after three failed deploym
       result.failedDeploymentCount,
       MAX_FAILED_DEPLOYMENTS_PER_COMMIT
     );
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0], /already failed 3 deployment attempts/);
     assert.ok(!calls.includes('bun upgrade'));
     assert.ok(
       !calls.includes(
         `${DEFAULT_DEPLOY_COMMAND[0]} ${DEFAULT_DEPLOY_COMMAND.slice(1).join(' ')}`
       )
     );
+
+    writeWatchStatus(
+      {
+        lastResult: result,
+      },
+      {
+        fsImpl: fs,
+        paths,
+        processImpl: { pid: 4321 },
+      }
+    );
+
+    const secondResult = await runDeployWatchIteration(
+      {
+        branch: 'main',
+        remote: 'origin',
+        upstreamBranch: 'main',
+        upstreamRef: 'origin/main',
+      },
+      {
+        envFilePath,
+        fsImpl: fs,
+        log: {
+          error() {},
+          info() {},
+          warn(message) {
+            warnings.push(message);
+          },
+        },
+        paths,
+        rootDir: tempDir,
+        runCommand: async (command, args) => {
+          const key = `${command} ${args.join(' ')}`;
+          calls.push(key);
+
+          if (key === 'git rev-parse --abbrev-ref HEAD') {
+            return createResult('main\n');
+          }
+
+          if (key === 'git status --porcelain') {
+            return createResult('');
+          }
+
+          if (key === 'git fetch origin main') {
+            return createResult('');
+          }
+
+          if (key === 'git rev-parse HEAD') {
+            return createResult(`${latestCommitHash}\n`);
+          }
+
+          if (key === 'git rev-parse origin/main') {
+            return createResult(`${latestCommitHash}\n`);
+          }
+
+          if (key === 'git log -1 --format=%H%n%h%n%s%n%cI HEAD') {
+            return createResult(
+              `${latestCommitHash}\nbbb222\nBroken deployment\n2026-04-18T10:59:00.000Z\n`
+            );
+          }
+
+          if (key === prodComposePsKey(BLUE_GREEN_PROXY_SERVICE)) {
+            return createResult('');
+          }
+
+          if (
+            key ===
+            `docker ps --filter label=com.docker.compose.project=${path.basename(tempDir)} --filter label=com.docker.compose.service=${BLUE_GREEN_PROXY_SERVICE} --format {{.ID}}`
+          ) {
+            return createResult('');
+          }
+
+          if (
+            key ===
+            'docker ps --format {{.ID}}\t{{.Names}}\t{{.Image}}\t{{.Status}}\t{{.RunningFor}}\t{{.Ports}}\t{{.Label "com.docker.compose.service"}}\t{{.Label "com.docker.compose.project"}}'
+          ) {
+            return createResult('');
+          }
+
+          throw new Error(`Unexpected command: ${key}`);
+        },
+      }
+    );
+
+    assert.equal(secondResult.status, 'retry-limited');
+    assert.equal(warnings.length, 1);
   } finally {
     fs.rmSync(tempDir, { force: true, recursive: true });
   }
