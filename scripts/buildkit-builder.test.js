@@ -254,11 +254,11 @@ test('production Docker root scripts keep the default build caps', () => {
 
   assert.match(
     packageJson.scripts['serve:web:docker'],
-    /--build-memory 10g --build-cpus 2 --build-max-parallelism 1/
+    /--build-memory 16g --build-cpus 2 --build-max-parallelism 1/
   );
   assert.match(
     packageJson.scripts['serve:web:docker:bg'],
-    /--build-memory 10g --build-cpus 2 --build-max-parallelism 1/
+    /--build-memory 16g --build-cpus 2 --build-max-parallelism 1/
   );
   assert.equal(
     packageJson.scripts['build:web:docker'],
@@ -267,6 +267,10 @@ test('production Docker root scripts keep the default build caps', () => {
   assert.match(
     webPackageJson.scripts['build:docker'],
     /--max-old-space-size=4096/
+  );
+  assert.match(
+    webPackageJson.scripts['build:docker'],
+    /next build --turbopack/
   );
   assert.deepEqual(turboConfig.tasks['build:docker'].dependsOn, ['^build']);
   assert.match(buildWebDockerScript, /build:web:docker/);
