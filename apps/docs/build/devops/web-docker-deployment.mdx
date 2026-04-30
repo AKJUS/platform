@@ -323,13 +323,13 @@ Buildx throttling options instead of letting BuildKit consume the full host.
 Example:
 
 ```bash
-bun serve:web:docker:bg -- --build-memory 6g --build-cpus 2 --build-max-parallelism 1
+bun serve:web:docker:bg -- --build-memory 10g --build-cpus 2 --build-max-parallelism 1
 ```
 
 Current root-script defaults:
 
-- `bun serve:web:docker` defaults to `--build-memory 6g --build-cpus 2 --build-max-parallelism 1`
-- `bun serve:web:docker:bg` defaults to `--build-memory 6g --build-cpus 2 --build-max-parallelism 1`
+- `bun serve:web:docker` defaults to `--build-memory 10g --build-cpus 2 --build-max-parallelism 1`
+- `bun serve:web:docker:bg` defaults to `--build-memory 10g --build-cpus 2 --build-max-parallelism 1`
 
 You can still override those defaults per run by appending your own flags after
 `--`, for example:
@@ -369,9 +369,11 @@ Operational notes:
 - If no build caps are configured, the helper continues using Docker's default
   builder behavior.
 - A lower parallelism setting usually trades build speed for host stability.
-- If BuildKit fails with `ResourceExhausted` or `cannot allocate memory`, lower
-  `--build-memory` and `--build-max-parallelism` before retrying the same
-  commit.
+- If BuildKit fails with `ResourceExhausted` or `cannot allocate memory` while
+  host memory is still available, the builder cgroup is too small; raise
+  `--build-memory` while keeping `--build-max-parallelism 1`.
+- If host memory or swap is saturated, lower `--build-max-parallelism` first
+  and stop unrelated containers before raising the builder memory cap.
 
 ## Redis Profile
 
