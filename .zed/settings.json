@@ -3,13 +3,52 @@
     "source.organizeImports.biome": true,
     "source.fixAll.biome": true
   },
+  "file_scan_exclusions": [
+    "**/.git",
+    "**/.svn",
+    "**/.hg",
+    "**/.jj",
+    "**/CVS",
+    "**/.DS_Store",
+    "**/Thumbs.db",
+    "**/.classpath",
+    "**/.settings",
+    "**/node_modules",
+    "**/.turbo",
+    "**/.next",
+    "**/dist",
+    "apps/mobile/build",
+    "**/coverage",
+    "**/.cache",
+    "**/.dart_tool",
+    "**/target",
+    "**/.venv",
+    "**/.mypy_cache",
+    "**/.pytest_cache",
+    "**/.ruff_cache",
+    "**/__pycache__",
+    "**/Pods",
+    "**/playwright-report",
+    "**/test-results",
+    "tmp"
+  ],
   "languages": {
     "TypeScript": {
       "formatter": { "language_server": { "name": "biome" } },
-      "language_servers": ["tsgo", "vtsls", "oxlint"]
+      "language_servers": ["tsgo", "oxlint", "!vtsls"]
     },
-    "JavaScript": { "formatter": { "language_server": { "name": "biome" } } },
-    "TSX": { "formatter": { "language_server": { "name": "biome" } } },
+    "JavaScript": {
+      "formatter": { "language_server": { "name": "biome" } },
+      "language_servers": ["tsgo", "!vtsls"]
+    },
+    "JSX": {
+      "formatter": { "language_server": { "name": "biome" } },
+      "language_servers": ["tsgo", "!vtsls"]
+    },
+    "TSX": {
+      "formatter": { "language_server": { "name": "biome" } },
+      "language_servers": ["tsgo", "!vtsls"]
+    },
     "JSON": { "formatter": { "language_server": { "name": "biome" } } },
     "JSONC": { "formatter": { "language_server": { "name": "biome" } } },
     "CSS": { "formatter": { "language_server": { "name": "biome" } } }
