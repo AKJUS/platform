@@ -88,7 +88,7 @@ async function validateModuleGroupRouteAccess(
 const UpdateModuleGroupSchema = z
   .object({
     title: z.string().trim().min(1).max(255).optional(),
-    icon: z.string().trim().max(255).optional(),
+    icon: z.string().trim().max(255).nullable().optional(),
     color: z
       .string()
       .trim()
@@ -165,15 +165,25 @@ export const PUT = withSessionAuth(
       color: parsed.data.color?.toLowerCase(),
     };
 
-    const { error } = await access.sbAdmin
+    const { data: updated, error } = await access.sbAdmin
       .from('workspace_course_module_groups')
       .update(updatePayload)
-      .eq('id', moduleGroupId);
+      .eq('id', moduleGroupId)
+      .eq('group_id', groupId)
+      .select('id')
+      .maybeSingle();
 
     if (error) {
       return NextResponse.json(
         { message: 'Error updating workspace course module group' },
         { status: 500 }
+      );
+    }
+
+    if (!updated) {
+      return NextResponse.json(
+        { message: 'Module group not found' },
+        { status: 404 }
       );
     }
 
@@ -223,15 +233,25 @@ export const DELETE = withSessionAuth(
       );
     }
 
-    const { error } = await access.sbAdmin
+    const { data: deleted, error } = await access.sbAdmin
       .from('workspace_course_module_groups')
       .delete()
-      .eq('id', moduleGroupId);
+      .eq('id', moduleGroupId)
+      .eq('group_id', groupId)
+      .select('id')
+      .maybeSingle();
 
     if (error) {
       return NextResponse.json(
         { message: 'Error deleting workspace course module group' },
         { status: 500 }
+      );
+    }
+
+    if (!deleted) {
+      return NextResponse.json(
+        { message: 'Module group not found' },
+        { status: 404 }
       );
     }
 

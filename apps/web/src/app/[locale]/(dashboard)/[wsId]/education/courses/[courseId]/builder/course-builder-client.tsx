@@ -330,19 +330,27 @@ export function CourseBuilderClient({
           activeModuleIndex,
           normalizedTargetIndex
         );
-        queryClient.setQueryData(
-          [
-            'workspaceCourseModuleGroupModules',
-            resolvedWsId,
-            courseId,
-            targetGroupId,
-          ],
-          nextModules
+        const groupQueryKey = [
+          'workspaceCourseModuleGroupModules',
+          resolvedWsId,
+          courseId,
+          targetGroupId,
+        ] as const;
+        queryClient.setQueryData(groupQueryKey, nextModules);
+        reorderModulesMutation.mutate(
+          {
+            moduleGroupId: targetGroupId,
+            moduleIds: nextModules.map((m) => m.id),
+          },
+          {
+            onError: () => {
+              queryClient.setQueryData(groupQueryKey, sourceModules);
+            },
+            onSettled: () => {
+              queryClient.invalidateQueries({ queryKey: groupQueryKey });
+            },
+          }
         );
-        reorderModulesMutation.mutate({
-          moduleGroupId: targetGroupId,
-          moduleIds: nextModules.map((m) => m.id),
-        });
       } else {
         const nextSource = sourceModules.filter((m) => m.id !== activeIdStr);
         const targetModules = modulesByGroupId.get(targetGroupId) ?? [];
@@ -351,26 +359,26 @@ export function CourseBuilderClient({
           targetIndex >= 0 && targetIndex <= nextTarget.length
             ? targetIndex
             : nextTarget.length;
-        nextTarget.splice(insertIndex, 0, movedModule);
+        nextTarget.splice(insertIndex, 0, {
+          ...movedModule,
+          module_group_id: targetGroupId,
+        });
 
-        queryClient.setQueryData(
-          [
-            'workspaceCourseModuleGroupModules',
-            resolvedWsId,
-            courseId,
-            sourceGroupId,
-          ],
-          nextSource
-        );
-        queryClient.setQueryData(
-          [
-            'workspaceCourseModuleGroupModules',
-            resolvedWsId,
-            courseId,
-            targetGroupId,
-          ],
-          nextTarget
-        );
+        const sourceQueryKey = [
+          'workspaceCourseModuleGroupModules',
+          resolvedWsId,
+          courseId,
+          sourceGroupId,
+        ] as const;
+        const targetQueryKey = [
+          'workspaceCourseModuleGroupModules',
+          resolvedWsId,
+          courseId,
+          targetGroupId,
+        ] as const;
+
+        queryClient.setQueryData(sourceQueryKey, nextSource);
+        queryClient.setQueryData(targetQueryKey, nextTarget);
 
         try {
           await moveModuleMutation.mutateAsync({
@@ -379,17 +387,33 @@ export function CourseBuilderClient({
             targetGroupId,
           });
         } catch {
+          queryClient.setQueryData(sourceQueryKey, sourceModules);
+          queryClient.setQueryData(targetQueryKey, targetModules);
           return;
         }
-        reorderModulesMutation.mutate({
-          moduleGroupId: targetGroupId,
-          moduleIds: nextTarget.map((m) => m.id),
-        });
+        reorderModulesMutation.mutate(
+          {
+            moduleGroupId: targetGroupId,
+            moduleIds: nextTarget.map((m) => m.id),
+          },
+          {
+            onError: () => {
+              queryClient.invalidateQueries({ queryKey: targetQueryKey });
+            },
+          }
+        );
         if (nextSource.length > 0) {
-          reorderModulesMutation.mutate({
-            moduleGroupId: sourceGroupId,
-            moduleIds: nextSource.map((m) => m.id),
-          });
+          reorderModulesMutation.mutate(
+            {
+              moduleGroupId: sourceGroupId,
+              moduleIds: nextSource.map((m) => m.id),
+            },
+            {
+              onError: () => {
+                queryClient.invalidateQueries({ queryKey: sourceQueryKey });
+              },
+            }
+          );
         }
       }
     }
@@ -801,6 +825,7 @@ export function CourseBuilderClient({
                     <Button
                       variant="outline"
                       className="rounded-xl"
+                      disabled={duplicateMutation.isPending}
                       onClick={() =>
                         duplicateMutation.mutate({
                           content: activeModule.content,
@@ -819,6 +844,7 @@ export function CourseBuilderClient({
                     <Button
                       variant="destructive"
                       className="rounded-xl"
+                      disabled={deleteModuleMutation.isPending}
                       onClick={() =>
                         deleteModuleMutation.mutate({
                           moduleGroupId: activeModule.module_group_id,

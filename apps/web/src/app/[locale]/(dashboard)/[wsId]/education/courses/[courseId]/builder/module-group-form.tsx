@@ -151,7 +151,11 @@ export function ModuleGroupForm({
     (value: string | null) => {
       const newValue = value ?? '';
       setLocalIcon(newValue);
-      form.setValue('icon', newValue);
+      form.setValue('icon', newValue, {
+        shouldDirty: true,
+        shouldTouch: true,
+        shouldValidate: true,
+      });
     },
     [form]
   );
@@ -159,7 +163,11 @@ export function ModuleGroupForm({
   const handleColorChange = useCallback(
     (value: string) => {
       setLocalColor(value);
-      form.setValue('color', value);
+      form.setValue('color', value, {
+        shouldDirty: true,
+        shouldTouch: true,
+        shouldValidate: true,
+      });
     },
     [form]
   );
@@ -167,7 +175,11 @@ export function ModuleGroupForm({
   const handleRandomizeColor = useCallback(() => {
     const newColor = generateRandomColor();
     setLocalColor(newColor);
-    form.setValue('color', newColor);
+    form.setValue('color', newColor, {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: true,
+    });
   }, [form]);
 
   const handleSubmit = useCallback(
@@ -176,7 +188,8 @@ export function ModuleGroupForm({
       try {
         await onSubmit({
           title: values.title,
-          icon: values.icon || undefined,
+          icon:
+            isEditing && values.icon === '' ? null : values.icon || undefined,
           color: values.color?.toLowerCase(),
         });
 

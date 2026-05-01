@@ -170,3 +170,12 @@ begin
     and modules."module_group_id" = ordered_with_groups."module_group_id";
 end;
 $$;
+
+revoke all on function "public"."reorder_workspace_course_module_groups"(uuid, uuid[]) from public, anon, authenticated;
+grant execute on function "public"."reorder_workspace_course_module_groups"(uuid, uuid[]) to service_role;
+
+revoke all on function "public"."reorder_workspace_course_modules_in_module_group"(uuid, uuid[]) from public, anon, authenticated;
+grant execute on function "public"."reorder_workspace_course_modules_in_module_group"(uuid, uuid[]) to service_role;
+
+revoke all on function "public"."reorder_workspace_course_modules"(uuid, uuid[]) from public, anon, authenticated;
+grant execute on function "public"."reorder_workspace_course_modules"(uuid, uuid[]) to service_role;

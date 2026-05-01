@@ -55,7 +55,7 @@ export async function listWorkspaceCourseModuleGroupModules(
 export interface UpsertWorkspaceCourseModuleGroupPayload {
   id?: string;
   title: string;
-  icon?: string;
+  icon?: string | null;
   color?: string;
 }
 

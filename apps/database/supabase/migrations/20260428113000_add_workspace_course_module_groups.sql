@@ -117,6 +117,22 @@ as $$
 declare
   v_parent_group_id uuid;
 begin
+  if new."module_group_id" is null then
+    insert into "public"."workspace_course_module_groups" (
+      "group_id",
+      "title",
+      "sort_key"
+    )
+    values (
+      new."group_id",
+      'General',
+      1
+    )
+    on conflict ("group_id", "sort_key")
+    do update set "title" = "workspace_course_module_groups"."title"
+    returning "id" into new."module_group_id";
+  end if;
+
   select "group_id"
   into v_parent_group_id
   from "public"."workspace_course_module_groups"
@@ -161,6 +177,7 @@ begin
 end;
 $$;
 
+revoke all on function "public"."reorder_workspace_course_module_groups"(uuid, uuid[]) from public, anon, authenticated;
 grant execute on function "public"."reorder_workspace_course_module_groups"(uuid, uuid[]) to service_role;
 
 create or replace function "public"."reorder_workspace_course_modules_in_module_group"(
@@ -183,6 +200,7 @@ begin
 end;
 $$;
 
+revoke all on function "public"."reorder_workspace_course_modules_in_module_group"(uuid, uuid[]) from public, anon, authenticated;
 grant execute on function "public"."reorder_workspace_course_modules_in_module_group"(uuid, uuid[]) to service_role;
 
 create or replace function "public"."reorder_workspace_course_modules"(
@@ -220,4 +238,5 @@ begin
 end;
 $$;
 
+revoke all on function "public"."reorder_workspace_course_modules"(uuid, uuid[]) from public, anon, authenticated;
 grant execute on function "public"."reorder_workspace_course_modules"(uuid, uuid[]) to service_role;

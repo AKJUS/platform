@@ -24,7 +24,7 @@ const MAX_SORT_KEY_INSERT_ATTEMPTS = 3;
 const CreateModuleGroupSchema = z
   .object({
     title: z.string().trim().min(1).max(255),
-    icon: z.string().trim().max(255).optional(),
+    icon: z.string().trim().max(255).nullable().optional(),
     color: z
       .string()
       .trim()

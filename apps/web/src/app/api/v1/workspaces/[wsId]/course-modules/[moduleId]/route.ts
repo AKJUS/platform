@@ -17,6 +17,8 @@ interface RouteParams {
 type WorkspaceCourseModuleUpdate =
   Database['public']['Tables']['workspace_course_modules']['Update'];
 
+const MAX_SORT_KEY_UPDATE_ATTEMPTS = 3;
+
 function summarizeUpdatePayload(updatePayload: WorkspaceCourseModuleUpdate) {
   return {
     group_id: updatePayload.group_id ?? null,
@@ -190,54 +192,67 @@ export const PUT = withSessionAuth(
       }
     }
 
-    const updatePayload: WorkspaceCourseModuleUpdate = parsed.data;
-    if (
+    const shouldReallocateSortKey =
       parsed.data.module_group_id &&
-      parsed.data.module_group_id !== access.module.module_group_id
-    ) {
-      const {
-        data: lastModuleInTargetGroup,
-        error: lastModuleInTargetGroupError,
-      } = await access.sbAdmin
-        .from('workspace_course_modules')
-        .select('sort_key')
-        .eq('group_id', targetGroupId)
-        .eq('module_group_id', parsed.data.module_group_id)
-        .order('sort_key', { ascending: false, nullsFirst: false })
-        .limit(1)
-        .maybeSingle();
+      parsed.data.module_group_id !== access.module.module_group_id;
+    const updatePayload: WorkspaceCourseModuleUpdate = { ...parsed.data };
+    const maxAttempts = shouldReallocateSortKey
+      ? MAX_SORT_KEY_UPDATE_ATTEMPTS
+      : 1;
 
-      if (lastModuleInTargetGroupError) {
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+      if (shouldReallocateSortKey && parsed.data.module_group_id) {
+        const {
+          data: lastModuleInTargetGroup,
+          error: lastModuleInTargetGroupError,
+        } = await access.sbAdmin
+          .from('workspace_course_modules')
+          .select('sort_key')
+          .eq('group_id', targetGroupId)
+          .eq('module_group_id', parsed.data.module_group_id)
+          .order('sort_key', { ascending: false, nullsFirst: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (lastModuleInTargetGroupError) {
+          return NextResponse.json(
+            { message: 'Failed to determine module sort order' },
+            { status: 500 }
+          );
+        }
+
+        // Preserve contiguous ordering in the destination group and retry
+        // unique-key collisions caused by concurrent moves into that group.
+        updatePayload.sort_key = (lastModuleInTargetGroup?.sort_key ?? 0) + 1;
+      }
+
+      const { error } = await access.sbAdmin
+        .from('workspace_course_modules')
+        .update(updatePayload)
+        .eq('id', moduleId);
+
+      if (!error) {
+        return NextResponse.json({ message: 'success' });
+      }
+
+      if (!shouldReallocateSortKey || error.code !== '23505') {
+        const scrubbedPayload = summarizeUpdatePayload(updatePayload);
+        console.error('Failed to update workspace course module', {
+          error,
+          moduleId,
+          updatePayload: scrubbedPayload,
+        });
         return NextResponse.json(
-          { message: 'Failed to determine module sort order' },
+          { message: 'Error updating workspace course module' },
           { status: 500 }
         );
       }
-
-      // Preserve contiguous ordering in the destination group and avoid
-      // unique (module_group_id, sort_key) conflicts when moving modules.
-      updatePayload.sort_key = (lastModuleInTargetGroup?.sort_key ?? 0) + 1;
     }
 
-    const { error } = await access.sbAdmin
-      .from('workspace_course_modules')
-      .update(updatePayload)
-      .eq('id', moduleId);
-
-    if (error) {
-      const scrubbedPayload = summarizeUpdatePayload(updatePayload);
-      console.error('Failed to update workspace course module', {
-        error,
-        moduleId,
-        updatePayload: scrubbedPayload,
-      });
-      return NextResponse.json(
-        { message: 'Error updating workspace course module' },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({ message: 'success' });
+    return NextResponse.json(
+      { message: 'Failed to allocate a unique module sort order' },
+      { status: 409 }
+    );
   },
   { rateLimit: { maxRequests: 60, windowMs: 60000 } }
 );

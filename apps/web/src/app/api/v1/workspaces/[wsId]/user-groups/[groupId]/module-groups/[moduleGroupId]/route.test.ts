@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => {
   const groupMaybeSingle = vi.fn();
   const updateEq = vi.fn();
   const deleteEq = vi.fn();
+  const updateMaybeSingle = vi.fn();
+  const deleteMaybeSingle = vi.fn();
 
   const sessionSupabase = {
     auth: {
@@ -51,11 +53,13 @@ const mocks = vi.hoisted(() => {
   return {
     adminSupabase,
     deleteEq,
+    deleteMaybeSingle,
     existingMaybeSingle,
     groupMaybeSingle,
     normalizeWorkspaceId,
     sessionSupabase,
     updateEq,
+    updateMaybeSingle,
   };
 });
 
@@ -109,8 +113,24 @@ describe('module group item route', () => {
       data: { id: MODULE_GROUP_ID },
       error: null,
     });
-    mocks.updateEq.mockResolvedValue({ error: null });
-    mocks.deleteEq.mockResolvedValue({ error: null });
+    mocks.updateEq.mockReturnValue({
+      eq: vi.fn(() => ({
+        select: vi.fn(() => ({ maybeSingle: mocks.updateMaybeSingle })),
+      })),
+    });
+    mocks.deleteEq.mockReturnValue({
+      eq: vi.fn(() => ({
+        select: vi.fn(() => ({ maybeSingle: mocks.deleteMaybeSingle })),
+      })),
+    });
+    mocks.updateMaybeSingle.mockResolvedValue({
+      data: { id: MODULE_GROUP_ID },
+      error: null,
+    });
+    mocks.deleteMaybeSingle.mockResolvedValue({
+      data: { id: MODULE_GROUP_ID },
+      error: null,
+    });
   });
 
   it('updates module group', async () => {
@@ -138,6 +158,32 @@ describe('module group item route', () => {
     expect(response.status).toBe(200);
   });
 
+  it('returns not found when update matches no module group row', async () => {
+    mocks.updateMaybeSingle.mockResolvedValueOnce({ data: null, error: null });
+    const { PUT } = await import(
+      '@/app/api/v1/workspaces/[wsId]/user-groups/[groupId]/module-groups/[moduleGroupId]/route'
+    );
+
+    const response = await PUT(
+      new NextRequest(
+        `http://localhost/api/v1/workspaces/ws-1/user-groups/${GROUP_ID}/module-groups/${MODULE_GROUP_ID}`,
+        {
+          method: 'PUT',
+          body: JSON.stringify({ title: 'Renamed' }),
+        }
+      ),
+      {
+        params: Promise.resolve({
+          wsId: 'ws-1',
+          groupId: GROUP_ID,
+          moduleGroupId: MODULE_GROUP_ID,
+        }),
+      }
+    );
+
+    expect(response.status).toBe(404);
+  });
+
   it('deletes module group', async () => {
     const { DELETE } = await import(
       '@/app/api/v1/workspaces/[wsId]/user-groups/[groupId]/module-groups/[moduleGroupId]/route'
@@ -158,5 +204,28 @@ describe('module group item route', () => {
     );
 
     expect(response.status).toBe(200);
+  });
+
+  it('returns not found when delete matches no module group row', async () => {
+    mocks.deleteMaybeSingle.mockResolvedValueOnce({ data: null, error: null });
+    const { DELETE } = await import(
+      '@/app/api/v1/workspaces/[wsId]/user-groups/[groupId]/module-groups/[moduleGroupId]/route'
+    );
+
+    const response = await DELETE(
+      new NextRequest(
+        `http://localhost/api/v1/workspaces/ws-1/user-groups/${GROUP_ID}/module-groups/${MODULE_GROUP_ID}`,
+        { method: 'DELETE' }
+      ),
+      {
+        params: Promise.resolve({
+          wsId: 'ws-1',
+          groupId: GROUP_ID,
+          moduleGroupId: MODULE_GROUP_ID,
+        }),
+      }
+    );
+
+    expect(response.status).toBe(404);
   });
 });

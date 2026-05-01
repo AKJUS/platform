@@ -121,6 +121,35 @@ export function CourseModuleForm({
   const disabled =
     !isDirty || !isValid || isSubmitting || saveMutation.isPending;
 
+  const renderModuleGroupPreview = (group: ModuleGroupOption) => {
+    const GroupIcon =
+      getIconComponentByKey(group.icon as PlatformIconKey | null) ?? Circle;
+    const colorStyles = computeAccessibleLabelStyles(group.color || '#64748b');
+
+    return (
+      <div className="flex min-w-0 items-center gap-2">
+        <div
+          className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md"
+          style={
+            colorStyles
+              ? {
+                  backgroundColor: colorStyles.bg,
+                  borderColor: colorStyles.border,
+                  borderWidth: '1px',
+                }
+              : undefined
+          }
+        >
+          <GroupIcon
+            className="h-3 w-3"
+            style={colorStyles ? { color: colorStyles.text } : undefined}
+          />
+        </div>
+        <span className="truncate">{group.title}</span>
+      </div>
+    );
+  };
+
   const onSubmit = async (payload: z.infer<typeof FormSchema>) => {
     try {
       const result = await saveMutation.mutateAsync(payload);
@@ -145,58 +174,36 @@ export function CourseModuleForm({
           <FormField
             control={form.control}
             name="module_group_id"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('module_group')}</FormLabel>
-                <Select value={field.value} onValueChange={field.onChange}>
-                  <FormControl>
-                    <SelectTrigger>
-                      <SelectValue placeholder={t('select_group')} />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {moduleGroups.map((group) => {
-                      const GroupIcon =
-                        getIconComponentByKey(
-                          group.icon as PlatformIconKey | null
-                        ) ?? Circle;
-                      const colorStyles = computeAccessibleLabelStyles(
-                        group.color || '#64748b'
-                      );
-                      return (
+            render={({ field }) => {
+              const selectedGroup = moduleGroups.find(
+                (group) => group.id === field.value
+              );
+
+              return (
+                <FormItem>
+                  <FormLabel>{t('module_group')}</FormLabel>
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <FormControl>
+                      <SelectTrigger className="min-w-0">
+                        {selectedGroup ? (
+                          renderModuleGroupPreview(selectedGroup)
+                        ) : (
+                          <SelectValue placeholder={t('select_group')} />
+                        )}
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {moduleGroups.map((group) => (
                         <SelectItem key={group.id} value={group.id}>
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md"
-                              style={
-                                colorStyles
-                                  ? {
-                                      backgroundColor: colorStyles.bg,
-                                      borderColor: colorStyles.border,
-                                      borderWidth: '1px',
-                                    }
-                                  : undefined
-                              }
-                            >
-                              <GroupIcon
-                                className="h-3 w-3"
-                                style={
-                                  colorStyles
-                                    ? { color: colorStyles.text }
-                                    : undefined
-                                }
-                              />
-                            </div>
-                            <span>{group.title}</span>
-                          </div>
+                          {renderModuleGroupPreview(group)}
                         </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              );
+            }}
           />
         )}
 
