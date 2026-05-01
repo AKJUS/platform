@@ -1,6 +1,6 @@
 ---
 name: tuturuuu-platform
-description: Tuturuuu platform monorepo workflow guidance. Use when Codex works in /Users/vhpx/Documents/GitHub/platform or the tutur3u/platform repo, especially for apps/web Next.js changes, packages/* shared code, apps/database Supabase migrations, apps/docs documentation, translations, navigation, TanStack Query data fetching, repo verification, or Conventional Commit/branch follow-through.
+description: Tuturuuu platform monorepo workflow guidance. Use when Codex works in the tutur3u/platform repo or a local Tuturuuu platform checkout, especially for apps/web Next.js changes, packages/* shared code, apps/database Supabase migrations, apps/docs documentation, translations, navigation, TanStack Query data fetching, repo verification, or Conventional Commit/branch follow-through.
 ---
 
 # Tuturuuu Platform
@@ -38,6 +38,7 @@ Use the more focused plugin skills when they match the task:
 - `$tuturuuu-database` for Supabase schema, RLS, API write, storage, or generated type changes.
 - `$tuturuuu-ci-docs` for workflow files, validators, docs pages, and docs navigation.
 - `$tuturuuu-mobile-task-board` for Flutter task-board date, routing, assignee, detail, or version bump work.
+- `$tuturuuu-review-comments` for fetching, fixing, resolving, and reporting unresolved GitHub PR review threads.
 
 For web dashboard surfaces, default to thin server gates plus client shells backed by TanStack Query, `@tuturuuu/internal-api`, and `nuqs` when the UI needs search, sorting, pagination, explorer navigation, or frequent mutation.
 

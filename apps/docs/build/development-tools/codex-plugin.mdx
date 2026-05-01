@@ -62,6 +62,7 @@ The CI check currently verifies:
 - plugin docs page registration in `apps/docs/docs.json`
 - Codex plugin workflow registration in `tuturuuu.ts`
 - absence of scaffold `[TODO: ...]` placeholders
+- absence of machine-specific local paths in plugin text
 
 ## Validate The Plugin
 
@@ -93,6 +94,8 @@ library.
 - Keep plugin and skill default prompts short, natural, and action-oriented.
   Marketplace prompt cards should read like user goals, for example "Clear the
   unresolved review comments on this PR."
+- Keep skill text portable across machines. Prefer repo-relative paths,
+  `<repo-root>`, or `~` over user-specific absolute paths.
 - Put detailed guidance in `references/` and keep `SKILL.md` focused on the
   workflow that should be loaded immediately.
 - Add marketplace metadata only when deciding where the plugin should be

@@ -13,6 +13,7 @@ FRONTMATTER_RE = re.compile(r"\A---\n(?P<body>.*?)\n---\n", re.DOTALL)
 REFERENCE_RE = re.compile(r"`(references/[^`]+)`")
 DEFAULT_PROMPT_LINE_RE = re.compile(r"^\s*default_prompt:\s*(?P<value>.+?)\s*$", re.M)
 TODO_MARKER = "[TO" + "DO:"
+MACHINE_PATH_MARKERS = ["/Us" + "ers/", "Documents/GitHub/" + "platform"]
 WORKFLOW_NAME = "codex-plugin.yaml"
 DOCS_PAGE = "build/development-tools/codex-plugin"
 MARKETPLACE_NAME = "tuturuuu"
@@ -39,6 +40,12 @@ def fail(message: str) -> None:
 def check_no_todo(path: Path, text: str) -> None:
     if TODO_MARKER in text:
         fail(f"{path} still contains TODO placeholders")
+
+
+def check_no_machine_paths(path: Path, text: str) -> None:
+    for marker in MACHINE_PATH_MARKERS:
+        if marker in text:
+            fail(f"{path} contains machine-specific local path marker: {marker}")
 
 
 def validate_default_prompt(path: Path, prompt: object) -> str:
@@ -336,6 +343,22 @@ def validate_no_todo_under(plugin_root: Path) -> None:
         check_no_todo(path, read_text(path))
 
 
+def validate_portable_text_under(plugin_root: Path) -> None:
+    for path in sorted(plugin_root.rglob("*")):
+        if not path.is_file():
+            continue
+        if "__pycache__" in path.parts or path.suffix in {
+            ".gif",
+            ".jpeg",
+            ".jpg",
+            ".png",
+            ".pyc",
+            ".webp",
+        }:
+            continue
+        check_no_machine_paths(path, read_text(path))
+
+
 def main() -> None:
     plugin_root = Path(__file__).resolve().parents[1]
     repo_root = plugin_root.parents[1]
@@ -346,6 +369,7 @@ def main() -> None:
     validate_ci(repo_root)
     validate_marketplace(repo_root)
     validate_no_todo_under(plugin_root)
+    validate_portable_text_under(plugin_root)
     print(f"OK: validated {plugin_root}")
 
 
