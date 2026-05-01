@@ -26,9 +26,16 @@ function canFinalizeUploadForPath(
     return true;
   }
 
-  return (
+  if (
     path.startsWith('external-projects/') &&
     permissions.containsPermission('manage_external_projects')
+  ) {
+    return true;
+  }
+
+  return (
+    path.startsWith('user-groups/') &&
+    permissions.containsPermission('update_user_groups')
   );
 }
 

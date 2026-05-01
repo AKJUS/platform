@@ -15831,6 +15831,10 @@
     "copy_link": "Sao chép liên kết",
     "courses": "Khóa học",
     "current_group_name": "nhóm này",
+    "error_loading_files": "Không thể tải tệp. Vui lòng thử lại.",
+    "generate_module_error": "Không thể tạo mô-đun",
+    "generate_module_success": "Đã tạo mô-đun khóa học thành công!",
+    "generate_module_with_ai": "Tạo mô-đun khóa học bằng AI",
     "link_copied": "Đã sao chép liên kết vào bộ nhớ tạm",
     "manager": "Quản lý",
     "managers": "Quản lý nhóm",
@@ -15840,6 +15844,7 @@
     "members_and_guests": "Thành viên & Khách",
     "metrics": "Số liệu nhóm",
     "modify_schedule": "Chỉnh sửa lịch trình",
+    "no_files": "Chưa có tệp nào được tải lên.",
     "no_managers": "Không tìm thấy quản lý",
     "no_members": "Không tìm thấy thành viên",
     "no_users_selected": "Chưa chọn người dùng nào.",
@@ -15849,7 +15854,8 @@
     "search_users_placeholder": "Tìm kiếm người dùng...",
     "select_and_submit": "{groupActionLabel} vào {groupName}",
     "share": "Chia sẻ",
-    "share_description": "Tạo liên kết để chia sẻ nhóm này."
+    "share_description": "Tạo liên kết để chia sẻ nhóm này.",
+    "storage": "Lưu trữ"
   },
   "ws-user-group-feedback": {
     "add_feedback": "Thêm nhận xét",

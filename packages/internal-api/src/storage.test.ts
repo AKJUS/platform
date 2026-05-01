@@ -2,9 +2,12 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   createWorkspaceStorageUploadUrl,
   createWorkspaceTaskUploadUrl,
+  createWorkspaceUserGroupStorageUploadUrl,
   deleteWorkspaceStorageObjects,
+  deleteWorkspaceUserGroupStorageFile,
   uploadWorkspaceStorageFile,
   uploadWorkspaceTaskFile,
+  uploadWorkspaceUserGroupStorageFile,
 } from './storage';
 
 function createJsonResponse(payload: unknown) {
@@ -85,6 +88,59 @@ describe('workspace task upload helpers', () => {
           filename: 'file.png',
           taskId: '11111111-1111-4111-8111-111111111111',
         }),
+        cache: 'no-store',
+      })
+    );
+  });
+
+  it('requests user-group upload URLs from the group storage endpoint', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      createJsonResponse({
+        signedUrl: 'https://upload.example.com/group-signed',
+        token: 'token-1',
+        path: 'user-groups/group-1/file.pdf',
+        fullPath: 'ws-1/user-groups/group-1/file.pdf',
+      })
+    );
+
+    await createWorkspaceUserGroupStorageUploadUrl(
+      'ws-1',
+      'group-1',
+      'file.pdf',
+      { size: 5 },
+      {
+        baseUrl: 'https://internal.example.com',
+        fetch: fetchMock as unknown as typeof fetch,
+      }
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://internal.example.com/api/v1/workspaces/ws-1/user-groups/group-1/storage',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          filename: 'file.pdf',
+          size: 5,
+        }),
+        cache: 'no-store',
+      })
+    );
+  });
+
+  it('deletes user-group storage files through the group storage endpoint', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(createJsonResponse({ success: true }));
+
+    await deleteWorkspaceUserGroupStorageFile('ws-1', 'group-1', 'file.pdf', {
+      baseUrl: 'https://internal.example.com',
+      fetch: fetchMock as unknown as typeof fetch,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://internal.example.com/api/v1/workspaces/ws-1/user-groups/group-1/storage?filename=file.pdf',
+      expect.objectContaining({
+        method: 'DELETE',
         cache: 'no-store',
       })
     );
@@ -302,6 +358,59 @@ describe('workspace task upload helpers', () => {
       path: 'documents/file.txt',
       fullPath: 'ws-1/documents/file.txt',
     });
+  });
+
+  it('fails user-group uploads when finalization fails', async () => {
+    const file = new File(['hello'], 'file.pdf', { type: 'application/pdf' });
+    const uploadFetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        createJsonResponse({
+          signedUrl: 'https://upload.example.com/group-signed',
+          token: 'token-1',
+          headers: {
+            'x-upload-target': 'group',
+          },
+          path: 'user-groups/group-1/file.pdf',
+          fullPath: 'ws-1/user-groups/group-1/file.pdf',
+        })
+      )
+      .mockResolvedValueOnce({ ok: true, status: 200, text: async () => '' })
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: async () => ({ message: 'Finalize failed' }),
+        text: async () => 'Finalize failed',
+      });
+
+    await expect(
+      uploadWorkspaceUserGroupStorageFile('ws-1', 'group-1', file, undefined, {
+        baseUrl: 'https://internal.example.com',
+        fetch: uploadFetchMock as unknown as typeof fetch,
+      })
+    ).rejects.toThrow('Finalize failed');
+
+    expect(uploadFetchMock).toHaveBeenNthCalledWith(
+      2,
+      'https://upload.example.com/group-signed',
+      expect.objectContaining({
+        method: 'PUT',
+        body: file,
+        headers: expect.objectContaining({
+          Authorization: 'Bearer token-1',
+          'Content-Type': 'application/pdf',
+          'x-upload-target': 'group',
+        }),
+      })
+    );
+    expect(uploadFetchMock).toHaveBeenNthCalledWith(
+      3,
+      'https://internal.example.com/api/v1/workspaces/ws-1/storage/finalize-upload',
+      expect.objectContaining({
+        method: 'POST',
+        cache: 'no-store',
+      })
+    );
   });
 
   it('reports upload progress completion for Drive uploads', async () => {

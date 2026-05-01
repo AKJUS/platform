@@ -13,6 +13,30 @@ export interface InternalAiChatSummary {
   model?: string | null;
 }
 
+export interface GenerateWorkspaceCourseModulesFromStoragePayload {
+  fileName?: string;
+  groupId: string;
+  maxCharacters?: number;
+  storagePath: string;
+}
+
+export interface GeneratedWorkspaceCourseModule {
+  id: string;
+  name?: string | null;
+  content?: string | null;
+  sort_key?: number | null;
+}
+
+export interface GenerateWorkspaceCourseModulesFromStorageResponse {
+  data: unknown;
+  createdModules: GeneratedWorkspaceCourseModule[] | null;
+  metadata?: {
+    title?: string | null;
+    creditsCharged?: number;
+    truncated?: boolean;
+  };
+}
+
 export async function listWorkspaceAiModelFavorites(
   workspaceId: string,
   options?: InternalApiClientOptions
@@ -72,6 +96,28 @@ export async function updateAiChat(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
+      cache: 'no-store',
+    }
+  );
+}
+
+export async function generateWorkspaceCourseModulesFromStorage(
+  workspaceId: string,
+  payload: GenerateWorkspaceCourseModulesFromStoragePayload,
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  return client.json<GenerateWorkspaceCourseModulesFromStorageResponse>(
+    '/api/ai/course',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        wsId: workspaceId,
+        ...payload,
+      }),
       cache: 'no-store',
     }
   );

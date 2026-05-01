@@ -1,4 +1,7 @@
-import type { ImageTransformOptions } from '@tuturuuu/types';
+import type {
+  ImageTransformOptions,
+  WorkspaceStorageFile,
+} from '@tuturuuu/types';
 import {
   encodePathSegment,
   getInternalApiClient,
@@ -59,14 +62,7 @@ interface WorkspaceStorageMigrationResponse {
   };
 }
 
-export interface WorkspaceStorageListItem {
-  id?: string | null;
-  name: string;
-  created_at?: string | null;
-  updated_at?: string | null;
-  last_accessed_at?: string | null;
-  metadata?: Record<string, unknown> | null;
-}
+export type WorkspaceStorageListItem = WorkspaceStorageFile;
 
 export interface WorkspaceStorageListResponse {
   data: WorkspaceStorageListItem[];
@@ -146,6 +142,10 @@ interface SignedUploadPayload {
   headers?: Record<string, string>;
   path: string;
   fullPath: string | null;
+}
+
+interface WorkspaceUserGroupStorageResponse {
+  data: WorkspaceStorageFile[];
 }
 
 export interface WorkspaceStorageUploadProgress {
@@ -373,6 +373,55 @@ export async function uploadWorkspaceStorageFile(
   );
 }
 
+export async function uploadWorkspaceUserGroupStorageFile(
+  workspaceId: string,
+  groupId: string,
+  file: File,
+  options?: {
+    onUploadProgress?: UploadProgressHandler;
+    upsert?: boolean;
+  },
+  clientOptions?: InternalApiClientOptions
+): Promise<WorkspaceStorageUploadResult> {
+  const fetchImpl = clientOptions?.fetch ?? globalThis.fetch;
+  const { onUploadProgress, upsert } = options ?? {};
+  const uploadUrlResult = await createWorkspaceUserGroupStorageUploadUrl(
+    workspaceId,
+    groupId,
+    file.name,
+    {
+      size: file.size,
+      upsert,
+    },
+    clientOptions
+  );
+
+  return uploadFileWithSignedUrl(
+    file,
+    uploadUrlResult,
+    fetchImpl,
+    onUploadProgress,
+    async (result) => {
+      const finalized = await finalizeWorkspaceStorageUpload(
+        workspaceId,
+        {
+          path: result.path,
+          contentType: file.type || 'application/octet-stream',
+          originalFilename: file.name,
+        },
+        clientOptions
+      );
+
+      return {
+        autoExtract: finalized.autoExtract,
+        finalize: {
+          success: true,
+        },
+      };
+    }
+  );
+}
+
 export async function uploadWorkspaceTaskFile(
   workspaceId: string,
   file: File,
@@ -443,6 +492,38 @@ export async function createWorkspaceStorageUploadUrl(
       body: JSON.stringify({
         filename,
         path: options?.path,
+        upsert: options?.upsert,
+        size: options?.size,
+      }),
+      cache: 'no-store',
+    }
+  );
+
+  return parseSignedUploadPayload(payload);
+}
+
+export async function createWorkspaceUserGroupStorageUploadUrl(
+  workspaceId: string,
+  groupId: string,
+  filename: string,
+  options?: {
+    upsert?: boolean;
+    size?: number;
+  },
+  clientOptions?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(clientOptions);
+  const payload = await client.json<WorkspaceUploadUrlResponse>(
+    `/api/v1/workspaces/${encodePathSegment(
+      workspaceId
+    )}/user-groups/${encodePathSegment(groupId)}/storage`,
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        filename,
         upsert: options?.upsert,
         size: options?.size,
       }),
@@ -554,6 +635,24 @@ export async function listWorkspaceStorageObjects(
   );
 }
 
+export async function listWorkspaceUserGroupStorageFiles(
+  workspaceId: string,
+  groupId: string,
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  const response = await client.json<WorkspaceUserGroupStorageResponse>(
+    `/api/v1/workspaces/${encodePathSegment(
+      workspaceId
+    )}/user-groups/${encodePathSegment(groupId)}/storage`,
+    {
+      cache: 'no-store',
+    }
+  );
+
+  return response.data;
+}
+
 export async function getWorkspaceStorageAnalytics(
   workspaceId: string,
   options?: InternalApiClientOptions
@@ -602,6 +701,25 @@ export async function deleteWorkspaceStorageObject(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ path }),
+      cache: 'no-store',
+    }
+  );
+}
+
+export async function deleteWorkspaceUserGroupStorageFile(
+  workspaceId: string,
+  groupId: string,
+  filename: string,
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  return client.json<WorkspaceStorageDeleteResponse>(
+    `/api/v1/workspaces/${encodePathSegment(
+      workspaceId
+    )}/user-groups/${encodePathSegment(groupId)}/storage`,
+    {
+      method: 'DELETE',
+      query: { filename },
       cache: 'no-store',
     }
   );

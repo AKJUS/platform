@@ -60,6 +60,9 @@ interface CourseBuilderClientProps {
   courseName: string;
   resolvedWsId: string;
   routeWsId: string;
+  backHref?: string;
+  backLabel?: string;
+  extraHeaderActions?: React.ReactNode;
 }
 
 const GROUP_DROPZONE_PREFIX = 'group-dropzone-';
@@ -70,6 +73,9 @@ export function CourseBuilderClient({
   courseName,
   resolvedWsId,
   routeWsId,
+  backHref,
+  backLabel,
+  extraHeaderActions,
 }: CourseBuilderClientProps) {
   const t = useTranslations();
   const queryClient = useQueryClient();
@@ -453,14 +459,17 @@ export function CourseBuilderClient({
             </div>
           }
           primaryAction={
-            <Button
-              asChild
-              className="h-11 rounded-2xl bg-foreground px-5 text-background"
-            >
-              <Link href={`/${routeWsId}/education/courses`}>
-                {t('workspace-education-tabs.courses')}
-              </Link>
-            </Button>
+            <div className="flex items-center gap-2">
+              {extraHeaderActions}
+              <Button
+                asChild
+                className="h-11 rounded-2xl bg-foreground px-5 text-background"
+              >
+                <Link href={backHref ?? `/${routeWsId}/education/courses`}>
+                  {backLabel ?? t('workspace-education-tabs.courses')}
+                </Link>
+              </Button>
+            </div>
           }
         />
 
@@ -488,14 +497,17 @@ export function CourseBuilderClient({
           </div>
         }
         primaryAction={
-          <Button
-            asChild
-            className="h-11 rounded-2xl bg-foreground px-5 text-background"
-          >
-            <Link href={`/${routeWsId}/education/courses`}>
-              {t('workspace-education-tabs.courses')}
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            {extraHeaderActions}
+            <Button
+              asChild
+              className="h-11 rounded-2xl bg-foreground px-5 text-background"
+            >
+              <Link href={backHref ?? `/${routeWsId}/education/courses`}>
+                {backLabel ?? t('workspace-education-tabs.courses')}
+              </Link>
+            </Button>
+          </div>
         }
       />
 

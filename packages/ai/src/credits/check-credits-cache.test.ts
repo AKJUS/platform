@@ -38,7 +38,10 @@ vi.mock('@tuturuuu/utils/ai-temp-auth', () => ({
 }));
 
 import { checkAiCredits, deductAiCredits } from './check-credits';
-import { commitFixedAiCreditReservation } from './reservations';
+import {
+  commitFixedAiCreditReservation,
+  reserveFixedAiCredits,
+} from './reservations';
 
 describe('AI credit Redis snapshot cache', () => {
   beforeEach(() => {
@@ -244,5 +247,59 @@ describe('AI credit Redis snapshot cache', () => {
       wsId: 'workspace-1',
       userId: 'user-1',
     });
+  });
+
+  it('returns a structured reservation failure when the reserve RPC rejects', async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    mocks.rpc.mockRejectedValue(new Error('RPC unavailable'));
+
+    const result = await reserveFixedAiCredits({
+      wsId: 'workspace-1',
+      userId: 'user-1',
+      amount: 2,
+      modelId: 'gemini-lite',
+      feature: 'image_generation',
+    });
+
+    expect(result).toEqual({
+      success: false,
+      reservationId: null,
+      remainingCredits: 0,
+      errorCode: 'RESERVATION_FAILED',
+    });
+    expect(mocks.decrementAiCreditChargeInFlight).toHaveBeenCalledWith({
+      wsId: 'workspace-1',
+      userId: 'user-1',
+    });
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('returns a structured commit failure when the commit RPC rejects', async () => {
+    const consoleErrorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    mocks.rpc.mockRejectedValue(new Error('RPC unavailable'));
+
+    const result = await commitFixedAiCreditReservation('reservation-1', {
+      wsId: 'workspace-1',
+      userId: 'user-1',
+      tool: 'image',
+    });
+
+    expect(result).toEqual({
+      success: false,
+      creditsDeducted: 0,
+      remainingCredits: 0,
+      errorCode: 'COMMIT_FAILED',
+    });
+    expect(mocks.decrementAiCreditChargeInFlight).toHaveBeenCalledWith({
+      wsId: 'workspace-1',
+      userId: 'user-1',
+    });
+
+    consoleErrorSpy.mockRestore();
   });
 });
