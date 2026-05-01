@@ -224,7 +224,7 @@ export async function POST(request: Request) {
       .select('sort_key')
       .eq('group_id', groupId)
       .eq('module_group_id', moduleGroupId)
-      .order('sort_key', { ascending: false })
+      .order('sort_key', { ascending: false, nullsFirst: false })
       .limit(1)
       .maybeSingle();
 
