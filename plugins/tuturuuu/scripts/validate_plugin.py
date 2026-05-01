@@ -14,7 +14,7 @@ REFERENCE_RE = re.compile(r"`(references/[^`]+)`")
 TODO_MARKER = "[TO" + "DO:"
 WORKFLOW_NAME = "codex-plugin.yaml"
 DOCS_PAGE = "build/development-tools/codex-plugin"
-MARKETPLACE_NAME = "tuturuuu-platform"
+MARKETPLACE_NAME = "tuturuuu"
 PLUGIN_NAME = "tuturuuu"
 
 
@@ -214,8 +214,8 @@ def validate_marketplace(repo_root: Path) -> None:
 
     if payload.get("name") != MARKETPLACE_NAME:
         fail(f"{marketplace_path} name must be {MARKETPLACE_NAME}")
-    if payload.get("interface", {}).get("displayName") != "Tuturuuu Platform":
-        fail(f"{marketplace_path} interface.displayName must be Tuturuuu Platform")
+    if payload.get("interface", {}).get("displayName") != "Tuturuuu":
+        fail(f"{marketplace_path} interface.displayName must be Tuturuuu")
 
     plugins = payload.get("plugins")
     if not isinstance(plugins, list):

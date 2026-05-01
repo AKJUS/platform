@@ -1,7 +1,7 @@
 {
-  "name": "tuturuuu-platform",
+  "name": "tuturuuu",
   "interface": {
-    "displayName": "Tuturuuu Platform"
+    "displayName": "Tuturuuu"
   },
   "plugins": [
     {
