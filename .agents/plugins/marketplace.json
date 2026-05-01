@@ -1,0 +1,20 @@
+{
+  "name": "tuturuuu-platform",
+  "interface": {
+    "displayName": "Tuturuuu Platform"
+  },
+  "plugins": [
+    {
+      "name": "tuturuuu",
+      "source": {
+        "source": "local",
+        "path": "./plugins/tuturuuu"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

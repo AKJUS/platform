@@ -14,6 +14,8 @@ REFERENCE_RE = re.compile(r"`(references/[^`]+)`")
 TODO_MARKER = "[TO" + "DO:"
 WORKFLOW_NAME = "codex-plugin.yaml"
 DOCS_PAGE = "build/development-tools/codex-plugin"
+MARKETPLACE_NAME = "tuturuuu-platform"
+PLUGIN_NAME = "tuturuuu"
 
 
 def fail(message: str) -> None:
@@ -66,6 +68,8 @@ def parse_frontmatter(skill_file: Path) -> dict[str, str]:
 
 
 def validate_manifest(plugin_root: Path, manifest: dict) -> None:
+    if manifest.get("name") != PLUGIN_NAME:
+        fail(f"manifest name must be {PLUGIN_NAME}")
     if manifest.get("name") != plugin_root.name:
         fail("manifest name must match plugin folder name")
     if manifest.get("skills") != "./skills/":
@@ -198,6 +202,44 @@ def validate_ci(repo_root: Path) -> None:
         fail(f"{ci_config_path} does not enable {WORKFLOW_NAME}")
 
 
+def validate_marketplace(repo_root: Path) -> None:
+    marketplace_path = repo_root / ".agents" / "plugins" / "marketplace.json"
+    if not marketplace_path.exists():
+        fail(f"missing repo plugin marketplace at {marketplace_path}")
+
+    try:
+        payload = json.loads(read_text(marketplace_path))
+    except json.JSONDecodeError as exc:
+        fail(f"invalid JSON in {marketplace_path}: {exc}")
+
+    if payload.get("name") != MARKETPLACE_NAME:
+        fail(f"{marketplace_path} name must be {MARKETPLACE_NAME}")
+    if payload.get("interface", {}).get("displayName") != "Tuturuuu Platform":
+        fail(f"{marketplace_path} interface.displayName must be Tuturuuu Platform")
+
+    plugins = payload.get("plugins")
+    if not isinstance(plugins, list):
+        fail(f"{marketplace_path} plugins must be an array")
+
+    matching_entries = [
+        entry
+        for entry in plugins
+        if isinstance(entry, dict) and entry.get("name") == PLUGIN_NAME
+    ]
+    if len(matching_entries) != 1:
+        fail(f"{marketplace_path} must contain exactly one {PLUGIN_NAME} entry")
+
+    entry = matching_entries[0]
+    if entry.get("source") != {"source": "local", "path": "./plugins/tuturuuu"}:
+        fail(f"{marketplace_path} {PLUGIN_NAME} source must point at ./plugins/tuturuuu")
+    if entry.get("policy", {}).get("installation") != "AVAILABLE":
+        fail(f"{marketplace_path} {PLUGIN_NAME} policy.installation must be AVAILABLE")
+    if entry.get("policy", {}).get("authentication") != "ON_INSTALL":
+        fail(f"{marketplace_path} {PLUGIN_NAME} policy.authentication must be ON_INSTALL")
+    if entry.get("category") != "Productivity":
+        fail(f"{marketplace_path} {PLUGIN_NAME} category must be Productivity")
+
+
 def validate_no_todo_under(plugin_root: Path) -> None:
     for path in sorted(plugin_root.rglob("*")):
         if path.is_file() and path.name != ".DS_Store":
@@ -212,6 +254,7 @@ def main() -> None:
     validate_skills(plugin_root, manifest)
     validate_docs(repo_root)
     validate_ci(repo_root)
+    validate_marketplace(repo_root)
     validate_no_todo_under(plugin_root)
     print(f"OK: validated {plugin_root}")
 

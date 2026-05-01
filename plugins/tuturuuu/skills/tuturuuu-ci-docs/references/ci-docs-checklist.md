@@ -10,12 +10,14 @@ Use this checklist when changing CI, validators, docs, or repo automation.
 - Prefer `permissions: contents: read` for validation-only jobs.
 - Prefer standard-library validators for plugin, docs, and repository metadata checks.
 - Keep path-sensitive checks deterministic and run them from the repo root.
+- For repo-local Codex plugins, keep `.agents/plugins/marketplace.json` present and pointed at `./plugins/<plugin-name>`.
 
 ## Docs
 
 - Add new docs pages to `apps/docs/docs.json`.
 - Mention exact validator commands next to the system they validate.
 - Document known local dependency requirements instead of hiding them in CI.
+- Document restart or install steps when Codex must rediscover local plugin marketplace metadata.
 - Keep docs focused on operational behavior: what to run, where files live, what the check catches, and what to do when it fails.
 
 ## Verification

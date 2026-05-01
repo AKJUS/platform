@@ -7,6 +7,24 @@ The local Tuturuuu Codex plugin lives at `plugins/tuturuuu`. It packages
 repo-specific operating knowledge as Codex skills so future agent sessions can
 load focused guidance without copying long instructions into every prompt.
 
+## Discovery
+
+Codex discovers repo-local plugins through
+`.agents/plugins/marketplace.json`. The Tuturuuu marketplace is named
+`tuturuuu-platform`, displays as `Tuturuuu Platform`, and points its local plugin
+entry at `./plugins/tuturuuu`.
+
+After changing marketplace metadata or plugin files, restart Codex. Then open
+the plugin directory, choose the `Tuturuuu Platform` marketplace, and install the
+`Tuturuuu` plugin.
+
+If Codex does not show the repo marketplace after restart, add the repo root as
+a local marketplace source from the CLI:
+
+```bash
+codex plugin marketplace add ./
+```
+
 ## Included Skills
 
 - `$tuturuuu-platform`: repo-wide workflow guidance for `apps/web`,
@@ -29,6 +47,7 @@ the repo's other CI switchboard-controlled checks.
 The CI check currently verifies:
 
 - plugin manifest JSON and interface metadata
+- repo marketplace metadata at `.agents/plugins/marketplace.json`
 - skill folder and frontmatter naming parity
 - `agents/openai.yaml` defaults for every skill
 - skill `references/` links
