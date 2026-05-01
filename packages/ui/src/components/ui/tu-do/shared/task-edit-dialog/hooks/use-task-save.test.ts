@@ -195,6 +195,7 @@ describe('applyPendingRelationshipSummary', () => {
             ticket_prefix: null,
           },
           child_count: 1,
+          completed_child_count: 0,
           blocked_by_count: 0,
           blocking_count: 0,
           related_count: 0,
