@@ -37,6 +37,12 @@ codex plugin marketplace add ./
   generated type, storage, and database verification guidance.
 - `$tuturuuu-ci-docs`: GitHub Actions, `tuturuuu.ts`, validation script,
   docs-page, and docs navigation guidance.
+- `$tuturuuu-review-comments`: GitHub PR review-thread guidance for checking,
+  re-checking, validating, fixing, resolving, and committing unresolved review
+  comments. Addressed review threads are resolved by default after validation;
+  commits and pushes still require an explicit user request. Its bundled
+  `fetch_review_threads.py` helper supports `--active-only --summary` and emits
+  review-thread counts for final re-check reports.
 
 ## CI Coverage
 
@@ -47,6 +53,8 @@ the repo's other CI switchboard-controlled checks.
 The CI check currently verifies:
 
 - plugin manifest JSON and interface metadata
+- natural default prompt examples for the invokable skills, written as short
+  user requests instead of visible `$skill` commands
 - repo marketplace metadata at `.agents/plugins/marketplace.json`
 - skill folder and frontmatter naming parity
 - `agents/openai.yaml` defaults for every skill
@@ -54,6 +62,7 @@ The CI check currently verifies:
 - plugin docs page registration in `apps/docs/docs.json`
 - Codex plugin workflow registration in `tuturuuu.ts`
 - absence of scaffold `[TODO: ...]` placeholders
+- absence of machine-specific local paths in plugin text
 
 ## Validate The Plugin
 
@@ -66,10 +75,11 @@ python3 plugins/tuturuuu/scripts/validate_plugin.py
 For individual skills, run the Codex skill validator:
 
 ```bash
-python3 /Users/vhpx/.codex/skills/.system/skill-creator/scripts/quick_validate.py plugins/tuturuuu/skills/tuturuuu-platform
-python3 /Users/vhpx/.codex/skills/.system/skill-creator/scripts/quick_validate.py plugins/tuturuuu/skills/tuturuuu-mobile-task-board
-python3 /Users/vhpx/.codex/skills/.system/skill-creator/scripts/quick_validate.py plugins/tuturuuu/skills/tuturuuu-database
-python3 /Users/vhpx/.codex/skills/.system/skill-creator/scripts/quick_validate.py plugins/tuturuuu/skills/tuturuuu-ci-docs
+python3 ~/.codex/skills/.system/skill-creator/scripts/quick_validate.py plugins/tuturuuu/skills/tuturuuu-platform
+python3 ~/.codex/skills/.system/skill-creator/scripts/quick_validate.py plugins/tuturuuu/skills/tuturuuu-mobile-task-board
+python3 ~/.codex/skills/.system/skill-creator/scripts/quick_validate.py plugins/tuturuuu/skills/tuturuuu-database
+python3 ~/.codex/skills/.system/skill-creator/scripts/quick_validate.py plugins/tuturuuu/skills/tuturuuu-ci-docs
+python3 ~/.codex/skills/.system/skill-creator/scripts/quick_validate.py plugins/tuturuuu/skills/tuturuuu-review-comments
 ```
 
 The Codex skill validator imports `yaml`, so it requires `PyYAML` in the active
@@ -81,6 +91,11 @@ library.
 - Keep `plugins/tuturuuu/.codex-plugin/plugin.json` aligned with the plugin
   folder name.
 - Keep each skill folder name aligned with its `SKILL.md` frontmatter `name`.
+- Keep plugin and skill default prompts short, natural, and action-oriented.
+  Marketplace prompt cards should read like user goals, for example "Clear the
+  unresolved review comments on this PR."
+- Keep skill text portable across machines. Prefer repo-relative paths,
+  `<repo-root>`, or `~` over user-specific absolute paths.
 - Put detailed guidance in `references/` and keep `SKILL.md` focused on the
   workflow that should be loaded immediately.
 - Add marketplace metadata only when deciding where the plugin should be

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Tuturuuu Review Comments"
+  short_description: "Fix unresolved PR review comments"
+  default_prompt: "Clear the unresolved review comments on this PR."

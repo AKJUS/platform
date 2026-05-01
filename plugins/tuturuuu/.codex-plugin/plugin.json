@@ -14,8 +14,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Tuturuuu",
-    "shortDescription": "Work in the Tuturuuu platform repo with local conventions.",
-    "longDescription": "Provides Codex skills for safe Tuturuuu platform development, including repo-wide workflow rules, Flutter mobile task-board guidance, Supabase database patterns, CI/docs maintenance, and plugin validation.",
+    "shortDescription": "Keep Tuturuuu platform work aligned with repo conventions.",
+    "longDescription": "Provides Codex skills for safe Tuturuuu platform development, including repo-wide workflow rules, Flutter mobile task-board guidance, Supabase database patterns, CI/docs maintenance, review-comment follow-through, and plugin validation.",
     "developerName": "Tuturuuu",
     "category": "Productivity",
     "capabilities": [
@@ -23,16 +23,18 @@
       "Workflow checklists",
       "Mobile task-board support",
       "Database change guidance",
-      "CI and docs validation"
+      "CI and docs validation",
+      "Review comment resolution"
     ],
     "websiteURL": "https://tuturuuu.com",
     "privacyPolicyURL": "https://tuturuuu.com/privacy",
     "termsOfServiceURL": "https://tuturuuu.com/terms",
     "defaultPrompt": [
-      "Use $tuturuuu-platform to implement a platform change.",
-      "Use $tuturuuu-mobile-task-board to fix a task-board issue.",
-      "Use $tuturuuu-database to plan a Supabase change.",
-      "Use $tuturuuu-ci-docs to update CI and docs."
+      "Make this platform change and run the checks it needs.",
+      "Update the Supabase schema or API write path safely.",
+      "Fix this Flutter task-board behavior and verify it.",
+      "Update the docs or CI workflow and validate the follow-through.",
+      "Clear the unresolved review comments on this PR."
     ],
     "brandColor": "#000000",
     "composerIcon": "./assets/light.png",

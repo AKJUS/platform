@@ -1,6 +1,6 @@
 # Tuturuuu Platform Checklist
 
-Use this checklist before and after code changes in `/Users/vhpx/Documents/GitHub/platform`.
+Use this checklist before and after code changes in the current Tuturuuu platform checkout.
 
 ## Before Editing
 

@@ -1,4 +1,4 @@
 interface:
   display_name: "Tuturuuu CI Docs"
   short_description: "Maintain Tuturuuu CI and docs follow-through"
-  default_prompt: "Use $tuturuuu-ci-docs to update CI and docs."
+  default_prompt: "Update the docs or CI workflow and validate the follow-through."

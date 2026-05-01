@@ -11,11 +11,25 @@ from pathlib import Path
 
 FRONTMATTER_RE = re.compile(r"\A---\n(?P<body>.*?)\n---\n", re.DOTALL)
 REFERENCE_RE = re.compile(r"`(references/[^`]+)`")
+DEFAULT_PROMPT_LINE_RE = re.compile(r"^\s*default_prompt:\s*(?P<value>.+?)\s*$", re.M)
 TODO_MARKER = "[TO" + "DO:"
+MACHINE_PATH_MARKERS = ["/Us" + "ers/", "Documents/GitHub/" + "platform"]
 WORKFLOW_NAME = "codex-plugin.yaml"
 DOCS_PAGE = "build/development-tools/codex-plugin"
 MARKETPLACE_NAME = "tuturuuu"
 PLUGIN_NAME = "tuturuuu"
+MAX_DEFAULT_PROMPT_LENGTH = 120
+PROMPT_COVERAGE_PATTERNS = {
+    "tuturuuu-platform": re.compile(r"\bplatform\b", re.IGNORECASE),
+    "tuturuuu-mobile-task-board": re.compile(
+        r"\b(flutter|mobile|task-board|task board)\b", re.IGNORECASE
+    ),
+    "tuturuuu-database": re.compile(r"\b(supabase|schema|api)\b", re.IGNORECASE),
+    "tuturuuu-ci-docs": re.compile(r"\b(ci|docs?|workflow)\b", re.IGNORECASE),
+    "tuturuuu-review-comments": re.compile(
+        r"\b(review comments?|review threads?|pr comments?)\b", re.IGNORECASE
+    ),
+}
 
 
 def fail(message: str) -> None:
@@ -26,6 +40,74 @@ def fail(message: str) -> None:
 def check_no_todo(path: Path, text: str) -> None:
     if TODO_MARKER in text:
         fail(f"{path} still contains TODO placeholders")
+
+
+def check_no_machine_paths(path: Path, text: str) -> None:
+    for marker in MACHINE_PATH_MARKERS:
+        if marker in text:
+            fail(f"{path} contains machine-specific local path marker: {marker}")
+
+
+def validate_default_prompt(path: Path, prompt: object) -> str:
+    if not isinstance(prompt, str) or not prompt.strip():
+        fail(f"{path} has an empty default prompt")
+
+    prompt_text = prompt.strip()
+    if len(prompt_text) > MAX_DEFAULT_PROMPT_LENGTH:
+        fail(f"{path} default prompt is too long: {prompt_text}")
+    if prompt_text.lower().startswith("use $") or "$tuturuuu-" in prompt_text:
+        fail(f"{path} default prompt should be a natural user request: {prompt_text}")
+    return prompt_text
+
+
+def parse_quoted_single_line_value(path: Path, field: str, raw_value: str) -> str:
+    value = raw_value.strip()
+    if not value:
+        fail(f"{path} {field} must not be empty")
+
+    quote = value[0]
+    if quote not in {"'", '"'}:
+        fail(f"{path} {field} must be quoted")
+
+    chars: list[str] = []
+    index = 1
+    while index < len(value):
+        char = value[index]
+
+        if quote == '"' and char == "\\":
+            index += 1
+            if index >= len(value):
+                fail(f"{path} {field} has an unterminated escape sequence")
+            chars.append(value[index])
+            index += 1
+            continue
+
+        if quote == "'" and char == "'" and index + 1 < len(value) and value[index + 1] == "'":
+            chars.append("'")
+            index += 2
+            continue
+
+        if char == quote:
+            trailing = value[index + 1 :].strip()
+            if trailing:
+                fail(f"{path} {field} has trailing content after the closing quote")
+            return "".join(chars)
+
+        chars.append(char)
+        index += 1
+
+    fail(f"{path} {field} is missing a matching closing quote")
+
+
+def extract_default_prompt(openai_yaml: Path, openai_text: str) -> str:
+    matches = list(DEFAULT_PROMPT_LINE_RE.finditer(openai_text))
+    if len(matches) != 1:
+        fail(f"{openai_yaml} must contain exactly one default_prompt line")
+    return parse_quoted_single_line_value(
+        openai_yaml,
+        "default_prompt",
+        matches[0].group("value"),
+    )
 
 
 def read_text(path: Path) -> str:
@@ -82,8 +164,15 @@ def validate_manifest(plugin_root: Path, manifest: dict) -> None:
     prompts = interface.get("defaultPrompt")
     if not isinstance(prompts, list) or not prompts:
         fail("manifest interface.defaultPrompt must be a non-empty list")
-    if len(prompts) > 4:
-        fail("manifest interface.defaultPrompt should stay focused with at most 4 prompts")
+    if len(prompts) > 8:
+        fail("manifest interface.defaultPrompt should stay focused with at most 8 prompts")
+    prompt_text = "\n".join(
+        validate_default_prompt(plugin_root / ".codex-plugin" / "plugin.json", prompt)
+        for prompt in prompts
+    )
+    for skill_name, pattern in PROMPT_COVERAGE_PATTERNS.items():
+        if not pattern.search(prompt_text):
+            fail(f"manifest defaultPrompt should include a natural prompt for {skill_name}")
 
     for field in (
         "displayName",
@@ -115,11 +204,10 @@ def validate_openai_yaml(skill_dir: Path) -> None:
 
     openai_text = read_text(openai_yaml)
     check_no_todo(openai_yaml, openai_text)
-    if f"${skill_dir.name}" not in openai_text:
-        fail(f"{openai_yaml} default prompt should mention ${skill_dir.name}")
     for required in ("display_name:", "short_description:", "default_prompt:"):
         if required not in openai_text:
             fail(f"{openai_yaml} is missing {required}")
+    validate_default_prompt(openai_yaml, extract_default_prompt(openai_yaml, openai_text))
 
 
 def validate_reference_links(skill_dir: Path, skill_file: Path) -> None:
@@ -139,7 +227,6 @@ def validate_skills(plugin_root: Path, manifest: dict) -> None:
     if not skill_dirs:
         fail("plugin must contain at least one skill")
 
-    prompt_text = "\n".join(manifest["interface"]["defaultPrompt"])
     for skill_dir in skill_dirs:
         skill_file = skill_dir / "SKILL.md"
         if not skill_file.exists():
@@ -152,13 +239,6 @@ def validate_skills(plugin_root: Path, manifest: dict) -> None:
 
         validate_openai_yaml(skill_dir)
         validate_reference_links(skill_dir, skill_file)
-        if f"${skill_dir.name}" not in prompt_text and skill_dir.name in {
-            "tuturuuu-platform",
-            "tuturuuu-mobile-task-board",
-            "tuturuuu-database",
-            "tuturuuu-ci-docs",
-        }:
-            fail(f"manifest defaultPrompt should mention ${skill_dir.name}")
 
 
 def validate_docs(repo_root: Path) -> None:
@@ -249,8 +329,34 @@ def validate_marketplace(repo_root: Path) -> None:
 
 def validate_no_todo_under(plugin_root: Path) -> None:
     for path in sorted(plugin_root.rglob("*")):
-        if path.is_file() and path.suffix not in {".png", ".jpg", ".jpeg", ".webp", ".gif"}:
-            check_no_todo(path, read_text(path))
+        if not path.is_file():
+            continue
+        if "__pycache__" in path.parts or path.suffix in {
+            ".gif",
+            ".jpeg",
+            ".jpg",
+            ".png",
+            ".pyc",
+            ".webp",
+        }:
+            continue
+        check_no_todo(path, read_text(path))
+
+
+def validate_portable_text_under(plugin_root: Path) -> None:
+    for path in sorted(plugin_root.rglob("*")):
+        if not path.is_file():
+            continue
+        if "__pycache__" in path.parts or path.suffix in {
+            ".gif",
+            ".jpeg",
+            ".jpg",
+            ".png",
+            ".pyc",
+            ".webp",
+        }:
+            continue
+        check_no_machine_paths(path, read_text(path))
 
 
 def main() -> None:
@@ -263,6 +369,7 @@ def main() -> None:
     validate_ci(repo_root)
     validate_marketplace(repo_root)
     validate_no_todo_under(plugin_root)
+    validate_portable_text_under(plugin_root)
     print(f"OK: validated {plugin_root}")
 
 
