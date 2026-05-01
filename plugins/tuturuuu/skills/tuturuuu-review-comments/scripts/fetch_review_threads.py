@@ -265,14 +265,12 @@ def main() -> None:
         payload = {
             "pull_request": pull_request,
             "counts": counts,
-            "active_unresolved_count": counts["active_unresolved"],
             "review_threads": [summarize_thread(thread) for thread in output_threads],
         }
     else:
         payload = {
             "pull_request": pull_request,
             "counts": counts,
-            "active_unresolved_count": counts["active_unresolved"],
             "review_threads": output_threads,
         }
 

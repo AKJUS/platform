@@ -56,6 +56,7 @@ import { useCourseBuilder } from './use-course-builder';
 
 interface CourseBuilderClientProps {
   courseId: string;
+  courseDescription?: string | null;
   courseName: string;
   resolvedWsId: string;
   routeWsId: string;
@@ -65,6 +66,7 @@ const GROUP_DROPZONE_PREFIX = 'group-dropzone-';
 
 export function CourseBuilderClient({
   courseId,
+  courseDescription,
   courseName,
   resolvedWsId,
   routeWsId,
@@ -114,6 +116,12 @@ export function CourseBuilderClient({
     }
     return all;
   }, [moduleGroups, modulesByGroupId]);
+  const moduleGroupIds = useMemo(
+    () => new Set(moduleGroups.map((group) => group.id)),
+    [moduleGroups]
+  );
+  const headerDescription =
+    courseDescription?.trim() || t('ws-courses.no_description_provided');
 
   /** Nested group + module sortables share one DnD tree; the group's droppable wraps the whole card.
    *  Module drags: prefer module hits, then group targets for cross-group moves.
@@ -213,14 +221,14 @@ export function CourseBuilderClient({
     (dropId: string): string | null => {
       const fromModule = moduleParentMap.get(dropId);
       if (fromModule) return fromModule;
-      if (modulesByGroupId.has(dropId)) return dropId;
+      if (moduleGroupIds.has(dropId)) return dropId;
       if (dropId.startsWith(GROUP_DROPZONE_PREFIX)) {
         const groupId = dropId.slice(GROUP_DROPZONE_PREFIX.length);
-        if (modulesByGroupId.has(groupId)) return groupId;
+        if (moduleGroupIds.has(groupId)) return groupId;
       }
       return null;
     },
-    [moduleParentMap, modulesByGroupId]
+    [moduleGroupIds, moduleParentMap]
   );
 
   const handleDragStart = (event: DragStartEvent) => {
@@ -437,7 +445,7 @@ export function CourseBuilderClient({
       <div className="space-y-5 p-4">
         <EducationPageHeader
           title={t('workspace-education-tabs.course_builder')}
-          description={t('ws-courses.no_description_provided')}
+          description={headerDescription}
           badge={
             <div className="inline-flex items-center gap-2 rounded-full border border-dynamic-blue/20 bg-dynamic-blue/10 px-3 py-1 font-medium text-dynamic-blue text-xs">
               <BookOpenText className="h-3.5 w-3.5" />
@@ -472,7 +480,7 @@ export function CourseBuilderClient({
     <div className="space-y-5 p-4">
       <EducationPageHeader
         title={t('workspace-education-tabs.course_builder')}
-        description={t('ws-courses.no_description_provided')}
+        description={headerDescription}
         badge={
           <div className="inline-flex items-center gap-2 rounded-full border border-dynamic-blue/20 bg-dynamic-blue/10 px-3 py-1 font-medium text-dynamic-blue text-xs">
             <BookOpenText className="h-3.5 w-3.5" />

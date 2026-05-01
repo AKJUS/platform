@@ -35,6 +35,7 @@ export default async function CourseBuilderPage({ params }: Props) {
   return (
     <CourseBuilderClient
       courseId={courseId}
+      courseDescription={course.description}
       courseName={course.name}
       resolvedWsId={resolvedWsId}
       routeWsId={routeWsId}

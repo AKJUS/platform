@@ -58,7 +58,7 @@ If the script is unavailable, use `gh api graphql` to fetch `reviewThreads`, inc
 6. Resolve threads fixed by the change or confirmed no longer actionable.
 7. Re-fetch active threads and report resolved count, remaining count, commits, and validation.
 
-For `/Users/vhpx/Documents/GitHub/platform`, combine this skill with the focused Tuturuuu skills when relevant:
+For this repository, combine this skill with the focused Tuturuuu skills when relevant:
 
 - `$tuturuuu-platform` for repo-wide web/shared-code rules and final checks.
 - `$tuturuuu-database` for Supabase migrations, RLS, generated types, and workspace-scoped API writes.
