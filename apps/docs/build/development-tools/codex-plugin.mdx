@@ -53,7 +53,8 @@ the repo's other CI switchboard-controlled checks.
 The CI check currently verifies:
 
 - plugin manifest JSON and interface metadata
-- natural default prompt examples for the invokable skills
+- natural default prompt examples for the invokable skills, written as short
+  user requests instead of visible `$skill` commands
 - repo marketplace metadata at `.agents/plugins/marketplace.json`
 - skill folder and frontmatter naming parity
 - `agents/openai.yaml` defaults for every skill
@@ -89,6 +90,9 @@ library.
 - Keep `plugins/tuturuuu/.codex-plugin/plugin.json` aligned with the plugin
   folder name.
 - Keep each skill folder name aligned with its `SKILL.md` frontmatter `name`.
+- Keep plugin and skill default prompts short, natural, and action-oriented.
+  Marketplace prompt cards should read like user goals, for example "Clear the
+  unresolved review comments on this PR."
 - Put detailed guidance in `references/` and keep `SKILL.md` focused on the
   workflow that should be loaded immediately.
 - Add marketplace metadata only when deciding where the plugin should be

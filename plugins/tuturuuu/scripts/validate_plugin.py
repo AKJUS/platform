@@ -16,6 +16,18 @@ WORKFLOW_NAME = "codex-plugin.yaml"
 DOCS_PAGE = "build/development-tools/codex-plugin"
 MARKETPLACE_NAME = "tuturuuu"
 PLUGIN_NAME = "tuturuuu"
+MAX_DEFAULT_PROMPT_LENGTH = 120
+PROMPT_COVERAGE_PATTERNS = {
+    "tuturuuu-platform": re.compile(r"\bplatform\b", re.IGNORECASE),
+    "tuturuuu-mobile-task-board": re.compile(
+        r"\b(flutter|mobile|task-board|task board)\b", re.IGNORECASE
+    ),
+    "tuturuuu-database": re.compile(r"\b(supabase|schema|api)\b", re.IGNORECASE),
+    "tuturuuu-ci-docs": re.compile(r"\b(ci|docs?|workflow)\b", re.IGNORECASE),
+    "tuturuuu-review-comments": re.compile(
+        r"\b(review comments?|review threads?|pr comments?)\b", re.IGNORECASE
+    ),
+}
 
 
 def fail(message: str) -> None:
@@ -26,6 +38,18 @@ def fail(message: str) -> None:
 def check_no_todo(path: Path, text: str) -> None:
     if TODO_MARKER in text:
         fail(f"{path} still contains TODO placeholders")
+
+
+def validate_default_prompt(path: Path, prompt: object) -> str:
+    if not isinstance(prompt, str) or not prompt.strip():
+        fail(f"{path} has an empty default prompt")
+
+    prompt_text = prompt.strip()
+    if len(prompt_text) > MAX_DEFAULT_PROMPT_LENGTH:
+        fail(f"{path} default prompt is too long: {prompt_text}")
+    if prompt_text.lower().startswith("use $") or "$tuturuuu-" in prompt_text:
+        fail(f"{path} default prompt should be a natural user request: {prompt_text}")
+    return prompt_text
 
 
 def read_text(path: Path) -> str:
@@ -84,6 +108,13 @@ def validate_manifest(plugin_root: Path, manifest: dict) -> None:
         fail("manifest interface.defaultPrompt must be a non-empty list")
     if len(prompts) > 8:
         fail("manifest interface.defaultPrompt should stay focused with at most 8 prompts")
+    prompt_text = "\n".join(
+        validate_default_prompt(plugin_root / ".codex-plugin" / "plugin.json", prompt)
+        for prompt in prompts
+    )
+    for skill_name, pattern in PROMPT_COVERAGE_PATTERNS.items():
+        if not pattern.search(prompt_text):
+            fail(f"manifest defaultPrompt should include a natural prompt for {skill_name}")
 
     for field in (
         "displayName",
@@ -115,11 +146,13 @@ def validate_openai_yaml(skill_dir: Path) -> None:
 
     openai_text = read_text(openai_yaml)
     check_no_todo(openai_yaml, openai_text)
-    if f"${skill_dir.name}" not in openai_text:
-        fail(f"{openai_yaml} default prompt should mention ${skill_dir.name}")
     for required in ("display_name:", "short_description:", "default_prompt:"):
         if required not in openai_text:
             fail(f"{openai_yaml} is missing {required}")
+    match = re.search(r'^\s*default_prompt:\s*["\'](?P<prompt>.*?)["\']\s*$', openai_text, re.M)
+    if not match:
+        fail(f"{openai_yaml} default_prompt must be a quoted single-line prompt")
+    validate_default_prompt(openai_yaml, match.group("prompt"))
 
 
 def validate_reference_links(skill_dir: Path, skill_file: Path) -> None:
@@ -139,7 +172,6 @@ def validate_skills(plugin_root: Path, manifest: dict) -> None:
     if not skill_dirs:
         fail("plugin must contain at least one skill")
 
-    prompt_text = "\n".join(manifest["interface"]["defaultPrompt"])
     for skill_dir in skill_dirs:
         skill_file = skill_dir / "SKILL.md"
         if not skill_file.exists():
@@ -152,13 +184,6 @@ def validate_skills(plugin_root: Path, manifest: dict) -> None:
 
         validate_openai_yaml(skill_dir)
         validate_reference_links(skill_dir, skill_file)
-        if f"${skill_dir.name}" not in prompt_text and skill_dir.name in {
-            "tuturuuu-platform",
-            "tuturuuu-mobile-task-board",
-            "tuturuuu-database",
-            "tuturuuu-ci-docs",
-        }:
-            fail(f"manifest defaultPrompt should mention ${skill_dir.name}")
 
 
 def validate_docs(repo_root: Path) -> None:

@@ -1,4 +1,4 @@
 interface:
   display_name: "Tuturuuu Review Comments"
   short_description: "Fix unresolved PR review comments"
-  default_prompt: "Use $tuturuuu-review-comments to re-check this PR, fix actionable review threads, resolve addressed comments, and report what remains."
+  default_prompt: "Clear the unresolved review comments on this PR."

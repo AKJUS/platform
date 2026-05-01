@@ -1,4 +1,4 @@
 interface:
   display_name: "Tuturuuu Database"
   short_description: "Handle Supabase schema and API changes"
-  default_prompt: "Use $tuturuuu-database to update the Supabase schema or API write path safely."
+  default_prompt: "Update the Supabase schema or API write path safely."

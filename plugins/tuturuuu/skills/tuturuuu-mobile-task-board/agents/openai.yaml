@@ -1,4 +1,4 @@
 interface:
   display_name: "Tuturuuu Mobile Task Board"
   short_description: "Handle Flutter task-board changes"
-  default_prompt: "Use $tuturuuu-mobile-task-board to fix this Flutter task-board behavior and verify it."
+  default_prompt: "Fix this Flutter task-board behavior and verify it."
