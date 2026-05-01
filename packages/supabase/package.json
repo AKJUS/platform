@@ -95,12 +95,12 @@
   },
   "dependencies": {
     "@supabase/ssr": "^0.10.2",
-    "@supabase/supabase-js": "^2.105.0",
+    "@supabase/supabase-js": "^2.105.1",
     "@tuturuuu/types": "workspace:*",
     "next": "^16.2.4",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
-    "zod": "^4.3.6"
+    "zod": "^4.4.1"
   },
   "devDependencies": {
     "@tuturuuu/typescript-config": "workspace:*",

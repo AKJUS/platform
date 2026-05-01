@@ -7,6 +7,7 @@ export const ci = {
   'check-migrations.yml': true,
   'codecov.yaml': true,
   'codeql.yml': true,
+  'codex-plugin.yaml': true,
   'discord-python-ci.yml': true,
   'docker-setup-check.yaml': true,
   'e2e-tests.yaml': true,

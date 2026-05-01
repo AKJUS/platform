@@ -1460,6 +1460,27 @@ function hasReachedDeploymentFailureLimit(deployments = [], commitHash) {
   );
 }
 
+function hasReportedRetryLimitForCommit(commitHash, { fsImpl, paths }) {
+  if (!commitHash) {
+    return false;
+  }
+
+  const lastResult = readWatchStatus(paths, fsImpl)?.lastResult;
+
+  return (
+    lastResult?.status === 'retry-limited' &&
+    lastResult?.latestCommit?.hash === commitHash
+  );
+}
+
+function logRetryLimitOnce(message, commitHash, { fsImpl, log, paths }) {
+  if (hasReportedRetryLimitForCommit(commitHash, { fsImpl, paths })) {
+    return;
+  }
+
+  log.warn?.(message);
+}
+
 function createWatchUi(initialState = {}, options = {}) {
   const stdout = options.stdout ?? process.stdout;
   const stderr = options.stderr ?? process.stderr;
@@ -3661,8 +3682,10 @@ async function runPinnedDeploymentIteration(
   }
 
   if (hasReachedDeploymentFailureLimit(deploymentHistory, latestCommit.hash)) {
-    log.warn?.(
-      `Skipping pinned rollback for ${latestCommit.shortHash} because it already failed ${failedDeploymentCount} deployment attempts.`
+    logRetryLimitOnce(
+      `Skipping pinned rollback for ${latestCommit.shortHash} because it already failed ${failedDeploymentCount} deployment attempts.`,
+      latestCommit.hash,
+      { fsImpl, log, paths }
     );
     return attachRuntime({
       checkedAt,
@@ -3922,8 +3945,10 @@ async function runDeployWatchIteration(
         if (
           hasReachedDeploymentFailureLimit(deploymentHistory, latestCommit.hash)
         ) {
-          log.warn?.(
-            `Skipping blue/green runtime recovery for ${latestCommit.shortHash} because it already failed ${failedDeploymentCount} deployment attempts.`
+          logRetryLimitOnce(
+            `Skipping blue/green runtime recovery for ${latestCommit.shortHash} because it already failed ${failedDeploymentCount} deployment attempts.`,
+            latestCommit.hash,
+            { fsImpl, log, paths }
           );
           return attachRuntime({
             checkedAt,
@@ -3954,18 +3979,13 @@ async function runDeployWatchIteration(
         latestCommit.hash &&
         latestCommit.hash !== latestDeployedCommitHash
       ) {
-        log.warn?.(
-          `Latest successful deployment is ${latestDeployedCommitHash ? latestDeployedCommitHash.slice(0, 12) : 'missing'}. Rebuilding ${latestCommit.shortHash} to reconcile runtime drift.`
-        );
-        log.info?.(
-          `Refreshing Bun runtime and dependencies for ${latestCommit.shortHash} before reconciliation deploy.`
-        );
-
         if (
           hasReachedDeploymentFailureLimit(deploymentHistory, latestCommit.hash)
         ) {
-          log.warn?.(
-            `Skipping reconciliation deploy for ${latestCommit.shortHash} because it already failed ${failedDeploymentCount} deployment attempts.`
+          logRetryLimitOnce(
+            `Skipping reconciliation deploy for ${latestCommit.shortHash} because it already failed ${failedDeploymentCount} deployment attempts.`,
+            latestCommit.hash,
+            { fsImpl, log, paths }
           );
           return attachRuntime({
             checkedAt,
@@ -3975,6 +3995,13 @@ async function runDeployWatchIteration(
             status: 'retry-limited',
           });
         }
+
+        log.warn?.(
+          `Latest successful deployment is ${latestDeployedCommitHash ? latestDeployedCommitHash.slice(0, 12) : 'missing'}. Rebuilding ${latestCommit.shortHash} to reconcile runtime drift.`
+        );
+        log.info?.(
+          `Refreshing Bun runtime and dependencies for ${latestCommit.shortHash} before reconciliation deploy.`
+        );
 
         await runBunUpgradeAndInstall({
           env,
@@ -4135,8 +4162,10 @@ async function runDeployWatchIteration(
       if (
         hasReachedDeploymentFailureLimit(deploymentHistory, latestCommit.hash)
       ) {
-        log.warn?.(
-          `Skipping standby refresh for ${latestCommit.shortHash} because it already failed ${failedDeploymentCount} deployment attempts.`
+        logRetryLimitOnce(
+          `Skipping standby refresh for ${latestCommit.shortHash} because it already failed ${failedDeploymentCount} deployment attempts.`,
+          latestCommit.hash,
+          { fsImpl, log, paths }
         );
         return attachRuntime({
           checkedAt,
@@ -4335,8 +4364,10 @@ async function runDeployWatchIteration(
       if (
         hasReachedDeploymentFailureLimit(deploymentHistory, latestCommit.hash)
       ) {
-        log.warn?.(
-          `Skipping deployment for ${latestCommit.shortHash} because it already failed ${failedDeploymentCount} deployment attempts.`
+        logRetryLimitOnce(
+          `Skipping deployment for ${latestCommit.shortHash} because it already failed ${failedDeploymentCount} deployment attempts.`,
+          latestCommit.hash,
+          { fsImpl, log, paths }
         );
         return attachRuntime({
           checkedAt,

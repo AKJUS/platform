@@ -871,4 +871,5 @@ export const dashboardCatalog = defineCatalog(schema, {
         'Generic follow-up action emitted when a clickable generated UI element is activated.',
     },
   },
-});
+  // @json-render's catalog type is tied to its bundled Zod minor.
+} as never);

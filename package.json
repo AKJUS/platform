@@ -4,10 +4,10 @@
     "@biomejs/biome": "^2.4.13",
     "@lingual/i18n-check": "0.9.4",
     "@tuturuuu/typescript-config": "workspace:*",
-    "@typescript/native-preview": "^7.0.0-dev.20260427.1",
+    "@typescript/native-preview": "^7.0.0-dev.20260430.1",
     "@vitest/coverage-v8": "^4.1.5",
-    "lucide-static": "^1.11.0",
-    "turbo": "^2.9.6",
+    "lucide-static": "^1.14.0",
+    "turbo": "^2.9.7",
     "typescript": "^6.0.3",
     "vite": "^8.0.10",
     "vitest": "^4.1.5"
@@ -30,6 +30,7 @@
     "build:ios": "cd apps/mobile && flutter build ipa --dart-define-from-file=.env.production --flavor production --target lib/main_production.dart",
     "build:ios:dev": "cd apps/mobile && flutter build ios --dart-define-from-file=.env --flavor development --target lib/main_development.dart",
     "build:web": "turbo run build -F @tuturuuu/web",
+    "build:web:docker": "turbo run build:docker -F @tuturuuu/web",
     "build:tasks": "turbo run build -F @tuturuuu/tasks",
     "build:meet": "turbo run build -F @tuturuuu/meet",
     "build:track": "turbo run build -F @tuturuuu/track",
@@ -48,8 +49,8 @@
     "dev:web": "turbo run dev -F @tuturuuu/types -F @tuturuuu/supabase -F @tuturuuu/web",
     "dev:web:docker": "node scripts/docker-web.js up",
     "dev:web:docker:down": "node scripts/docker-web.js down",
-    "serve:web:docker": "node scripts/docker-web.js up --mode prod --build-memory 16g --build-cpus 8",
-    "serve:web:docker:bg": "node scripts/docker-web.js up --mode prod --strategy blue-green --build-memory 16g --build-cpus 8",
+    "serve:web:docker": "node scripts/docker-web.js up --mode prod --build-memory 16g --build-cpus 2 --build-max-parallelism 1",
+    "serve:web:docker:bg": "node scripts/docker-web.js up --mode prod --strategy blue-green --build-memory 16g --build-cpus 2 --build-max-parallelism 1",
     "serve:web:docker:bg:watch": "node scripts/watch-blue-green-deploy.js",
     "serve:web:docker:down": "node scripts/docker-web.js down --mode prod",
     "serve:web:docker:bg:down": "node scripts/docker-web.js down --mode prod --strategy blue-green",
@@ -170,6 +171,6 @@
   "workspaces": ["apps/*", "packages/*"],
   "overrides": {
     "google-auth-library": "10.6.2",
-    "@polar-sh/sdk": "0.47.0"
+    "@polar-sh/sdk": "0.47.1"
   }
 }

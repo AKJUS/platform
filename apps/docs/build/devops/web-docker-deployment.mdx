@@ -323,13 +323,13 @@ Buildx throttling options instead of letting BuildKit consume the full host.
 Example:
 
 ```bash
-bun serve:web:docker:bg -- --build-memory 4g --build-cpus 2 --build-max-parallelism 2
+bun serve:web:docker:bg -- --build-memory 16g --build-cpus 2 --build-max-parallelism 1
 ```
 
 Current root-script defaults:
 
-- `bun serve:web:docker` defaults to `--build-memory 16g --build-cpus 8`
-- `bun serve:web:docker:bg` defaults to `--build-memory 16g --build-cpus 8`
+- `bun serve:web:docker` defaults to `--build-memory 16g --build-cpus 2 --build-max-parallelism 1`
+- `bun serve:web:docker:bg` defaults to `--build-memory 16g --build-cpus 2 --build-max-parallelism 1`
 
 You can still override those defaults per run by appending your own flags after
 `--`, for example:
@@ -355,6 +355,12 @@ How it works:
 - `DOCKER_WEB_BUILD_MAX_PARALLELISM` writes a BuildKit config that limits
   concurrent solve steps, which is often the most effective way to reduce
   CPU spikes on smaller machines.
+- The same max-parallelism value is also forwarded as `COMPOSE_PARALLEL_LIMIT`
+  when that variable is not already set, so Compose does not build multiple
+  services at once under the capped builder.
+- Docker web builds use `bun run build:web:docker`, which keeps the normal web
+  build dependency graph, caps the web app's V8 heap at 4 GB instead of the
+  local 8 GB build default, and still uses the Turbopack production build.
 
 Operational notes:
 
@@ -363,6 +369,11 @@ Operational notes:
 - If no build caps are configured, the helper continues using Docker's default
   builder behavior.
 - A lower parallelism setting usually trades build speed for host stability.
+- If BuildKit fails with `ResourceExhausted` or `cannot allocate memory` while
+  host memory is still available, the builder cgroup is too small; raise
+  `--build-memory` while keeping `--build-max-parallelism 1`.
+- If host memory or swap is saturated, lower `--build-max-parallelism` first
+  and stop unrelated containers before raising the builder memory cap.
 
 ## Redis Profile
 
@@ -538,7 +549,9 @@ Dashboard details:
 - Build/deploy failures also stay inside the watcher loop. The watcher records
   failed attempts in deployment history, clears stale pending handoff files
   after recovery failures, and stops retrying the same commit after the third
-  failed deployment attempt.
+  failed deployment attempt. Once that cap is reached, it reports the
+  retry-limited state once for that commit instead of logging the same skip on
+  every poll.
 - Normal promotions keep the long-lived `web-proxy` container and bound port
   stable, which avoids transient listener drops for upstreams such as
   Cloudflare Tunnel that are connected to `:7803`.

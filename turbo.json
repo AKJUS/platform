@@ -52,6 +52,16 @@
         ".turbo/tsconfig.tsbuildinfo"
       ]
     },
+    "build:docker": {
+      "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*"],
+      "outputs": [
+        ".next/**",
+        "!.next/cache/**",
+        "dist/**",
+        ".turbo/tsconfig.tsbuildinfo"
+      ]
+    },
     "dev": {
       "cache": false,
       "persistent": true
