@@ -70,6 +70,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("resource", nargs="?", help="PR URL or owner/repo#number")
     parser.add_argument("--repo", help="Repository in owner/name form")
     parser.add_argument("--pr", type=int, help="Pull request number")
+    parser.add_argument(
+        "--active-only",
+        action="store_true",
+        help="Only include unresolved, non-outdated review threads in the output.",
+    )
+    parser.add_argument(
+        "--summary",
+        action="store_true",
+        help="Output compact thread summaries instead of the full GraphQL thread payload.",
+    )
     return parser.parse_args()
 
 
@@ -152,6 +162,65 @@ def extract_pull_request(payload: dict[str, Any], owner: str, repo: str, number:
     return pull_request
 
 
+def is_active_thread(thread: dict[str, Any]) -> bool:
+    return not thread.get("isResolved") and not thread.get("isOutdated")
+
+
+def thread_headline(thread: dict[str, Any]) -> str:
+    comments = thread.get("comments")
+    if not isinstance(comments, dict):
+        return ""
+
+    nodes = comments.get("nodes")
+    if not isinstance(nodes, list) or not nodes:
+        return ""
+
+    first_comment = nodes[0]
+    if not isinstance(first_comment, dict):
+        return ""
+
+    body = first_comment.get("body")
+    if not isinstance(body, str):
+        return ""
+
+    lines = [line.strip() for line in body.splitlines() if line.strip()]
+    if len(lines) > 1 and lines[0].startswith("<!--"):
+        return lines[1]
+    return lines[0] if lines else ""
+
+
+def summarize_thread(thread: dict[str, Any]) -> dict[str, Any]:
+    comments = thread.get("comments")
+    nodes = comments.get("nodes", []) if isinstance(comments, dict) else []
+    first_comment = nodes[0] if nodes and isinstance(nodes[0], dict) else {}
+    author = first_comment.get("author") if isinstance(first_comment, dict) else {}
+
+    return {
+        "id": thread.get("id"),
+        "path": thread.get("path"),
+        "line": thread.get("line"),
+        "isResolved": thread.get("isResolved"),
+        "isOutdated": thread.get("isOutdated"),
+        "author": author.get("login") if isinstance(author, dict) else None,
+        "headline": thread_headline(thread),
+    }
+
+
+def count_threads(threads: list[dict[str, Any]]) -> dict[str, int]:
+    resolved = sum(1 for thread in threads if thread.get("isResolved"))
+    outdated = sum(1 for thread in threads if thread.get("isOutdated"))
+    active_unresolved = sum(1 for thread in threads if is_active_thread(thread))
+    unresolved = sum(1 for thread in threads if not thread.get("isResolved"))
+
+    return {
+        "total": len(threads),
+        "resolved": resolved,
+        "unresolved": unresolved,
+        "outdated": outdated,
+        "active_unresolved": active_unresolved,
+    }
+
+
 def main() -> None:
     args = parse_args()
     owner, repo, number = resolve_resource(args)
@@ -185,15 +254,29 @@ def main() -> None:
             break
         cursor = page_info["endCursor"]
 
-    print(
-        json.dumps(
-            {
-                "pull_request": pull_request,
-                "review_threads": threads,
-            },
-            indent=2,
-        )
+    output_threads = (
+        [thread for thread in threads if is_active_thread(thread)]
+        if args.active_only
+        else threads
     )
+    counts = count_threads(threads)
+
+    if args.summary:
+        payload = {
+            "pull_request": pull_request,
+            "counts": counts,
+            "active_unresolved_count": counts["active_unresolved"],
+            "review_threads": [summarize_thread(thread) for thread in output_threads],
+        }
+    else:
+        payload = {
+            "pull_request": pull_request,
+            "counts": counts,
+            "active_unresolved_count": counts["active_unresolved"],
+            "review_threads": output_threads,
+        }
+
+    print(json.dumps(payload, indent=2))
 
 
 if __name__ == "__main__":

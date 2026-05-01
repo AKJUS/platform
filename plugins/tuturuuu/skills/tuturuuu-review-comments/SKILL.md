@@ -9,9 +9,9 @@ Use this skill when the user asks to check, re-check, revalidate, fix, resolve, 
 
 ## Core Rules
 
-- Treat thread-aware review data as authoritative. Flat PR comments are useful context, but unresolved inline review threads decide what remains pending.
+- Treat thread-aware review data as authoritative. Flat PR comments are context, but unresolved inline review threads decide what remains pending.
 - Verify every comment against current code before changing anything. If a comment is stale, duplicated, non-actionable, or wrong, say so and draft a response instead of forcing a code change.
-- After fixing and validating actionable threads, resolve the addressed review threads by default unless the user explicitly says not to.
+- After fixing and validating actionable threads, resolve the addressed review threads by default unless the user says not to.
 - Do not reply on GitHub, push, or commit unless the user explicitly asks for that write action.
 - If the user asks to "fix comments", interpret that as all unresolved, non-outdated, actionable review threads unless they narrow the scope.
 - Keep unrelated working-tree changes intact. Include them in a commit only when the user explicitly asks to include them.
@@ -36,24 +36,27 @@ Prefer the bundled script:
 python3 <skill-dir>/scripts/fetch_review_threads.py --repo owner/repo --pr 123 > /tmp/pr123-review-threads.json
 ```
 
-Useful summaries:
+Use built-in summaries for active unresolved threads:
 
 ```bash
-jq -r '[.review_threads[] | select(.isResolved == false and .isOutdated == false)] | length' /tmp/pr123-review-threads.json
-jq -r '.review_threads[] | select(.isResolved == false and .isOutdated == false) | [.id, .path, (.line // 0), (.comments.nodes[0].body | split("\n") | map(select(length > 0)) | .[1] // .[0])] | @tsv' /tmp/pr123-review-threads.json
+python3 <skill-dir>/scripts/fetch_review_threads.py --repo owner/repo --pr 123 --active-only --summary > /tmp/pr123-active-review-threads.json
+jq -r '.counts.active_unresolved' /tmp/pr123-active-review-threads.json
+jq -r '.review_threads[] | [.id, .path, (.line // 0), (.author // ""), .headline] | @tsv' /tmp/pr123-active-review-threads.json
 ```
+
+The helper also emits `.counts.total`, `.counts.resolved`, `.counts.unresolved`, and `.counts.outdated` for final reports.
 
 If the script is unavailable, use `gh api graphql` to fetch `reviewThreads`, including `id`, `isResolved`, `isOutdated`, `path`, `line`, and `comments.nodes.body`.
 
 ## Fix Workflow
 
-1. Cluster active threads by file and behavior.
+1. Fetch active unresolved threads and cluster them by file or behavior.
 2. Inspect local code around each anchor before editing.
-3. Implement the smallest code changes that directly address the validated comments.
+3. Implement the smallest code changes that directly address validated comments.
 4. Update tests, docs, translations, generated files, or migrations when required by the touched surface.
 5. Run focused validation first, then the repo-required final check.
-6. Resolve review threads that were fixed or confirmed no longer actionable.
-7. Re-fetch review threads and report the remaining active unresolved count.
+6. Resolve threads fixed by the change or confirmed no longer actionable.
+7. Re-fetch active threads and report resolved count, remaining count, commits, and validation.
 
 For `/Users/vhpx/Documents/GitHub/platform`, combine this skill with the focused Tuturuuu skills when relevant:
 
@@ -80,8 +83,8 @@ done
 Then re-fetch thread state and confirm the remaining active unresolved count:
 
 ```bash
-python3 <skill-dir>/scripts/fetch_review_threads.py --repo owner/repo --pr 123 > /tmp/pr123-review-threads-postresolve.json
-jq -r '[.review_threads[] | select(.isResolved == false and .isOutdated == false)] | length' /tmp/pr123-review-threads-postresolve.json
+python3 <skill-dir>/scripts/fetch_review_threads.py --repo owner/repo --pr 123 --active-only --summary > /tmp/pr123-review-threads-postresolve.json
+jq -r '.counts.active_unresolved' /tmp/pr123-review-threads-postresolve.json
 ```
 
 ## Commit Workflow
@@ -92,5 +95,5 @@ Only commit when explicitly asked.
 2. Stage intentionally. If the user says to include unrelated files, include exactly those files too.
 3. Use Conventional Commits, for example:
    - `fix(education): address module group review feedback`
-   - `chore(ci): address review comments`
+   - `fix(codex): harden review thread fetcher`
 4. Report commit hash, resolved thread count, remaining active unresolved thread count, and validation results.
