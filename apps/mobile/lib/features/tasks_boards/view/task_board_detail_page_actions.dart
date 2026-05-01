@@ -1,6 +1,6 @@
 part of 'task_board_detail_page.dart';
 
-enum _BoardAction { manageLayout, renameBoard, recycleBin, refresh }
+enum _BoardAction { sortList, manageLayout, renameBoard, recycleBin, refresh }
 
 extension on _TaskBoardDetailPageViewState {
   Future<void> _showBoardActionsSheet(BuildContext context) async {
@@ -15,6 +15,22 @@ extension on _TaskBoardDetailPageViewState {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
+                if (context.read<TaskBoardDetailCubit>().state.currentView ==
+                    TaskBoardDetailView.list)
+                  ListTile(
+                    leading: const Icon(Icons.sort),
+                    title: Text(context.l10n.sortBy),
+                    subtitle: Text(
+                      taskBoardListViewSortFieldLabel(
+                        context,
+                        _listSort.field,
+                      ),
+                    ),
+                    onTap: () {
+                      Navigator.of(sheetContext).pop();
+                      _handleBoardAction(context, _BoardAction.sortList);
+                    },
+                  ),
                 ListTile(
                   leading: const Icon(Icons.view_kanban_outlined),
                   title: Text(context.l10n.taskBoardDetailManageBoardLayout),
@@ -57,6 +73,9 @@ extension on _TaskBoardDetailPageViewState {
 
   void _handleBoardAction(BuildContext context, _BoardAction action) {
     switch (action) {
+      case _BoardAction.sortList:
+        unawaited(_openListSortSheet(context));
+        return;
       case _BoardAction.manageLayout:
         unawaited(_openBoardLayoutSheet(context));
         return;
@@ -70,6 +89,21 @@ extension on _TaskBoardDetailPageViewState {
         unawaited(_openRecycleBinSheet(context));
         return;
     }
+  }
+
+  Future<void> _openListSortSheet(BuildContext context) async {
+    await showAdaptiveSheet<void>(
+      context: context,
+      backgroundColor: shad.Theme.of(context).colorScheme.background,
+      builder: (sheetContext) => _SortBottomSheet(
+        currentField: _listSort.field,
+        ascending: _listSort.ascending,
+        onSortSelected: (field, {required ascending}) {
+          _setListSort((field: field, ascending: ascending));
+          Navigator.of(sheetContext).pop();
+        },
+      ),
+    );
   }
 
   Future<void> _openRecycleBinSheet(BuildContext context) async {

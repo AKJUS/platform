@@ -3997,6 +3997,30 @@ abstract class AppLocalizations {
   /// **'Quick actions'**
   String get taskBoardDetailQuickActions;
 
+  /// No description provided for @taskBoardDetailChangePriority.
+  ///
+  /// In en, this message translates to:
+  /// **'Change priority'**
+  String get taskBoardDetailChangePriority;
+
+  /// No description provided for @taskBoardDetailMarkNotStarted.
+  ///
+  /// In en, this message translates to:
+  /// **'Move to Not started'**
+  String get taskBoardDetailMarkNotStarted;
+
+  /// No description provided for @taskBoardDetailOpenFullDetails.
+  ///
+  /// In en, this message translates to:
+  /// **'Open full details'**
+  String get taskBoardDetailOpenFullDetails;
+
+  /// No description provided for @taskBoardDetailPriorityUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Priority updated.'**
+  String get taskBoardDetailPriorityUpdated;
+
   /// No description provided for @taskBoardDetailProperties.
   ///
   /// In en, this message translates to:
@@ -4390,7 +4414,7 @@ abstract class AppLocalizations {
   /// No description provided for @taskBoardDetailDefaultHiddenListsDescription.
   ///
   /// In en, this message translates to:
-  /// **'List mode hides Documents, Done, and Closed lists until you choose a list or status filter.'**
+  /// **'List mode hides Documents lists until you choose a list or status filter.'**
   String get taskBoardDetailDefaultHiddenListsDescription;
 
   /// No description provided for @taskBoardDetailDefaultHiddenListsOverrideTitle.
@@ -4402,7 +4426,7 @@ abstract class AppLocalizations {
   /// No description provided for @taskBoardDetailDefaultHiddenListsOverrideDescription.
   ///
   /// In en, this message translates to:
-  /// **'Your list or status filter is overriding the default Documents, Done, and Closed exclusions.'**
+  /// **'Your list or status filter is overriding the default Documents exclusion.'**
   String get taskBoardDetailDefaultHiddenListsOverrideDescription;
 
   /// No description provided for @taskBoardDetailFilters.

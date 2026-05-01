@@ -572,6 +572,13 @@ void main() {
         await tester.pumpAndSettle();
         await tester.tap(find.text('Long task').first, warnIfMissed: false);
         await tester.pumpAndSettle();
+        await tester.tap(
+          find.text('Open full details').last,
+          warnIfMissed: false,
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Description').last, warnIfMissed: false);
+        await tester.pumpAndSettle();
 
         expect(find.textContaining('@Alex'), findsWidgets);
         expect(find.textContaining('Header A'), findsWidgets);

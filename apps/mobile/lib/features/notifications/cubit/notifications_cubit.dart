@@ -47,6 +47,10 @@ class NotificationsCubit extends Cubit<NotificationsState> {
   }
 
   Future<void> setWorkspace(Workspace? workspace) async {
+    if (isClosed) {
+      return;
+    }
+
     final nextScopeWorkspaceId = _resolveScopeWorkspaceId(workspace);
     if (_scopeInitialized && state.scopeWorkspaceId == nextScopeWorkspaceId) {
       return;
@@ -59,6 +63,9 @@ class NotificationsCubit extends Cubit<NotificationsState> {
             state.archive.hasLoadedOnce ||
             state.unreadCount > 0);
     if (isSeededState) {
+      if (isClosed) {
+        return;
+      }
       emit(
         state.copyWith(
           pendingIds: const [],
@@ -70,6 +77,9 @@ class NotificationsCubit extends Cubit<NotificationsState> {
       return;
     }
 
+    if (isClosed) {
+      return;
+    }
     emit(
       state.copyWith(
         scopeWorkspaceId: nextScopeWorkspaceId,
@@ -86,11 +96,18 @@ class NotificationsCubit extends Cubit<NotificationsState> {
   }
 
   Future<void> refreshUnreadCount() async {
+    if (isClosed) {
+      return;
+    }
+
     emit(state.copyWith(isUnreadCountLoading: true));
     try {
       final unreadCount = await _notificationsRepository.fetchUnreadCount(
         wsId: state.scopeWorkspaceId,
       );
+      if (isClosed) {
+        return;
+      }
       emit(
         state.copyWith(
           unreadCount: unreadCount,
@@ -99,6 +116,9 @@ class NotificationsCubit extends Cubit<NotificationsState> {
       );
       await _persistCurrentState();
     } on Exception {
+      if (isClosed) {
+        return;
+      }
       emit(state.copyWith(isUnreadCountLoading: false));
     }
   }
@@ -107,6 +127,10 @@ class NotificationsCubit extends Cubit<NotificationsState> {
     NotificationsTab tab, {
     bool refresh = false,
   }) async {
+    if (isClosed) {
+      return;
+    }
+
     final feed = state.feedFor(tab);
     if (!refresh && feed.hasLoadedOnce) {
       return;
@@ -134,6 +158,9 @@ class NotificationsCubit extends Cubit<NotificationsState> {
         readOnly: tab == NotificationsTab.archive,
         limit: feed.pageSize,
       );
+      if (isClosed) {
+        return;
+      }
       emit(
         state.copyWith(
           feed: NotificationFeedState(
@@ -147,6 +174,9 @@ class NotificationsCubit extends Cubit<NotificationsState> {
       );
       await _persistCurrentState();
     } on Exception catch (error) {
+      if (isClosed) {
+        return;
+      }
       emit(
         state.copyWith(
           feed: state
@@ -162,6 +192,10 @@ class NotificationsCubit extends Cubit<NotificationsState> {
   }
 
   Future<void> loadMore(NotificationsTab tab) async {
+    if (isClosed) {
+      return;
+    }
+
     final feed = state.feedFor(tab);
     if (!feed.hasLoadedOnce ||
         !feed.hasMore ||
@@ -185,6 +219,9 @@ class NotificationsCubit extends Cubit<NotificationsState> {
         limit: feed.pageSize,
         offset: feed.items.length,
       );
+      if (isClosed) {
+        return;
+      }
       final merged = _dedupeNotifications([
         ...feed.items,
         ...page.notifications,
@@ -204,6 +241,9 @@ class NotificationsCubit extends Cubit<NotificationsState> {
       );
       await _persistCurrentState();
     } on Exception catch (error) {
+      if (isClosed) {
+        return;
+      }
       emit(
         state.copyWith(
           feed: feed.copyWith(
@@ -232,7 +272,7 @@ class NotificationsCubit extends Cubit<NotificationsState> {
   }
 
   Future<void> markAllRead() async {
-    if (state.isArchivingAll) {
+    if (isClosed || state.isArchivingAll) {
       return;
     }
 
@@ -241,7 +281,9 @@ class NotificationsCubit extends Cubit<NotificationsState> {
       await _notificationsRepository.markAllRead(wsId: state.scopeWorkspaceId);
       await _refreshLoadedTabs(preferredTab: NotificationsTab.inbox);
     } finally {
-      emit(state.copyWith(isArchivingAll: false));
+      if (!isClosed) {
+        emit(state.copyWith(isArchivingAll: false));
+      }
     }
   }
 
@@ -289,6 +331,10 @@ class NotificationsCubit extends Cubit<NotificationsState> {
     String notificationId,
     Future<T> Function() action,
   ) async {
+    if (isClosed) {
+      throw StateError('Notifications cubit is closed');
+    }
+
     emit(
       state.copyWith(
         pendingIds: _sortedPendingIds({
@@ -301,8 +347,10 @@ class NotificationsCubit extends Cubit<NotificationsState> {
     try {
       return await action();
     } finally {
-      final remaining = [...state.pendingIds]..remove(notificationId);
-      emit(state.copyWith(pendingIds: _sortedPendingIds(remaining.toSet())));
+      if (!isClosed) {
+        final remaining = [...state.pendingIds]..remove(notificationId);
+        emit(state.copyWith(pendingIds: _sortedPendingIds(remaining.toSet())));
+      }
     }
   }
 
@@ -310,6 +358,9 @@ class NotificationsCubit extends Cubit<NotificationsState> {
     NotificationsTab? preferredTab,
   }) async {
     await refreshUnreadCount();
+    if (isClosed) {
+      return;
+    }
 
     final inboxLoaded = state.inbox.hasLoadedOnce;
     final archiveLoaded = state.archive.hasLoadedOnce;

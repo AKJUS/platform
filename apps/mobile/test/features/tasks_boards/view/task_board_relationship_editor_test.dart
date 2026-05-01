@@ -253,6 +253,11 @@ void main() {
 
       await tester.tap(find.text('Alpha task').first);
       await tester.pumpAndSettle();
+      await tester.tap(
+        find.text('Open full details').last,
+        warnIfMissed: false,
+      );
+      await tester.pumpAndSettle();
 
       final relationshipsTab = find.text('Relationships').last;
       await tester.ensureVisible(relationshipsTab);

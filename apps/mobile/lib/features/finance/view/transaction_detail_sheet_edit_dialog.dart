@@ -193,10 +193,13 @@ class _TransactionFormDialogState extends State<_TransactionFormDialog>
                       child: shad.PrimaryButton(
                         onPressed: _isSaving ? null : _handleSave,
                         child: _isSaving
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: shad.CircularProgressIndicator(),
+                            ? const Center(
+                                child: SizedBox.square(
+                                  dimension: 18,
+                                  child: shad.CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                  ),
+                                ),
                               )
                             : Center(
                                 child: FittedBox(

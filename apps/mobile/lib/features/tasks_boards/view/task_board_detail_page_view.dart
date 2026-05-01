@@ -36,6 +36,7 @@ class _TaskBoardKanbanView extends StatelessWidget {
     required this.onToggleTaskSelection,
     required this.onCreateTask,
     required this.onEditList,
+    required this.onFocusedListChanged,
   });
 
   final String boardId;
@@ -68,6 +69,7 @@ class _TaskBoardKanbanView extends StatelessWidget {
   final void Function(TaskBoardTask task) onToggleTaskSelection;
   final Future<void> Function(String? listId) onCreateTask;
   final Future<void> Function(TaskBoardList list) onEditList;
+  final ValueChanged<int> onFocusedListChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -162,6 +164,7 @@ class _TaskBoardKanbanView extends StatelessWidget {
                 physics: const BouncingScrollPhysics(),
                 itemCount: lists.length,
                 onPageChanged: (index) {
+                  onFocusedListChanged(index);
                   onRequestListWindowLoad(index, pageSizeHint, state);
                 },
                 itemBuilder: (context, index) {
@@ -272,9 +275,15 @@ class _TaskBoardDetailPageViewState extends State<_TaskBoardDetailPageView> {
   late final ScrollController _timelineVerticalScrollController;
   late final ScrollController _timelineHorizontalScrollController;
   final Set<String> _collapsedListIds = <String>{};
+  final Set<String> _listCollapsePreferenceTouchedIds = <String>{};
   final Set<String> _initialListLoadRequested = <String>{};
   String? _initialListLoadBoardKey;
   String? _selectedTaskId;
+  TaskBoardListViewSortField _listSort = (
+    field: 'priority',
+    ascending: false,
+  );
+  late int _currentKanbanPageIndex;
 
   bool _isPersonalWorkspaceForBoard(
     BuildContext context,
@@ -306,6 +315,7 @@ class _TaskBoardDetailPageViewState extends State<_TaskBoardDetailPageView> {
     _kanbanHorizontalPageController = PageController(
       initialPage: _savedKanbanPages[widget.boardId] ?? 0,
     );
+    _currentKanbanPageIndex = _savedKanbanPages[widget.boardId] ?? 0;
     _timelineVerticalScrollController = ScrollController(
       initialScrollOffset: _savedOffset('timeline-vertical'),
     );
@@ -359,6 +369,7 @@ class _TaskBoardDetailPageViewState extends State<_TaskBoardDetailPageView> {
           ),
         );
       }
+      _currentKanbanPageIndex = _savedKanbanPages[widget.boardId] ?? 0;
       _restoreScrollOffsetsForCurrentBoard();
     }
   }
@@ -555,9 +566,8 @@ class _TaskBoardDetailPageViewState extends State<_TaskBoardDetailPageView> {
           }
 
           final sortedLists = _sortedListsByStatusOrder(detail.lists);
-          final listViewLists = _listViewVisibleLists(
-            sortedLists,
-            state.filters,
+          final listViewLists = _sortedListsForListView(
+            _listViewVisibleLists(detail.lists, state.filters),
           );
           final filteredByList = state.filteredTasksByListId;
           final bottomPadding =
@@ -569,6 +579,12 @@ class _TaskBoardDetailPageViewState extends State<_TaskBoardDetailPageView> {
           }
           final listIds = sortedLists.map((list) => list.id).toSet();
           _collapsedListIds.removeWhere((id) => !listIds.contains(id));
+          _listCollapsePreferenceTouchedIds.removeWhere(
+            (id) => !listIds.contains(id),
+          );
+          if (state.currentView == TaskBoardDetailView.list) {
+            _syncListModeDefaultCollapsedLists(listViewLists);
+          }
           if (_searchController.text != state.searchQuery) {
             _searchController.value = TextEditingValue(
               text: state.searchQuery,
@@ -624,7 +640,10 @@ class _TaskBoardDetailPageViewState extends State<_TaskBoardDetailPageView> {
                       constraints.maxHeight,
                     );
                     if (state.currentView == TaskBoardDetailView.list) {
-                      for (final list in listViewLists) {
+                      for (final list in _listViewInitialLoadLists(
+                        listViewLists,
+                        state,
+                      )) {
                         _requestInitialListLoadOnce(
                           list.id,
                           pageSizeHint,
@@ -652,37 +671,37 @@ class _TaskBoardDetailPageViewState extends State<_TaskBoardDetailPageView> {
                           tasks: state.filteredTasksForListView,
                           state: state,
                           board: detail,
+                          sort: _listSort,
                           bottomPadding: bottomPadding,
                           scrollController: _listScrollController,
-                          onTaskTap: (task) => _handleTaskTap(context, task),
-                          onTaskMove: (task) => _openMoveTaskPicker(
-                            context,
-                            task,
-                            sortedLists,
-                          ),
-                          onTaskMarkDone: (task) => _markTaskAsStatus(
-                            context,
-                            task,
-                            sortedLists,
-                            'done',
-                          ),
-                          onTaskMarkClosed: (task) => _markTaskAsStatus(
-                            context,
-                            task,
-                            sortedLists,
-                            'closed',
-                          ),
+                          onTaskTap: (task) =>
+                              _handleTaskTap(context, task, sortedLists),
+                          onTaskToggleDone: (task, targetStatus) =>
+                              _markTaskAsStatus(
+                                context,
+                                task,
+                                sortedLists,
+                                targetStatus,
+                              ),
                           isBulkSelectMode: state.isBulkSelectMode,
                           selectedTaskIds: state.selectedTaskIds,
                           onToggleTaskSelection: (task) => context
                               .read<TaskBoardDetailCubit>()
                               .toggleBulkTaskSelection(task.id),
                           collapsedListIds: _collapsedListIds,
-                          onToggleListCollapsed: _toggleListCollapsed,
+                          onToggleListCollapsed: (list) => _toggleListCollapsed(
+                            context,
+                            list: list,
+                            state: state,
+                            pageSizeHint: pageSizeHint,
+                          ),
                           onLoadMore: () {
                             _loadMoreVisibleLists(
                               context,
-                              lists: listViewLists,
+                              lists: _listViewLoadMoreLists(
+                                listViewLists,
+                                state,
+                              ),
                               state: state,
                               pageSizeHint: pageSizeHint,
                             );
@@ -716,7 +735,8 @@ class _TaskBoardDetailPageViewState extends State<_TaskBoardDetailPageView> {
                                 forceRefresh: true,
                                 pageSizeHint: pageSizeHint,
                               ),
-                          onTaskTap: (task) => _handleTaskTap(context, task),
+                          onTaskTap: (task) =>
+                              _handleTaskTap(context, task, sortedLists),
                           onTaskMove: (task) =>
                               _openMoveTaskPicker(context, task, sortedLists),
                           isBulkSelectMode: state.isBulkSelectMode,
@@ -731,6 +751,7 @@ class _TaskBoardDetailPageViewState extends State<_TaskBoardDetailPageView> {
                           ),
                           onEditList: (list) =>
                               _openEditListDialog(context, list),
+                          onFocusedListChanged: _handleKanbanPageChanged,
                         ),
                         TaskBoardDetailView.timeline => _TaskBoardTimelineView(
                           board: detail,
@@ -754,7 +775,8 @@ class _TaskBoardDetailPageViewState extends State<_TaskBoardDetailPageView> {
                               pageSizeHint: pageSizeHint,
                             );
                           },
-                          onTaskTap: (task) => _handleTaskTap(context, task),
+                          onTaskTap: (task) =>
+                              _handleTaskTap(context, task, sortedLists),
                           onTimelineTaskCommit:
                               ({
                                 required task,
@@ -787,6 +809,12 @@ class _TaskBoardDetailPageViewState extends State<_TaskBoardDetailPageView> {
                           unawaited(_openBulkActionsSheet(context)),
                     ),
                     FabAction(
+                      icon: Icons.drive_file_move_outlined,
+                      label: context.l10n.taskBoardDetailMoveTask,
+                      onPressed: () =>
+                          unawaited(_openBulkMovePicker(context, sortedLists)),
+                    ),
+                    FabAction(
                       icon: Icons.select_all,
                       label: context.l10n.taskBoardDetailSelectAllFiltered,
                       onPressed: () => context
@@ -809,7 +837,10 @@ class _TaskBoardDetailPageViewState extends State<_TaskBoardDetailPageView> {
                     _openTaskCreateSheet(
                       context,
                       lists: sortedLists,
-                      defaultListId: sortedLists.first.id,
+                      defaultListId: _defaultCreateListId(
+                        sortedLists,
+                        state,
+                      ),
                     ),
                   ),
                 ),
@@ -919,6 +950,32 @@ class _TaskBoardDetailPageViewState extends State<_TaskBoardDetailPageView> {
     }
   }
 
+  void _handleKanbanPageChanged(int index) {
+    _currentKanbanPageIndex = index;
+    _savedKanbanPages[widget.boardId] = index;
+  }
+
+  String _defaultCreateListId(
+    List<TaskBoardList> lists,
+    TaskBoardDetailState state,
+  ) {
+    if (lists.isEmpty) {
+      throw StateError('No task lists are available');
+    }
+    if (state.currentView != TaskBoardDetailView.kanban) {
+      return lists.first.id;
+    }
+
+    final visiblePage = _kanbanHorizontalPageController.hasClients
+        ? _kanbanHorizontalPageController.page?.round()
+        : null;
+    final index = (visiblePage ?? _currentKanbanPageIndex).clamp(
+      0,
+      lists.length - 1,
+    );
+    return lists[index].id;
+  }
+
   String? get _normalizedInitialTaskId {
     return _normalizedTaskId(widget.initialTaskId);
   }
@@ -935,12 +992,81 @@ class _TaskBoardDetailPageViewState extends State<_TaskBoardDetailPageView> {
     return null;
   }
 
-  void _toggleListCollapsed(String listId) {
+  void _syncListModeDefaultCollapsedLists(List<TaskBoardList> lists) {
+    for (final list in lists) {
+      if (!_taskBoardListIsTerminalInListView(list) ||
+          _listCollapsePreferenceTouchedIds.contains(list.id)) {
+        continue;
+      }
+      _collapsedListIds.add(list.id);
+    }
+  }
+
+  List<TaskBoardList> _listViewInitialLoadLists(
+    List<TaskBoardList> lists,
+    TaskBoardDetailState state,
+  ) {
+    return lists
+        .where((list) => !_shouldDeferListViewLoad(list, state))
+        .toList(growable: false);
+  }
+
+  List<TaskBoardList> _listViewLoadMoreLists(
+    List<TaskBoardList> lists,
+    TaskBoardDetailState state,
+  ) {
+    return lists
+        .where((list) => !_shouldDeferListViewLoad(list, state))
+        .toList(growable: false);
+  }
+
+  bool _shouldDeferListViewLoad(
+    TaskBoardList list,
+    TaskBoardDetailState state,
+  ) {
+    if (!_taskBoardListIsTerminalInListView(list)) {
+      return false;
+    }
+    if (!_collapsedListIds.contains(list.id)) {
+      return false;
+    }
+    return !state.listTasksByListId.containsKey(list.id) &&
+        !state.loadedListIds.contains(list.id) &&
+        !state.loadingListIds.contains(list.id) &&
+        !state.listLoadErrorById.containsKey(list.id);
+  }
+
+  void _toggleListCollapsed(
+    BuildContext context, {
+    required TaskBoardList list,
+    required TaskBoardDetailState state,
+    required int pageSizeHint,
+  }) {
+    final wasCollapsed = _collapsedListIds.contains(list.id);
     setState(() {
-      if (!_collapsedListIds.add(listId)) {
-        _collapsedListIds.remove(listId);
+      _listCollapsePreferenceTouchedIds.add(list.id);
+      if (!_collapsedListIds.add(list.id)) {
+        _collapsedListIds.remove(list.id);
       }
     });
+
+    final shouldLoadOnExpand =
+        wasCollapsed &&
+        !state.listTasksByListId.containsKey(list.id) &&
+        !state.loadedListIds.contains(list.id) &&
+        !state.loadingListIds.contains(list.id);
+    if (shouldLoadOnExpand) {
+      unawaited(
+        context.read<TaskBoardDetailCubit>().loadListTasks(
+          listId: list.id,
+          pageSizeHint: pageSizeHint,
+        ),
+      );
+    }
+  }
+
+  void _setListSort(TaskBoardListViewSortField sort) {
+    setState(() => _listSort = sort);
   }
 
   void _setBoardView(BuildContext context, TaskBoardDetailView view) {
@@ -1022,7 +1148,7 @@ class _TaskBoardDetailPageViewState extends State<_TaskBoardDetailPageView> {
     if (_kanbanHorizontalPageController.hasClients) {
       final page = _kanbanHorizontalPageController.page;
       if (page != null) {
-        _savedKanbanPages[widget.boardId] = page.round();
+        _handleKanbanPageChanged(page.round());
       }
     }
   }
@@ -1066,13 +1192,103 @@ class _TaskBoardDetailPageViewState extends State<_TaskBoardDetailPageView> {
   Future<void> _handleTaskTap(
     BuildContext context,
     TaskBoardTask task,
+    List<TaskBoardList> lists,
   ) async {
     final cubit = context.read<TaskBoardDetailCubit>();
     if (cubit.state.isBulkSelectMode) {
       cubit.toggleBulkTaskSelection(task.id);
       return;
     }
-    await _openTaskDetails(context, task);
+    await _openTaskQuickActionsSheet(context, task, lists);
+  }
+
+  Future<void> _openTaskQuickActionsSheet(
+    BuildContext context,
+    TaskBoardTask task,
+    List<TaskBoardList> lists,
+  ) async {
+    await showAdaptiveSheet<void>(
+      context: context,
+      backgroundColor: shad.Theme.of(context).colorScheme.background,
+      builder: (sheetContext) => _TaskQuickActionsSheet(
+        task: task,
+        lists: lists,
+        onMove: () {
+          Navigator.of(sheetContext).pop();
+          unawaited(_openMoveTaskPicker(context, task, lists));
+        },
+        onMarkStatus: (status) {
+          Navigator.of(sheetContext).pop();
+          unawaited(_markTaskAsStatus(context, task, lists, status));
+        },
+        onPriorityChanged: (priority) {
+          Navigator.of(sheetContext).pop();
+          unawaited(_changeTaskPriority(context, task, priority));
+        },
+        onOpenDetails: () {
+          Navigator.of(sheetContext).pop();
+          unawaited(_openTaskDetails(context, task));
+        },
+      ),
+    );
+  }
+
+  Future<void> _changeTaskPriority(
+    BuildContext context,
+    TaskBoardTask task,
+    String priority,
+  ) async {
+    final normalizedPriority = _normalizeTaskPriority(
+      priority,
+      _taskQuickActionPriorityOptions,
+    );
+    if (task.priority == normalizedPriority) {
+      return;
+    }
+
+    final cubit = context.read<TaskBoardDetailCubit>();
+    final toastContext = Navigator.of(context, rootNavigator: true).context;
+    final fallbackErrorMessage = context.l10n.commonSomethingWentWrong;
+    final updatedMessage = context.l10n.taskBoardDetailPriorityUpdated;
+
+    try {
+      await cubit.updateTask(
+        taskId: task.id,
+        name: task.name?.trim().isNotEmpty == true
+            ? task.name!.trim()
+            : context.l10n.taskBoardDetailUntitledTask,
+        priority: normalizedPriority,
+        startDate: task.startDate,
+        endDate: task.endDate,
+        estimationPoints: task.estimationPoints,
+        labelIds: task.labelIds,
+        projectIds: task.projectIds,
+        assigneeIds: task.assigneeIds,
+      );
+      if (!context.mounted || !toastContext.mounted) return;
+      shad.showToast(
+        context: toastContext,
+        builder: (context, overlay) =>
+            shad.Alert(content: Text(updatedMessage)),
+      );
+    } on ApiException catch (error) {
+      if (!context.mounted || !toastContext.mounted) return;
+      shad.showToast(
+        context: toastContext,
+        builder: (context, overlay) => shad.Alert.destructive(
+          content: Text(
+            error.message.trim().isEmpty ? fallbackErrorMessage : error.message,
+          ),
+        ),
+      );
+    } on Exception {
+      if (!context.mounted || !toastContext.mounted) return;
+      shad.showToast(
+        context: toastContext,
+        builder: (context, overlay) =>
+            shad.Alert.destructive(content: Text(fallbackErrorMessage)),
+      );
+    }
   }
 
   Future<void> _openBulkActionsSheet(BuildContext context) async {
@@ -1090,6 +1306,57 @@ class _TaskBoardDetailPageViewState extends State<_TaskBoardDetailPageView> {
         ),
       ),
     );
+  }
+
+  Future<void> _openBulkMovePicker(
+    BuildContext context,
+    List<TaskBoardList> lists,
+  ) async {
+    final cubit = context.read<TaskBoardDetailCubit>();
+    if (!cubit.state.isBulkSelectMode) {
+      cubit.enterBulkSelectMode();
+    }
+    if (cubit.state.selectedTaskIds.isEmpty) {
+      await _openBulkActionsSheet(context);
+      return;
+    }
+
+    final selectedListId = await shad.showDialog<String>(
+      context: context,
+      builder: (dialogContext) => _MoveTaskListDialog(lists: lists),
+    );
+    if (selectedListId == null || !context.mounted) return;
+
+    final toastContext = Navigator.of(context, rootNavigator: true).context;
+    final fallbackErrorMessage = context.l10n.commonSomethingWentWrong;
+    final taskMovedMessage = context.l10n.taskBoardDetailTaskMoved;
+
+    try {
+      await cubit.bulkMoveToList(listId: selectedListId);
+      if (!context.mounted || !toastContext.mounted) return;
+      shad.showToast(
+        context: toastContext,
+        builder: (context, overlay) =>
+            shad.Alert(content: Text(taskMovedMessage)),
+      );
+    } on ApiException catch (error) {
+      if (!context.mounted || !toastContext.mounted) return;
+      shad.showToast(
+        context: toastContext,
+        builder: (context, overlay) => shad.Alert.destructive(
+          content: Text(
+            error.message.trim().isEmpty ? fallbackErrorMessage : error.message,
+          ),
+        ),
+      );
+    } on Exception {
+      if (!context.mounted || !toastContext.mounted) return;
+      shad.showToast(
+        context: toastContext,
+        builder: (context, overlay) =>
+            shad.Alert.destructive(content: Text(fallbackErrorMessage)),
+      );
+    }
   }
 
   Future<void> _openTaskCreateSheet(

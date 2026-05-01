@@ -9,6 +9,7 @@ class TaskBoardList extends Equatable {
     this.color,
     this.position,
     this.archived = false,
+    this.taskCount,
   });
 
   factory TaskBoardList.fromJson(Map<String, dynamic> json) {
@@ -35,6 +36,8 @@ class TaskBoardList extends Equatable {
       color: (json['color'] as String?)?.trim(),
       position: _parsePosition(json['position']),
       archived: json['archived'] as bool? ?? false,
+      taskCount:
+          _parseCount(json['task_count']) ?? _parseCount(json['taskCount']),
     );
   }
 
@@ -66,6 +69,13 @@ class TaskBoardList extends Equatable {
     return null;
   }
 
+  static int? _parseCount(Object? value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
+  }
+
   final String id;
   final String boardId;
   final String? name;
@@ -73,6 +83,7 @@ class TaskBoardList extends Equatable {
   final String? color;
   final int? position;
   final bool archived;
+  final int? taskCount;
 
   bool get isDone => normalizeSupportedStatus(status) == 'done';
 
@@ -88,6 +99,7 @@ class TaskBoardList extends Equatable {
     'color': color,
     'position': position,
     'archived': archived,
+    if (taskCount != null) 'task_count': taskCount,
   };
 
   static String? normalizeSupportedStatus(String? rawStatus) {
@@ -113,5 +125,6 @@ class TaskBoardList extends Equatable {
     color,
     position,
     archived,
+    taskCount,
   ];
 }

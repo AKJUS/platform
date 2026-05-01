@@ -9,7 +9,101 @@ vi.mock('./access', () => ({
     requireBoardAccessMock(...args),
 }));
 
-import { POST } from './route';
+import { GET, POST } from './route';
+
+describe('task board lists route GET', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns task counts for each list', async () => {
+    const listRows = [
+      {
+        id: 'list-1',
+        board_id: 'board-1',
+        name: 'To Do',
+        status: 'not_started',
+        color: 'GRAY',
+        position: 1,
+        archived: false,
+      },
+      {
+        id: 'list-2',
+        board_id: 'board-1',
+        name: 'Done',
+        status: 'done',
+        color: 'GREEN',
+        position: 2,
+        archived: false,
+      },
+    ];
+    const listOrderMock = vi.fn();
+    const listQuery = {
+      select: vi.fn(() => listQuery),
+      eq: vi.fn(() => listQuery),
+      order: listOrderMock,
+    };
+    listOrderMock.mockReturnValueOnce(listQuery).mockResolvedValueOnce({
+      data: listRows,
+      error: null,
+    });
+
+    const taskQuery = {
+      select: vi.fn(() => taskQuery),
+      in: vi.fn(() => taskQuery),
+      is: vi.fn().mockResolvedValue({
+        data: [{ list_id: 'list-1' }, { list_id: 'list-1' }],
+        error: null,
+      }),
+    };
+    const fromMock = vi.fn((table: string) => {
+      if (table === 'task_lists') return listQuery;
+      if (table === 'tasks') return taskQuery;
+      throw new Error(`Unexpected table ${table}`);
+    });
+
+    requireBoardAccessMock.mockResolvedValue({
+      supabase: {
+        from: fromMock,
+      },
+      sbAdmin: {
+        from: fromMock,
+      },
+      boardId: 'board-1',
+    });
+
+    const response = await GET(
+      new NextRequest(
+        'http://localhost/api/v1/workspaces/ws-1/task-boards/board-1/lists'
+      ),
+      {
+        params: Promise.resolve({
+          wsId: 'ws-1',
+          boardId: 'board-1',
+        }),
+      }
+    );
+
+    expect(response).toBeDefined();
+    if (!response) {
+      throw new Error('Expected GET to return a response');
+    }
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      lists: [
+        {
+          ...listRows[0],
+          task_count: 2,
+        },
+        {
+          ...listRows[1],
+          task_count: 0,
+        },
+      ],
+    });
+  });
+});
 
 describe('task board lists route POST', () => {
   beforeEach(() => {

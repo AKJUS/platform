@@ -20,7 +20,7 @@ export async function GET(
     const access = await requireBoardAccess(request, await params);
     if ('error' in access) return access.error;
 
-    const { supabase, boardId } = access;
+    const { supabase, sbAdmin, boardId } = access;
     const { data: lists, error } = await supabase
       .from('task_lists')
       .select('id, board_id, name, status, color, position, archived')
@@ -36,7 +36,38 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({ lists: lists ?? [] });
+    const listIds = (lists ?? []).map((list) => list.id);
+    const taskCountsByListId = new Map<string, number>();
+
+    if (listIds.length > 0) {
+      const { data: taskRows, error: taskCountError } = await sbAdmin
+        .from('tasks')
+        .select('list_id')
+        .in('list_id', listIds)
+        .is('deleted_at', null);
+
+      if (taskCountError) {
+        return NextResponse.json(
+          { error: 'Failed to load task list counts' },
+          { status: 500 }
+        );
+      }
+
+      for (const task of taskRows ?? []) {
+        if (!task.list_id) continue;
+        taskCountsByListId.set(
+          task.list_id,
+          (taskCountsByListId.get(task.list_id) ?? 0) + 1
+        );
+      }
+    }
+
+    return NextResponse.json({
+      lists: (lists ?? []).map((list) => ({
+        ...list,
+        task_count: taskCountsByListId.get(list.id) ?? 0,
+      })),
+    });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json(

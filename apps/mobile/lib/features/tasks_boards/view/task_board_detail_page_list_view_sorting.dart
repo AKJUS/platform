@@ -41,6 +41,27 @@ List<TaskBoardTask> sortTaskBoardListViewTasks(
   return sorted;
 }
 
+List<TaskBoardTask> sortTaskBoardListViewTasksForList(
+  TaskBoardList list,
+  List<TaskBoardTask> tasks,
+) {
+  final status = TaskBoardList.normalizeSupportedStatus(list.status);
+  if (status != 'done' && status != 'closed') {
+    return tasks;
+  }
+
+  final sorted = List<TaskBoardTask>.from(tasks)
+    ..sort((a, b) {
+      final aTimestamp = status == 'done' ? a.completedAt : a.closedAt;
+      final bTimestamp = status == 'done' ? b.completedAt : b.closedAt;
+      return _taskBoardListViewDateValue(
+        bTimestamp,
+      ).compareTo(_taskBoardListViewDateValue(aTimestamp));
+    });
+
+  return sorted;
+}
+
 int _taskBoardListViewPriorityValue(String? priority) {
   return switch (priority?.toLowerCase()) {
     'critical' => 4,

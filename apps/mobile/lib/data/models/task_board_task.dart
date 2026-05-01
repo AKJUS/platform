@@ -133,6 +133,7 @@ class TaskBoardTask extends Equatable {
     this.startDate,
     this.endDate,
     this.createdAt,
+    this.completedAt,
     this.closedAt,
     this.estimationPoints,
     this.assigneeIds = const [],
@@ -193,6 +194,7 @@ class TaskBoardTask extends Equatable {
       startDate: parseDateTime(json['start_date']),
       endDate: parseDateTime(json['end_date']),
       createdAt: parseDateTime(json['created_at']),
+      completedAt: parseDateTime(json['completed_at']),
       closedAt: parseDateTime(json['closed_at']),
       estimationPoints: (json['estimation_points'] as num?)?.toInt(),
       assigneeIds: normalizedAssigneeIds,
@@ -227,6 +229,7 @@ class TaskBoardTask extends Equatable {
     DateTime? startDate,
     DateTime? endDate,
     DateTime? createdAt,
+    DateTime? completedAt,
     DateTime? closedAt,
     int? estimationPoints,
     List<String>? assigneeIds,
@@ -252,6 +255,7 @@ class TaskBoardTask extends Equatable {
       startDate: startDate ?? this.startDate,
       endDate: endDate ?? this.endDate,
       createdAt: createdAt ?? this.createdAt,
+      completedAt: completedAt ?? this.completedAt,
       closedAt: closedAt ?? this.closedAt,
       estimationPoints: estimationPoints ?? this.estimationPoints,
       assigneeIds: assigneeIds ?? this.assigneeIds,
@@ -324,6 +328,7 @@ class TaskBoardTask extends Equatable {
   final DateTime? startDate;
   final DateTime? endDate;
   final DateTime? createdAt;
+  final DateTime? completedAt;
   final DateTime? closedAt;
   final int? estimationPoints;
   final List<String> assigneeIds;
@@ -347,6 +352,7 @@ class TaskBoardTask extends Equatable {
     'start_date': startDate?.toIso8601String(),
     'end_date': endDate?.toIso8601String(),
     'created_at': createdAt?.toIso8601String(),
+    'completed_at': completedAt?.toIso8601String(),
     'closed_at': closedAt?.toIso8601String(),
     'estimation_points': estimationPoints,
     'assignee_ids': assigneeIds,
@@ -374,6 +380,7 @@ class TaskBoardTask extends Equatable {
     startDate,
     endDate,
     createdAt,
+    completedAt,
     closedAt,
     estimationPoints,
     assigneeIds,

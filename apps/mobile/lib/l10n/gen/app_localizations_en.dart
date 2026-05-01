@@ -2050,6 +2050,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get taskBoardDetailQuickActions => 'Quick actions';
 
   @override
+  String get taskBoardDetailChangePriority => 'Change priority';
+
+  @override
+  String get taskBoardDetailMarkNotStarted => 'Move to Not started';
+
+  @override
+  String get taskBoardDetailOpenFullDetails => 'Open full details';
+
+  @override
+  String get taskBoardDetailPriorityUpdated => 'Priority updated.';
+
+  @override
   String get taskBoardDetailProperties => 'Properties';
 
   @override
@@ -2281,13 +2293,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get taskBoardDetailDefaultHiddenListsTitle => 'Hidden by default';
 
   @override
-  String get taskBoardDetailDefaultHiddenListsDescription => 'List mode hides Documents, Done, and Closed lists until you choose a list or status filter.';
+  String get taskBoardDetailDefaultHiddenListsDescription => 'List mode hides Documents lists until you choose a list or status filter.';
 
   @override
   String get taskBoardDetailDefaultHiddenListsOverrideTitle => 'Default hidden lists are visible';
 
   @override
-  String get taskBoardDetailDefaultHiddenListsOverrideDescription => 'Your list or status filter is overriding the default Documents, Done, and Closed exclusions.';
+  String get taskBoardDetailDefaultHiddenListsOverrideDescription => 'Your list or status filter is overriding the default Documents exclusion.';
 
   @override
   String get taskBoardDetailFilters => 'Filters';

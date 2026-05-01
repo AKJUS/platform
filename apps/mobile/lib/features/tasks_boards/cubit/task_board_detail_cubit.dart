@@ -30,6 +30,7 @@ class TaskBoardDetailCubit extends Cubit<TaskBoardDetailState> {
   static const CachePolicy _listTasksCachePolicy = CachePolicies.moduleData;
   static const _detailCacheTag = 'tasks:board-detail';
   static const _listTasksCacheTag = 'tasks:board-list-tasks';
+  static const Object _taskUpdateDescriptionUnset = Object();
 
   final TaskRepository _taskRepository;
   int _loadRequestToken = 0;
@@ -311,6 +312,10 @@ class TaskBoardDetailCubit extends Cubit<TaskBoardDetailState> {
     bool forceRefresh = false,
     int? pageSizeHint,
   }) async {
+    if (isClosed) {
+      return;
+    }
+
     final wsId = state.workspaceId;
     final board = state.board;
     final requestToken = _loadRequestToken;
@@ -396,7 +401,8 @@ class TaskBoardDetailCubit extends Cubit<TaskBoardDetailState> {
         projects: board.projects,
       );
 
-      if (requestToken != _loadRequestToken ||
+      if (isClosed ||
+          requestToken != _loadRequestToken ||
           state.workspaceId != wsId ||
           state.board?.id != board.id) {
         return;
@@ -429,7 +435,7 @@ class TaskBoardDetailCubit extends Cubit<TaskBoardDetailState> {
             .catchError((_) {}),
       );
     } on Exception {
-      if (requestToken != _loadRequestToken) {
+      if (isClosed || requestToken != _loadRequestToken) {
         return;
       }
       if (state.workspaceId != wsId || state.board?.id != board.id) {
@@ -512,10 +518,11 @@ class TaskBoardDetailCubit extends Cubit<TaskBoardDetailState> {
       return;
     }
 
-    await loadListTasks(
-      listId: listId,
-      forceRefresh: true,
-      pageSizeHint: pageSizeHint,
+    await _refreshBoardAndTaskLists(
+      wsId: wsId,
+      boardId: board.id,
+      affectedListIds: {listId},
+      pageSizeHints: {listId: pageSizeHint},
     );
   }
 
@@ -568,50 +575,236 @@ class TaskBoardDetailCubit extends Cubit<TaskBoardDetailState> {
       assigneeIds,
     );
 
-    await _runMutation(
-      () async {
-        await _taskRepository.updateBoardTask(
-          wsId: wsId,
-          taskId: taskId,
-          name: name,
-          priority: priority,
-          startDate: startDate,
-          endDate: endDate,
-          estimationPoints: estimationPoints,
-          labelIds: labelIds,
-          projectIds: projectIds,
-          assigneeIds: sanitizedAssigneeIds,
-          clearStartDate: clearStartDate,
-          clearEndDate: clearEndDate,
-          clearEstimationPoints: clearEstimationPoints,
-        );
+    _optimisticallyUpdateTask(
+      taskId: taskId,
+      name: name,
+      description: clearDescription ? null : description,
+      priority: priority,
+      startDate: startDate,
+      endDate: endDate,
+      estimationPoints: estimationPoints,
+      clearStartDate: clearStartDate,
+      clearEndDate: clearEndDate,
+      clearEstimationPoints: clearEstimationPoints,
+      labelIds: labelIds,
+      projectIds: projectIds,
+      assigneeIds: sanitizedAssigneeIds,
+    );
 
-        if (description != null || clearDescription) {
-          await _taskRepository.updateTaskDescription(
+    TaskBoardTask? updatedTask;
+    try {
+      await _runMutation(
+        () async {
+          updatedTask = await _taskRepository.updateBoardTask(
             wsId: wsId,
             taskId: taskId,
-            description: clearDescription ? null : description,
+            name: name,
+            priority: priority,
+            startDate: startDate,
+            endDate: endDate,
+            estimationPoints: estimationPoints,
+            labelIds: labelIds,
+            projectIds: projectIds,
+            assigneeIds: sanitizedAssigneeIds,
+            clearStartDate: clearStartDate,
+            clearEndDate: clearEndDate,
+            clearEstimationPoints: clearEstimationPoints,
           );
-        }
 
-        return null;
-      },
-      reloadBoard: false,
-    );
+          if (description != null || clearDescription) {
+            await _taskRepository.updateTaskDescription(
+              wsId: wsId,
+              taskId: taskId,
+              description: clearDescription ? null : description,
+            );
+            updatedTask = updatedTask?.copyWith(
+              description: clearDescription ? null : description,
+            );
+          }
+
+          return null;
+        },
+        reloadBoard: false,
+      );
+    } on Exception {
+      if (!isClosed && state.workspaceId == wsId && state.boardId == board.id) {
+        await _refreshBoardAndTaskLists(
+          wsId: wsId,
+          boardId: board.id,
+          affectedListIds: {
+            if (affectedListId != null) affectedListId,
+          },
+          pageSizeHints: {
+            if (affectedListId != null) affectedListId: pageSizeHint,
+          },
+        );
+      }
+      rethrow;
+    }
 
     if (isClosed || state.workspaceId != wsId || state.boardId != board.id) {
       return;
     }
 
+    final refreshedTask = updatedTask;
+    if (refreshedTask != null) {
+      _replaceTaskSnapshot(refreshedTask);
+    }
+
     if (affectedListId == null) {
-      await loadBoardDetail(wsId: wsId, boardId: board.id, forceRefresh: true);
+      await _refreshBoardAndTaskLists(
+        wsId: wsId,
+        boardId: board.id,
+        affectedListIds: const <String>{},
+      );
       return;
     }
 
-    await loadListTasks(
-      listId: affectedListId,
-      forceRefresh: true,
-      pageSizeHint: pageSizeHint,
+    await _refreshBoardAndTaskLists(
+      wsId: wsId,
+      boardId: board.id,
+      affectedListIds: {affectedListId},
+      pageSizeHints: {affectedListId: pageSizeHint},
+    );
+  }
+
+  void _optimisticallyUpdateTask({
+    required String taskId,
+    String? name,
+    Object? description = _taskUpdateDescriptionUnset,
+    String? priority,
+    DateTime? startDate,
+    DateTime? endDate,
+    int? estimationPoints,
+    bool clearStartDate = false,
+    bool clearEndDate = false,
+    bool clearEstimationPoints = false,
+    List<String>? labelIds,
+    List<String>? projectIds,
+    List<String>? assigneeIds,
+  }) {
+    final board = state.board;
+    if (board == null) {
+      return;
+    }
+
+    TaskBoardTask patch(TaskBoardTask task) {
+      if (task.id != taskId) {
+        return task;
+      }
+      return TaskBoardTask(
+        id: task.id,
+        listId: task.listId,
+        displayNumber: task.displayNumber,
+        name: name ?? task.name,
+        description: identical(description, _taskUpdateDescriptionUnset)
+            ? task.description
+            : description as String?,
+        priority: priority ?? task.priority,
+        completed: task.completed,
+        startDate: clearStartDate ? null : startDate ?? task.startDate,
+        endDate: clearEndDate ? null : endDate ?? task.endDate,
+        createdAt: task.createdAt,
+        completedAt: task.completedAt,
+        closedAt: task.closedAt,
+        estimationPoints: clearEstimationPoints
+            ? null
+            : estimationPoints ?? task.estimationPoints,
+        assigneeIds: assigneeIds ?? task.assigneeIds,
+        labelIds: labelIds ?? task.labelIds,
+        projectIds: projectIds ?? task.projectIds,
+        assignees: task.assignees,
+        labels: task.labels,
+        projects: task.projects,
+        relationships: task.relationships,
+        relationshipsLoaded: task.relationshipsLoaded,
+        relationshipSummary: task.relationshipSummary,
+      );
+    }
+
+    var changed = false;
+    final nextBoardTasks = board.tasks
+        .map((task) {
+          final nextTask = patch(task);
+          if (!identical(nextTask, task) && nextTask != task) {
+            changed = true;
+          }
+          return nextTask;
+        })
+        .toList(growable: false);
+
+    final nextTasksByList = <String, List<TaskBoardTask>>{};
+    for (final entry in state.listTasksByListId.entries) {
+      nextTasksByList[entry.key] = entry.value
+          .map((task) {
+            final nextTask = patch(task);
+            if (!identical(nextTask, task) && nextTask != task) {
+              changed = true;
+            }
+            return nextTask;
+          })
+          .toList(growable: false);
+    }
+
+    if (!changed) {
+      return;
+    }
+
+    final nextBoard = board.copyWith(tasks: nextBoardTasks);
+    emit(
+      state.copyWith(
+        board: nextBoard,
+        listTasksByListId: Map.unmodifiable(nextTasksByList),
+        taskDescriptionSearchIndex: _buildTaskDescriptionSearchIndex(
+          nextBoard.tasks,
+        ),
+      ),
+    );
+  }
+
+  void _replaceTaskSnapshot(TaskBoardTask replacement) {
+    final board = state.board;
+    if (board == null) {
+      return;
+    }
+
+    var changed = false;
+    final nextBoardTasks = board.tasks
+        .map((task) {
+          if (task.id != replacement.id) {
+            return task;
+          }
+          changed = true;
+          return replacement;
+        })
+        .toList(growable: false);
+
+    final nextTasksByList = <String, List<TaskBoardTask>>{};
+    for (final entry in state.listTasksByListId.entries) {
+      nextTasksByList[entry.key] = entry.value
+          .map((task) {
+            if (task.id != replacement.id) {
+              return task;
+            }
+            changed = true;
+            return replacement;
+          })
+          .toList(growable: false);
+    }
+
+    if (!changed) {
+      return;
+    }
+
+    final nextBoard = board.copyWith(tasks: nextBoardTasks);
+    emit(
+      state.copyWith(
+        board: nextBoard,
+        listTasksByListId: Map.unmodifiable(nextTasksByList),
+        taskDescriptionSearchIndex: _buildTaskDescriptionSearchIndex(
+          nextBoard.tasks,
+        ),
+      ),
     );
   }
 
@@ -674,6 +867,16 @@ class TaskBoardDetailCubit extends Cubit<TaskBoardDetailState> {
         listTasksByListId: nextTasksByList,
       ),
     );
+
+    final affectedListId = _findTaskListId(taskId);
+    if (affectedListId == null) {
+      return;
+    }
+    await _invalidateBoardCaches(wsId: wsId);
+    await _refreshTaskLists(
+      {affectedListId},
+      pageSizeHints: {affectedListId: state.listPageSizeById[affectedListId]},
+    );
   }
 
   Future<void> moveTask({
@@ -698,25 +901,183 @@ class TaskBoardDetailCubit extends Cubit<TaskBoardDetailState> {
         sourceListId: state.listPageSizeById[sourceListId],
       listId: state.listPageSizeById[listId],
     };
+    final affectedListIds = <String>{
+      if (sourceListId != null) sourceListId,
+      listId,
+    };
 
-    await _runMutation(
-      () => _taskRepository.moveBoardTask(
-        wsId: wsId,
-        taskId: taskId,
-        listId: listId,
-      ),
-      reloadBoard: false,
-    );
+    _optimisticallyMoveTaskToList(taskId: taskId, listId: listId);
+
+    try {
+      await _runMutation(
+        () => _taskRepository.moveBoardTask(
+          wsId: wsId,
+          taskId: taskId,
+          listId: listId,
+        ),
+        reloadBoard: false,
+      );
+    } on Exception {
+      if (!isClosed && state.workspaceId == wsId && state.boardId == board.id) {
+        await _refreshBoardAndTaskLists(
+          wsId: wsId,
+          boardId: board.id,
+          affectedListIds: affectedListIds,
+          pageSizeHints: pageSizeHints,
+        );
+      }
+      rethrow;
+    }
 
     if (isClosed || state.workspaceId != wsId || state.boardId != board.id) {
       return;
     }
 
-    final affectedListIds = <String>{
-      if (sourceListId != null) sourceListId,
-      listId,
-    };
-    for (final affectedListId in affectedListIds) {
+    await _refreshBoardAndTaskLists(
+      wsId: wsId,
+      boardId: board.id,
+      affectedListIds: affectedListIds,
+      pageSizeHints: pageSizeHints,
+    );
+  }
+
+  void _optimisticallyMoveTaskToList({
+    required String taskId,
+    required String listId,
+  }) {
+    final board = state.board;
+    if (board == null) {
+      return;
+    }
+
+    TaskBoardTask? movedTask;
+    final nextBoardTasks = <TaskBoardTask>[];
+    var foundInBoard = false;
+
+    for (final task in board.tasks) {
+      if (task.id == taskId) {
+        movedTask = _copyTaskForOptimisticListMove(task, listId, board);
+        nextBoardTasks.add(movedTask);
+        foundInBoard = true;
+      } else {
+        nextBoardTasks.add(task);
+      }
+    }
+
+    final nextTasksByList = <String, List<TaskBoardTask>>{};
+    for (final entry in state.listTasksByListId.entries) {
+      final nextListTasks = <TaskBoardTask>[];
+      for (final task in entry.value) {
+        if (task.id == taskId) {
+          movedTask ??= _copyTaskForOptimisticListMove(task, listId, board);
+          continue;
+        }
+        nextListTasks.add(task);
+      }
+      nextTasksByList[entry.key] = List.unmodifiable(nextListTasks);
+    }
+
+    if (movedTask == null) {
+      for (final task in board.tasks) {
+        if (task.id == taskId) {
+          movedTask = _copyTaskForOptimisticListMove(task, listId, board);
+          break;
+        }
+      }
+    }
+    if (movedTask == null) {
+      return;
+    }
+    if (!foundInBoard) {
+      nextBoardTasks.add(movedTask);
+    }
+
+    final targetTasks = nextTasksByList[listId];
+    if (targetTasks != null && !targetTasks.any((task) => task.id == taskId)) {
+      nextTasksByList[listId] = List.unmodifiable([
+        movedTask,
+        ...targetTasks,
+      ]);
+    }
+
+    final nextBoard = board.copyWith(tasks: List.unmodifiable(nextBoardTasks));
+    final sanitizedSelectedTaskIds = _sanitizeSelectedTaskIds(
+      state.selectedTaskIds,
+      nextBoard.tasks,
+    );
+
+    emit(
+      state.copyWith(
+        board: nextBoard,
+        listTasksByListId: Map.unmodifiable(nextTasksByList),
+        selectedTaskIds: sanitizedSelectedTaskIds,
+        isBulkSelectMode:
+            state.isBulkSelectMode && sanitizedSelectedTaskIds.isNotEmpty,
+        taskDescriptionSearchIndex: _buildTaskDescriptionSearchIndex(
+          nextBoard.tasks,
+        ),
+      ),
+    );
+  }
+
+  TaskBoardTask _copyTaskForOptimisticListMove(
+    TaskBoardTask task,
+    String listId,
+    TaskBoardDetail board,
+  ) {
+    TaskBoardList? targetList;
+    for (final list in board.lists) {
+      if (list.id == listId) {
+        targetList = list;
+        break;
+      }
+    }
+    final targetStatus = TaskBoardList.normalizeSupportedStatus(
+      targetList?.status,
+    );
+    final targetCompletesWork =
+        targetStatus == 'done' || targetStatus == 'closed';
+    final completionTimestamp = DateTime.now();
+
+    return TaskBoardTask(
+      id: task.id,
+      listId: listId,
+      displayNumber: task.displayNumber,
+      name: task.name,
+      description: task.description,
+      priority: task.priority,
+      completed: targetCompletesWork,
+      startDate: task.startDate,
+      endDate: task.endDate,
+      createdAt: task.createdAt,
+      completedAt: targetStatus == 'done'
+          ? task.completedAt ?? completionTimestamp
+          : null,
+      closedAt: targetStatus == 'closed'
+          ? task.closedAt ?? completionTimestamp
+          : null,
+      estimationPoints: task.estimationPoints,
+      assigneeIds: task.assigneeIds,
+      labelIds: task.labelIds,
+      projectIds: task.projectIds,
+      assignees: task.assignees,
+      labels: task.labels,
+      projects: task.projects,
+      relationships: task.relationships,
+      relationshipsLoaded: task.relationshipsLoaded,
+      relationshipSummary: task.relationshipSummary,
+    );
+  }
+
+  Future<void> _refreshTaskLists(
+    Iterable<String> listIds, {
+    Map<String, int?> pageSizeHints = const <String, int?>{},
+  }) async {
+    final uniqueListIds = listIds
+        .where((listId) => listId.trim().isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    for (final affectedListId in uniqueListIds) {
       await loadListTasks(
         listId: affectedListId,
         forceRefresh: true,
@@ -766,10 +1127,11 @@ class TaskBoardDetailCubit extends Cubit<TaskBoardDetailState> {
       ),
     );
 
-    await loadListTasks(
-      listId: sourceListId,
-      forceRefresh: true,
-      pageSizeHint: pageSizeHint,
+    await _refreshBoardAndTaskLists(
+      wsId: wsId,
+      boardId: board.id,
+      affectedListIds: {sourceListId},
+      pageSizeHints: {sourceListId: pageSizeHint},
     );
   }
 
@@ -818,16 +1180,40 @@ class TaskBoardDetailCubit extends Cubit<TaskBoardDetailState> {
     bool reloadBoard = true,
   }) async {
     final wsId = state.workspaceId;
+    final boardId = state.boardId;
+    final restoredListId = _findDeletedTaskListId(taskId);
     if (wsId == null) {
       throw StateError('Workspace not selected');
+    }
+    if (boardId == null) {
+      throw StateError('Board detail is not initialized');
     }
 
     await _runMutation(
       () => _taskRepository.restoreTask(wsId: wsId, taskId: taskId),
-      reloadBoard: reloadBoard,
+      reloadBoard: false,
     );
 
     _removeFromDeletedTasksCache(taskId);
+
+    if (!reloadBoard ||
+        isClosed ||
+        state.workspaceId != wsId ||
+        state.boardId != boardId) {
+      return;
+    }
+
+    await _refreshBoardAndTaskLists(
+      wsId: wsId,
+      boardId: boardId,
+      affectedListIds: {
+        if (restoredListId != null) restoredListId,
+      },
+      pageSizeHints: {
+        if (restoredListId != null)
+          restoredListId: state.listPageSizeById[restoredListId],
+      },
+    );
   }
 
   Future<void> permanentlyDeleteTask({
@@ -893,6 +1279,19 @@ class TaskBoardDetailCubit extends Cubit<TaskBoardDetailState> {
       cached.where((task) => task.id != taskId),
     );
     _cachedDeletedTasksAt = DateTime.now();
+  }
+
+  String? _findDeletedTaskListId(String taskId) {
+    final cached = _cachedDeletedTasks;
+    if (cached == null) {
+      return null;
+    }
+    for (final task in cached) {
+      if (task.id == taskId) {
+        return task.listId;
+      }
+    }
+    return null;
   }
 
   void _invalidateDeletedTasksCache() {
@@ -1005,6 +1404,15 @@ class TaskBoardDetailCubit extends Cubit<TaskBoardDetailState> {
     if (wsId == null) {
       throw StateError('Workspace not selected');
     }
+    final boardId = state.boardId;
+    if (boardId == null) {
+      throw StateError('Board detail is not initialized');
+    }
+    final affectedListIds = _findTaskListIds({
+      taskId,
+      sourceTaskId,
+      targetTaskId,
+    });
 
     await _runMutation(
       () => _taskRepository.createTaskRelationship(
@@ -1014,6 +1422,18 @@ class TaskBoardDetailCubit extends Cubit<TaskBoardDetailState> {
         targetTaskId: targetTaskId,
         type: type,
       ),
+      reloadBoard: false,
+    );
+
+    if (isClosed || state.workspaceId != wsId || state.boardId != boardId) {
+      return;
+    }
+
+    await _refreshBoardAndTaskLists(
+      wsId: wsId,
+      boardId: boardId,
+      affectedListIds: affectedListIds,
+      pageSizeHints: _pageSizeHintsForListIds(affectedListIds),
     );
   }
 
@@ -1056,6 +1476,15 @@ class TaskBoardDetailCubit extends Cubit<TaskBoardDetailState> {
     if (wsId == null) {
       throw StateError('Workspace not selected');
     }
+    final boardId = state.boardId;
+    if (boardId == null) {
+      throw StateError('Board detail is not initialized');
+    }
+    final affectedListIds = _findTaskListIds({
+      taskId,
+      sourceTaskId,
+      targetTaskId,
+    });
 
     await _runMutation(
       () => _taskRepository.deleteTaskRelationship(
@@ -1065,6 +1494,18 @@ class TaskBoardDetailCubit extends Cubit<TaskBoardDetailState> {
         targetTaskId: targetTaskId,
         type: type,
       ),
+      reloadBoard: false,
+    );
+
+    if (isClosed || state.workspaceId != wsId || state.boardId != boardId) {
+      return;
+    }
+
+    await _refreshBoardAndTaskLists(
+      wsId: wsId,
+      boardId: boardId,
+      affectedListIds: affectedListIds,
+      pageSizeHints: _pageSizeHintsForListIds(affectedListIds),
     );
   }
 
@@ -1439,6 +1880,10 @@ class TaskBoardDetailCubit extends Cubit<TaskBoardDetailState> {
     try {
       await action();
 
+      if (isClosed) {
+        return;
+      }
+
       if (state.workspaceId != wsId || state.boardId != boardId) {
         emit(
           state.copyWith(
@@ -1468,6 +1913,9 @@ class TaskBoardDetailCubit extends Cubit<TaskBoardDetailState> {
         );
       }
     } on Exception catch (error) {
+      if (isClosed) {
+        rethrow;
+      }
       final isSameBoard = state.workspaceId == wsId && state.boardId == boardId;
       emit(
         state.copyWith(
@@ -1498,6 +1946,10 @@ class TaskBoardDetailCubit extends Cubit<TaskBoardDetailState> {
     if (selectedTaskIds.isEmpty) {
       throw StateError('No tasks selected for bulk operation');
     }
+    final selectedTaskIdSet = selectedTaskIds.toSet();
+    final sourceListIdsByTaskId = <String, String?>{
+      for (final taskId in selectedTaskIds) taskId: _findTaskListId(taskId),
+    };
 
     emit(
       state.copyWith(
@@ -1535,9 +1987,39 @@ class TaskBoardDetailCubit extends Cubit<TaskBoardDetailState> {
           .map((failure) => failure.taskId)
           .where((id) => id.trim().isNotEmpty)
           .toSet();
+      final reportedSucceededTaskIds = result.succeededTaskIds
+          .where(
+            (id) =>
+                id.trim().isNotEmpty &&
+                selectedTaskIdSet.contains(id) &&
+                !failedTaskIds.contains(id),
+          )
+          .toSet();
+      final succeededTaskIds = reportedSucceededTaskIds.isNotEmpty
+          ? reportedSucceededTaskIds
+          : selectedTaskIdSet.difference(failedTaskIds);
       final nextSelectedTaskIds = failedTaskIds.isEmpty
           ? const <String>{}
           : state.selectedTaskIds.where(failedTaskIds.contains).toSet();
+
+      final isSameBoardMove =
+          operation.type == 'move_to_list' &&
+          operation.listId != null &&
+          (operation.targetBoardId == null ||
+              operation.targetBoardId == boardId);
+      if (isSameBoardMove) {
+        for (final taskId in succeededTaskIds) {
+          _optimisticallyMoveTaskToList(
+            taskId: taskId,
+            listId: operation.listId!,
+          );
+        }
+      } else {
+        _optimisticallyApplyBulkTaskMetadata(
+          taskIds: succeededTaskIds,
+          operation: operation,
+        );
+      }
 
       emit(
         state.copyWith(
@@ -1551,11 +2033,27 @@ class TaskBoardDetailCubit extends Cubit<TaskBoardDetailState> {
 
       await _invalidateBoardCaches(wsId: wsId);
 
-      await loadBoardDetail(
-        wsId: wsId,
-        boardId: boardId,
-        forceRefresh: true,
-      );
+      final affectedListIds = <String>{
+        for (final taskId in succeededTaskIds)
+          if (sourceListIdsByTaskId[taskId] != null)
+            sourceListIdsByTaskId[taskId]!,
+        if (isSameBoardMove) operation.listId!,
+      };
+      if (operation.targetBoardId == null ||
+          operation.targetBoardId == boardId) {
+        await _refreshBoardAndTaskLists(
+          wsId: wsId,
+          boardId: boardId,
+          affectedListIds: affectedListIds,
+          pageSizeHints: _pageSizeHintsForListIds(affectedListIds),
+        );
+      } else {
+        await loadBoardDetail(
+          wsId: wsId,
+          boardId: boardId,
+          forceRefresh: true,
+        );
+      }
       return result;
     } on Exception catch (error) {
       if (isClosed) {
@@ -1572,6 +2070,317 @@ class TaskBoardDetailCubit extends Cubit<TaskBoardDetailState> {
       );
       rethrow;
     }
+  }
+
+  void _optimisticallyApplyBulkTaskMetadata({
+    required Set<String> taskIds,
+    required TaskBulkOperation operation,
+  }) {
+    final board = state.board;
+    if (board == null || taskIds.isEmpty) {
+      return;
+    }
+
+    TaskBoardTask patch(TaskBoardTask task) {
+      if (!taskIds.contains(task.id)) {
+        return task;
+      }
+
+      switch (operation.type) {
+        case 'add_project':
+          final projectId = operation.projectId;
+          if (projectId == null || projectId.trim().isEmpty) {
+            return task;
+          }
+          return _taskWithProjectAdded(task, projectId.trim(), board);
+        case 'remove_project':
+          final projectId = operation.projectId;
+          if (projectId == null || projectId.trim().isEmpty) {
+            return task;
+          }
+          return task.copyWith(
+            projectIds: task.projectIds
+                .where((id) => id != projectId)
+                .toList(growable: false),
+            projects: task.projects
+                .where((project) => project.id != projectId)
+                .toList(growable: false),
+          );
+        case 'clear_projects':
+          return task.copyWith(
+            projectIds: const <String>[],
+            projects: const <TaskBoardTaskProject>[],
+          );
+        case 'add_label':
+          final labelId = operation.labelId;
+          if (labelId == null || labelId.trim().isEmpty) {
+            return task;
+          }
+          return _taskWithLabelAdded(task, labelId.trim(), board);
+        case 'remove_label':
+          final labelId = operation.labelId;
+          if (labelId == null || labelId.trim().isEmpty) {
+            return task;
+          }
+          return task.copyWith(
+            labelIds: task.labelIds
+                .where((id) => id != labelId)
+                .toList(growable: false),
+            labels: task.labels
+                .where((label) => label.id != labelId)
+                .toList(growable: false),
+          );
+        case 'clear_labels':
+          return task.copyWith(
+            labelIds: const <String>[],
+            labels: const <TaskBoardTaskLabel>[],
+          );
+        case 'add_assignee':
+          final assigneeId = operation.assigneeId;
+          if (assigneeId == null || assigneeId.trim().isEmpty) {
+            return task;
+          }
+          return _taskWithAssigneeAdded(task, assigneeId.trim(), board);
+        case 'remove_assignee':
+          final assigneeId = operation.assigneeId;
+          if (assigneeId == null || assigneeId.trim().isEmpty) {
+            return task;
+          }
+          return task.copyWith(
+            assigneeIds: task.assigneeIds
+                .where((id) => id != assigneeId)
+                .toList(growable: false),
+            assignees: task.assignees
+                .where((assignee) => assignee.id != assigneeId)
+                .toList(growable: false),
+          );
+        case 'clear_assignees':
+          return task.copyWith(
+            assigneeIds: const <String>[],
+            assignees: const <TaskBoardTaskAssignee>[],
+          );
+        case 'update_fields':
+          return _taskWithBulkFieldUpdates(task, operation.updates);
+        default:
+          return task;
+      }
+    }
+
+    _patchTaskSnapshots(patch);
+  }
+
+  TaskBoardTask _taskWithProjectAdded(
+    TaskBoardTask task,
+    String projectId,
+    TaskBoardDetail board,
+  ) {
+    if (task.projectIds.contains(projectId)) {
+      return task;
+    }
+
+    TaskBoardTaskProject? project;
+    for (final boardProject in board.projects) {
+      if (boardProject.id == projectId) {
+        project = TaskBoardTaskProject(
+          id: boardProject.id,
+          name: boardProject.name,
+        );
+        break;
+      }
+    }
+
+    return task.copyWith(
+      projectIds: [...task.projectIds, projectId],
+      projects: [
+        ...task.projects,
+        project ?? TaskBoardTaskProject(id: projectId),
+      ],
+    );
+  }
+
+  TaskBoardTask _taskWithLabelAdded(
+    TaskBoardTask task,
+    String labelId,
+    TaskBoardDetail board,
+  ) {
+    if (task.labelIds.contains(labelId)) {
+      return task;
+    }
+
+    TaskBoardTaskLabel? label;
+    for (final boardLabel in board.labels) {
+      if (boardLabel.id == labelId) {
+        label = TaskBoardTaskLabel(
+          id: boardLabel.id,
+          name: boardLabel.name,
+          color: boardLabel.color,
+        );
+        break;
+      }
+    }
+
+    return task.copyWith(
+      labelIds: [...task.labelIds, labelId],
+      labels: [
+        ...task.labels,
+        label ?? TaskBoardTaskLabel(id: labelId),
+      ],
+    );
+  }
+
+  TaskBoardTask _taskWithAssigneeAdded(
+    TaskBoardTask task,
+    String assigneeId,
+    TaskBoardDetail board,
+  ) {
+    if (task.assigneeIds.contains(assigneeId)) {
+      return task;
+    }
+
+    TaskBoardTaskAssignee? assignee;
+    for (final member in board.members) {
+      if (member.id == assigneeId) {
+        assignee = TaskBoardTaskAssignee(
+          id: member.id,
+          displayName: member.displayName,
+          email: member.email,
+          avatarUrl: member.avatarUrl,
+        );
+        break;
+      }
+    }
+
+    return task.copyWith(
+      assigneeIds: [...task.assigneeIds, assigneeId],
+      assignees: [
+        ...task.assignees,
+        assignee ?? TaskBoardTaskAssignee(id: assigneeId),
+      ],
+    );
+  }
+
+  TaskBoardTask _taskWithBulkFieldUpdates(
+    TaskBoardTask task,
+    Map<String, dynamic>? updates,
+  ) {
+    if (updates == null || updates.isEmpty) {
+      return task;
+    }
+
+    return TaskBoardTask(
+      id: task.id,
+      listId: task.listId,
+      displayNumber: task.displayNumber,
+      name: task.name,
+      description: task.description,
+      priority: updates.containsKey('priority')
+          ? updates['priority'] as String?
+          : task.priority,
+      completed: task.completed,
+      startDate: task.startDate,
+      endDate: updates.containsKey('end_date')
+          ? _parseBulkIsoDate(updates['end_date'])
+          : task.endDate,
+      createdAt: task.createdAt,
+      completedAt: task.completedAt,
+      closedAt: task.closedAt,
+      estimationPoints: updates.containsKey('estimation_points')
+          ? (updates['estimation_points'] as num?)?.toInt()
+          : task.estimationPoints,
+      assigneeIds: task.assigneeIds,
+      labelIds: task.labelIds,
+      projectIds: task.projectIds,
+      assignees: task.assignees,
+      labels: task.labels,
+      projects: task.projects,
+      relationships: task.relationships,
+      relationshipsLoaded: task.relationshipsLoaded,
+      relationshipSummary: task.relationshipSummary,
+    );
+  }
+
+  DateTime? _parseBulkIsoDate(Object? value) {
+    if (value is! String || value.trim().isEmpty) {
+      return null;
+    }
+    return DateTime.tryParse(value)?.toLocal();
+  }
+
+  void _patchTaskSnapshots(TaskBoardTask Function(TaskBoardTask task) patch) {
+    final board = state.board;
+    if (board == null) {
+      return;
+    }
+
+    var changed = false;
+    final nextBoardTasks = board.tasks
+        .map((task) {
+          final nextTask = patch(task);
+          if (nextTask != task) {
+            changed = true;
+          }
+          return nextTask;
+        })
+        .toList(growable: false);
+
+    final nextTasksByList = <String, List<TaskBoardTask>>{};
+    for (final entry in state.listTasksByListId.entries) {
+      nextTasksByList[entry.key] = entry.value
+          .map((task) {
+            final nextTask = patch(task);
+            if (nextTask != task) {
+              changed = true;
+            }
+            return nextTask;
+          })
+          .toList(growable: false);
+    }
+
+    if (!changed) {
+      return;
+    }
+
+    final nextBoard = board.copyWith(tasks: nextBoardTasks);
+    emit(
+      state.copyWith(
+        board: nextBoard,
+        listTasksByListId: Map.unmodifiable(nextTasksByList),
+        taskDescriptionSearchIndex: _buildTaskDescriptionSearchIndex(
+          nextBoard.tasks,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _refreshBoardAndTaskLists({
+    required String wsId,
+    required String boardId,
+    required Set<String> affectedListIds,
+    Map<String, int?> pageSizeHints = const <String, int?>{},
+  }) async {
+    await loadBoardDetail(wsId: wsId, boardId: boardId, forceRefresh: true);
+
+    if (isClosed || state.workspaceId != wsId || state.boardId != boardId) {
+      return;
+    }
+
+    if (affectedListIds.isEmpty) {
+      return;
+    }
+
+    final currentListIds =
+        state.board?.lists.map((list) => list.id).toSet() ?? const <String>{};
+    final refreshableListIds = affectedListIds
+        .where(currentListIds.contains)
+        .toSet();
+    if (refreshableListIds.isEmpty) {
+      return;
+    }
+
+    await _refreshTaskLists(
+      refreshableListIds,
+      pageSizeHints: pageSizeHints,
+    );
   }
 
   String? _findTaskListId(String taskId) {
@@ -1593,6 +2402,23 @@ class TaskBoardDetailCubit extends Cubit<TaskBoardDetailState> {
     }
 
     return null;
+  }
+
+  Set<String> _findTaskListIds(Iterable<String> taskIds) {
+    final listIds = <String>{};
+    for (final taskId in taskIds) {
+      final listId = _findTaskListId(taskId);
+      if (listId != null) {
+        listIds.add(listId);
+      }
+    }
+    return listIds;
+  }
+
+  Map<String, int?> _pageSizeHintsForListIds(Iterable<String> listIds) {
+    return {
+      for (final listId in listIds) listId: state.listPageSizeById[listId],
+    };
   }
 
   List<String>? _sanitizeAssigneeIdsForBoard(
@@ -1678,7 +2504,8 @@ class TaskBoardDetailCubit extends Cubit<TaskBoardDetailState> {
     required int pageSize,
     required bool loadMore,
   }) {
-    if (requestToken != _loadRequestToken ||
+    if (isClosed ||
+        requestToken != _loadRequestToken ||
         state.workspaceId != wsId ||
         state.board?.id != boardId) {
       return false;

@@ -135,12 +135,12 @@ class _TaskBoardTimelineView extends StatefulWidget {
 }
 
 class _TaskBoardTimelineViewState extends State<_TaskBoardTimelineView> {
-  static const double _sidebarWidth = 172;
-  static const double _dayWidth = 74;
-  static const double _headerHeight = 52;
-  static const double _laneHeight = 44;
-  static const double _rowVerticalPadding = 12;
-  static const double _taskBarHeight = 32;
+  static const double _sidebarWidth = 138;
+  static const double _dayWidth = 68;
+  static const double _headerHeight = 48;
+  static const double _laneHeight = 42;
+  static const double _rowVerticalPadding = 10;
+  static const double _taskBarHeight = 30;
   static const double _resizeHandleWidth = 14;
 
   final Map<String, GlobalKey> _rowKeys = <String, GlobalKey>{};
@@ -161,6 +161,12 @@ class _TaskBoardTimelineViewState extends State<_TaskBoardTimelineView> {
       now,
     ).difference(timelineData.startDate).inDays;
 
+    final rangeLabel = _timelineRangeLabel(
+      context,
+      timelineData.startDate,
+      timelineData.endDate,
+    );
+
     return NotificationListener<ScrollNotification>(
       onNotification: (notification) {
         final metrics = notification.metrics;
@@ -177,37 +183,72 @@ class _TaskBoardTimelineViewState extends State<_TaskBoardTimelineView> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: EdgeInsets.fromLTRB(16, 0, 16, widget.bottomPadding),
         children: [
-          Container(
+          DecoratedBox(
             decoration: BoxDecoration(
-              color: theme.colorScheme.card,
-              borderRadius: BorderRadius.circular(22),
+              color: theme.colorScheme.card.withValues(alpha: 0.78),
+              borderRadius: BorderRadius.circular(16),
               border: Border.all(
-                color: theme.colorScheme.border.withValues(alpha: 0.72),
+                color: theme.colorScheme.border.withValues(alpha: 0.48),
               ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-                  child: Row(
+                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Expanded(
-                        child: Text(
-                          context.l10n.taskBoardDetailTimelineView,
-                          style: theme.typography.large.copyWith(
-                            fontWeight: FontWeight.w700,
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              context.l10n.taskBoardDetailTimelineView,
+                              style: theme.typography.large.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                           ),
-                        ),
+                          if (scheduledTasks.isNotEmpty)
+                            shad.OutlineButton(
+                              onPressed: () => _jumpToToday(todayIndex),
+                              child: Text(context.l10n.taskBoardDetailToday),
+                            ),
+                        ],
                       ),
-                      if (scheduledTasks.isNotEmpty)
-                        shad.OutlineBadge(
-                          child: Text(
-                            context.l10n.taskBoardsTasksCount(
+                      const shad.Gap(8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          _TimelineSummaryChip(
+                            icon: Icons.date_range_outlined,
+                            label: rangeLabel,
+                          ),
+                          _TimelineSummaryChip(
+                            icon: Icons.timeline_outlined,
+                            label: context.l10n.taskBoardsTasksCount(
                               scheduledTasks.length,
                             ),
                           ),
+                          if (unscheduledTasks.isNotEmpty)
+                            _TimelineSummaryChip(
+                              icon: Icons.pending_actions_outlined,
+                              label: context
+                                  .l10n
+                                  .taskBoardDetailTimelineUnscheduledTitle,
+                            ),
+                        ],
+                      ),
+                      if (scheduledTasks.isNotEmpty) ...[
+                        const shad.Gap(8),
+                        Text(
+                          context.l10n.taskBoardDetailTimelineEmptyDescription,
+                          style: theme.typography.small.copyWith(
+                            color: theme.colorScheme.mutedForeground,
+                          ),
                         ),
+                      ],
                     ],
                   ),
                 ),
@@ -223,7 +264,7 @@ class _TaskBoardTimelineViewState extends State<_TaskBoardTimelineView> {
                 else
                   ClipRRect(
                     borderRadius: const BorderRadius.vertical(
-                      bottom: Radius.circular(22),
+                      bottom: Radius.circular(16),
                     ),
                     child: SingleChildScrollView(
                       controller: widget.horizontalScrollController,
@@ -292,7 +333,7 @@ class _TaskBoardTimelineViewState extends State<_TaskBoardTimelineView> {
             ),
           ),
           if (scheduledTasks.isNotEmpty && unscheduledTasks.isNotEmpty) ...[
-            const shad.Gap(12),
+            const shad.Gap(14),
             _TaskBoardTimelineUnscheduledSection(
               tasks: unscheduledTasks,
               onTaskTap: widget.onTaskTap,
@@ -354,14 +395,42 @@ class _TaskBoardTimelineViewState extends State<_TaskBoardTimelineView> {
     }
 
     final bounds = _resolveTimelineBounds(scheduledTasks, now);
+    final layoutsByListId = _buildTaskLayoutsByList(scheduledTasks);
+    final listsWithScheduledTasks = visibleLists
+        .where((list) => layoutsByListId[list.id]?.isNotEmpty ?? false)
+        .toList(growable: false);
+
     return _TimelineData(
-      lists: visibleLists,
+      lists: listsWithScheduledTasks,
       scheduledTasks: scheduledTasks,
       unscheduledTasks: unscheduledTasks,
-      layoutsByListId: _buildTaskLayoutsByList(scheduledTasks),
+      layoutsByListId: layoutsByListId,
       startDate: bounds.$1,
       endDate: bounds.$2,
     );
+  }
+
+  void _jumpToToday(int todayIndex) {
+    if (!_timelineContainsToday(todayIndex) ||
+        !widget.horizontalScrollController.hasClients) {
+      return;
+    }
+    final position = widget.horizontalScrollController.position;
+    final targetOffset = (todayIndex * _dayWidth - 120).clamp(
+      position.minScrollExtent,
+      position.maxScrollExtent,
+    );
+    unawaited(
+      widget.horizontalScrollController.animateTo(
+        targetOffset,
+        duration: const Duration(milliseconds: 260),
+        curve: Curves.easeOutCubic,
+      ),
+    );
+  }
+
+  bool _timelineContainsToday(int todayIndex) {
+    return todayIndex >= 0;
   }
 
   Map<String, List<_TimelineTaskLayout>> _buildTaskLayoutsByList(
@@ -597,6 +666,55 @@ class _TaskBoardTimelineViewState extends State<_TaskBoardTimelineView> {
       DateTime(value.year, value.month, value.day);
 }
 
+String _timelineRangeLabel(
+  BuildContext context,
+  DateTime startDate,
+  DateTime endDate,
+) {
+  final locale = Localizations.localeOf(context).toLanguageTag();
+  final formatter = DateFormat.MMMd(locale);
+  return '${formatter.format(startDate)} - ${formatter.format(endDate)}';
+}
+
+class _TimelineSummaryChip extends StatelessWidget {
+  const _TimelineSummaryChip({
+    required this.icon,
+    required this.label,
+  });
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = shad.Theme.of(context);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.muted.withValues(alpha: 0.26),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(
+          color: theme.colorScheme.border.withValues(alpha: 0.36),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: theme.colorScheme.mutedForeground),
+          const shad.Gap(5),
+          Text(
+            label,
+            style: theme.typography.small.copyWith(
+              color: theme.colorScheme.mutedForeground,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _TimelineHeader extends StatelessWidget {
   const _TimelineHeader({
     required this.startDate,
@@ -793,6 +911,7 @@ class _TimelineListRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = shad.Theme.of(context);
+    final listStyle = _taskBoardListVisualStyle(context, list);
     final laneCount = math.max(
       1,
       layouts.fold<int>(
@@ -805,9 +924,10 @@ class _TimelineListRow extends StatelessWidget {
     return Container(
       height: rowHeight,
       decoration: BoxDecoration(
+        color: listStyle.surface.withValues(alpha: 0.08),
         border: Border(
           bottom: BorderSide(
-            color: theme.colorScheme.border.withValues(alpha: 0.5),
+            color: listStyle.surfaceBorder.withValues(alpha: 0.22),
           ),
         ),
       ),
@@ -817,9 +937,10 @@ class _TimelineListRow extends StatelessWidget {
             width: sidebarWidth,
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
+              color: listStyle.surface.withValues(alpha: 0.16),
               border: Border(
                 right: BorderSide(
-                  color: theme.colorScheme.border.withValues(alpha: 0.5),
+                  color: listStyle.surfaceBorder.withValues(alpha: 0.24),
                 ),
               ),
             ),
@@ -833,6 +954,7 @@ class _TimelineListRow extends StatelessWidget {
                       : context.l10n.taskBoardDetailUntitledList,
                   style: theme.typography.p.copyWith(
                     fontWeight: FontWeight.w700,
+                    color: listStyle.accent,
                   ),
                 ),
                 const shad.Gap(4),
@@ -855,7 +977,7 @@ class _TimelineListRow extends StatelessWidget {
                       todayIndex: todayIndex,
                       dayWidth: dayWidth,
                       lineColor: theme.colorScheme.border.withValues(
-                        alpha: 0.28,
+                        alpha: 0.2,
                       ),
                       todayColor: theme.colorScheme.primary,
                     ),
@@ -1193,22 +1315,21 @@ class _TaskBoardTimelineUnscheduledSection extends StatelessWidget {
           ),
         ),
         const shad.Gap(8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: tasks
-              .map(
-                (task) => shad.OutlineButton(
-                  onPressed: () => unawaited(onTaskTap(task)),
-                  child: Text(
-                    task.name?.trim().isNotEmpty == true
-                        ? task.name!.trim()
-                        : context.l10n.taskBoardDetailUntitledTask,
-                  ),
-                ),
-              )
-              .toList(growable: false),
-        ),
+        for (final task in tasks.take(8)) ...[
+          _TimelineUnscheduledTaskTile(
+            task: task,
+            onTap: () => unawaited(onTaskTap(task)),
+          ),
+          const shad.Gap(8),
+        ],
+        if (tasks.length > 8)
+          Text(
+            '+${tasks.length - 8}',
+            style: theme.typography.small.copyWith(
+              color: theme.colorScheme.mutedForeground,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
       ],
     );
 
@@ -1217,5 +1338,66 @@ class _TaskBoardTimelineUnscheduledSection extends StatelessWidget {
     }
 
     return shad.Card(child: child);
+  }
+}
+
+class _TimelineUnscheduledTaskTile extends StatelessWidget {
+  const _TimelineUnscheduledTaskTile({
+    required this.task,
+    required this.onTap,
+  });
+
+  final TaskBoardTask task;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = shad.Theme.of(context);
+    final priorityStyle = _taskPriorityStyle(context, task.priority);
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Ink(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          decoration: BoxDecoration(
+            color: priorityStyle.background.withValues(alpha: 0.32),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: priorityStyle.border.withValues(alpha: 0.44),
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                priorityStyle.icon,
+                size: 15,
+                color: priorityStyle.foreground,
+              ),
+              const shad.Gap(8),
+              Expanded(
+                child: Text(
+                  task.name?.trim().isNotEmpty == true
+                      ? task.name!.trim()
+                      : context.l10n.taskBoardDetailUntitledTask,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.typography.small.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const shad.Gap(8),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 18,
+                color: theme.colorScheme.mutedForeground,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

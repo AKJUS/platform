@@ -32,7 +32,7 @@ class _TaskBoardTaskDetailFullscreenView extends StatefulWidget {
 class _TaskBoardTaskDetailFullscreenViewState
     extends State<_TaskBoardTaskDetailFullscreenView> {
   _TaskBoardTaskDetailSection _section =
-      _TaskBoardTaskDetailSection.description;
+      _TaskBoardTaskDetailSection.information;
   bool _isDescriptionEditing = false;
 
   @override
@@ -41,7 +41,7 @@ class _TaskBoardTaskDetailFullscreenViewState
   ) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.task.id != widget.task.id) {
-      _section = _TaskBoardTaskDetailSection.description;
+      _section = _TaskBoardTaskDetailSection.information;
       _isDescriptionEditing = false;
     }
   }

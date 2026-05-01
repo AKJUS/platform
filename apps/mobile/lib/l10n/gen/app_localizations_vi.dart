@@ -2044,6 +2044,18 @@ class AppLocalizationsVi extends AppLocalizations {
   String get taskBoardDetailQuickActions => 'Thao tác nhanh';
 
   @override
+  String get taskBoardDetailChangePriority => 'Đổi độ ưu tiên';
+
+  @override
+  String get taskBoardDetailMarkNotStarted => 'Chuyển về Chưa bắt đầu';
+
+  @override
+  String get taskBoardDetailOpenFullDetails => 'Mở chi tiết đầy đủ';
+
+  @override
+  String get taskBoardDetailPriorityUpdated => 'Đã cập nhật độ ưu tiên.';
+
+  @override
   String get taskBoardDetailProperties => 'Thuộc tính';
 
   @override
@@ -2257,13 +2269,13 @@ class AppLocalizationsVi extends AppLocalizations {
   String get taskBoardDetailDefaultHiddenListsTitle => 'Ẩn mặc định';
 
   @override
-  String get taskBoardDetailDefaultHiddenListsDescription => 'Chế độ danh sách ẩn các danh sách Tài liệu, Hoàn thành và Đã đóng cho đến khi bạn chọn bộ lọc danh sách hoặc trạng thái.';
+  String get taskBoardDetailDefaultHiddenListsDescription => 'Chế độ danh sách ẩn các danh sách Tài liệu cho đến khi bạn chọn bộ lọc danh sách hoặc trạng thái.';
 
   @override
   String get taskBoardDetailDefaultHiddenListsOverrideTitle => 'Danh sách ẩn mặc định đang hiển thị';
 
   @override
-  String get taskBoardDetailDefaultHiddenListsOverrideDescription => 'Bộ lọc danh sách hoặc trạng thái của bạn đang bỏ qua mặc định ẩn Tài liệu, Hoàn thành và Đã đóng.';
+  String get taskBoardDetailDefaultHiddenListsOverrideDescription => 'Bộ lọc danh sách hoặc trạng thái của bạn đang bỏ qua mặc định ẩn Tài liệu.';
 
   @override
   String get taskBoardDetailFilters => 'Bộ lọc';

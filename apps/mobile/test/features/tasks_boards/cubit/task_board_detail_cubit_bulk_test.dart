@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/data/models/task_board_detail.dart';
 import 'package:mobile/data/models/task_board_list.dart';
@@ -5,6 +7,7 @@ import 'package:mobile/data/models/task_board_summary.dart';
 import 'package:mobile/data/models/task_board_task.dart';
 import 'package:mobile/data/models/task_boards_page.dart';
 import 'package:mobile/data/models/task_bulk.dart';
+import 'package:mobile/data/models/task_project_summary.dart';
 import 'package:mobile/data/repositories/task_repository.dart';
 import 'package:mobile/features/tasks_boards/cubit/task_board_detail_cubit.dart';
 import 'package:mocktail/mocktail.dart';
@@ -86,7 +89,21 @@ void main() {
         wsId: 'ws-1',
         name: 'Board',
         lists: [listActive, listDone, listClosed, listDocuments],
-      ).copyWith(tasks: tasks ?? repositoryTasks);
+      ).copyWith(
+        tasks: tasks ?? repositoryTasks,
+        projects: [
+          TaskProjectSummary(
+            id: 'project-c',
+            name: 'Project C',
+            wsId: 'ws-1',
+            creatorId: 'user-a',
+            createdAt: DateTime(2024),
+            tasksCount: 0,
+            completedTasksCount: 0,
+            linkedTasks: const [],
+          ),
+        ],
+      );
     }
 
     TaskBulkResult buildBulkResult({
@@ -249,7 +266,9 @@ void main() {
     });
 
     tearDown(() async {
-      await cubit.close();
+      if (!cubit.isClosed) {
+        await cubit.close();
+      }
     });
 
     test('enters and exits bulk select mode', () {
@@ -290,10 +309,10 @@ void main() {
       expect(cubit.state.selectedTaskIds, {'task-2'});
     });
 
-    test('list view hides documents, done, and closed tasks by default', () {
+    test('list view hides documents tasks by default', () {
       expect(
         cubit.state.filteredTasksForListView.map((task) => task.id),
-        ['task-1', 'task-2'],
+        ['task-1', 'task-2', 'task-done', 'task-closed'],
       );
 
       cubit.setFilters(
@@ -357,7 +376,72 @@ void main() {
       ).called(1);
     });
 
-    test('createTask refreshes the affected list', () async {
+    test(
+      'moveTask updates local list state before refresh completes',
+      () async {
+        clearInteractions(repository);
+        final boardRefreshCompleter = Completer<TaskBoardDetail>();
+
+        when(
+          () => repository.getTaskBoardDetail('ws-1', 'board-1'),
+        ).thenAnswer((_) => boardRefreshCompleter.future);
+
+        final move = cubit.moveTask(taskId: 'task-1', listId: 'list-done');
+        await Future<void>.delayed(Duration.zero);
+
+        expect(
+          cubit.state.listTasksByListId['list-active']?.map((task) => task.id),
+          isNot(contains('task-1')),
+        );
+        expect(
+          cubit.state.listTasksByListId['list-done']?.map((task) => task.id),
+          contains('task-1'),
+        );
+
+        try {
+          boardRefreshCompleter.complete(buildBoard());
+          await move;
+        } finally {
+          if (!boardRefreshCompleter.isCompleted) {
+            boardRefreshCompleter.complete(buildBoard());
+          }
+        }
+      },
+    );
+
+    test(
+      'moveTask updates local list state before repository completes',
+      () async {
+        clearInteractions(repository);
+        final moveCompleter = Completer<TaskBoardTask>();
+        when(
+          () => repository.moveBoardTask(
+            wsId: 'ws-1',
+            taskId: 'task-1',
+            listId: 'list-done',
+          ),
+        ).thenAnswer((_) => moveCompleter.future);
+
+        final move = cubit.moveTask(taskId: 'task-1', listId: 'list-done');
+        await Future<void>.delayed(Duration.zero);
+
+        expect(
+          cubit.state.listTasksByListId['list-active']?.map((task) => task.id),
+          isNot(contains('task-1')),
+        );
+        expect(
+          cubit.state.board?.tasks
+              .firstWhere((task) => task.id == 'task-1')
+              .listId,
+          'list-done',
+        );
+
+        moveCompleter.complete(taskOne.copyWith(listId: 'list-done'));
+        await move;
+      },
+    );
+
+    test('createTask refreshes board metadata and the affected list', () async {
       clearInteractions(repository);
 
       await cubit.createTask(listId: 'list-active', name: 'Created task');
@@ -388,10 +472,36 @@ void main() {
           projects: any(named: 'projects'),
         ),
       ).called(1);
-      verifyNever(() => repository.getTaskBoardDetail('ws-1', 'board-1'));
+      verify(() => repository.getTaskBoardDetail('ws-1', 'board-1')).called(1);
     });
 
-    test('updateTask refreshes the affected list', () async {
+    test('loadListTasks ignores list load failure after close', () async {
+      final listLoadCompleter = Completer<List<TaskBoardTask>>();
+      when(
+        () => repository.getBoardTasksForList(
+          'ws-1',
+          listId: 'list-active',
+          limit: any(named: 'limit'),
+          offset: any(named: 'offset'),
+          members: any(named: 'members'),
+          labels: any(named: 'labels'),
+          projects: any(named: 'projects'),
+        ),
+      ).thenAnswer((_) => listLoadCompleter.future);
+
+      final load = cubit.loadListTasks(
+        listId: 'list-active',
+        forceRefresh: true,
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      await cubit.close();
+      listLoadCompleter.completeError(Exception('list load failed'));
+
+      await expectLater(load, completes);
+    });
+
+    test('updateTask refreshes board metadata and the affected list', () async {
       clearInteractions(repository);
 
       await cubit.updateTask(
@@ -428,7 +538,110 @@ void main() {
           projects: any(named: 'projects'),
         ),
       ).called(1);
-      verifyNever(() => repository.getTaskBoardDetail('ws-1', 'board-1'));
+      verify(() => repository.getTaskBoardDetail('ws-1', 'board-1')).called(1);
+    });
+
+    test('updateTask reflects priority immediately in loaded lists', () async {
+      clearInteractions(repository);
+      final updateCompleter = Completer<void>();
+      when(
+        () => repository.updateBoardTask(
+          wsId: 'ws-1',
+          taskId: 'task-1',
+          name: 'First task',
+          priority: 'critical',
+          startDate: any(named: 'startDate'),
+          endDate: any(named: 'endDate'),
+          estimationPoints: any(named: 'estimationPoints'),
+          labelIds: any(named: 'labelIds'),
+          projectIds: any(named: 'projectIds'),
+          assigneeIds: any(named: 'assigneeIds'),
+          clearStartDate: any(named: 'clearStartDate'),
+          clearEndDate: any(named: 'clearEndDate'),
+          clearEstimationPoints: any(named: 'clearEstimationPoints'),
+        ),
+      ).thenAnswer((_) async {
+        await updateCompleter.future;
+        final updated = taskOne.copyWith(priority: 'critical');
+        repositoryTasks = repositoryTasks
+            .map((task) => task.id == 'task-1' ? updated : task)
+            .toList(growable: false);
+        return updated;
+      });
+
+      final update = cubit.updateTask(
+        taskId: 'task-1',
+        listId: 'list-active',
+        name: 'First task',
+        priority: 'critical',
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(
+        cubit.state.listTasksByListId['list-active']
+            ?.firstWhere((task) => task.id == 'task-1')
+            .priority,
+        'critical',
+      );
+      expect(
+        cubit.state.board?.tasks
+            .firstWhere((task) => task.id == 'task-1')
+            .priority,
+        'critical',
+      );
+
+      updateCompleter.complete();
+      await update;
+    });
+
+    test('updateTask applies repository returned task snapshots', () async {
+      clearInteractions(repository);
+      when(
+        () => repository.updateBoardTask(
+          wsId: 'ws-1',
+          taskId: 'task-1',
+          name: 'Submitted task',
+          priority: 'high',
+          startDate: any(named: 'startDate'),
+          endDate: any(named: 'endDate'),
+          estimationPoints: any(named: 'estimationPoints'),
+          labelIds: any(named: 'labelIds'),
+          projectIds: any(named: 'projectIds'),
+          assigneeIds: any(named: 'assigneeIds'),
+          clearStartDate: any(named: 'clearStartDate'),
+          clearEndDate: any(named: 'clearEndDate'),
+          clearEstimationPoints: any(named: 'clearEstimationPoints'),
+        ),
+      ).thenAnswer((_) async {
+        final updated = taskOne.copyWith(
+          name: 'Server task',
+          priority: 'critical',
+        );
+        repositoryTasks = repositoryTasks
+            .map((task) => task.id == 'task-1' ? updated : task)
+            .toList(growable: false);
+        return updated;
+      });
+
+      await cubit.updateTask(
+        taskId: 'task-1',
+        listId: 'list-active',
+        name: 'Submitted task',
+        priority: 'high',
+      );
+
+      expect(
+        cubit.state.listTasksByListId['list-active']
+            ?.firstWhere((task) => task.id == 'task-1')
+            .name,
+        'Server task',
+      );
+      expect(
+        cubit.state.board?.tasks
+            .firstWhere((task) => task.id == 'task-1')
+            .priority,
+        'critical',
+      );
     });
 
     test(
@@ -471,6 +684,117 @@ void main() {
       expect(operation.type, 'update_fields');
       expect(operation.updates, {'end_date': null});
     });
+
+    test('bulk updates refresh board metadata and affected lists', () async {
+      clearInteractions(repository);
+
+      cubit.enterBulkSelectMode(initialTaskId: 'task-1');
+      await cubit.bulkUpdatePriority('high');
+
+      verify(() => repository.getTaskBoardDetail('ws-1', 'board-1')).called(1);
+      verify(
+        () => repository.getBoardTasksForList(
+          'ws-1',
+          listId: 'list-active',
+          limit: any(named: 'limit'),
+          offset: any(named: 'offset'),
+          members: any(named: 'members'),
+          labels: any(named: 'labels'),
+          projects: any(named: 'projects'),
+        ),
+      ).called(1);
+    });
+
+    test(
+      'bulk updates refresh affected lists when API omits succeeded ids',
+      () async {
+        when(
+          () => repository.bulkBoardTasks(
+            wsId: any(named: 'wsId'),
+            taskIds: any(named: 'taskIds'),
+            operation: any(named: 'operation'),
+          ),
+        ).thenAnswer(
+          (_) async => const TaskBulkResult(
+            successCount: 1,
+            failCount: 0,
+            taskIds: ['task-1'],
+            succeededTaskIds: [],
+            failures: [],
+            taskMetaById: <String, TaskBulkTaskMeta>{},
+          ),
+        );
+        clearInteractions(repository);
+
+        cubit.enterBulkSelectMode(initialTaskId: 'task-1');
+        await cubit.bulkUpdatePriority('high');
+
+        verify(
+          () => repository.getTaskBoardDetail('ws-1', 'board-1'),
+        ).called(1);
+        verify(
+          () => repository.getBoardTasksForList(
+            'ws-1',
+            listId: 'list-active',
+            limit: any(named: 'limit'),
+            offset: any(named: 'offset'),
+            members: any(named: 'members'),
+            labels: any(named: 'labels'),
+            projects: any(named: 'projects'),
+          ),
+        ).called(1);
+      },
+    );
+
+    test(
+      'bulk project changes patch task snapshots before refresh completes',
+      () async {
+        clearInteractions(repository);
+        final boardRefreshCompleter = Completer<TaskBoardDetail>();
+        when(
+          () => repository.getTaskBoardDetail('ws-1', 'board-1'),
+        ).thenAnswer((_) => boardRefreshCompleter.future);
+
+        cubit.enterBulkSelectMode(initialTaskId: 'task-1');
+        final action = cubit.bulkAddProject('project-c');
+        await Future<void>.delayed(Duration.zero);
+
+        try {
+          final listTask = cubit.state.listTasksByListId['list-active']
+              ?.firstWhere((task) => task.id == 'task-1');
+          final boardTask = cubit.state.board?.tasks.firstWhere(
+            (task) => task.id == 'task-1',
+          );
+
+          expect(listTask?.projectIds, contains('project-c'));
+          expect(
+            listTask?.projects.map((project) => project.name),
+            contains('Project C'),
+          );
+          expect(boardTask?.projectIds, contains('project-c'));
+        } finally {
+          repositoryTasks = repositoryTasks
+              .map(
+                (task) => task.id == 'task-1'
+                    ? task.copyWith(
+                        projectIds: [...task.projectIds, 'project-c'],
+                        projects: const [
+                          TaskBoardTaskProject(
+                            id: 'project-c',
+                            name: 'Project C',
+                          ),
+                        ],
+                      )
+                    : task,
+              )
+              .toList(growable: false);
+          if (!boardRefreshCompleter.isCompleted) {
+            boardRefreshCompleter.complete(buildBoard());
+          }
+          await action;
+        }
+      },
+    );
 
     test(
       'bulk update keeps only failed ids selected on partial success',

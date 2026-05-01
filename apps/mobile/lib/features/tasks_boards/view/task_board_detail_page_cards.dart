@@ -80,24 +80,29 @@ class _BoardTaskTile extends StatelessWidget {
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (isBulkSelectMode) ...[
-                          Icon(
-                            isSelected
-                                ? Icons.check_circle
-                                : Icons.radio_button_unchecked,
-                            size: 18,
-                            color: isSelected
-                                ? theme.colorScheme.primary
-                                : theme.colorScheme.mutedForeground,
-                          ),
-                          const shad.Gap(8),
-                        ],
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              shad.OutlineBadge(
-                                child: Text(_taskReference(task, board)),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  shad.OutlineBadge(
+                                    child: Text(_taskReference(task, board)),
+                                  ),
+                                  if (isBulkSelectMode) ...[
+                                    const shad.Gap(6),
+                                    Icon(
+                                      isSelected
+                                          ? Icons.check_box
+                                          : Icons.check_box_outline_blank,
+                                      size: 18,
+                                      color: isSelected
+                                          ? theme.colorScheme.primary
+                                          : theme.colorScheme.mutedForeground,
+                                    ),
+                                  ],
+                                ],
                               ),
                               const shad.Gap(4),
                               Text(

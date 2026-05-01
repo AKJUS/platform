@@ -7,12 +7,11 @@ class _TaskBoardEnhancedListView extends StatefulWidget {
     required this.tasks,
     required this.state,
     required this.board,
+    required this.sort,
     required this.bottomPadding,
     required this.scrollController,
     required this.onTaskTap,
-    required this.onTaskMove,
-    required this.onTaskMarkDone,
-    required this.onTaskMarkClosed,
+    required this.onTaskToggleDone,
     required this.isBulkSelectMode,
     required this.selectedTaskIds,
     required this.onToggleTaskSelection,
@@ -26,18 +25,17 @@ class _TaskBoardEnhancedListView extends StatefulWidget {
   final List<TaskBoardTask> tasks;
   final TaskBoardDetailState state;
   final TaskBoardDetail board;
+  final TaskBoardListViewSortField sort;
   final double bottomPadding;
   final ScrollController scrollController;
   final void Function(TaskBoardTask task) onTaskTap;
-  final void Function(TaskBoardTask task) onTaskMove;
-  final void Function(TaskBoardTask task) onTaskMarkDone;
-  final void Function(TaskBoardTask task) onTaskMarkClosed;
+  final void Function(TaskBoardTask task, String targetStatus) onTaskToggleDone;
   final bool isBulkSelectMode;
   final Set<String> selectedTaskIds;
   final void Function(TaskBoardTask task) onToggleTaskSelection;
   final VoidCallback onLoadMore;
   final Set<String> collapsedListIds;
-  final void Function(String listId) onToggleListCollapsed;
+  final void Function(TaskBoardList list) onToggleListCollapsed;
 
   @override
   State<_TaskBoardEnhancedListView> createState() =>
@@ -46,10 +44,8 @@ class _TaskBoardEnhancedListView extends StatefulWidget {
 
 class _TaskBoardEnhancedListViewState
     extends State<_TaskBoardEnhancedListView> {
-  TaskBoardListViewSortField _sort = (field: 'created_at', ascending: false);
-
   List<TaskBoardTask> get _sortedTasks {
-    return sortTaskBoardListViewTasks(widget.tasks, _sort);
+    return sortTaskBoardListViewTasks(widget.tasks, widget.sort);
   }
 
   @override
@@ -89,38 +85,35 @@ class _TaskBoardEnhancedListViewState
   }
 
   bool get _hasMoreTasks {
-    return widget.lists.any(
-      (list) => widget.state.listHasMoreById[list.id] ?? true,
-    );
+    return widget.lists.any((list) {
+      if (_shouldDeferListLoading(list)) {
+        return false;
+      }
+      return widget.state.listHasMoreById[list.id] ?? true;
+    });
   }
 
-  void _showSortBottomSheet() {
-    unawaited(
-      showAdaptiveSheet<void>(
-        context: context,
-        backgroundColor: shad.Theme.of(context).colorScheme.background,
-        builder: (context) => _SortBottomSheet(
-          currentField: _sort.field,
-          ascending: _sort.ascending,
-          onSortSelected: (field, {required ascending}) {
-            setState(() {
-              _sort = (field: field, ascending: ascending);
-            });
-            Navigator.pop(context);
-          },
-        ),
-      ),
-    );
+  bool _shouldDeferListLoading(TaskBoardList list) {
+    if (!_taskBoardListIsTerminalInListView(list)) {
+      return false;
+    }
+    if (!widget.collapsedListIds.contains(list.id)) {
+      return false;
+    }
+    return !widget.state.listTasksByListId.containsKey(list.id) &&
+        !widget.state.loadedListIds.contains(list.id) &&
+        !widget.state.loadingListIds.contains(list.id) &&
+        !widget.state.listLoadErrorById.containsKey(list.id);
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = shad.Theme.of(context);
     final sortedTasks = _sortedTasks;
-    final entries = _buildEntries(sortedTasks);
+    final sections = _buildSections(sortedTasks);
     final hasMoreTasks = _hasMoreTasks;
 
-    if (sortedTasks.isEmpty) {
+    if (sections.isEmpty) {
       return ListView(
         key: PageStorageKey<String>(
           'task-board-enhanced-list-empty-${widget.boardId}',
@@ -161,15 +154,11 @@ class _TaskBoardEnhancedListViewState
       primary: false,
       physics: const AlwaysScrollableScrollPhysics(),
       padding: EdgeInsets.fromLTRB(16, 0, 16, widget.bottomPadding),
-      itemCount: entries.length + 1 + (hasMoreTasks ? 1 : 0),
+      itemCount: sections.length + (hasMoreTasks ? 1 : 0),
       itemBuilder: (context, index) {
-        if (index == 0) {
-          return _buildListToolbar(sortedTasks.length);
-        }
+        final sectionIndex = index;
 
-        final entryIndex = index - 1;
-
-        if (entryIndex == entries.length && hasMoreTasks) {
+        if (sectionIndex == sections.length && hasMoreTasks) {
           return Padding(
             padding: const EdgeInsets.only(top: 8),
             child: Center(
@@ -187,39 +176,30 @@ class _TaskBoardEnhancedListViewState
           );
         }
 
-        if (entryIndex >= entries.length) return const SizedBox.shrink();
+        if (sectionIndex >= sections.length) return const SizedBox.shrink();
 
-        final entry = entries[entryIndex];
-        final list = entry.list;
-        if (entry.task == null) {
-          return _ListSectionHeader(
-            list: list,
-            taskCount: entry.taskCount,
-            topPadding: entryIndex == 0 ? 0 : 14,
-            isCollapsed: entry.isCollapsed,
-            onToggleCollapsed: () => widget.onToggleListCollapsed(list.id),
-          );
-        }
-
-        final task = entry.task!;
-        return _TaskCard(
-          task: task,
+        final section = sections[sectionIndex];
+        return _TaskListStickySection(
+          list: section.list,
+          tasks: section.tasks,
           board: widget.board,
           lists: widget.lists,
-          isLast: entry.isLastInSection,
-          onTap: () => widget.onTaskTap(task),
-          onMove: () => widget.onTaskMove(task),
-          onMarkDone: () => widget.onTaskMarkDone(task),
-          onMarkClosed: () => widget.onTaskMarkClosed(task),
+          topPadding: sectionIndex == 0 ? 0 : 10,
+          isCollapsed: section.isCollapsed,
+          onToggleCollapsed: () => widget.onToggleListCollapsed(section.list),
+          onTaskTap: widget.onTaskTap,
+          onTaskToggleDone: widget.onTaskToggleDone,
           isBulkSelectMode: widget.isBulkSelectMode,
-          isSelected: widget.selectedTaskIds.contains(task.id),
-          onToggleSelected: () => widget.onToggleTaskSelection(task),
+          selectedTaskIds: widget.selectedTaskIds,
+          onToggleTaskSelection: widget.onToggleTaskSelection,
         );
       },
     );
   }
 
-  List<_TaskBoardListViewEntry> _buildEntries(List<TaskBoardTask> sortedTasks) {
+  List<_TaskBoardListViewSection> _buildSections(
+    List<TaskBoardTask> sortedTasks,
+  ) {
     final grouped = <String, List<TaskBoardTask>>{};
     for (final task in sortedTasks) {
       grouped.putIfAbsent(task.listId, () => <TaskBoardTask>[]).add(task);
@@ -238,88 +218,131 @@ class _TaskBoardEnhancedListViewState
       ...widget.lists,
       ...fallbackListsById.values,
     ];
-    final entries = <_TaskBoardListViewEntry>[];
+    final sections = <_TaskBoardListViewSection>[];
 
     for (final list in orderedLists) {
-      final listTasks = grouped[list.id] ?? const <TaskBoardTask>[];
-      if (listTasks.isEmpty) continue;
+      final listTasks = sortTaskBoardListViewTasksForList(
+        list,
+        grouped[list.id] ?? const <TaskBoardTask>[],
+      );
       final isCollapsed = widget.collapsedListIds.contains(list.id);
-      entries.add(
-        _TaskBoardListViewEntry.header(
+      if (listTasks.isEmpty) {
+        if (list.taskCount == 0) {
+          continue;
+        }
+        final isDeferredTerminalList =
+            list.taskCount == null &&
+            _taskBoardListIsTerminalInListView(list) &&
+            !widget.state.loadedListIds.contains(list.id) &&
+            !widget.state.loadingListIds.contains(list.id) &&
+            !widget.state.listLoadErrorById.containsKey(list.id);
+        if (!isDeferredTerminalList) {
+          continue;
+        }
+      }
+      sections.add(
+        _TaskBoardListViewSection(
           list,
-          listTasks.length,
+          listTasks,
           isCollapsed: isCollapsed,
         ),
       );
-      if (isCollapsed) continue;
-      for (var index = 0; index < listTasks.length; index++) {
-        entries.add(
-          _TaskBoardListViewEntry.task(
-            list,
-            listTasks[index],
-            isLastInSection: index == listTasks.length - 1,
-          ),
-        );
-      }
     }
 
-    return entries;
+    return sections;
   }
+}
 
-  Widget _buildListToolbar(int taskCount) {
-    final theme = shad.Theme.of(context);
-    final sortLabel = taskBoardListViewSortFieldLabel(context, _sort.field);
-    final isAscending = _sort.ascending;
+class _TaskBoardListViewSection {
+  const _TaskBoardListViewSection(
+    this.list,
+    this.tasks, {
+    required this.isCollapsed,
+  });
+
+  final TaskBoardList list;
+  final List<TaskBoardTask> tasks;
+  final bool isCollapsed;
+}
+
+class _TaskListStickySection extends StatelessWidget {
+  const _TaskListStickySection({
+    required this.list,
+    required this.tasks,
+    required this.board,
+    required this.lists,
+    required this.topPadding,
+    required this.isCollapsed,
+    required this.onToggleCollapsed,
+    required this.onTaskTap,
+    required this.onTaskToggleDone,
+    required this.isBulkSelectMode,
+    required this.selectedTaskIds,
+    required this.onToggleTaskSelection,
+  });
+
+  final TaskBoardList list;
+  final List<TaskBoardTask> tasks;
+  final TaskBoardDetail board;
+  final List<TaskBoardList> lists;
+  final double topPadding;
+  final bool isCollapsed;
+  final VoidCallback onToggleCollapsed;
+  final void Function(TaskBoardTask task) onTaskTap;
+  final void Function(TaskBoardTask task, String targetStatus) onTaskToggleDone;
+  final bool isBulkSelectMode;
+  final Set<String> selectedTaskIds;
+  final void Function(TaskBoardTask task) onToggleTaskSelection;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = _taskBoardListVisualStyle(context, list);
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: InkWell(
-        onTap: _showSortBottomSheet,
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.muted.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: theme.colorScheme.border.withValues(alpha: 0.5),
-            ),
+      padding: EdgeInsets.only(top: topPadding, bottom: 14),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: style.surface.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: style.surfaceBorder.withValues(alpha: 0.24),
           ),
-          child: Row(
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(10),
+          child: Column(
             children: [
-              shad.OutlineBadge(
-                child: Text(context.l10n.taskBoardsTasksCount(taskCount)),
+              _ListSectionHeader(
+                list: list,
+                style: style,
+                isCollapsed: isCollapsed,
+                onToggleCollapsed: onToggleCollapsed,
               ),
-              const shad.Gap(8),
-              Icon(
-                Icons.sort,
-                size: 16,
-                color: theme.colorScheme.mutedForeground,
-              ),
-              const shad.Gap(6),
-              Flexible(
-                child: Text(
-                  '${context.l10n.sort}: $sortLabel',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.typography.small.copyWith(
-                    fontWeight: FontWeight.w500,
-                    color: theme.colorScheme.foreground,
+              if (!isCollapsed)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+                  child: Column(
+                    children: [
+                      for (var index = 0; index < tasks.length; index++)
+                        _TaskCard(
+                          task: tasks[index],
+                          board: board,
+                          lists: lists,
+                          listStyle: style,
+                          isLast: index == tasks.length - 1,
+                          onTap: () => onTaskTap(tasks[index]),
+                          onToggleDone: (targetStatus) =>
+                              onTaskToggleDone(tasks[index], targetStatus),
+                          isBulkSelectMode: isBulkSelectMode,
+                          isSelected: selectedTaskIds.contains(
+                            tasks[index].id,
+                          ),
+                          onToggleSelected: () =>
+                              onToggleTaskSelection(tasks[index]),
+                        ),
+                    ],
                   ),
                 ),
-              ),
-              const shad.Gap(4),
-              Icon(
-                isAscending ? Icons.arrow_upward : Icons.arrow_downward,
-                size: 14,
-                color: theme.colorScheme.primary,
-              ),
-              const Spacer(),
-              Icon(
-                Icons.expand_more,
-                size: 16,
-                color: theme.colorScheme.mutedForeground,
-              ),
             ],
           ),
         ),
@@ -328,131 +351,77 @@ class _TaskBoardEnhancedListViewState
   }
 }
 
-class _TaskBoardListViewEntry {
-  const _TaskBoardListViewEntry._({
-    required this.list,
-    required this.taskCount,
-    required this.isLastInSection,
-    required this.isCollapsed,
-    this.task,
-  });
-
-  factory _TaskBoardListViewEntry.header(
-    TaskBoardList list,
-    int taskCount, {
-    required bool isCollapsed,
-  }) {
-    return _TaskBoardListViewEntry._(
-      list: list,
-      taskCount: taskCount,
-      isLastInSection: false,
-      isCollapsed: isCollapsed,
-    );
-  }
-
-  factory _TaskBoardListViewEntry.task(
-    TaskBoardList list,
-    TaskBoardTask task, {
-    required bool isLastInSection,
-  }) {
-    return _TaskBoardListViewEntry._(
-      list: list,
-      task: task,
-      taskCount: 0,
-      isLastInSection: isLastInSection,
-      isCollapsed: false,
-    );
-  }
-
-  final TaskBoardList list;
-  final TaskBoardTask? task;
-  final int taskCount;
-  final bool isLastInSection;
-  final bool isCollapsed;
-}
-
 class _ListSectionHeader extends StatelessWidget {
   const _ListSectionHeader({
     required this.list,
-    required this.taskCount,
-    required this.topPadding,
+    required this.style,
     required this.isCollapsed,
     required this.onToggleCollapsed,
   });
 
   final TaskBoardList list;
-  final int taskCount;
-  final double topPadding;
+  final _TaskBoardListVisualStyle style;
   final bool isCollapsed;
   final VoidCallback onToggleCollapsed;
 
   @override
   Widget build(BuildContext context) {
     final theme = shad.Theme.of(context);
-    final style = _taskBoardListVisualStyle(context, list);
     final title = list.name?.trim().isNotEmpty == true
         ? list.name!.trim()
         : context.l10n.taskBoardDetailUntitledList;
 
-    return Padding(
-      padding: EdgeInsets.only(top: topPadding, bottom: 8),
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onToggleCollapsed,
-          borderRadius: BorderRadius.circular(8),
-          child: Ink(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              color: style.surface.withValues(alpha: 0.42),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: style.surfaceBorder),
-            ),
-            child: Row(
-              children: [
-                Tooltip(
-                  message: isCollapsed
-                      ? context.l10n.taskBoardDetailExpandList
-                      : context.l10n.taskBoardDetailCollapseList,
-                  child: Icon(
-                    isCollapsed
-                        ? Icons.chevron_right_rounded
-                        : Icons.expand_more_rounded,
-                    size: 18,
-                    color: style.statusBadge.textColor,
-                  ),
-                ),
-                const shad.Gap(6),
-                Icon(
-                  style.statusIcon,
-                  size: 16,
-                  color: style.statusBadge.textColor,
-                ),
-                const shad.Gap(8),
-                Expanded(
-                  child: Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.typography.p.copyWith(
-                      fontWeight: FontWeight.w700,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onToggleCollapsed,
+        child: Ink(
+          padding: const EdgeInsets.fromLTRB(12, 10, 12, 9),
+          decoration: BoxDecoration(
+            color: style.surface.withValues(alpha: 0.2),
+            border: Border(
+              bottom: isCollapsed
+                  ? BorderSide.none
+                  : BorderSide(
+                      color: style.surfaceBorder.withValues(alpha: 0.2),
                     ),
-                  ),
-                ),
-                const shad.Gap(8),
-                Text(
-                  style.statusLabel,
-                  style: theme.typography.small.copyWith(
-                    color: style.statusBadge.textColor,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const shad.Gap(8),
-                shad.OutlineBadge(
-                  child: Text(context.l10n.taskBoardsTasksCount(taskCount)),
-                ),
-              ],
             ),
+          ),
+          child: Row(
+            children: [
+              Tooltip(
+                message: isCollapsed
+                    ? context.l10n.taskBoardDetailExpandList
+                    : context.l10n.taskBoardDetailCollapseList,
+                child: Icon(
+                  isCollapsed
+                      ? Icons.chevron_right_rounded
+                      : Icons.expand_more_rounded,
+                  size: 17,
+                  color: style.accent,
+                ),
+              ),
+              const shad.Gap(4),
+              Icon(
+                style.statusIcon,
+                size: 15,
+                color: style.accent,
+              ),
+              const shad.Gap(7),
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: theme.typography.small.copyWith(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    height: 1.15,
+                    color: style.accent,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),

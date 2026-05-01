@@ -85,6 +85,7 @@ part 'task_board_detail_page_list_view_chip_widgets.dart';
 part 'task_board_detail_page_list_view_sort_sheet.dart';
 part 'task_board_detail_page_list_view_sorting.dart';
 part 'task_board_detail_page_list_view_task_card.dart';
+part 'task_board_detail_page_task_actions_sheet.dart';
 
 class TaskBoardDetailPage extends StatelessWidget {
   const TaskBoardDetailPage({

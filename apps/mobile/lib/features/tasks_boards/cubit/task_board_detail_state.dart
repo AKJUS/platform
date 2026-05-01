@@ -115,7 +115,7 @@ class TaskBoardDetailState extends Equatable {
 
   bool _isHiddenByDefaultInListView(TaskBoardList? list) {
     final status = TaskBoardList.normalizeSupportedStatus(list?.status);
-    return status == 'documents' || status == 'done' || status == 'closed';
+    return status == 'documents';
   }
 
   List<TaskBoardTask> get filteredTasks {

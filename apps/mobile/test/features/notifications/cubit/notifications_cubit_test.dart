@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/data/models/app_notification.dart';
 import 'package:mobile/data/models/workspace.dart';
@@ -53,7 +55,9 @@ void main() {
     });
 
     tearDown(() async {
-      await cubit.close();
+      if (!cubit.isClosed) {
+        await cubit.close();
+      }
     });
 
     test(
@@ -246,5 +250,20 @@ void main() {
         ).called(1);
       },
     );
+
+    test('refreshUnreadCount ignores completion after close', () async {
+      final unreadCountCompleter = Completer<int>();
+      when(
+        () => repository.fetchUnreadCount(wsId: any(named: 'wsId')),
+      ).thenAnswer((_) => unreadCountCompleter.future);
+
+      final refresh = cubit.refreshUnreadCount();
+      await Future<void>.delayed(Duration.zero);
+
+      await cubit.close();
+      unreadCountCompleter.complete(3);
+
+      await expectLater(refresh, completes);
+    });
   });
 }

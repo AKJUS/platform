@@ -46,6 +46,7 @@ class _TaskBoardTaskEditorSheetState extends State<_TaskBoardTaskEditorSheet> {
 
   late final TextEditingController _nameController;
   late final TextEditingController _descriptionController;
+  late final FocusNode _nameFocusNode;
   late final TaskBoardDetailCubit _taskCubit;
   late String _initialName;
   late String? _initialDescription;
@@ -180,6 +181,7 @@ class _TaskBoardTaskEditorSheetState extends State<_TaskBoardTaskEditorSheet> {
     _taskCubit = context.read<TaskBoardDetailCubit>();
     final task = widget.task;
     _nameController = TextEditingController(text: task?.name ?? '');
+    _nameFocusNode = FocusNode(debugLabel: 'task-title');
     final initialDescriptionText =
         normalizeTaskDescriptionPayload(task?.description ?? '') ?? '';
     _descriptionController = TextEditingController(
@@ -216,6 +218,13 @@ class _TaskBoardTaskEditorSheetState extends State<_TaskBoardTaskEditorSheet> {
 
     _nameController.addListener(_handleFormFieldChanged);
     _descriptionController.addListener(_handleFormFieldChanged);
+
+    if (_isCreate) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _nameFocusNode.requestFocus();
+      });
+    }
   }
 
   @override
@@ -225,6 +234,7 @@ class _TaskBoardTaskEditorSheetState extends State<_TaskBoardTaskEditorSheet> {
     _nameController.removeListener(_handleFormFieldChanged);
     _descriptionController.removeListener(_handleFormFieldChanged);
     _nameController.dispose();
+    _nameFocusNode.dispose();
     _descriptionController.dispose();
     super.dispose();
   }
@@ -383,6 +393,7 @@ class _TaskBoardTaskEditorSheetState extends State<_TaskBoardTaskEditorSheet> {
               shad.TextField(
                 contextMenuBuilder: platformTextContextMenuBuilder(),
                 controller: _nameController,
+                focusNode: _nameFocusNode,
                 hintText: context.l10n.taskBoardDetailTaskTitleHint,
                 autofocus: _isCreate,
                 textInputAction: TextInputAction.done,

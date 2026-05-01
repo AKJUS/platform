@@ -314,6 +314,11 @@ void main() {
 
       await tester.tap(find.text('Task A1').first, warnIfMissed: false);
       await pumpTaskBoardTransition(tester);
+      await tester.tap(
+        find.text('Open full details').last,
+        warnIfMissed: false,
+      );
+      await pumpTaskBoardTransition(tester);
 
       expect(
         router.routeInformationProvider.value.uri.toString(),
@@ -355,6 +360,11 @@ void main() {
 
         await tester.tap(find.text('Task A2').first, warnIfMissed: false);
         await pumpTaskBoardTransition(tester);
+        await tester.tap(
+          find.text('Open full details').last,
+          warnIfMissed: false,
+        );
+        await pumpTaskBoardTransition(tester);
 
         expect(
           router.routeInformationProvider.value.uri.toString(),
@@ -390,6 +400,11 @@ void main() {
 
       await tester.tap(find.text('Task A1').first, warnIfMissed: false);
       await pumpTaskBoardTransition(tester);
+      await tester.tap(
+        find.text('Open full details').last,
+        warnIfMissed: false,
+      );
+      await pumpTaskBoardTransition(tester);
 
       final relationshipsTab = find
           .ancestor(
@@ -422,6 +437,11 @@ void main() {
       await pumpTaskBoardTransition(tester);
 
       await tester.tap(find.text('Task A1').first, warnIfMissed: false);
+      await pumpTaskBoardTransition(tester);
+      await tester.tap(
+        find.text('Open full details').last,
+        warnIfMissed: false,
+      );
       await pumpTaskBoardTransition(tester);
 
       var relationshipsTab = find.text('Relationships').last;
@@ -467,6 +487,11 @@ void main() {
       await pumpTaskBoardTransition(tester);
 
       await tester.tap(find.text('Task A1').first, warnIfMissed: false);
+      await pumpTaskBoardTransition(tester);
+      await tester.tap(
+        find.text('Open full details').last,
+        warnIfMissed: false,
+      );
       await pumpTaskBoardTransition(tester);
 
       final relationshipsTab = find.byIcon(Icons.account_tree_outlined).last;

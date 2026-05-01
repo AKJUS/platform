@@ -14,6 +14,10 @@ List<TaskBoardList> _sortedLists(List<TaskBoardList> lists) {
   return sorted;
 }
 
+List<TaskBoardList> _reverseSortedLists(List<TaskBoardList> lists) {
+  return _sortedLists(lists).reversed.toList(growable: false);
+}
+
 const List<String> _taskBoardListStatusOrder = <String>[
   'documents',
   'not_started',
@@ -57,11 +61,57 @@ List<TaskBoardList> _sortedListsByStatusOrder(List<TaskBoardList> lists) {
   return sorted;
 }
 
+const List<String> _taskBoardListModeStatusOrder = <String>[
+  'active',
+  'not_started',
+  'documents',
+  'done',
+  'closed',
+];
+
+List<TaskBoardList> _sortedListsForListView(List<TaskBoardList> lists) {
+  if (lists.length <= 1) {
+    return lists;
+  }
+
+  final byStatus = <String, List<TaskBoardList>>{};
+  for (final list in lists) {
+    final normalizedStatus =
+        TaskBoardList.normalizeSupportedStatus(list.status) ?? 'active';
+    byStatus.putIfAbsent(normalizedStatus, () => <TaskBoardList>[]).add(list);
+  }
+
+  final sorted = <TaskBoardList>[];
+  for (final status in _taskBoardListModeStatusOrder) {
+    final statusLists = byStatus.remove(status);
+    if (statusLists == null || statusLists.isEmpty) {
+      continue;
+    }
+    sorted.addAll(_reverseSortedLists(statusLists));
+  }
+
+  if (byStatus.isNotEmpty) {
+    final remainingStatuses = byStatus.keys.toList(growable: false)..sort();
+    for (final status in remainingStatuses) {
+      final statusLists = byStatus[status];
+      if (statusLists == null || statusLists.isEmpty) {
+        continue;
+      }
+      sorted.addAll(_reverseSortedLists(statusLists));
+    }
+  }
+
+  return sorted;
+}
+
 bool _taskBoardListIsHiddenByDefaultInListView(TaskBoardList list) {
   final normalizedStatus = TaskBoardList.normalizeSupportedStatus(list.status);
-  return normalizedStatus == 'documents' ||
-      normalizedStatus == 'done' ||
-      normalizedStatus == 'closed';
+  return normalizedStatus == 'documents';
+}
+
+bool _taskBoardListIsTerminalInListView(TaskBoardList list) {
+  final normalizedStatus = TaskBoardList.normalizeSupportedStatus(list.status);
+  return normalizedStatus == 'done' || normalizedStatus == 'closed';
 }
 
 List<TaskBoardList> _listViewVisibleLists(
