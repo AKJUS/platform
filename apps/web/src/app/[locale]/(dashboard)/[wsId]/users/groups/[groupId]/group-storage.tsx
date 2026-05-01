@@ -2,6 +2,12 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { File, Loader2, Sparkles, Trash2, Upload } from '@tuturuuu/icons';
+import {
+  deleteWorkspaceUserGroupStorageFile,
+  generateWorkspaceCourseModulesFromStorage,
+  listWorkspaceUserGroupStorageFiles,
+  uploadWorkspaceUserGroupStorageFile,
+} from '@tuturuuu/internal-api';
 import { Button } from '@tuturuuu/ui/button';
 import {
   FileUploader,
@@ -39,73 +45,38 @@ export default function GroupStorage({
   const queryKey = ['group-storage', wsId, groupId];
   const [open, setOpen] = useState(false);
 
-  const { data: files, isLoading } = useQuery({
+  const {
+    data: files,
+    isError,
+    isLoading,
+  } = useQuery({
     queryKey,
-    queryFn: async () => {
-      const res = await fetch(
-        `/api/v1/workspaces/${wsId}/user-groups/${groupId}/storage`
-      );
-      if (!res.ok) throw new Error('Failed to fetch group storage');
-      const payload = await res.json();
-      return payload.data as any[];
+    queryFn: () => listWorkspaceUserGroupStorageFiles(wsId, groupId),
+  });
+
+  const uploadMutation = useMutation({
+    mutationFn: async (filesToUpload: StatedFile[]) => {
+      for (const file of filesToUpload) {
+        await uploadWorkspaceUserGroupStorageFile(wsId, groupId, file.rawFile);
+      }
+    },
+    onSuccess: () => {
+      toast.success(commonT('success'));
+      queryClient.invalidateQueries({ queryKey });
+      setOpen(false);
+    },
+    onError: () => {
+      toast.error(commonT('error'));
     },
   });
 
   const handleUpload = async (filesToUpload: StatedFile[]) => {
-    try {
-      for (const file of filesToUpload) {
-        const res = await fetch(
-          `/api/v1/workspaces/${wsId}/user-groups/${groupId}/storage`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              filename: file.rawFile.name,
-              size: file.rawFile.size,
-            }),
-          }
-        );
-
-        if (!res.ok) throw new Error('Failed to get upload URL');
-        const { signedUrl, token } = await res.json();
-
-        const formData = new FormData();
-        formData.append('file', file.rawFile);
-        if (token) formData.append('token', token);
-
-        const uploadRes = await fetch(signedUrl, {
-          method: 'PUT',
-          body: formData,
-        });
-
-        if (!uploadRes.ok) throw new Error('Failed to upload file');
-
-        if (token) {
-          await fetch(`/api/v1/workspaces/${wsId}/storage/finalize-upload`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token }),
-          });
-        }
-      }
-      toast.success(commonT('success'));
-      queryClient.invalidateQueries({ queryKey });
-      setOpen(false);
-    } catch {
-      toast.error(commonT('error'));
-    }
+    await uploadMutation.mutateAsync(filesToUpload).catch(() => undefined);
   };
 
   const deleteMutation = useMutation({
-    mutationFn: async (filename: string) => {
-      const res = await fetch(
-        `/api/v1/workspaces/${wsId}/user-groups/${groupId}/storage?filename=${encodeURIComponent(
-          filename
-        )}`,
-        { method: 'DELETE' }
-      );
-      if (!res.ok) throw new Error('Failed to delete file');
-    },
+    mutationFn: (filename: string) =>
+      deleteWorkspaceUserGroupStorageFile(wsId, groupId, filename),
     onSuccess: () => {
       toast.success(commonT('success'));
       queryClient.invalidateQueries({ queryKey });
@@ -116,35 +87,26 @@ export default function GroupStorage({
   });
 
   const generateModuleMutation = useMutation({
-    mutationFn: async (filename: string) => {
-      const res = await fetch('/api/ai/course', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          wsId,
-          groupId,
-          storagePath: `${wsId}/user-groups/${groupId}/${filename}`,
-          fileName: filename,
-        }),
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(
-          errorData.error || errorData.message || 'Failed to generate module'
+    mutationFn: (filename: string) =>
+      generateWorkspaceCourseModulesFromStorage(wsId, {
+        groupId,
+        storagePath: `${wsId}/user-groups/${groupId}/${filename}`,
+        fileName: filename,
+      }),
+    onSuccess: (data) => {
+      toast.success(t('generate_module_success'));
+      const firstModuleId = data.createdModules?.[0]?.id;
+      if (firstModuleId) {
+        router.push(
+          `/${wsId}/education/courses/${groupId}/modules/${firstModuleId}/content`
         );
+      } else {
+        router.refresh();
       }
-
-      return res.json();
-    },
-    onSuccess: () => {
-      toast.success('Course module(s) generated successfully!');
-      // Refresh the current route to show the newly generated modules in the builder
-      router.refresh();
     },
     onError: (error) => {
       toast.error(
-        error instanceof Error ? error.message : 'Error generating module'
+        error instanceof Error ? error.message : t('generate_module_error')
       );
     },
   });
@@ -181,6 +143,10 @@ export default function GroupStorage({
           <div className="flex items-center justify-center p-4">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
+        ) : isError ? (
+          <div className="py-4 text-center text-destructive text-sm">
+            {t('error_loading_files')}
+          </div>
         ) : files?.length ? (
           files.map((file) => (
             <div
@@ -213,7 +179,7 @@ export default function GroupStorage({
                       generateModuleMutation.isPending &&
                       generateModuleMutation.variables === file.name
                     }
-                    title="Generate Course Module with AI"
+                    title={t('generate_module_with_ai')}
                   >
                     {generateModuleMutation.isPending &&
                     generateModuleMutation.variables === file.name ? (
@@ -229,9 +195,13 @@ export default function GroupStorage({
                     size="icon"
                     className="flex-shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
                     onClick={() => deleteMutation.mutate(file.name || '')}
-                    disabled={deleteMutation.isPending}
+                    disabled={
+                      deleteMutation.isPending &&
+                      deleteMutation.variables === file.name
+                    }
                   >
-                    {deleteMutation.isPending ? (
+                    {deleteMutation.isPending &&
+                    deleteMutation.variables === file.name ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
                       <Trash2 className="h-4 w-4" />

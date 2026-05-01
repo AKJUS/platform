@@ -4,7 +4,12 @@ import {
   createAdminClient,
   createClient,
 } from '@tuturuuu/supabase/next/server';
-import { normalizeWorkspaceId } from '@tuturuuu/utils/workspace-helper';
+import type { TablesInsert } from '@tuturuuu/types';
+import { sanitizePath } from '@tuturuuu/utils/storage-path';
+import {
+  getPermissions,
+  normalizeWorkspaceId,
+} from '@tuturuuu/utils/workspace-helper';
 import { generateObject } from 'ai';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
@@ -37,10 +42,30 @@ const ModuleGenerationSchema = z.object({
           .optional(),
       })
     )
+    .min(1)
     .describe(
       'A list of course modules extracted from the document. Large documents should be broken down into multiple modules.'
     ),
 });
+
+const GenerateCourseRequestSchema = z.object({
+  fileName: z.string().max(255).optional(),
+  groupId: z.string().uuid(),
+  maxCharacters: z.number().int().positive().max(1_000_000).optional(),
+  storagePath: z.string().min(1).max(1024),
+  wsId: z.string().min(1),
+});
+
+function isGroupStoragePath(
+  storagePath: string,
+  normalizedWsId: string,
+  groupId: string
+) {
+  return (
+    storagePath.startsWith(`${normalizedWsId}/user-groups/${groupId}/`) ||
+    storagePath.startsWith(`user-groups/${groupId}/`)
+  );
+}
 
 export async function POST(request: Request) {
   try {
@@ -56,22 +81,66 @@ export async function POST(request: Request) {
     }
 
     // 2. Parse request payload
-    const body = await request.json();
-    const { wsId, groupId, storagePath, fileName, maxCharacters } = body;
+    const parsedBody = GenerateCourseRequestSchema.safeParse(
+      await request.json()
+    );
 
-    if (!wsId || !storagePath) {
+    if (!parsedBody.success) {
       return NextResponse.json(
-        { error: 'Missing required fields: wsId and storagePath' },
+        { error: 'Invalid request body', issues: parsedBody.error.issues },
         { status: 400 }
       );
     }
 
+    const { fileName, groupId, maxCharacters, storagePath, wsId } =
+      parsedBody.data;
     const normalizedWsId = await normalizeWorkspaceId(wsId, supabase);
+    const sanitizedStoragePath = sanitizePath(storagePath);
+
+    if (
+      sanitizedStoragePath === null ||
+      !isGroupStoragePath(sanitizedStoragePath, normalizedWsId, groupId)
+    ) {
+      return NextResponse.json(
+        { error: 'Storage path is not authorized for this group' },
+        { status: 403 }
+      );
+    }
+
+    const permissions = await getPermissions({ wsId: normalizedWsId, request });
+    if (
+      !permissions?.containsPermission('view_user_groups') ||
+      !permissions.containsPermission('update_user_groups')
+    ) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const sbAdmin = await createAdminClient();
+    const { data: group, error: groupError } = await sbAdmin
+      .from('workspace_user_groups')
+      .select('id')
+      .eq('ws_id', normalizedWsId)
+      .eq('id', groupId)
+      .maybeSingle();
+
+    if (groupError) {
+      return NextResponse.json(
+        { error: 'Failed to verify user group', message: groupError.message },
+        { status: 500 }
+      );
+    }
+
+    if (!group) {
+      return NextResponse.json(
+        { error: 'User group not found' },
+        { status: 404 }
+      );
+    }
 
     // 3. Extract text from PDF using MarkItDown tool
     const markitdownResult = await executeConvertFileToMarkdown(
       {
-        storagePath,
+        storagePath: sanitizedStoragePath,
         fileName,
         maxCharacters: maxCharacters || 120_000,
       },
@@ -102,38 +171,107 @@ export async function POST(request: Request) {
       prompt: `Please create structured course modules based on the following document text. Extract the main lessons, key takeaways, and suggest a few quiz questions to test the learner's knowledge. Break down large documents into multiple logical modules.\n\nDocument Content:\n${markdownText}`,
     });
 
-    let createdModules = null;
-    if (groupId) {
-      const sbAdmin = await createAdminClient();
+    const { data: existingModuleGroup, error: moduleGroupError } = await sbAdmin
+      .from('workspace_course_module_groups')
+      .select('id')
+      .eq('group_id', groupId)
+      .order('sort_key', { ascending: true, nullsFirst: false })
+      .order('created_at', { ascending: true })
+      .limit(1)
+      .maybeSingle();
 
-      const { data: existingModules } = await sbAdmin
-        .from('workspace_course_modules')
-        .select('id')
-        .eq('group_id', groupId);
+    if (moduleGroupError) {
+      return NextResponse.json(
+        {
+          error: 'Failed to find a target module group.',
+          message: moduleGroupError.message,
+        },
+        { status: 500 }
+      );
+    }
 
-      const startingSortKey = existingModules ? existingModules.length : 0;
+    let moduleGroupId = existingModuleGroup?.id;
+    if (!moduleGroupId) {
+      const moduleGroupPayload: TablesInsert<'workspace_course_module_groups'> =
+        {
+          group_id: groupId,
+          sort_key: 0,
+          title: 'Generated modules',
+        };
 
-      const insertPayload = object.modules.map((module, index) => ({
-        name: module.name,
+      const { data: createdModuleGroup, error: createModuleGroupError } =
+        await sbAdmin
+          .from('workspace_course_module_groups')
+          .insert(moduleGroupPayload)
+          .select('id')
+          .single();
+
+      if (createModuleGroupError) {
+        return NextResponse.json(
+          {
+            error: 'Failed to create a target module group.',
+            message: createModuleGroupError.message,
+          },
+          { status: 500 }
+        );
+      }
+
+      moduleGroupId = createdModuleGroup.id;
+    }
+
+    const { data: maxSortKeyModule, error: maxSortKeyError } = await sbAdmin
+      .from('workspace_course_modules')
+      .select('sort_key')
+      .eq('group_id', groupId)
+      .eq('module_group_id', moduleGroupId)
+      .order('sort_key', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (maxSortKeyError) {
+      console.error(
+        'Failed to fetch existing course modules:',
+        maxSortKeyError
+      );
+      return NextResponse.json(
+        {
+          error: 'Failed to persist generated modules.',
+          message: maxSortKeyError.message,
+        },
+        { status: 500 }
+      );
+    }
+
+    const startingSortKey = (maxSortKeyModule?.sort_key ?? -1) + 1;
+
+    const insertPayload: TablesInsert<'workspace_course_modules'>[] =
+      object.modules.map((module, index) => ({
         content: module.content,
         extra_content: {
-          text: module.extra_content,
-          quiz_questions: module.quiz_questions,
+          quiz_questions: module.quiz_questions ?? [],
+          text: module.extra_content ?? null,
         },
         group_id: groupId,
+        module_group_id: moduleGroupId,
+        name: module.name,
         sort_key: startingSortKey + index,
       }));
 
-      const { data, error } = await sbAdmin
-        .from('workspace_course_modules')
-        .insert(insertPayload)
-        .select('*');
+    const { data: createdModules, error } = await sbAdmin
+      .from('workspace_course_modules')
+      .insert(insertPayload)
+      .select('*');
 
-      if (error) {
-        console.error('Failed to insert AI generated modules:', error);
-      } else {
-        createdModules = data;
-      }
+    if (error) {
+      console.error('Failed to insert AI generated modules:', error);
+      return NextResponse.json(
+        {
+          data: object,
+          error: 'Failed to save generated modules',
+          message: error.message,
+        },
+        { status: 500 }
+      );
     }
 
     // 6. Return the generated module data

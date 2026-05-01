@@ -1,4 +1,8 @@
 export {
+  type GeneratedWorkspaceCourseModule,
+  type GenerateWorkspaceCourseModulesFromStoragePayload,
+  type GenerateWorkspaceCourseModulesFromStorageResponse,
+  generateWorkspaceCourseModulesFromStorage,
   listCurrentUserAiChats,
   listWorkspaceAiModelFavorites,
   toggleWorkspaceAiModelFavorite,
@@ -248,18 +252,23 @@ export {
 export {
   createWorkspaceStorageFolder,
   createWorkspaceStorageSignedUrl,
+  createWorkspaceUserGroupStorageUploadUrl,
   deleteWorkspaceStorageFolder,
   deleteWorkspaceStorageObject,
   deleteWorkspaceStorageObjects,
+  deleteWorkspaceUserGroupStorageFile,
   exportWorkspaceStorageLinks,
   getWorkspaceStorageAnalytics,
   listWorkspaceStorageObjects,
+  listWorkspaceUserGroupStorageFiles,
   migrateWorkspaceStorage,
   renameWorkspaceStorageObject,
   uploadWorkspaceStorageFile,
   uploadWorkspaceTaskFile,
+  uploadWorkspaceUserGroupStorageFile,
   type WorkspaceStorageAnalyticsResponse,
   type WorkspaceStorageExportLinksResponse,
+  type WorkspaceStorageListItem,
   type WorkspaceStorageListResponse,
 } from './storage';
 export {

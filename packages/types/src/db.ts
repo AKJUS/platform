@@ -65,6 +65,22 @@ export interface FinanceBudgetStatus {
 }
 export type Workspace = Tables<'workspaces'>;
 export type WorkspaceUser = Tables<'workspace_users'>;
+export interface WorkspaceStorageFileMetadata {
+  size?: number;
+  mimetype?: string;
+  mimeType?: string;
+  [key: string]: unknown;
+}
+
+export interface WorkspaceStorageFile {
+  id?: string | null;
+  name: string;
+  created_at?: string | null;
+  updated_at?: string | null;
+  last_accessed_at?: string | null;
+  metadata?: WorkspaceStorageFileMetadata | null;
+}
+
 export type InternalApiWorkspaceSummary = Pick<
   Workspace,
   'id' | 'name' | 'personal' | 'avatar_url' | 'logo_url'
