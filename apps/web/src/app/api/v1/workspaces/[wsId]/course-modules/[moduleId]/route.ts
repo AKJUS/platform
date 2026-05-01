@@ -226,12 +226,21 @@ export const PUT = withSessionAuth(
         updatePayload.sort_key = (lastModuleInTargetGroup?.sort_key ?? 0) + 1;
       }
 
-      const { error } = await access.sbAdmin
+      const { data: updated, error } = await access.sbAdmin
         .from('workspace_course_modules')
         .update(updatePayload)
-        .eq('id', moduleId);
+        .eq('id', moduleId)
+        .eq('group_id', access.module.group_id)
+        .select('id')
+        .maybeSingle();
 
       if (!error) {
+        if (!updated) {
+          return NextResponse.json(
+            { message: 'Module not found' },
+            { status: 404 }
+          );
+        }
         return NextResponse.json({ message: 'success' });
       }
 
@@ -269,15 +278,25 @@ export const DELETE = withSessionAuth(
     );
     if (access instanceof NextResponse) return access;
 
-    const { error } = await access.sbAdmin
+    const { data: deleted, error } = await access.sbAdmin
       .from('workspace_course_modules')
       .delete()
-      .eq('id', moduleId);
+      .eq('id', moduleId)
+      .eq('group_id', access.module.group_id)
+      .select('id')
+      .maybeSingle();
 
     if (error) {
       return NextResponse.json(
         { message: 'Error deleting workspace course module' },
         { status: 500 }
+      );
+    }
+
+    if (!deleted) {
+      return NextResponse.json(
+        { message: 'Module not found' },
+        { status: 404 }
       );
     }
 

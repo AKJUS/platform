@@ -75,6 +75,7 @@ export function CourseBuilderClient({
   const [moduleDropTargetGroupId, setModuleDropTargetGroupId] = useState<
     string | null
   >(null);
+  const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
   const [editGroupId, setEditGroupId] = useState<string | null>(null);
   const [deleteGroupId, setDeleteGroupId] = useState<string | null>(null);
 
@@ -522,6 +523,8 @@ export function CourseBuilderClient({
               {t('ws-course-modules.module_groups')}
             </h2>
             <ModifiableDialogTrigger
+              open={isCreateGroupOpen}
+              setOpen={setIsCreateGroupOpen}
               title={t('ws-course-modules.create_group')}
               createDescription={t(
                 'ws-course-modules.create_group_description'
@@ -529,6 +532,7 @@ export function CourseBuilderClient({
               form={
                 <ModuleGroupForm
                   onSubmit={(data) => upsertGroupMutation.mutateAsync({ data })}
+                  onFinish={() => setIsCreateGroupOpen(false)}
                 />
               }
               trigger={
@@ -620,6 +624,7 @@ export function CourseBuilderClient({
                     data: payload,
                   })
                 }
+                onFinish={() => setEditGroupId(null)}
               />
             }
           />

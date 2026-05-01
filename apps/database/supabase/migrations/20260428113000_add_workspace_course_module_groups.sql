@@ -118,19 +118,28 @@ declare
   v_parent_group_id uuid;
 begin
   if new."module_group_id" is null then
-    insert into "public"."workspace_course_module_groups" (
-      "group_id",
-      "title",
-      "sort_key"
-    )
-    values (
-      new."group_id",
-      'General',
-      1
-    )
-    on conflict ("group_id", "sort_key")
-    do update set "title" = "workspace_course_module_groups"."title"
-    returning "id" into new."module_group_id";
+    select "id"
+    into new."module_group_id"
+    from "public"."workspace_course_module_groups"
+    where "group_id" = new."group_id"
+    order by "created_at" asc, "id" asc
+    limit 1;
+
+    if new."module_group_id" is null then
+      insert into "public"."workspace_course_module_groups" (
+        "group_id",
+        "title",
+        "sort_key"
+      )
+      values (
+        new."group_id",
+        'General',
+        1
+      )
+      on conflict ("group_id", "sort_key")
+      do update set "title" = "workspace_course_module_groups"."title"
+      returning "id" into new."module_group_id";
+    end if;
   end if;
 
   select "group_id"
