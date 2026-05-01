@@ -37,6 +37,9 @@ codex plugin marketplace add ./
   generated type, storage, and database verification guidance.
 - `$tuturuuu-ci-docs`: GitHub Actions, `tuturuuu.ts`, validation script,
   docs-page, and docs navigation guidance.
+- `$tuturuuu-review-comments`: GitHub PR review-thread guidance for checking,
+  re-checking, validating, fixing, resolving, and committing unresolved review
+  comments only when explicitly requested.
 
 ## CI Coverage
 
@@ -47,6 +50,7 @@ the repo's other CI switchboard-controlled checks.
 The CI check currently verifies:
 
 - plugin manifest JSON and interface metadata
+- natural default prompt examples for the invokable skills
 - repo marketplace metadata at `.agents/plugins/marketplace.json`
 - skill folder and frontmatter naming parity
 - `agents/openai.yaml` defaults for every skill
@@ -70,6 +74,7 @@ python3 /Users/vhpx/.codex/skills/.system/skill-creator/scripts/quick_validate.p
 python3 /Users/vhpx/.codex/skills/.system/skill-creator/scripts/quick_validate.py plugins/tuturuuu/skills/tuturuuu-mobile-task-board
 python3 /Users/vhpx/.codex/skills/.system/skill-creator/scripts/quick_validate.py plugins/tuturuuu/skills/tuturuuu-database
 python3 /Users/vhpx/.codex/skills/.system/skill-creator/scripts/quick_validate.py plugins/tuturuuu/skills/tuturuuu-ci-docs
+python3 /Users/vhpx/.codex/skills/.system/skill-creator/scripts/quick_validate.py plugins/tuturuuu/skills/tuturuuu-review-comments
 ```
 
 The Codex skill validator imports `yaml`, so it requires `PyYAML` in the active

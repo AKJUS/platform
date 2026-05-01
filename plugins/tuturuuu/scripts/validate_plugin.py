@@ -82,8 +82,8 @@ def validate_manifest(plugin_root: Path, manifest: dict) -> None:
     prompts = interface.get("defaultPrompt")
     if not isinstance(prompts, list) or not prompts:
         fail("manifest interface.defaultPrompt must be a non-empty list")
-    if len(prompts) > 4:
-        fail("manifest interface.defaultPrompt should stay focused with at most 4 prompts")
+    if len(prompts) > 8:
+        fail("manifest interface.defaultPrompt should stay focused with at most 8 prompts")
 
     for field in (
         "displayName",
@@ -249,8 +249,18 @@ def validate_marketplace(repo_root: Path) -> None:
 
 def validate_no_todo_under(plugin_root: Path) -> None:
     for path in sorted(plugin_root.rglob("*")):
-        if path.is_file() and path.suffix not in {".png", ".jpg", ".jpeg", ".webp", ".gif"}:
-            check_no_todo(path, read_text(path))
+        if not path.is_file():
+            continue
+        if "__pycache__" in path.parts or path.suffix in {
+            ".gif",
+            ".jpeg",
+            ".jpg",
+            ".png",
+            ".pyc",
+            ".webp",
+        }:
+            continue
+        check_no_todo(path, read_text(path))
 
 
 def main() -> None:
