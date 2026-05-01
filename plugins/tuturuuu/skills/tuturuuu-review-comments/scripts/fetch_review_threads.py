@@ -118,7 +118,38 @@ def gh_graphql(variables: dict[str, Any]) -> dict[str, Any]:
     if result.returncode != 0:
         print(result.stderr, file=sys.stderr)
         raise SystemExit(result.returncode)
-    return json.loads(result.stdout)
+    try:
+        payload = json.loads(result.stdout)
+    except json.JSONDecodeError as exc:
+        print(f"Failed to parse GitHub GraphQL response as JSON: {exc}", file=sys.stderr)
+        raise SystemExit(1) from exc
+
+    if payload.get("errors"):
+        print("GitHub GraphQL returned errors:", file=sys.stderr)
+        print(json.dumps(payload["errors"], indent=2), file=sys.stderr)
+        raise SystemExit(1)
+
+    if not isinstance(payload.get("data"), dict):
+        print("GitHub GraphQL response is missing data.", file=sys.stderr)
+        raise SystemExit(1)
+
+    return payload
+
+
+def extract_pull_request(payload: dict[str, Any], owner: str, repo: str, number: int) -> dict[str, Any]:
+    repository = payload["data"].get("repository")
+    if not isinstance(repository, dict):
+        raise SystemExit(f"Repository not found: {owner}/{repo}")
+
+    pull_request = repository.get("pullRequest")
+    if not isinstance(pull_request, dict):
+        raise SystemExit(f"PR not found: {owner}/{repo}#{number}")
+
+    review_threads = pull_request.get("reviewThreads")
+    if not isinstance(review_threads, dict):
+        raise SystemExit("GitHub GraphQL response is missing reviewThreads.")
+
+    return pull_request
 
 
 def main() -> None:
@@ -137,9 +168,7 @@ def main() -> None:
                 "cursor": cursor,
             }
         )
-        pr = payload["data"]["repository"]["pullRequest"]
-        if pr is None:
-            raise SystemExit(f"PR not found: {owner}/{repo}#{number}")
+        pr = extract_pull_request(payload, owner, repo, number)
 
         pull_request = {
             "number": pr["number"],
