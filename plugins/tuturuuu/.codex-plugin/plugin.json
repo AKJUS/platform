@@ -34,7 +34,7 @@
       "Use $tuturuuu-database to update the Supabase schema or API write path safely.",
       "Use $tuturuuu-ci-docs to update the workflow, docs page, and validation follow-through.",
       "Use $tuturuuu-mobile-task-board to fix this Flutter task-board behavior and verify it.",
-      "Use $tuturuuu-review-comments to re-check this PR's unresolved comments, fix what is still actionable, and report what remains."
+      "Use $tuturuuu-review-comments to re-check this PR's unresolved comments, fix what is still actionable, resolve addressed threads, and report what remains."
     ],
     "brandColor": "#000000",
     "composerIcon": "./assets/light.png",
