@@ -11,6 +11,7 @@ from pathlib import Path
 
 FRONTMATTER_RE = re.compile(r"\A---\n(?P<body>.*?)\n---\n", re.DOTALL)
 REFERENCE_RE = re.compile(r"`(references/[^`]+)`")
+DEFAULT_PROMPT_LINE_RE = re.compile(r"^\s*default_prompt:\s*(?P<value>.+?)\s*$", re.M)
 TODO_MARKER = "[TO" + "DO:"
 WORKFLOW_NAME = "codex-plugin.yaml"
 DOCS_PAGE = "build/development-tools/codex-plugin"
@@ -50,6 +51,56 @@ def validate_default_prompt(path: Path, prompt: object) -> str:
     if prompt_text.lower().startswith("use $") or "$tuturuuu-" in prompt_text:
         fail(f"{path} default prompt should be a natural user request: {prompt_text}")
     return prompt_text
+
+
+def parse_quoted_single_line_value(path: Path, field: str, raw_value: str) -> str:
+    value = raw_value.strip()
+    if not value:
+        fail(f"{path} {field} must not be empty")
+
+    quote = value[0]
+    if quote not in {"'", '"'}:
+        fail(f"{path} {field} must be quoted")
+
+    chars: list[str] = []
+    index = 1
+    while index < len(value):
+        char = value[index]
+
+        if quote == '"' and char == "\\":
+            index += 1
+            if index >= len(value):
+                fail(f"{path} {field} has an unterminated escape sequence")
+            chars.append(value[index])
+            index += 1
+            continue
+
+        if quote == "'" and char == "'" and index + 1 < len(value) and value[index + 1] == "'":
+            chars.append("'")
+            index += 2
+            continue
+
+        if char == quote:
+            trailing = value[index + 1 :].strip()
+            if trailing:
+                fail(f"{path} {field} has trailing content after the closing quote")
+            return "".join(chars)
+
+        chars.append(char)
+        index += 1
+
+    fail(f"{path} {field} is missing a matching closing quote")
+
+
+def extract_default_prompt(openai_yaml: Path, openai_text: str) -> str:
+    matches = list(DEFAULT_PROMPT_LINE_RE.finditer(openai_text))
+    if len(matches) != 1:
+        fail(f"{openai_yaml} must contain exactly one default_prompt line")
+    return parse_quoted_single_line_value(
+        openai_yaml,
+        "default_prompt",
+        matches[0].group("value"),
+    )
 
 
 def read_text(path: Path) -> str:
@@ -149,10 +200,7 @@ def validate_openai_yaml(skill_dir: Path) -> None:
     for required in ("display_name:", "short_description:", "default_prompt:"):
         if required not in openai_text:
             fail(f"{openai_yaml} is missing {required}")
-    match = re.search(r'^\s*default_prompt:\s*["\'](?P<prompt>.*?)["\']\s*$', openai_text, re.M)
-    if not match:
-        fail(f"{openai_yaml} default_prompt must be a quoted single-line prompt")
-    validate_default_prompt(openai_yaml, match.group("prompt"))
+    validate_default_prompt(openai_yaml, extract_default_prompt(openai_yaml, openai_text))
 
 
 def validate_reference_links(skill_dir: Path, skill_file: Path) -> None:
