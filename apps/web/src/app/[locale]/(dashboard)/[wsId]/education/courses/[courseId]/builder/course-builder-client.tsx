@@ -459,14 +459,17 @@ export function CourseBuilderClient({
             </div>
           }
           primaryAction={
-            <Button
-              asChild
-              className="h-11 rounded-2xl bg-foreground px-5 text-background"
-            >
-              <Link href={`/${routeWsId}/education/courses`}>
-                {t('workspace-education-tabs.courses')}
-              </Link>
-            </Button>
+            <div className="flex items-center gap-2">
+              {extraHeaderActions}
+              <Button
+                asChild
+                className="h-11 rounded-2xl bg-foreground px-5 text-background"
+              >
+                <Link href={backHref ?? `/${routeWsId}/education/courses`}>
+                  {backLabel ?? t('workspace-education-tabs.courses')}
+                </Link>
+              </Button>
+            </div>
           }
         />
 

@@ -81,9 +81,17 @@ export async function POST(request: Request) {
     }
 
     // 2. Parse request payload
-    const parsedBody = GenerateCourseRequestSchema.safeParse(
-      await request.json()
-    );
+    let rawBody: unknown;
+    try {
+      rawBody = await request.json();
+    } catch {
+      return NextResponse.json(
+        { error: 'Invalid request body' },
+        { status: 400 }
+      );
+    }
+
+    const parsedBody = GenerateCourseRequestSchema.safeParse(rawBody);
 
     if (!parsedBody.success) {
       return NextResponse.json(

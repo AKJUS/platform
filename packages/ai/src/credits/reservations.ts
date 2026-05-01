@@ -69,6 +69,12 @@ async function getRpcCaller(
   return createAdminClient();
 }
 
+function rpcErrorFromUnknown(error: unknown): RpcError {
+  return {
+    message: error instanceof Error ? error.message : 'Unknown RPC failure',
+  };
+}
+
 export async function reserveFixedAiCredits(
   params: {
     wsId: string;
@@ -117,6 +123,9 @@ export async function reserveFixedAiCredits(
     });
     data = result.data;
     error = result.error;
+  } catch (caughtError) {
+    data = null;
+    error = rpcErrorFromUnknown(caughtError);
   } finally {
     if (inFlightMarked && params.userId) {
       await decrementAiCreditChargeInFlight({
@@ -186,6 +195,9 @@ export async function commitFixedAiCreditReservation(
     });
     data = result.data;
     error = result.error;
+  } catch (caughtError) {
+    data = null;
+    error = rpcErrorFromUnknown(caughtError);
   } finally {
     if (inFlightMarked && wsId && userId) {
       await decrementAiCreditChargeInFlight({ wsId, userId });

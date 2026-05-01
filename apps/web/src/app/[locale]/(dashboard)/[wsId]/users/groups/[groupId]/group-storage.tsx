@@ -62,11 +62,13 @@ export default function GroupStorage({
     },
     onSuccess: () => {
       toast.success(commonT('success'));
-      queryClient.invalidateQueries({ queryKey });
       setOpen(false);
     },
     onError: () => {
       toast.error(commonT('error'));
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey });
     },
   });
 
@@ -90,7 +92,7 @@ export default function GroupStorage({
     mutationFn: (filename: string) =>
       generateWorkspaceCourseModulesFromStorage(wsId, {
         groupId,
-        storagePath: `${wsId}/user-groups/${groupId}/${filename}`,
+        storagePath: `user-groups/${groupId}/${filename}`,
         fileName: filename,
       }),
     onSuccess: (data) => {
@@ -179,6 +181,7 @@ export default function GroupStorage({
                       generateModuleMutation.isPending &&
                       generateModuleMutation.variables === file.name
                     }
+                    aria-label={t('generate_module_with_ai')}
                     title={t('generate_module_with_ai')}
                   >
                     {generateModuleMutation.isPending &&
@@ -199,6 +202,7 @@ export default function GroupStorage({
                       deleteMutation.isPending &&
                       deleteMutation.variables === file.name
                     }
+                    aria-label={commonT('delete')}
                   >
                     {deleteMutation.isPending &&
                     deleteMutation.variables === file.name ? (
