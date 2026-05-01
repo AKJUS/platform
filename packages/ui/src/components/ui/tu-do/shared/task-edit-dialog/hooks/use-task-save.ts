@@ -201,6 +201,7 @@ export function applyPendingRelationshipSummary({
         parent_task_id: null,
         parent_task: null,
         child_count: 0,
+        completed_child_count: 0,
         blocked_by_count: 0,
         blocking_count: 0,
         related_count: 0,
@@ -222,6 +223,9 @@ export function applyPendingRelationshipSummary({
                 }
               : null,
             child_count: childTasks.length,
+            completed_child_count: childTasks.filter(
+              (childTask) => childTask.completed
+            ).length,
             blocked_by_count: blockedByTasks.length,
             blocking_count: blockingTasks.length,
             related_count: relatedTasks.length,
@@ -235,6 +239,8 @@ export function applyPendingRelationshipSummary({
           relationship_summary: {
             ...relationshipSummary,
             child_count: relationshipSummary.child_count + 1,
+            completed_child_count:
+              relationshipSummary.completed_child_count ?? 0,
           },
         };
       }
@@ -1047,6 +1053,9 @@ async function handleCreateTask({
             }
           : null,
         child_count: normalizedPendingRelationships.childTasks.length,
+        completed_child_count: normalizedPendingRelationships.childTasks.filter(
+          (childTask) => childTask.completed
+        ).length,
         blocked_by_count: normalizedPendingRelationships.blockedByTasks.length,
         blocking_count: normalizedPendingRelationships.blockingTasks.length,
         related_count: normalizedPendingRelationships.relatedTasks.length,

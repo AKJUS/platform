@@ -20,6 +20,8 @@ interface RelationshipCounterpartTask {
   id: string;
   name: string | null;
   display_number: number | null;
+  completed_at: string | null;
+  closed_at: string | null;
   deleted_at: string | null;
   list: {
     board: {
@@ -34,6 +36,7 @@ export interface TaskRelationshipSummary {
   parentTaskId: string | null;
   parentTask: NonNullable<TaskPrimitive['relationship_summary']>['parent_task'];
   childCount: number;
+  completedChildCount: number;
   blockedByCount: number;
   blockingCount: number;
   relatedCount: number;
@@ -44,6 +47,7 @@ function createDefaultTaskRelationshipSummary(): TaskRelationshipSummary {
     parentTaskId: null,
     parentTask: null,
     childCount: 0,
+    completedChildCount: 0,
     blockedByCount: 0,
     blockingCount: 0,
     relatedCount: 0,
@@ -206,6 +210,7 @@ export async function buildTaskRelationshipSummary(
     string,
     NonNullable<TaskPrimitive['relationship_summary']>['parent_task']
   >();
+  const completedCounterpartTaskIds = new Set<string>();
   const counterpartTaskIdChunks = chunkArray(counterpartTaskIds, 200);
 
   for (const counterpartTaskIdChunk of counterpartTaskIdChunks) {
@@ -217,6 +222,8 @@ export async function buildTaskRelationshipSummary(
           id,
           name,
           display_number,
+          completed_at,
+          closed_at,
           deleted_at,
           list:task_lists(
             board:workspace_boards(
@@ -245,6 +252,9 @@ export async function buildTaskRelationshipSummary(
           display_number: counterpartTask.display_number,
           ticket_prefix: counterpartTask.list?.board?.ticket_prefix ?? null,
         });
+        if (counterpartTask.completed_at || counterpartTask.closed_at) {
+          completedCounterpartTaskIds.add(counterpartTask.id);
+        }
       }
     }
   }
@@ -276,6 +286,9 @@ export async function buildTaskRelationshipSummary(
       case 'parent_child': {
         if (sourceSummary && sourceCounterpartValid) {
           sourceSummary.childCount += 1;
+          if (completedCounterpartTaskIds.has(targetId)) {
+            sourceSummary.completedChildCount += 1;
+          }
         }
         if (
           targetSummary &&
