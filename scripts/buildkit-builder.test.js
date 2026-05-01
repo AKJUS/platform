@@ -139,6 +139,7 @@ test('ensureBuildkitBuilder creates a capped buildx builder and persists state',
     );
 
     assert.equal(env.BUILDX_BUILDER, DEFAULT_BUILDER_NAME);
+    assert.equal(env.COMPOSE_PARALLEL_LIMIT, '2');
     assert.match(
       fs.readFileSync(paths.buildkitConfigFile, 'utf8'),
       /max-parallelism = 2/
@@ -218,6 +219,7 @@ test('ensureBuildkitBuilder reuses an existing builder when the fingerprint matc
     });
 
     assert.equal(env.BUILDX_BUILDER, DEFAULT_BUILDER_NAME);
+    assert.equal(env.COMPOSE_PARALLEL_LIMIT, '2');
     assert.equal(
       calls.filter(
         (call) =>
@@ -236,13 +238,40 @@ test('production Docker root scripts keep the default build caps', () => {
   const packageJson = JSON.parse(
     fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8')
   );
+  const webPackageJson = JSON.parse(
+    fs.readFileSync(
+      path.join(__dirname, '..', 'apps', 'web', 'package.json'),
+      'utf8'
+    )
+  );
+  const turboConfig = JSON.parse(
+    fs.readFileSync(path.join(__dirname, '..', 'turbo.json'), 'utf8')
+  );
+  const buildWebDockerScript = fs.readFileSync(
+    path.join(__dirname, 'build-web-docker.js'),
+    'utf8'
+  );
 
   assert.match(
     packageJson.scripts['serve:web:docker'],
-    /--build-memory 16g --build-cpus 8/
+    /--build-memory 16g --build-cpus 2 --build-max-parallelism 1/
   );
   assert.match(
     packageJson.scripts['serve:web:docker:bg'],
-    /--build-memory 16g --build-cpus 8/
+    /--build-memory 16g --build-cpus 2 --build-max-parallelism 1/
   );
+  assert.equal(
+    packageJson.scripts['build:web:docker'],
+    'turbo run build:docker -F @tuturuuu/web'
+  );
+  assert.match(
+    webPackageJson.scripts['build:docker'],
+    /--max-old-space-size=4096/
+  );
+  assert.match(
+    webPackageJson.scripts['build:docker'],
+    /next build --turbopack/
+  );
+  assert.deepEqual(turboConfig.tasks['build:docker'].dependsOn, ['^build']);
+  assert.match(buildWebDockerScript, /build:web:docker/);
 });

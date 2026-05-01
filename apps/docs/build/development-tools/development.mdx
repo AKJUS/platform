@@ -75,6 +75,21 @@ To complete the initial setup, please restart your IDE so that it can recognize 
   Theme](https://marketplace.visualstudio.com/items?itemName=PKief.material-icon-theme).
 </Tip>
 
+### Zed
+
+This monorepo tracks project-level Zed settings in `.zed/settings.json`.
+Opening the repository root in Zed can otherwise trigger expensive scans across
+generated output and local dependency trees, especially `node_modules`,
+`.turbo`, `.next`, package `dist` directories, Flutter build output, Rust
+`target`, and Python virtualenv/cache folders.
+
+Keep large generated directories in `file_scan_exclusions`. Zed's
+`file_scan_exclusions` setting replaces the default list instead of extending
+it, so include Zed's default VCS/system exclusions whenever adding project
+exclusions. The project also uses a single TypeScript language server path for
+TypeScript, TSX, and JavaScript; avoid enabling both `tsgo` and `vtsls` for the
+same language unless you are deliberately comparing language server behavior.
+
 ## Development
 
 ### Start Next.js apps

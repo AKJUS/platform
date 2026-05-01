@@ -248,10 +248,16 @@ async function ensureBuildkitBuilder(
     );
   }
 
-  return {
+  const nextEnv = {
     ...env,
     BUILDX_BUILDER: config.builderName,
   };
+
+  if (nextEnv.COMPOSE_PARALLEL_LIMIT == null && config.maxParallelism) {
+    nextEnv.COMPOSE_PARALLEL_LIMIT = String(config.maxParallelism);
+  }
+
+  return nextEnv;
 }
 
 module.exports = {

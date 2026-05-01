@@ -10,16 +10,16 @@
     "type-check": "tsgo --project tsconfig.typecheck.json"
   },
   "dependencies": {
-    "@ai-sdk/google": "^3.0.64",
+    "@ai-sdk/google": "^3.0.66",
     "@tuturuuu/payment": "workspace:*",
     "@tuturuuu/supabase": "workspace:*",
     "@tuturuuu/utils": "workspace:*",
-    "ai": "^6.0.168",
+    "ai": "^6.0.172",
     "dayjs": "^1.11.20",
     "next": "^16.2.4",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
-    "zod": "^4.3.6"
+    "zod": "^4.4.1"
   },
   "devDependencies": {
     "@tuturuuu/types": "workspace:*",

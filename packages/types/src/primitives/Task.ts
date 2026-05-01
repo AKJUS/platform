@@ -63,6 +63,7 @@ export interface Task {
       ticket_prefix?: string | null;
     } | null;
     child_count: number;
+    completed_child_count?: number;
     blocked_by_count: number;
     blocking_count: number;
     related_count: number;

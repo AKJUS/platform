@@ -112,6 +112,8 @@ describe('buildTaskRelationshipSummary', () => {
                     id: 'task-parent',
                     name: 'Parent title',
                     display_number: 11,
+                    completed_at: null,
+                    closed_at: null,
                     deleted_at: null,
                     list: {
                       board: {
@@ -125,6 +127,8 @@ describe('buildTaskRelationshipSummary', () => {
                     id: 'task-child',
                     name: 'Child title',
                     display_number: 12,
+                    completed_at: null,
+                    closed_at: null,
                     deleted_at: null,
                     list: {
                       board: {
@@ -160,6 +164,126 @@ describe('buildTaskRelationshipSummary', () => {
         ticket_prefix: 'TTR',
       },
       childCount: 0,
+      completedChildCount: 0,
+      blockedByCount: 0,
+      blockingCount: 0,
+      relatedCount: 0,
+    });
+  });
+
+  it('counts completed child tasks in the relationship summary', async () => {
+    const client = {
+      from: vi.fn((table: string) => {
+        if (table === 'task_relationships') {
+          return {
+            select: vi.fn(() => ({
+              in: vi.fn(
+                async (
+                  column: 'source_task_id' | 'target_task_id',
+                  ids: string[]
+                ) => {
+                  if (
+                    column === 'source_task_id' &&
+                    ids.includes('task-parent')
+                  ) {
+                    return {
+                      data: [
+                        {
+                          id: 'rel-1',
+                          source_task_id: 'task-parent',
+                          target_task_id: 'task-child-done',
+                          type: 'parent_child',
+                        },
+                        {
+                          id: 'rel-2',
+                          source_task_id: 'task-parent',
+                          target_task_id: 'task-child-open',
+                          type: 'parent_child',
+                        },
+                      ],
+                      error: null,
+                    };
+                  }
+
+                  return { data: [], error: null };
+                }
+              ),
+            })),
+          };
+        }
+
+        if (table === 'tasks') {
+          return {
+            select: vi.fn(() => ({
+              in: vi.fn(async () => ({
+                data: [
+                  {
+                    id: 'task-parent',
+                    name: 'Parent title',
+                    display_number: 11,
+                    completed_at: null,
+                    closed_at: null,
+                    deleted_at: null,
+                    list: {
+                      board: {
+                        ws_id: 'ws-1',
+                        name: 'Board',
+                        ticket_prefix: 'TTR',
+                      },
+                    },
+                  },
+                  {
+                    id: 'task-child-done',
+                    name: 'Done child',
+                    display_number: 12,
+                    completed_at: '2026-05-01T01:00:00.000Z',
+                    closed_at: null,
+                    deleted_at: null,
+                    list: {
+                      board: {
+                        ws_id: 'ws-1',
+                        name: 'Board',
+                        ticket_prefix: 'TTR',
+                      },
+                    },
+                  },
+                  {
+                    id: 'task-child-open',
+                    name: 'Open child',
+                    display_number: 13,
+                    completed_at: null,
+                    closed_at: null,
+                    deleted_at: null,
+                    list: {
+                      board: {
+                        ws_id: 'ws-1',
+                        name: 'Board',
+                        ticket_prefix: 'TTR',
+                      },
+                    },
+                  },
+                ],
+                error: null,
+              })),
+            })),
+          };
+        }
+
+        throw new Error(`Unexpected table ${table}`);
+      }),
+    };
+
+    const summary = await buildTaskRelationshipSummary(
+      client as never,
+      'ws-1',
+      ['task-parent']
+    );
+
+    expect(summary.get('task-parent')).toEqual({
+      parentTaskId: null,
+      parentTask: null,
+      childCount: 2,
+      completedChildCount: 1,
       blockedByCount: 0,
       blockingCount: 0,
       relatedCount: 0,

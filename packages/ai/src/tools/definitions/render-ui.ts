@@ -1,3 +1,4 @@
+import type { FlexibleSchema } from 'ai';
 import { z } from 'zod';
 import { tool } from '../core';
 import { dashboardCatalog } from '../json-render-catalog';
@@ -33,6 +34,10 @@ const baseSchemaWithRefinement = dashboardCatalog.zodSchema().refine(
   }
 );
 
+// AI SDK and @json-render currently expose nominal Zod minor types.
+const toToolInputSchema = (schema: unknown) =>
+  schema as FlexibleSchema<unknown>;
+
 /**
  * Static tool definitions used for the shared tool registry.
  * Uses the basic normalizer (no per-stream state).
@@ -40,9 +45,11 @@ const baseSchemaWithRefinement = dashboardCatalog.zodSchema().refine(
 export const renderUiToolDefinitions = {
   render_ui: tool({
     description: RENDER_UI_DESCRIPTION,
-    inputSchema: z.preprocess(
-      (val: unknown) => normalizeRenderUiInputForTool(val),
-      baseSchemaWithRefinement
+    inputSchema: toToolInputSchema(
+      z.preprocess(
+        (val: unknown) => normalizeRenderUiInputForTool(val),
+        baseSchemaWithRefinement
+      )
     ),
   }),
 } as const;
@@ -65,9 +72,8 @@ export function createStreamRenderUiTool(getSteps?: () => unknown[]) {
 
   const toolDef = tool({
     description: RENDER_UI_DESCRIPTION,
-    inputSchema: z.preprocess(
-      (val: unknown) => preprocess(val),
-      baseSchemaWithRefinement
+    inputSchema: toToolInputSchema(
+      z.preprocess((val: unknown) => preprocess(val), baseSchemaWithRefinement)
     ),
   });
 

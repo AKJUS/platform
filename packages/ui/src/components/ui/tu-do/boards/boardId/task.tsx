@@ -274,6 +274,7 @@ function TaskCardInner({
       parent_task_id: null,
       parent_task: null,
       child_count: 0,
+      completed_child_count: 0,
       blocked_by_count: 0,
       blocking_count: 0,
       related_count: 0,
@@ -428,6 +429,9 @@ function TaskCardInner({
   const childTaskCount = hasLoadedRelationships
     ? childTasks.length
     : relationshipSummary.child_count;
+  const completedChildTaskCount = hasLoadedRelationships
+    ? childTasks.filter((childTask) => childTask.completed).length
+    : (relationshipSummary.completed_child_count ?? 0);
   const blockedByCount = hasLoadedRelationships
     ? blockedByTasks.length
     : relationshipSummary.blocked_by_count;
@@ -1011,10 +1015,6 @@ function TaskCardInner({
 
     // Child tasks (sub-tasks) count badge
     if (childTaskCount > 0) {
-      const completedCount = childTasks.filter(
-        (childTask) => childTask.completed
-      ).length;
-      const canShowCompletedCount = hasLoadedRelationships;
       badges.push({
         id: 'children',
         element: (
@@ -1023,26 +1023,20 @@ function TaskCardInner({
             variant="secondary"
             className={cn(
               'h-5 shrink-0 border px-2 text-[10px]',
-              canShowCompletedCount && completedCount === childTaskCount
+              completedChildTaskCount === childTaskCount
                 ? 'border-dynamic-green/30 bg-dynamic-green/10 text-dynamic-green'
                 : 'border-dynamic-gray/30 bg-dynamic-gray/10 text-dynamic-gray'
             )}
-            title={
-              canShowCompletedCount
-                ? t('n_subtasks_completed', {
-                    checked: completedCount,
-                    total: childTaskCount,
-                  })
-                : undefined
-            }
+            title={t('n_subtasks_completed', {
+              checked: completedChildTaskCount,
+              total: childTaskCount,
+            })}
             ref={(el) => {
               if (el) badgeRefs.current.set('children', el as any);
             }}
           >
             <ListTree className="h-2.5 w-2.5" />
-            {canShowCompletedCount
-              ? `${completedCount}/${childTaskCount}`
-              : childTaskCount}
+            {completedChildTaskCount}/{childTaskCount}
           </Badge>
         ),
       });
@@ -1104,9 +1098,8 @@ function TaskCardInner({
     descriptionMeta.indeterminateCheckboxes,
     parentBadgeTask,
     hasParentRelationship,
-    childTasks,
     childTaskCount,
-    hasLoadedRelationships,
+    completedChildTaskCount,
     blockingCount,
     relatedTaskCount,
     t,

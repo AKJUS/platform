@@ -124,6 +124,7 @@
               },
               "build/development-tools/overview",
               "build/development-tools/development",
+              "build/development-tools/codex-plugin",
               "build/development-tools/monorepo-architecture",
               "build/development-tools/git-conventions",
               "build/development-tools/local-supabase-development",

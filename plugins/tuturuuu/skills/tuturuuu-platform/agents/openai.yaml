@@ -1,0 +1,4 @@
+interface:
+  display_name: "Tuturuuu Platform"
+  short_description: "Work safely in the Tuturuuu platform repo"
+  default_prompt: "Make this platform change and run the checks it needs."

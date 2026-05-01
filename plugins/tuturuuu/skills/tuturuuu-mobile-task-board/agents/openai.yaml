@@ -1,0 +1,4 @@
+interface:
+  display_name: "Tuturuuu Mobile Task Board"
+  short_description: "Handle Flutter task-board changes"
+  default_prompt: "Fix this Flutter task-board behavior and verify it."
