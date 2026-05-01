@@ -1,0 +1,69 @@
+---
+title: 'Codex Plugin'
+description: 'Use and maintain the local Tuturuuu Codex plugin.'
+---
+
+The local Tuturuuu Codex plugin lives at `plugins/tuturuuu`. It packages
+repo-specific operating knowledge as Codex skills so future agent sessions can
+load focused guidance without copying long instructions into every prompt.
+
+## Included Skills
+
+- `$tuturuuu-platform`: repo-wide workflow guidance for `apps/web`,
+  `packages/*`, `apps/database`, `apps/docs`, translations, navigation, and
+  verification follow-through.
+- `$tuturuuu-mobile-task-board`: Flutter mobile task-board guidance for task
+  dates, overdue behavior, task detail routing, description mode, assignee
+  flows, and mobile version bump checks.
+- `$tuturuuu-database`: Supabase migration, RLS, workspace-scoped API write,
+  generated type, storage, and database verification guidance.
+- `$tuturuuu-ci-docs`: GitHub Actions, `tuturuuu.ts`, validation script,
+  docs-page, and docs navigation guidance.
+
+## CI Coverage
+
+`.github/workflows/codex-plugin.yaml` runs the plugin-local validator and parses
+the docs navigation JSON. The workflow is enabled through `tuturuuu.ts`, matching
+the repo's other CI switchboard-controlled checks.
+
+The CI check currently verifies:
+
+- plugin manifest JSON and interface metadata
+- skill folder and frontmatter naming parity
+- `agents/openai.yaml` defaults for every skill
+- skill `references/` links
+- plugin docs page registration in `apps/docs/docs.json`
+- Codex plugin workflow registration in `tuturuuu.ts`
+- absence of scaffold `[TODO: ...]` placeholders
+
+## Validate The Plugin
+
+Run the local validator after changing the plugin manifest or its skills:
+
+```bash
+python3 plugins/tuturuuu/scripts/validate_plugin.py
+```
+
+For individual skills, run the Codex skill validator:
+
+```bash
+python3 /Users/vhpx/.codex/skills/.system/skill-creator/scripts/quick_validate.py plugins/tuturuuu/skills/tuturuuu-platform
+python3 /Users/vhpx/.codex/skills/.system/skill-creator/scripts/quick_validate.py plugins/tuturuuu/skills/tuturuuu-mobile-task-board
+python3 /Users/vhpx/.codex/skills/.system/skill-creator/scripts/quick_validate.py plugins/tuturuuu/skills/tuturuuu-database
+python3 /Users/vhpx/.codex/skills/.system/skill-creator/scripts/quick_validate.py plugins/tuturuuu/skills/tuturuuu-ci-docs
+```
+
+The Codex skill validator imports `yaml`, so it requires `PyYAML` in the active
+Python environment. The plugin-local validator uses only the Python standard
+library.
+
+## Maintenance Rules
+
+- Keep `plugins/tuturuuu/.codex-plugin/plugin.json` aligned with the plugin
+  folder name.
+- Keep each skill folder name aligned with its `SKILL.md` frontmatter `name`.
+- Put detailed guidance in `references/` and keep `SKILL.md` focused on the
+  workflow that should be loaded immediately.
+- Add marketplace metadata only when deciding where the plugin should be
+  installed from: repo-local `.agents/plugins/marketplace.json` or home-local
+  `~/.agents/plugins/marketplace.json`.

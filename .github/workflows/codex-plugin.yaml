@@ -1,0 +1,35 @@
+name: Codex Plugin Check
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  check-ci:
+    uses: ./.github/workflows/ci-check.yml
+    with:
+      workflow_name: codex-plugin.yaml
+
+  validate:
+    name: Validate Tuturuuu Codex Plugin
+    needs: [check-ci]
+    if: needs.check-ci.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Validate plugin
+        run: python3 plugins/tuturuuu/scripts/validate_plugin.py
+
+      - name: Validate docs navigation JSON
+        run: python3 -m json.tool apps/docs/docs.json > /dev/null

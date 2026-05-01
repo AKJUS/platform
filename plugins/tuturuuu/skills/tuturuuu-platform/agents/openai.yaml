@@ -1,0 +1,4 @@
+interface:
+  display_name: "Tuturuuu Platform"
+  short_description: "Work safely in the Tuturuuu platform repo"
+  default_prompt: "Use $tuturuuu-platform to implement a platform change."
