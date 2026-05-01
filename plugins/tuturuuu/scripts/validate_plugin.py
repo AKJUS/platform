@@ -100,6 +100,13 @@ def validate_manifest(plugin_root: Path, manifest: dict) -> None:
     if not isinstance(capabilities, list) or len(capabilities) < 3:
         fail("manifest interface.capabilities must include at least 3 entries")
 
+    for asset_field in ("composerIcon", "logo"):
+        asset_path = interface.get(asset_field)
+        if not isinstance(asset_path, str) or not asset_path.startswith("./assets/"):
+            fail(f"manifest interface.{asset_field} must point to ./assets/")
+        if not (plugin_root / asset_path.removeprefix("./")).exists():
+            fail(f"manifest interface.{asset_field} points to missing file {asset_path}")
+
 
 def validate_openai_yaml(skill_dir: Path) -> None:
     openai_yaml = skill_dir / "agents" / "openai.yaml"
@@ -242,7 +249,7 @@ def validate_marketplace(repo_root: Path) -> None:
 
 def validate_no_todo_under(plugin_root: Path) -> None:
     for path in sorted(plugin_root.rglob("*")):
-        if path.is_file() and path.name != ".DS_Store":
+        if path.is_file() and path.suffix not in {".png", ".jpg", ".jpeg", ".webp", ".gif"}:
             check_no_todo(path, read_text(path))
 
 

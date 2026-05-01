@@ -34,6 +34,8 @@
       "Use $tuturuuu-database to plan a Supabase change.",
       "Use $tuturuuu-ci-docs to update CI and docs."
     ],
-    "brandColor": "#000000"
+    "brandColor": "#000000",
+    "composerIcon": "./assets/light.png",
+    "logo": "./assets/light.png"
   }
 }
