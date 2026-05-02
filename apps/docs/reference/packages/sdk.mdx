@@ -91,8 +91,11 @@ and `tuturuuu` plus `tutur3u` are aliases for the same binary.
 ```bash
 ttr login
 ttr workspaces
-ttr workspaces use personal
+ttr workspaces use
 ttr boards
+ttr boards use
+ttr lists use
+ttr tasks use
 ttr tasks --board <board-id>
 ttr tasks --compact
 ttr tasks create --list <list-id> --name "Write release notes"
@@ -101,7 +104,9 @@ ttr tasks create --list <list-id> --name "Write release notes"
 `ttr login` opens the browser and creates a fresh Supabase session specifically
 designated for the Tuturuuu CLI. The terminal and browser confirmation page
 show the signed-in account email when the web session exposes it. The CLI stores
-that session in the OS app config directory:
+that session and selected workspace, board, list, task, label, and project in
+the OS app config directory. `personal` is the default workspace after login and
+when no workspace has been selected:
 
 - macOS: `~/Library/Application Support/Tuturuuu/config.json`
 - Linux: `$XDG_CONFIG_HOME/tuturuuu/config.json` or `~/.config/tuturuuu/config.json`
@@ -132,6 +137,11 @@ default, so `ttr tasks` and `ttr workspaces` are equivalent to their explicit
 to task lists when an agent only needs the task title, task list name, and
 workspace name. Add `--json` when another agent or script needs
 machine-readable output.
+
+For terminal workflows, omit an id from `use`, `get`, `update`, `delete`, or
+`move` commands to pick a workspace, board, list, task, label, or project with
+the keyboard. Use up/down or `j`/`k` to move, space/enter to select, and
+escape/`q` to cancel. Interactive selection is disabled for `--json` output.
 
 ## Client Initialization
 

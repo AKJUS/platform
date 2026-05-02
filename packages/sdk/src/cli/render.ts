@@ -193,6 +193,11 @@ export function renderWhoami(data: unknown, json = false) {
       `Base URL: ${asString(record.baseUrl)}`,
       `Config: ${asString(record.configPath)}`,
       `Current workspace: ${asString(currentWorkspace.name, 'none')}${currentWorkspace.id ? ` (${currentWorkspace.id})` : ''}`,
+      `Current board: ${asString(record.currentBoardId, 'none')}`,
+      `Current list: ${asString(record.currentListId, 'none')}`,
+      `Current task: ${asString(record.currentTaskId, 'none')}`,
+      `Current label: ${asString(record.currentLabelId, 'none')}`,
+      `Current project: ${asString(record.currentProjectId, 'none')}`,
       `Default workspace: ${asString(defaultWorkspace.name, 'none')}${defaultWorkspace.id ? ` (${defaultWorkspace.id})` : ''}`,
       `Session: ${asString(record.session, 'none')}`,
     ].join('\n')}\n`

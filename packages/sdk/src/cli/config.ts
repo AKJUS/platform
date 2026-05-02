@@ -11,6 +11,11 @@ export interface CliSession {
 
 export interface CliConfig {
   baseUrl: string;
+  currentBoardId?: string;
+  currentLabelId?: string;
+  currentListId?: string;
+  currentProjectId?: string;
+  currentTaskId?: string;
   currentWorkspaceId?: string;
   session?: CliSession;
   updateCheck?: {
@@ -76,12 +81,19 @@ export function getDefaultConfigPath(
   return join(configHome, 'tuturuuu', 'config.json');
 }
 
-export async function readCliConfig(path = getDefaultConfigPath()) {
+export async function readCliConfig(
+  path = getDefaultConfigPath()
+): Promise<CliConfig> {
   try {
     const raw = await readFile(path, 'utf8');
     const parsed = JSON.parse(raw) as Partial<CliConfig>;
     return {
       baseUrl: normalizeBaseUrl(parsed.baseUrl),
+      currentBoardId: parsed.currentBoardId,
+      currentLabelId: parsed.currentLabelId,
+      currentListId: parsed.currentListId,
+      currentProjectId: parsed.currentProjectId,
+      currentTaskId: parsed.currentTaskId,
       currentWorkspaceId: parsed.currentWorkspaceId,
       session: parsed.session,
       updateCheck: parsed.updateCheck,

@@ -32,13 +32,28 @@ ttr login
 ttr login --copy
 ttr whoami
 ttr workspaces
-ttr workspaces use personal
+ttr workspaces use
 ttr tasks
+ttr tasks use
 ttr tasks --compact
 ttr tasks --all
 ttr tasks --done
 ttr tasks --closed
 ```
+
+Omit IDs in a TTY to select with the keyboard:
+
+```bash
+ttr workspaces use
+ttr boards use
+ttr lists use
+ttr tasks use
+ttr tasks get
+ttr tasks move
+```
+
+The CLI defaults to the `personal` workspace after login and when no workspace
+has been selected.
 
 ## Monorepo Behavior
 

@@ -51,10 +51,24 @@ Use `ttr login` for browser login. It should:
 - create a dedicated Supabase session labeled `Tuturuuu CLI`
 - show account email in the terminal and browser confirmation when available
 - store config in the OS app config directory, or `TUTURUUU_CONFIG` when set
+- select `personal` as the default workspace after login and whenever no
+  workspace has been selected
 
 Use `ttr login --copy` for headless environments. The web copy-token page should
 render a browser-friendly token page, while JSON clients may request the token
 with `Accept: application/json`.
+
+## Keyboard Selection
+
+The CLI should support keyboard selection for human terminal workflows. Omit an
+id from `use`, `get`, `update`, `delete`, or `move` commands to choose with
+up/down or `j`/`k`, then space/enter. Escape or `q` cancels.
+
+Keep selection disabled for `--json` and non-TTY sessions so agent scripts get a
+clear error instead of mixed prompt output.
+
+Persist selected workspace, board, list, task, label, and project IDs in the CLI
+config so repeated commands can use the current context.
 
 ## Task Defaults
 

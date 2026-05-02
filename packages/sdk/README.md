@@ -62,8 +62,11 @@ The package ships a native Bun-powered CLI. `ttr` is the primary command, with
 ```bash
 ttr login
 ttr workspaces
-ttr workspaces use personal
+ttr workspaces use
 ttr boards
+ttr boards use
+ttr lists use
+ttr tasks use
 ttr tasks --board <board-id>
 ttr tasks --compact
 ttr tasks create --list <list-id> --name "Write release notes"
@@ -78,8 +81,10 @@ copy-token mode:
 ttr login --copy
 ```
 
-The CLI stores its session and selected workspace in the OS-specific app config
-directory. Set `TUTURUUU_CONFIG` to use a custom config file, or
+The CLI stores its session and selected workspace, board, list, task, label, and
+project in the OS-specific app config directory. `personal` is the default
+workspace after login and when no workspace has been selected. Set
+`TUTURUUU_CONFIG` to use a custom config file, or
 `ttr config set-base-url <url>` to target a non-production Tuturuuu instance.
 Once per day, the CLI checks the npm registry for a newer `tuturuuu` release
 and prints update instructions to stderr when one is available. Use
@@ -95,6 +100,11 @@ default, so `ttr tasks` and `ttr workspaces` are equivalent to their explicit
 to task lists when an agent only needs the task title, task list name, and
 workspace name. Use `--json` on read commands when another agent or script needs
 machine-readable output.
+
+For terminal workflows, omit an id from `use`, `get`, `update`, `delete`, or
+`move` commands to pick a workspace, board, list, task, label, or project with
+the keyboard. Use up/down or `j`/`k` to move, space/enter to select, and
+escape/`q` to cancel. Interactive selection is disabled for `--json` output.
 
 ### Client Initialization
 

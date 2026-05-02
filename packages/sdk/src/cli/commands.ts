@@ -23,11 +23,27 @@ import {
   writeCliConfig,
 } from './config';
 import { render, renderWhoami } from './render';
+import {
+  chooseBoard,
+  chooseLabel,
+  chooseList,
+  chooseProject,
+  chooseWorkspace,
+  getWorkspaceConfigId,
+  type ListedBoard,
+  type ListedLabel,
+  type ListedList,
+  type ListedProject,
+  resolveWorkspaceName,
+  selectBoardId,
+  selectListId,
+  selectTaskId,
+} from './selection';
 import { checkForCliUpdate, isCliUpdateCheckDisabled } from './update';
 
 function getWorkspaceId(config: CliConfig, flags: Record<string, FlagValue>) {
   const explicit = getFlag(flags, 'workspace') || getFlag(flags, 'ws');
-  const workspaceId = explicit || config.currentWorkspaceId;
+  const workspaceId = explicit || config.currentWorkspaceId || 'personal';
 
   if (!workspaceId) {
     throw new Error(
@@ -66,6 +82,12 @@ async function saveSession(config: CliConfig, token: string) {
   };
   const nextConfig: CliConfig = {
     ...config,
+    currentBoardId: undefined,
+    currentLabelId: undefined,
+    currentListId: undefined,
+    currentProjectId: undefined,
+    currentTaskId: undefined,
+    currentWorkspaceId: 'personal',
     session,
   };
   await writeCliConfig(nextConfig);
@@ -82,13 +104,14 @@ async function saveSession(config: CliConfig, token: string) {
       .catch(() => null));
 
   process.stdout.write(
-    [
+    `${[
       email
         ? `Logged in as ${email}.`
         : 'Logged in with your Tuturuuu account.',
       'Session: Tuturuuu CLI',
+      'Current workspace: personal',
       `Config: ${getDefaultConfigPath()}`,
-    ].join('\n') + '\n'
+    ].join('\n')}\n`
   );
 }
 
@@ -125,19 +148,6 @@ function getPayload(flags: Record<string, FlagValue>) {
   return payload ? (JSON.parse(payload) as Record<string, unknown>) : {};
 }
 
-function resolveWorkspaceName(
-  workspaceId: string,
-  workspaces: Awaited<ReturnType<TuturuuuUserClient['workspaces']['list']>>
-) {
-  const workspace = workspaces.find(
-    (entry) =>
-      entry.id === workspaceId ||
-      (workspaceId === 'personal' && entry.personal === true)
-  );
-
-  return workspace?.name || workspaceId;
-}
-
 export async function runCli(argv = process.argv.slice(2)) {
   const { flags, positionals } = parseArgs(argv);
   const [group, rawAction, rawFirstId] = positionals;
@@ -161,13 +171,17 @@ export async function runCli(argv = process.argv.slice(2)) {
         '  logout',
         '  whoami',
         '  config set-base-url <url>',
-        '  workspaces [list]|use <id>',
-        '  boards [list]|create|update|delete',
-        '  lists [list]|create|update|delete --board <id>',
-        '  tasks [list]|get|create|update|delete|move|bulk',
-        '  labels [list]|create',
-        '  projects [list]|create|get|tasks',
+        '  workspaces [list]|use [id]',
+        '  boards [list]|use|create|update|delete',
+        '  lists [list]|use|create|update|delete --board <id>',
+        '  tasks [list]|use|get|create|update|delete|move|bulk',
+        '  labels [list]|use|create',
+        '  projects [list]|use|create|get|tasks',
         '  relationships [list]|create|delete <task-id>',
+        '',
+        'Selection:',
+        '  Omit an id on use/get/update/delete/move to pick with up/down/space/enter.',
+        '  The personal workspace is selected by default.',
         '',
         'Task list filters:',
         '  tasks                       open tasks only',
@@ -211,6 +225,7 @@ export async function runCli(argv = process.argv.slice(2)) {
 
     if (loggedIn) {
       const client = getClient(config);
+      const currentWorkspaceId = config.currentWorkspaceId || 'personal';
       const [loadedProfile, loadedDefaultWorkspace, workspaces] =
         await Promise.all([
           client.users.profile(),
@@ -219,15 +234,14 @@ export async function runCli(argv = process.argv.slice(2)) {
         ]);
       profile = loadedProfile;
       defaultWorkspace = loadedDefaultWorkspace;
-      currentWorkspace = config.currentWorkspaceId
+      currentWorkspace = currentWorkspaceId
         ? (workspaces.find(
             (workspace) =>
-              workspace.id === config.currentWorkspaceId ||
-              (config.currentWorkspaceId === 'personal' &&
-                workspace.personal === true)
+              workspace.id === currentWorkspaceId ||
+              (currentWorkspaceId === 'personal' && workspace.personal === true)
           ) ?? {
-            id: config.currentWorkspaceId,
-            name: config.currentWorkspaceId,
+            id: currentWorkspaceId,
+            name: currentWorkspaceId,
           })
         : null;
     }
@@ -236,8 +250,13 @@ export async function runCli(argv = process.argv.slice(2)) {
       {
         baseUrl: config.baseUrl,
         configPath: getDefaultConfigPath(),
+        currentBoardId: config.currentBoardId,
+        currentLabelId: config.currentLabelId,
+        currentListId: config.currentListId,
+        currentProjectId: config.currentProjectId,
+        currentTaskId: config.currentTaskId,
         currentWorkspace,
-        currentWorkspaceId: config.currentWorkspaceId,
+        currentWorkspaceId: config.currentWorkspaceId || 'personal',
         defaultWorkspace,
         loggedIn,
         session: config.session ? 'Tuturuuu CLI' : null,
@@ -259,16 +278,32 @@ export async function runCli(argv = process.argv.slice(2)) {
   if (group === 'workspaces') {
     if (action === 'list') {
       render(await client.workspaces.list(), {
-        currentWorkspaceId: config.currentWorkspaceId,
+        currentWorkspaceId: config.currentWorkspaceId || 'personal',
         group,
         json,
       });
       return;
     }
 
-    if (action === 'use' && firstId) {
-      await writeCliConfig({ ...config, currentWorkspaceId: firstId });
-      process.stdout.write(`Current workspace set to ${firstId}\n`);
+    if (action === 'use') {
+      const workspace = firstId
+        ? null
+        : await chooseWorkspace(client, config, json);
+      const nextWorkspaceId = workspace
+        ? getWorkspaceConfigId(workspace)
+        : firstId;
+      if (!nextWorkspaceId) throw new Error('Missing workspace id.');
+      config = {
+        ...config,
+        currentBoardId: undefined,
+        currentLabelId: undefined,
+        currentListId: undefined,
+        currentProjectId: undefined,
+        currentTaskId: undefined,
+        currentWorkspaceId: nextWorkspaceId,
+      };
+      await writeCliConfig(config);
+      process.stdout.write(`Current workspace set to ${nextWorkspaceId}\n`);
       return;
     }
   }
@@ -278,6 +313,20 @@ export async function runCli(argv = process.argv.slice(2)) {
   if (group === 'boards') {
     if (action === 'list') {
       render(await client.tasks.listBoards(workspaceId), { group, json });
+      return;
+    }
+    if (action === 'use' || action === 'select') {
+      const board = firstId
+        ? ({ id: firstId } as ListedBoard)
+        : await chooseBoard(client, workspaceId, config, json);
+      config = {
+        ...config,
+        currentBoardId: board.id,
+        currentListId: undefined,
+        currentTaskId: undefined,
+      };
+      await writeCliConfig(config);
+      process.stdout.write(`Current board set to ${board.id}\n`);
       return;
     }
     if (action === 'create') {
@@ -291,15 +340,33 @@ export async function runCli(argv = process.argv.slice(2)) {
       );
       return;
     }
-    if (action === 'update' && firstId) {
+    if (action === 'update') {
+      const selection = firstId
+        ? { boardId: firstId, config }
+        : await selectBoardId(client, config, workspaceId, flags, json);
+      config = selection.config;
       render(
-        await client.tasks.updateBoard(workspaceId, firstId, getPayload(flags)),
+        await client.tasks.updateBoard(
+          workspaceId,
+          selection.boardId,
+          getPayload(flags)
+        ),
         { group, json }
       );
       return;
     }
-    if (action === 'delete' && firstId) {
-      render(await client.tasks.deleteBoard(workspaceId, firstId), {
+    if (action === 'delete') {
+      const selection = firstId
+        ? { boardId: firstId, config }
+        : await selectBoardId(client, config, workspaceId, flags, json);
+      config = {
+        ...selection.config,
+        currentBoardId: undefined,
+        currentListId: undefined,
+        currentTaskId: undefined,
+      };
+      await writeCliConfig(config);
+      render(await client.tasks.deleteBoard(workspaceId, selection.boardId), {
         group,
         json,
       });
@@ -308,13 +375,34 @@ export async function runCli(argv = process.argv.slice(2)) {
   }
 
   if (group === 'lists') {
-    const boardId = getFlag(flags, 'board') || getFlag(flags, 'board-id');
-    if (!boardId) throw new Error('Missing --board.');
+    const boardSelection = await selectBoardId(
+      client,
+      config,
+      workspaceId,
+      flags,
+      json
+    );
+    config = boardSelection.config;
+    const boardId = boardSelection.boardId;
     if (action === 'list') {
       render(await client.tasks.listLists(workspaceId, boardId), {
         group,
         json,
       });
+      return;
+    }
+    if (action === 'use' || action === 'select') {
+      const list = firstId
+        ? ({ id: firstId } as ListedList)
+        : await chooseList(client, workspaceId, boardId, config, json);
+      config = {
+        ...config,
+        currentBoardId: boardId,
+        currentListId: list.id,
+        currentTaskId: undefined,
+      };
+      await writeCliConfig(config);
+      process.stdout.write(`Current list set to ${list.id}\n`);
       return;
     }
     if (action === 'create') {
@@ -328,12 +416,16 @@ export async function runCli(argv = process.argv.slice(2)) {
       );
       return;
     }
-    if (action === 'update' && firstId) {
+    if (action === 'update') {
+      const listSelection = firstId
+        ? { config, listId: firstId }
+        : await selectListId(client, config, workspaceId, flags, json);
+      config = listSelection.config;
       render(
         await client.tasks.updateList(
           workspaceId,
           boardId,
-          firstId,
+          listSelection.listId,
           getPayload(flags)
         ),
         { group, json }
@@ -350,14 +442,14 @@ export async function runCli(argv = process.argv.slice(2)) {
           : undefined;
       render(
         await client.tasks.list(workspaceId, {
-          boardId: getFlag(flags, 'board'),
+          boardId: getFlag(flags, 'board') || config.currentBoardId,
           ...getTaskStateFilters(flags),
           includeCount: flags.count === true,
           includeDeleted: flags.deleted === true,
           limit: getFlag(flags, 'limit')
             ? Number(getFlag(flags, 'limit'))
             : undefined,
-          listId: getFlag(flags, 'list'),
+          listId: getFlag(flags, 'list') || config.currentListId,
           offset: getFlag(flags, 'offset')
             ? Number(getFlag(flags, 'offset'))
             : undefined,
@@ -373,19 +465,50 @@ export async function runCli(argv = process.argv.slice(2)) {
       );
       return;
     }
-    if (action === 'get' && firstId) {
-      render(await client.tasks.get(workspaceId, firstId), { group, json });
+    if (action === 'use' || action === 'select') {
+      const selection = await selectTaskId(
+        client,
+        config,
+        workspaceId,
+        flags,
+        json,
+        firstId
+      );
+      config = selection.config;
+      process.stdout.write(`Current task set to ${selection.taskId}\n`);
+      return;
+    }
+    if (action === 'get') {
+      const selection = await selectTaskId(
+        client,
+        config,
+        workspaceId,
+        flags,
+        json,
+        firstId
+      );
+      config = selection.config;
+      render(await client.tasks.get(workspaceId, selection.taskId), {
+        group,
+        json,
+      });
       return;
     }
     if (action === 'create') {
-      const listId = getFlag(flags, 'list');
-      if (!listId) throw new Error('Missing --list.');
+      const listSelection = await selectListId(
+        client,
+        config,
+        workspaceId,
+        flags,
+        json
+      );
+      config = listSelection.config;
       render(
         await client.tasks.create(workspaceId, {
           assignee_ids: parseCsv(getFlag(flags, 'assignees')),
           end_date: getFlag(flags, 'end-date') || null,
           label_ids: parseCsv(getFlag(flags, 'labels')),
-          listId,
+          listId: listSelection.listId,
           name: getFlag(flags, 'name') || 'Untitled Task',
           priority: (getFlag(flags, 'priority') as never) || null,
           project_ids: parseCsv(getFlag(flags, 'projects')),
@@ -395,23 +518,74 @@ export async function runCli(argv = process.argv.slice(2)) {
       );
       return;
     }
-    if (action === 'update' && firstId) {
+    if (action === 'update') {
+      const selection = await selectTaskId(
+        client,
+        config,
+        workspaceId,
+        flags,
+        json,
+        firstId
+      );
+      config = selection.config;
       render(
-        await client.tasks.update(workspaceId, firstId, getPayload(flags)),
+        await client.tasks.update(
+          workspaceId,
+          selection.taskId,
+          getPayload(flags)
+        ),
         { group, json }
       );
       return;
     }
-    if (action === 'delete' && firstId) {
-      render(await client.tasks.delete(workspaceId, firstId), { group, json });
+    if (action === 'delete') {
+      const selection = await selectTaskId(
+        client,
+        config,
+        workspaceId,
+        flags,
+        json,
+        firstId
+      );
+      config = { ...selection.config, currentTaskId: undefined };
+      await writeCliConfig(config);
+      render(await client.tasks.delete(workspaceId, selection.taskId), {
+        group,
+        json,
+      });
       return;
     }
-    if (action === 'move' && firstId) {
-      const listId = getFlag(flags, 'list');
-      if (!listId) throw new Error('Missing --list.');
+    if (action === 'move') {
+      const taskSelection = await selectTaskId(
+        client,
+        config,
+        workspaceId,
+        flags,
+        json,
+        firstId
+      );
+      config = taskSelection.config;
+      const targetFlags: Record<string, FlagValue> = { ...flags };
+      const targetBoardId =
+        getFlag(flags, 'target-board') || getFlag(flags, 'board');
+      const targetListId = getFlag(flags, 'list');
+      if (targetBoardId) {
+        targetFlags.board = targetBoardId;
+      }
+      if (targetListId) {
+        targetFlags.list = targetListId;
+      }
+      const listSelection = await selectListId(
+        client,
+        config,
+        workspaceId,
+        targetFlags,
+        json
+      );
+      config = listSelection.config;
       render(
-        await client.tasks.move(workspaceId, firstId, {
-          list_id: listId,
+        await client.tasks.move(workspaceId, taskSelection.taskId, {
+          list_id: listSelection.listId,
           target_board_id: getFlag(flags, 'target-board'),
         }),
         { group, json }
@@ -435,6 +609,15 @@ export async function runCli(argv = process.argv.slice(2)) {
       render(await client.tasks.listLabels(workspaceId), { group, json });
       return;
     }
+    if (action === 'use' || action === 'select') {
+      const label = firstId
+        ? ({ id: firstId } as ListedLabel)
+        : await chooseLabel(client, workspaceId, config, json);
+      config = { ...config, currentLabelId: label.id };
+      await writeCliConfig(config);
+      process.stdout.write(`Current label set to ${label.id}\n`);
+      return;
+    }
     if (action === 'create') {
       render(
         await client.tasks.createLabel(workspaceId, {
@@ -452,6 +635,15 @@ export async function runCli(argv = process.argv.slice(2)) {
       render(await client.tasks.listProjects(workspaceId), { group, json });
       return;
     }
+    if (action === 'use' || action === 'select') {
+      const project = firstId
+        ? ({ id: firstId } as ListedProject)
+        : await chooseProject(client, workspaceId, config, json);
+      config = { ...config, currentProjectId: project.id };
+      await writeCliConfig(config);
+      process.stdout.write(`Current project set to ${project.id}\n`);
+      return;
+    }
     if (action === 'create') {
       render(
         await client.tasks.createProject(workspaceId, {
@@ -462,15 +654,27 @@ export async function runCli(argv = process.argv.slice(2)) {
       );
       return;
     }
-    if (action === 'get' && firstId) {
-      render(await client.tasks.getProject(workspaceId, firstId), {
+    if (action === 'get') {
+      const projectId =
+        firstId ||
+        config.currentProjectId ||
+        (await chooseProject(client, workspaceId, config, json)).id;
+      config = { ...config, currentProjectId: projectId };
+      await writeCliConfig(config);
+      render(await client.tasks.getProject(workspaceId, projectId), {
         group,
         json,
       });
       return;
     }
-    if (action === 'tasks' && firstId) {
-      render(await client.tasks.getProjectTasks(workspaceId, firstId), {
+    if (action === 'tasks') {
+      const projectId =
+        firstId ||
+        config.currentProjectId ||
+        (await chooseProject(client, workspaceId, config, json)).id;
+      config = { ...config, currentProjectId: projectId };
+      await writeCliConfig(config);
+      render(await client.tasks.getProjectTasks(workspaceId, projectId), {
         group,
         json,
       });
@@ -479,8 +683,16 @@ export async function runCli(argv = process.argv.slice(2)) {
   }
 
   if (group === 'relationships') {
-    const taskId = firstId || getFlag(flags, 'task');
-    if (!taskId) throw new Error('Missing task id.');
+    const taskSelection = await selectTaskId(
+      client,
+      config,
+      workspaceId,
+      flags,
+      json,
+      firstId || getFlag(flags, 'task')
+    );
+    config = taskSelection.config;
+    const taskId = taskSelection.taskId;
     if (action === 'list') {
       render(await client.tasks.getRelationships(workspaceId, taskId), {
         group,

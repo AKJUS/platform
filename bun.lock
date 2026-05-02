@@ -1042,7 +1042,7 @@
     },
     "packages/sdk": {
       "name": "tuturuuu",
-      "version": "0.3.2",
+      "version": "0.3.3",
       "bin": {
         "ttr": "./dist/cli/index.js",
         "tuturuuu": "./dist/cli/index.js",
