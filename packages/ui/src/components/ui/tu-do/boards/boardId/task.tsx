@@ -749,6 +749,41 @@ function TaskCardInner({
     [handleToggleAssignee]
   );
 
+  const quickArchiveButton = canQuickArchive ? (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-label={t('archive')}
+          disabled={isLoading}
+          onPointerDown={(e) => {
+            e.stopPropagation();
+          }}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            void handleMoveToClose();
+          }}
+          className={cn(
+            'flex h-5 w-5 flex-none items-center justify-center rounded-sm border border-dynamic-purple/50 bg-dynamic-purple/10 text-dynamic-purple transition-all duration-200',
+            'hover:scale-110 hover:border-dynamic-purple/70 hover:bg-dynamic-purple/20',
+            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dynamic-purple/40',
+            'disabled:cursor-not-allowed disabled:opacity-60'
+          )}
+        >
+          {isLoading ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Archive className="h-3.5 w-3.5" />
+          )}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="text-xs">
+        {t('archive')}
+      </TooltipContent>
+    </Tooltip>
+  ) : null;
+
   // Memoize drag handle for performance
   // Removed explicit drag handle – entire card is now draggable for better UX.
   // Keep attributes/listeners to spread onto root interactive area.
@@ -1937,55 +1972,58 @@ function TaskCardInner({
             Completion and Closed Dates Section
             Show completed_at when in done list, closed_at when in closed list
           */
-          <div className="mb-1 space-y-0.5 text-[10px] leading-snug">
-            {taskList?.status === 'done' && task.completed_at && (
-              <div
-                className={cn(
-                  'flex items-center gap-1',
-                  getListTextColorClass(taskList?.color)
-                )}
-              >
-                <CheckCircle2 className="h-2.5 w-2.5 shrink-0" />
-                <span className="truncate">
-                  {t('completed')}{' '}
-                  {formatDistanceToNow(new Date(task.completed_at), {
-                    addSuffix: true,
-                    locale: dateLocale,
-                  })}
-                </span>
-                <span className="ml-1 hidden text-[10px] text-muted-foreground md:inline">
-                  {format(
-                    new Date(task.completed_at),
-                    `MMM dd '${t('at')}' ${timePattern}`,
-                    { locale: dateLocale }
+          <div className="mb-1 flex min-h-5 items-center justify-between gap-2 text-[10px] leading-snug sm:min-h-6">
+            <div className="min-w-0 space-y-0.5">
+              {taskList?.status === 'done' && task.completed_at && (
+                <div
+                  className={cn(
+                    'flex min-w-0 items-center gap-1',
+                    getListTextColorClass(taskList?.color)
                   )}
-                </span>
-              </div>
-            )}
-            {taskList?.status === 'closed' && task.closed_at && (
-              <div
-                className={cn(
-                  'flex items-center gap-1',
-                  getListTextColorClass(taskList?.color)
-                )}
-              >
-                <CircleSlash className="h-2.5 w-2.5 shrink-0" />
-                <span className="truncate">
-                  {t('closed')}{' '}
-                  {formatDistanceToNow(new Date(task.closed_at), {
-                    addSuffix: true,
-                    locale: dateLocale,
-                  })}
-                </span>
-                <span className="ml-1 hidden text-[10px] text-muted-foreground md:inline">
-                  {format(
-                    new Date(task.closed_at),
-                    `MMM dd '${t('at')}' ${timePattern}`,
-                    { locale: dateLocale }
+                >
+                  <CheckCircle2 className="h-2.5 w-2.5 shrink-0" />
+                  <span className="truncate">
+                    {t('completed')}{' '}
+                    {formatDistanceToNow(new Date(task.completed_at), {
+                      addSuffix: true,
+                      locale: dateLocale,
+                    })}
+                  </span>
+                  <span className="ml-1 hidden shrink-0 text-[10px] text-muted-foreground md:inline">
+                    {format(
+                      new Date(task.completed_at),
+                      `MMM dd '${t('at')}' ${timePattern}`,
+                      { locale: dateLocale }
+                    )}
+                  </span>
+                </div>
+              )}
+              {taskList?.status === 'closed' && task.closed_at && (
+                <div
+                  className={cn(
+                    'flex min-w-0 items-center gap-1',
+                    getListTextColorClass(taskList?.color)
                   )}
-                </span>
-              </div>
-            )}
+                >
+                  <CircleSlash className="h-2.5 w-2.5 shrink-0" />
+                  <span className="truncate">
+                    {t('closed')}{' '}
+                    {formatDistanceToNow(new Date(task.closed_at), {
+                      addSuffix: true,
+                      locale: dateLocale,
+                    })}
+                  </span>
+                  <span className="ml-1 hidden shrink-0 text-[10px] text-muted-foreground md:inline">
+                    {format(
+                      new Date(task.closed_at),
+                      `MMM dd '${t('at')}' ${timePattern}`,
+                      { locale: dateLocale }
+                    )}
+                  </span>
+                </div>
+              )}
+            </div>
+            {quickArchiveButton}
           </div>
         ) : (
           /*
@@ -2103,48 +2141,14 @@ function TaskCardInner({
               )}
 
               {/* Checkbox: hidden for documents lists */}
-              {taskList?.status !== 'documents' &&
-                (canQuickArchive ? (
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <button
-                        type="button"
-                        aria-label={t('archive')}
-                        disabled={isLoading}
-                        onPointerDown={(e) => {
-                          e.stopPropagation();
-                        }}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          void handleMoveToClose();
-                        }}
-                        className={cn(
-                          'flex h-5 w-5 flex-none items-center justify-center rounded-sm border border-dynamic-purple/50 bg-dynamic-purple/10 text-dynamic-purple transition-all duration-200',
-                          'hover:scale-110 hover:border-dynamic-purple/70 hover:bg-dynamic-purple/20',
-                          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dynamic-purple/40',
-                          'disabled:cursor-not-allowed disabled:opacity-60'
-                        )}
-                      >
-                        {isLoading ? (
-                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        ) : (
-                          <Archive className="h-3.5 w-3.5" />
-                        )}
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent side="top" className="text-xs">
-                      {t('archive')}
-                    </TooltipContent>
-                  </Tooltip>
-                ) : (
-                  <TaskCardCheckbox
-                    task={task}
-                    taskList={taskList}
-                    isLoading={isLoading}
-                    onToggle={handleArchiveToggle}
-                  />
-                ))}
+              {taskList?.status !== 'documents' && (
+                <TaskCardCheckbox
+                  task={task}
+                  taskList={taskList}
+                  isLoading={isLoading}
+                  onToggle={handleArchiveToggle}
+                />
+              )}
             </div>
           </div>
         )}

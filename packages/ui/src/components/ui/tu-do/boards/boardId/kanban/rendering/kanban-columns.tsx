@@ -67,7 +67,12 @@ export function KanbanColumns({
   boardRef,
   columnsId,
 }: KanbanColumnsProps) {
-  const snapEdgePadding = columns.length > 0 ? '0.25rem' : '0px';
+  const snapEdgePadding = columns.length > 0 ? '0.5rem' : '0px';
+  const columnGapRem = 0.75;
+  const dynamicColumnWidth =
+    columns.length > 0
+      ? `max(21.875rem, calc((100% - (${snapEdgePadding} * 2) - ${(columns.length - 1) * columnGapRem}rem) / ${columns.length}))`
+      : '21.875rem';
 
   return (
     <div
@@ -77,6 +82,7 @@ export function KanbanColumns({
         {
           '--kanban-snap-left-padding': snapEdgePadding,
           '--kanban-snap-right-padding': snapEdgePadding,
+          '--kanban-column-width': dynamicColumnWidth,
           scrollPaddingLeft: 'var(--kanban-snap-left-padding)',
           scrollPaddingRight: 'var(--kanban-snap-right-padding)',
         } as React.CSSProperties
@@ -87,7 +93,7 @@ export function KanbanColumns({
         strategy={horizontalListSortingStrategy}
       >
         <div
-          className="flex h-full min-w-max items-start gap-3 py-2"
+          className="flex h-full min-w-full items-start gap-3 py-2"
           style={{
             paddingLeft: 'var(--kanban-snap-left-padding)',
             paddingRight: 'var(--kanban-snap-right-padding)',

@@ -255,7 +255,7 @@ export function BoardColumn({
       ref={composedRef}
       style={style}
       className={cn(
-        'group flex h-full w-87.5 max-w-[calc(100vw-var(--kanban-snap-left-padding)-var(--kanban-snap-right-padding))] shrink-0 snap-start flex-col rounded-xl transition-all duration-200',
+        'group flex h-full w-[var(--kanban-column-width)] shrink-0 snap-start scroll-mr-[var(--kanban-snap-right-padding)] scroll-ml-[var(--kanban-snap-left-padding)] flex-col rounded-xl transition-all duration-200 last:snap-end',
         'touch-none select-none',
         colorClass,
         isDragging &&
