@@ -73,6 +73,7 @@ const SearchParamsSchema = z.object({
   groupMembership: z.enum(GROUP_MEMBERSHIP_FILTER_VALUES).default('all'),
   withPromotions: z
     .enum(['true', 'false'])
+    .default('false')
     .catch('false')
     .transform((val) => val === 'true'),
 });
