@@ -70,6 +70,7 @@ class AppRegistry {
       labelBuilder: _labelDrive,
       pageBuilder: _pageDrive,
       miniAppNavItems: _driveMiniNav,
+      isVisible: _showDriveModule,
     ),
     AppModule(
       id: 'documents',
@@ -78,6 +79,7 @@ class AppRegistry {
       labelBuilder: _labelDocuments,
       pageBuilder: _pageDocuments,
       miniAppNavItems: _documentsMiniNav,
+      isVisible: _showDocumentsModule,
     ),
     AppModule(
       id: 'cms',
@@ -86,6 +88,7 @@ class AppRegistry {
       labelBuilder: _labelCms,
       pageBuilder: _pageCms,
       miniAppNavItems: _cmsMiniNav,
+      isVisible: _showCmsModule,
     ),
     AppModule(
       id: 'education',
@@ -94,6 +97,7 @@ class AppRegistry {
       labelBuilder: _labelEducation,
       pageBuilder: _pageEducation,
       miniAppNavItems: _educationMiniNav,
+      isVisible: _showEducationModule,
     ),
     AppModule(
       id: 'crm',
@@ -102,6 +106,7 @@ class AppRegistry {
       labelBuilder: _labelCrm,
       pageBuilder: _pageCrm,
       miniAppNavItems: _crmMiniNav,
+      isVisible: _showCrmModule,
     ),
     AppModule(
       id: 'meet',
@@ -110,6 +115,7 @@ class AppRegistry {
       labelBuilder: _labelMeet,
       pageBuilder: _pageMeet,
       miniAppNavItems: _meetMiniNav,
+      isVisible: _showMeetModule,
     ),
     AppModule(
       id: 'inventory',
@@ -393,6 +399,10 @@ class AppRegistry {
   }
 
   static bool _showInventoryModule(BuildContext context) {
+    if (_isModuleHiddenByWorkspaceSecret(context, 'inventory')) {
+      return false;
+    }
+
     final accessState = context
         .select<InventoryAccessCubit?, InventoryAccessState?>(
           (cubit) => cubit?.state,
@@ -404,6 +414,24 @@ class AppRegistry {
     return accessState.status == InventoryAccessStatus.loaded &&
         accessState.enabled;
   }
+
+  static bool _showDriveModule(BuildContext context) =>
+      !_isModuleHiddenByWorkspaceSecret(context, 'drive');
+
+  static bool _showDocumentsModule(BuildContext context) =>
+      !_isModuleHiddenByWorkspaceSecret(context, 'documents');
+
+  static bool _showCmsModule(BuildContext context) =>
+      !_isModuleHiddenByWorkspaceSecret(context, 'cms');
+
+  static bool _showEducationModule(BuildContext context) =>
+      !_isModuleHiddenByWorkspaceSecret(context, 'education');
+
+  static bool _showCrmModule(BuildContext context) =>
+      !_isModuleHiddenByWorkspaceSecret(context, 'crm');
+
+  static bool _showMeetModule(BuildContext context) =>
+      !_isModuleHiddenByWorkspaceSecret(context, 'meet');
 
   static bool _showHabitsModule(BuildContext context) {
     final accessState = context.select<HabitsAccessCubit?, HabitsAccessState?>(
@@ -420,6 +448,16 @@ class AppRegistry {
   static bool _hideNotificationsFromAppsHub(BuildContext context) => false;
 
   static bool _hideSettingsModuleFromAppsHub(BuildContext context) => false;
+
+  static bool _isModuleHiddenByWorkspaceSecret(
+    BuildContext context,
+    String moduleId,
+  ) {
+    final hiddenModuleIds = context.select<WorkspaceCubit?, List<String>?>(
+      (cubit) => cubit?.state.hiddenModuleIds,
+    );
+    return hiddenModuleIds?.contains(moduleId) ?? false;
+  }
 
   static List<AppModule> modules(BuildContext context) {
     return allModules

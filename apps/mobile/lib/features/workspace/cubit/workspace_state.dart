@@ -12,6 +12,7 @@ class WorkspaceState extends Equatable {
     this.workspaces = const [],
     this.currentWorkspace,
     this.defaultWorkspace,
+    this.hiddenModuleIds = const [],
     this.limits,
     this.error,
     this.isCreating = false,
@@ -21,6 +22,7 @@ class WorkspaceState extends Equatable {
   final List<Workspace> workspaces;
   final Workspace? currentWorkspace;
   final Workspace? defaultWorkspace;
+  final List<String> hiddenModuleIds;
   final WorkspaceLimits? limits;
   final String? error;
   final bool isCreating;
@@ -38,6 +40,7 @@ class WorkspaceState extends Equatable {
     List<Workspace>? workspaces,
     Object? currentWorkspace = _sentinel,
     Object? defaultWorkspace = _sentinel,
+    List<String>? hiddenModuleIds,
     Object? limits = _sentinel,
     Object? error = _sentinel,
     bool? isCreating,
@@ -50,6 +53,7 @@ class WorkspaceState extends Equatable {
     defaultWorkspace: defaultWorkspace == _sentinel
         ? this.defaultWorkspace
         : defaultWorkspace as Workspace?,
+    hiddenModuleIds: hiddenModuleIds ?? this.hiddenModuleIds,
     limits: limits == _sentinel ? this.limits : limits as WorkspaceLimits?,
     error: error == _sentinel ? this.error : error as String?,
     isCreating: isCreating ?? this.isCreating,
@@ -61,6 +65,7 @@ class WorkspaceState extends Equatable {
     workspaces,
     currentWorkspace,
     defaultWorkspace,
+    hiddenModuleIds,
     limits,
     error,
     isCreating,

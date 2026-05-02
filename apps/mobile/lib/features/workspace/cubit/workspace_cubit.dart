@@ -77,8 +77,14 @@ class WorkspaceCubit extends Cubit<WorkspaceState> {
 
   /// Selects the active workspace for the current device/session.
   Future<void> selectWorkspace(Workspace workspace) async {
-    emit(state.copyWith(currentWorkspace: workspace));
+    emit(
+      state.copyWith(
+        currentWorkspace: workspace,
+        hiddenModuleIds: const [],
+      ),
+    );
     await _repo.saveSelectedWorkspace(workspace);
+    unawaited(_loadMobileModuleFlags(workspace.id));
   }
 
   Future<void> setDefaultWorkspace(Workspace workspace) async {
@@ -177,13 +183,33 @@ class WorkspaceCubit extends Cubit<WorkspaceState> {
     current ??= defaultWorkspace;
     current ??= workspaces.length == 1 ? workspaces.first : null;
     defaultWorkspace ??= current;
+    final hiddenModuleIds = current == null
+        ? const <String>[]
+        : await _getMobileHiddenModuleIds(current.id);
 
     return state.copyWith(
       status: status,
       workspaces: workspaces,
       currentWorkspace: current,
       defaultWorkspace: defaultWorkspace,
+      hiddenModuleIds: hiddenModuleIds,
       error: null,
     );
+  }
+
+  Future<void> _loadMobileModuleFlags(String wsId) async {
+    final hiddenModuleIds = await _getMobileHiddenModuleIds(wsId);
+    if (isClosed || state.currentWorkspace?.id != wsId) {
+      return;
+    }
+    emit(state.copyWith(hiddenModuleIds: hiddenModuleIds));
+  }
+
+  Future<List<String>> _getMobileHiddenModuleIds(String wsId) async {
+    try {
+      return await _repo.getMobileHiddenModuleIds(wsId);
+    } on Object {
+      return const [];
+    }
   }
 }

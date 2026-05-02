@@ -373,6 +373,22 @@ class WorkspaceRepository {
   Future<void> removeWorkspaceAvatar(String wsId) async {
     await _api.deleteJson(WorkspaceEndpoints.avatar(wsId));
   }
+
+  Future<List<String>> getMobileHiddenModuleIds(String wsId) async {
+    final json = await _api.getJson(WorkspaceEndpoints.mobileModuleFlags(wsId));
+    final rawIds = json['hiddenModuleIds'];
+    if (rawIds is! List) {
+      return const [];
+    }
+
+    return rawIds
+        .whereType<String>()
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList(growable: false)
+      ..sort();
+  }
 }
 
 class WorkspaceCreationResult {

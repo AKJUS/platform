@@ -191,4 +191,42 @@ void main() {
       expect(isVisible, isFalse);
     });
   });
+
+  group('AppRegistry workspace-secret module visibility', () {
+    testWidgets('hides experimental modules listed by workspace flags', (
+      tester,
+    ) async {
+      final workspaceCubit = _MockWorkspaceCubit();
+      whenListen(
+        workspaceCubit,
+        const Stream<WorkspaceState>.empty(),
+        initialState: const WorkspaceState(
+          status: WorkspaceStatus.loaded,
+          currentWorkspace: Workspace(id: 'team-1'),
+          hiddenModuleIds: ['cms', 'drive', 'meet'],
+        ),
+      );
+      addTearDown(workspaceCubit.close);
+
+      late List<String> visibleModuleIds;
+      await tester.pumpApp(
+        BlocProvider<WorkspaceCubit>.value(
+          value: workspaceCubit,
+          child: Builder(
+            builder: (context) {
+              visibleModuleIds = AppRegistry.modules(
+                context,
+              ).map((module) => module.id).toList(growable: false);
+              return const SizedBox.shrink();
+            },
+          ),
+        ),
+      );
+
+      expect(visibleModuleIds, isNot(contains('cms')));
+      expect(visibleModuleIds, isNot(contains('drive')));
+      expect(visibleModuleIds, isNot(contains('meet')));
+      expect(visibleModuleIds, contains('tasks'));
+    });
+  });
 }

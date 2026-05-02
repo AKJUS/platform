@@ -82,6 +82,9 @@ abstract final class WorkspaceEndpoints {
   static String avatarUploadUrl(String wsId) =>
       '/api/v1/workspaces/$wsId/avatar/upload-url';
   static String avatar(String wsId) => '/api/v1/workspaces/$wsId/avatar';
+
+  static String mobileModuleFlags(String wsId) =>
+      '/api/v1/workspaces/$wsId/mobile/module-flags';
 }
 
 abstract final class WorkspaceSettingsEndpoints {

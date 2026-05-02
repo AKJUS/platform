@@ -245,6 +245,24 @@ It uses `withoutPermission(...)` to:
 
 This is why a missing permission often appears first as a disabled nav item, not as a late 403 from the clicked page.
 
+### Mobile module flags
+
+The mobile app can hide experimental app modules per workspace through
+workspace secrets exposed by
+`/api/v1/workspaces/[wsId]/mobile/module-flags`. The route authenticates the
+mobile session, verifies workspace membership with the request-scoped client,
+then reads only the mobile module flag secrets with an admin client.
+
+Supported secrets:
+
+- `MOBILE_HIDE_EXPERIMENTAL_MODULES`: truthy values (`1`, `true`, `yes`, `on`)
+  hide the default experimental modules.
+- `MOBILE_HIDDEN_MODULES`: JSON array or comma-separated module IDs for explicit
+  hidden modules.
+
+Keep these flags as display controls. API routes that expose protected module
+data must still perform their own workspace membership and permission checks.
+
 ### Settings pages
 
 Workspace settings pages usually follow this pattern:
