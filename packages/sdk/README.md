@@ -133,10 +133,13 @@ default, so `ttr tasks` and `ttr workspaces` are equivalent to their explicit
 `--include-done`, or `--include-closed` to adjust that filter. Add `--compact`
 to task lists when an agent only needs the task title, task list name, and
 workspace name. Task lists are ordered by priority and due date, with prettier
-due dates in table output. Use `--json` on read commands when another agent or
-script needs machine-readable output. `tasks create`, `boards create`, and
-`lists create` accept a quoted positional name as a shorthand for `--name`.
-Marking a task completed stamps `completed_at` so Tuturuuu moves it to the first
+due dates and configured task-list colors in table output. Use `--json` on read
+commands when another agent or script needs machine-readable output. `tasks
+create`, `boards create`, and `lists create` accept a quoted positional name as
+a shorthand for `--name`. Task CRUD accepts either the task UUID or the board
+identifier shown in the UI, such as `VHP-12`; prefixed identifiers resolve
+within the selected workspace even when another list is selected. Marking a task
+completed stamps `completed_at` so Tuturuuu moves it to the first
 `done` list; pass `--list <done-list-id>` or include `list_id` in
 `--json-payload` to choose another done destination. Use `ttr tasks done
 [task-id]` as the quick shortcut. Use `ttr tasks close [task-id]` to stamp
@@ -151,23 +154,23 @@ ttr tasks --compact
 ttr tasks --json --no-update-check
 ttr tasks create "Add Tuturuuu CLI"
 ttr tasks create --list <list-id> --name "Write release notes"
-ttr tasks done <task-id>
+ttr tasks done VHP-12
 ttr tasks done <task-id> --list <done-list-id>
-ttr tasks close <task-id>
+ttr tasks close VHP-12
 ttr tasks close <task-id> --list <closed-list-id>
 ttr tasks move
-ttr tasks move <task-id> --list <done-list-id>
-ttr tasks update <task-id> --json-payload '{"completed":true}'
+ttr tasks move VHP-12 --list <done-list-id>
+ttr tasks update VHP-12 --json-payload '{"completed":true}'
 ttr tasks update <task-id> --list <done-list-id> --json-payload '{"completed":true}'
 ```
 
 For terminal workflows, omit an id from `use`, `get`, `update`, `delete`, or
 `move` commands to pick a workspace, board, list, task, label, or project with
 the keyboard. The interactive picker shows one-based indexes, colored badges
-such as `[FREE] Tuturuuu` and `[PRO] Personal`, the selected row, and muted
-metadata. Use up/down or `j`/`k` to move, space/enter to select, and escape/`q`
-to cancel. Interactive selection is disabled for `--json` output. Use `ttr -v`
-or `ttr --version` to print the installed CLI version.
+such as `[FREE] Tuturuuu` and `[PRO] Personal`, task-list color swatches, the
+selected row, and muted metadata. Use up/down or `j`/`k` to move, space/enter to
+select, and escape/`q` to cancel. Interactive selection is disabled for `--json`
+output. Use `ttr -v` or `ttr --version` to print the installed CLI version.
 
 ### Client Initialization
 

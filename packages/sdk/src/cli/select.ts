@@ -21,12 +21,58 @@ function colorize(code: ColorCode, value: string) {
   return supportsColor() ? `\x1b[${code}m${value}\x1b[0m` : value;
 }
 
+function getNamedColorCode(value: string): ColorCode {
+  switch (value.trim().toLowerCase()) {
+    case 'red':
+    case 'rose':
+    case 'pink':
+      return 31;
+    case 'green':
+    case 'emerald':
+    case 'lime':
+      return 32;
+    case 'yellow':
+    case 'amber':
+    case 'orange':
+      return 33;
+    case 'blue':
+    case 'sky':
+      return 34;
+    case 'purple':
+    case 'violet':
+    case 'magenta':
+      return 35;
+    case 'cyan':
+    case 'teal':
+      return 36;
+    default:
+      return 90;
+  }
+}
+
+function colorizeHex(value: string, colorValue: string) {
+  const match = colorValue.trim().match(/^#?([a-f\d]{6})$/i);
+  if (!match || !supportsColor()) return value;
+  const hex = match[1] ?? '';
+  const red = Number.parseInt(hex.slice(0, 2), 16);
+  const green = Number.parseInt(hex.slice(2, 4), 16);
+  const blue = Number.parseInt(hex.slice(4, 6), 16);
+  return `\x1b[38;2;${red};${green};${blue}m${value}\x1b[0m`;
+}
+
+function colorizeHexOrName(value: string, colorValue: string) {
+  return /^#?[a-f\d]{6}$/i.test(colorValue.trim())
+    ? colorizeHex(value, colorValue)
+    : colorize(getNamedColorCode(colorValue), value);
+}
+
 export const color = {
   blue: (value: string) => colorize(34, value),
   bold: (value: string) => colorize(1, value),
   cyan: (value: string) => colorize(36, value),
   dim: (value: string) => colorize(2, value),
   green: (value: string) => colorize(32, value),
+  hexOrName: colorizeHexOrName,
   magenta: (value: string) => colorize(35, value),
   red: (value: string) => colorize(31, value),
   yellow: (value: string) => colorize(33, value),

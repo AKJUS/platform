@@ -51,6 +51,62 @@ function ensureSelectable(json: boolean) {
   }
 }
 
+function isUuid(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value
+  );
+}
+
+function isPrefixedTaskIdentifier(value: string) {
+  return /^[a-z][a-z0-9_-]*-\d+$/i.test(value.trim());
+}
+
+function formatColorBadge(value?: string | null) {
+  const label = value?.trim();
+  if (!label) return undefined;
+
+  return `${color.hexOrName('■', label)} ${color.hexOrName(label.toUpperCase(), label)}`;
+}
+
+async function resolveTaskIdentifier(
+  client: TuturuuuUserClient,
+  workspaceId: string,
+  config: CliConfig,
+  flags: Record<string, FlagValue>,
+  identifier: string
+) {
+  if (isUuid(identifier)) {
+    return identifier;
+  }
+
+  const explicitBoardId = getFlag(flags, 'board') || getFlag(flags, 'board-id');
+  const explicitListId = getFlag(flags, 'list') || getFlag(flags, 'list-id');
+  const scopedByPrefix = isPrefixedTaskIdentifier(identifier);
+
+  const { tasks } = await client.tasks.list(workspaceId, {
+    boardId:
+      explicitBoardId || (scopedByPrefix ? undefined : config.currentBoardId),
+    completed: flags.done === true ? 'only' : undefined,
+    closed: flags.closed === true ? 'only' : undefined,
+    identifier,
+    includeDeleted: flags.deleted === true,
+    limit: 2,
+    listId: explicitListId,
+  });
+
+  if (tasks.length === 1 && tasks[0]?.id) {
+    return tasks[0].id;
+  }
+
+  if (tasks.length > 1) {
+    throw new Error(
+      `Task identifier ${identifier} matched multiple tasks. Use a task UUID.`
+    );
+  }
+
+  throw new Error(`Task identifier ${identifier} was not found.`);
+}
+
 function formatBadge(value?: string | null) {
   const label = String(value || 'free').toUpperCase();
   const badge = `[${label}]`;
@@ -144,7 +200,10 @@ export async function chooseList(
       lists,
       (list) => list.id === config.currentListId
     ),
-    getBadge: (list) => formatBadge(list.status),
+    getBadge: (list) =>
+      [formatBadge(list.status), formatColorBadge(list.color)]
+        .filter(Boolean)
+        .join(' '),
     getDescription: (list) => [list.id].filter(Boolean).join(' '),
     getLabel: (list) => list.name || list.id,
     items: lists,
@@ -294,7 +353,18 @@ export async function selectTaskId(
   json: boolean,
   explicit?: string
 ) {
-  if (explicit) return { config, taskId: explicit };
+  if (explicit) {
+    return {
+      config,
+      taskId: await resolveTaskIdentifier(
+        client,
+        workspaceId,
+        config,
+        flags,
+        explicit
+      ),
+    };
+  }
   if (config.currentTaskId) return { config, taskId: config.currentTaskId };
 
   const task = await chooseTask(client, workspaceId, config, flags, json);

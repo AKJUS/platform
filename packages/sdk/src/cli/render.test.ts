@@ -8,7 +8,9 @@ describe('CLI rendering', () => {
   });
 
   it('renders single task mutation responses as task rows', () => {
-    const table = vi.spyOn(console, 'table').mockImplementation(() => {});
+    const write = vi
+      .spyOn(process.stdout, 'write')
+      .mockImplementation(() => true);
 
     render(
       {
@@ -23,18 +25,17 @@ describe('CLI rendering', () => {
       { group: 'tasks' }
     );
 
-    expect(table).toHaveBeenCalledWith({
-      '1': expect.objectContaining({
-        Board: 'Tasks',
-        Key: 'task-1',
-        List: 'In Progress',
-        Title: 'Add Tuturuuu CLI',
-      }),
-    });
+    const output = write.mock.calls.map(([value]) => String(value)).join('');
+    expect(output).toContain('Tasks');
+    expect(output).toContain('task-1');
+    expect(output).toContain('In Progress');
+    expect(output).toContain('Add Tuturuuu CLI');
   });
 
   it('falls back to task list and board ids when names are absent', () => {
-    const table = vi.spyOn(console, 'table').mockImplementation(() => {});
+    const write = vi
+      .spyOn(process.stdout, 'write')
+      .mockImplementation(() => true);
 
     render(
       {
@@ -48,12 +49,9 @@ describe('CLI rendering', () => {
       { group: 'tasks' }
     );
 
-    expect(table).toHaveBeenCalledWith({
-      '1': expect.objectContaining({
-        Board: 'board-1',
-        List: 'list-1',
-      }),
-    });
+    const output = write.mock.calls.map(([value]) => String(value)).join('');
+    expect(output).toContain('board-1');
+    expect(output).toContain('list-1');
   });
 
   it('renders task command success messages without a table', () => {
@@ -108,7 +106,9 @@ describe('CLI rendering', () => {
   it('formats task due dates for table output', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-05-03T12:00:00.000+07:00'));
-    const table = vi.spyOn(console, 'table').mockImplementation(() => {});
+    const write = vi
+      .spyOn(process.stdout, 'write')
+      .mockImplementation(() => true);
 
     render(
       {
@@ -128,15 +128,56 @@ describe('CLI rendering', () => {
       { group: 'tasks' }
     );
 
-    expect(table).toHaveBeenCalledWith({
-      '1': expect.objectContaining({
-        Due: 'Tomorrow',
-        Title: 'Due tomorrow',
-      }),
-      '2': expect.objectContaining({
-        Due: 'May 10',
-        Title: 'Due later',
-      }),
-    });
+    const output = write.mock.calls.map(([value]) => String(value)).join('');
+    expect(output).toContain('Tomorrow');
+    expect(output).toContain('Due tomorrow');
+    expect(output).toContain('May 10');
+    expect(output).toContain('Due later');
+  });
+
+  it('renders configured task list colors in task rows', () => {
+    const write = vi
+      .spyOn(process.stdout, 'write')
+      .mockImplementation(() => true);
+
+    render(
+      {
+        tasks: [
+          {
+            id: 'task-1',
+            name: 'Colorful list',
+            task_lists: { color: 'GREEN', name: 'Done' },
+          },
+        ],
+      },
+      { group: 'tasks' }
+    );
+
+    const output = write.mock.calls.map(([value]) => String(value)).join('');
+    expect(output).toContain('■ Done');
+  });
+
+  it('renders configured colors in task list rows', () => {
+    const write = vi
+      .spyOn(process.stdout, 'write')
+      .mockImplementation(() => true);
+
+    render(
+      {
+        lists: [
+          {
+            color: 'PURPLE',
+            id: 'list-1',
+            name: 'Upcoming',
+            status: 'active',
+          },
+        ],
+      },
+      { group: 'lists' }
+    );
+
+    const output = write.mock.calls.map(([value]) => String(value)).join('');
+    expect(output).toContain('■ Upcoming');
+    expect(output).toContain('■ PURPLE');
   });
 });

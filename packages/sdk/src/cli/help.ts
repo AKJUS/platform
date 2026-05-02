@@ -153,14 +153,14 @@ const helpTopics: Record<string, HelpTopic> = {
       'bulk --ids <ids>             run a bulk task operation',
     ],
     description:
-      'Task lists are sorted by priority and due date. Omit ids in a TTY to choose with the keyboard.',
+      'Task lists are sorted by priority and due date. Use task UUIDs or board identifiers like VHP-12 for task CRUD. Omit ids in a TTY to choose with the keyboard.',
     examples: [
       'ttr tasks',
       'ttr tasks --compact',
       'ttr tasks create "Add Tuturuuu CLI"',
-      'ttr tasks done <task-id>',
+      'ttr tasks done VHP-12',
       'ttr tasks close <task-id>',
-      'ttr tasks update <task-id> --json-payload \'{"completed":true}\'',
+      'ttr tasks update VHP-12 --json-payload \'{"completed":true}\'',
       'ttr tasks move <task-id> --list <done-list-id>',
     ],
     options: [
@@ -240,7 +240,7 @@ const actionHelpTopics: Record<string, Record<string, HelpTopic>> = {
         'Marks a task closed with closed_at. When no --list is provided, the CLI uses the first closed list on the task board when available.',
       examples: [
         'ttr tasks close',
-        'ttr tasks close <task-id>',
+        'ttr tasks close VHP-12',
         'ttr tasks close <task-id> --list <closed-list-id>',
       ],
       options: [
@@ -256,7 +256,7 @@ const actionHelpTopics: Record<string, Record<string, HelpTopic>> = {
         'Marks a task done with completed_at. When no --list is provided, the CLI uses the first done list on the task board when available.',
       examples: [
         'ttr tasks done',
-        'ttr tasks done <task-id>',
+        'ttr tasks done VHP-12',
         'ttr tasks done <task-id> --list <done-list-id>',
       ],
       options: [
@@ -280,7 +280,7 @@ const actionHelpTopics: Record<string, Record<string, HelpTopic>> = {
     move: {
       examples: [
         'ttr tasks move',
-        'ttr tasks move <task-id> --list <list-id>',
+        'ttr tasks move VHP-12 --list <list-id>',
         'ttr tasks move <task-id> --target-board <board-id> --list <list-id>',
       ],
       options: [
@@ -294,7 +294,7 @@ const actionHelpTopics: Record<string, Record<string, HelpTopic>> = {
     update: {
       examples: [
         'ttr tasks update',
-        'ttr tasks update <task-id> --json-payload \'{"name":"New title"}\'',
+        'ttr tasks update VHP-12 --json-payload \'{"name":"New title"}\'',
         'ttr tasks update <task-id> --json-payload \'{"completed":true}\'',
         'ttr tasks update <task-id> --list <done-list-id> --json-payload \'{"completed":true}\'',
       ],
