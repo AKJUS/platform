@@ -38,6 +38,8 @@ const doc = await client.documents.create({
 
 ## Features
 
+- ✅ **Bun CLI** - Use `ttr` for browser login, workspace discovery, and task workflows
+- ✅ **Headless Login** - Copy a short-lived CLI token from the browser when no local browser callback is available
 - ✅ **Storage Operations** - Upload, download, list, delete files and folders
 - ✅ **Direct Uploads** - Generate signed URLs for client-side uploads without proxying
 - ✅ **Document Management** - Create, read, update, delete workspace documents
@@ -51,6 +53,39 @@ const doc = await client.documents.create({
 - ✅ **Validation** - Built-in input validation with Zod schemas
 
 ## API Reference
+
+## CLI
+
+The package ships a native Bun-powered CLI. `ttr` is the primary command, with
+`tuturuuu` and `tutur3u` as aliases.
+
+```bash
+ttr login
+ttr workspaces list
+ttr workspaces use personal
+ttr boards list
+ttr tasks list --board <board-id>
+ttr tasks create --list <list-id> --name "Write release notes"
+```
+
+Login opens the browser and creates a fresh session specifically labeled for
+the Tuturuuu CLI. For headless environments, use copy-token mode:
+
+```bash
+ttr login --copy
+```
+
+The CLI stores its session and selected workspace in the OS-specific app config
+directory. Set `TUTURUUU_CONFIG` to use a custom config file, or
+`ttr config set-base-url <url>` to target a non-production Tuturuuu instance.
+Once per day, the CLI checks the npm registry for a newer `tuturuuu` release
+and prints update instructions to stderr when one is available. Use
+`--no-update-check` for a single command or set `TUTURUUU_DISABLE_UPDATE_CHECK=1`
+to disable this notification.
+
+Task commands cover workspaces, boards, lists, tasks, labels, projects,
+relationships, moves, and bulk task updates. Use `--json` on read commands when
+another agent or script needs machine-readable output.
 
 ### Client Initialization
 

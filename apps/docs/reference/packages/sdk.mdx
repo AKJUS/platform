@@ -1,12 +1,12 @@
 ---
 title: 'tuturuuu'
 description: 'Official TypeScript/JavaScript SDK for the Tuturuuu platform'
-updatedAt: '2026-04-20'
+updatedAt: '2026-05-02'
 ---
 
 # Tuturuuu SDK
 
-Official TypeScript/JavaScript SDK for interacting with the Tuturuuu platform. Provides type-safe access to workspace storage, files, and documents via API keys.
+Official TypeScript/JavaScript SDK for interacting with the Tuturuuu platform. Provides type-safe access to workspace storage, files, documents, and agent-friendly task workflows.
 
 ## Installation
 
@@ -60,6 +60,12 @@ const doc = await client.documents.create({
 ## Features
 
 <CardGroup cols={2}>
+  <Card title="Bun CLI" icon="terminal">
+    Use `ttr` for browser login, workspace discovery, and task workflows
+  </Card>
+  <Card title="Headless Login" icon="copy">
+    Copy a short-lived CLI token from the browser when a local callback is not available
+  </Card>
   <Card title="Storage Operations" icon="folder">
     Upload, download, list, and delete files and folders
   </Card>
@@ -76,6 +82,48 @@ const doc = await client.documents.create({
     Track storage usage, file counts, and limits
   </Card>
 </CardGroup>
+
+## CLI
+
+The SDK package includes a native Bun-powered CLI. `ttr` is the primary command,
+and `tuturuuu` plus `tutur3u` are aliases for the same binary.
+
+```bash
+ttr login
+ttr workspaces list
+ttr workspaces use personal
+ttr boards list
+ttr tasks list --board <board-id>
+ttr tasks create --list <list-id> --name "Write release notes"
+```
+
+`ttr login` opens the browser and creates a fresh Supabase session specifically
+designated for the Tuturuuu CLI. The CLI stores that session in the OS app
+config directory:
+
+- macOS: `~/Library/Application Support/Tuturuuu/config.json`
+- Linux: `$XDG_CONFIG_HOME/tuturuuu/config.json` or `~/.config/tuturuuu/config.json`
+- Windows: `%APPDATA%\Tuturuuu\config.json`
+
+For headless agent environments, use copy-token mode:
+
+```bash
+ttr login --copy
+```
+
+Open the printed URL in an authenticated browser, copy the returned CLI token,
+and paste it into the terminal. Set `TUTURUUU_CONFIG` to use a custom config
+file, or use `ttr config set-base-url <url>` to target a local or staging web
+origin.
+
+The CLI checks the npm registry at most once per day and writes a notice to
+stderr when a newer `tuturuuu` version is available. This keeps `--json` output
+machine-readable for agents. Use `--no-update-check` on a single command, or set
+`TUTURUUU_DISABLE_UPDATE_CHECK=1`, to disable the check.
+
+The v1 task surface covers workspaces, boards, lists, tasks, labels, projects,
+relationships, moves, and bulk task updates. Add `--json` when another agent or
+script needs machine-readable output.
 
 ## Client Initialization
 

@@ -1042,8 +1042,14 @@
     },
     "packages/sdk": {
       "name": "tuturuuu",
-      "version": "0.2.2",
+      "version": "0.3.0",
+      "bin": {
+        "ttr": "./dist/cli/index.js",
+        "tuturuuu": "./dist/cli/index.js",
+        "tutur3u": "./dist/cli/index.js",
+      },
       "dependencies": {
+        "@tuturuuu/internal-api": "workspace:*",
         "@tuturuuu/types": "0.2.3",
         "zod": "^4.4.1",
       },

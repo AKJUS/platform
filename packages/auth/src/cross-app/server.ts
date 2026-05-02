@@ -18,7 +18,12 @@ import { type NextRequest, NextResponse } from 'next/server';
  *
  * @param appName The name of the target app (e.g., 'nova', 'rewise', 'platform')
  */
-export function createPOST(appName: AppName) {
+export function createPOST(
+  appName: AppName,
+  options: {
+    sessionMetadata?: Record<string, string>;
+  } = {}
+) {
   return async function POST(request: NextRequest) {
     try {
       const supabase = await createClient();
@@ -130,6 +135,13 @@ export function createPOST(appName: AppName) {
           await sbAdmin.auth.admin.generateLink({
             type: 'magiclink',
             email: userEmail,
+            ...(options.sessionMetadata
+              ? {
+                  options: {
+                    data: options.sessionMetadata,
+                  },
+                }
+              : {}),
           });
 
         if (linkError || !linkData) {

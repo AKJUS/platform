@@ -1,0 +1,410 @@
+import type { InternalApiClientOptions } from '@tuturuuu/internal-api/client';
+import {
+  addWorkspaceTaskLabel,
+  type BulkWorkspaceTaskOperation,
+  bulkWorkspaceTasks,
+  type CreateWorkspaceTaskBoardPayload,
+  type CreateWorkspaceTaskListPayload,
+  type CreateWorkspaceTaskPayload,
+  type CreateWorkspaceTaskWithRelationshipPayload,
+  createWorkspaceLabel,
+  createWorkspaceTask,
+  createWorkspaceTaskBoard,
+  createWorkspaceTaskList,
+  createWorkspaceTaskProject,
+  createWorkspaceTaskRelationship,
+  createWorkspaceTaskWithRelationship,
+  deleteWorkspaceTask,
+  deleteWorkspaceTaskBoard,
+  deleteWorkspaceTaskRelationship,
+  getWorkspaceBoardsData,
+  getWorkspaceTask,
+  getWorkspaceTaskBoard,
+  getWorkspaceTaskProject,
+  getWorkspaceTaskProjectTasks,
+  getWorkspaceTaskRelationships,
+  type ListWorkspaceTaskBoardsOptions,
+  type ListWorkspaceTasksOptions,
+  listTaskBoardStatusTemplates,
+  listWorkspaceBoardsWithLists,
+  listWorkspaceLabels,
+  listWorkspaceTaskBoards,
+  listWorkspaceTaskLists,
+  listWorkspaceTaskProjects,
+  listWorkspaceTasks,
+  type MoveWorkspaceTaskPayload,
+  moveWorkspaceTask,
+  removeWorkspaceTaskLabel,
+  triggerWorkspaceTaskEmbedding,
+  type UpdateWorkspaceTaskBoardPayload,
+  type UpdateWorkspaceTaskListPayload,
+  updateWorkspaceTask,
+  updateWorkspaceTaskBoard,
+  updateWorkspaceTaskList,
+  type WorkspaceTaskUpdatePayload,
+} from '@tuturuuu/internal-api/tasks';
+import { listWorkspaces } from '@tuturuuu/internal-api/workspaces';
+import { refreshCliSession } from './cli/auth';
+import { type CliSession, normalizeBaseUrl } from './cli/config';
+
+export interface TuturuuuUserClientConfig {
+  accessToken: string;
+  baseUrl?: string;
+  fetch?: typeof fetch;
+  onSessionRefresh?: (session: CliSession) => void | Promise<void>;
+  refreshToken?: string;
+}
+
+function getAuthorizationHeader(accessToken: string) {
+  return `Bearer ${accessToken}`;
+}
+
+export class WorkspacesClient {
+  constructor(private readonly client: TuturuuuUserClient) {}
+
+  list() {
+    return listWorkspaces(this.client.getClientOptions());
+  }
+}
+
+export class TasksClient {
+  constructor(private readonly client: TuturuuuUserClient) {}
+
+  addLabel(workspaceId: string, taskId: string, labelId: string) {
+    return addWorkspaceTaskLabel(
+      workspaceId,
+      taskId,
+      labelId,
+      this.client.getClientOptions()
+    );
+  }
+
+  bulk(
+    workspaceId: string,
+    payload: { operation: BulkWorkspaceTaskOperation; taskIds: string[] }
+  ) {
+    return bulkWorkspaceTasks(
+      workspaceId,
+      payload,
+      this.client.getClientOptions()
+    );
+  }
+
+  create(workspaceId: string, payload: CreateWorkspaceTaskPayload) {
+    return createWorkspaceTask(
+      workspaceId,
+      payload,
+      this.client.getClientOptions()
+    );
+  }
+
+  createBoard(workspaceId: string, payload: CreateWorkspaceTaskBoardPayload) {
+    return createWorkspaceTaskBoard(
+      workspaceId,
+      payload,
+      this.client.getClientOptions()
+    );
+  }
+
+  createList(
+    workspaceId: string,
+    boardId: string,
+    payload: CreateWorkspaceTaskListPayload
+  ) {
+    return createWorkspaceTaskList(
+      workspaceId,
+      boardId,
+      payload,
+      this.client.getClientOptions()
+    );
+  }
+
+  createProject(
+    workspaceId: string,
+    payload: { description?: string; name: string }
+  ) {
+    return createWorkspaceTaskProject(
+      workspaceId,
+      payload,
+      this.client.getClientOptions()
+    );
+  }
+
+  createRelationship(
+    workspaceId: string,
+    taskId: string,
+    payload: Parameters<typeof createWorkspaceTaskRelationship>[2]
+  ): Promise<unknown> {
+    return createWorkspaceTaskRelationship(
+      workspaceId,
+      taskId,
+      payload,
+      this.client.getClientOptions()
+    );
+  }
+
+  createWithRelationship(
+    workspaceId: string,
+    payload: CreateWorkspaceTaskWithRelationshipPayload
+  ) {
+    return createWorkspaceTaskWithRelationship(
+      workspaceId,
+      payload,
+      this.client.getClientOptions()
+    );
+  }
+
+  delete(workspaceId: string, taskId: string) {
+    return deleteWorkspaceTask(
+      workspaceId,
+      taskId,
+      this.client.getClientOptions()
+    );
+  }
+
+  deleteBoard(workspaceId: string, boardId: string) {
+    return deleteWorkspaceTaskBoard(
+      workspaceId,
+      boardId,
+      this.client.getClientOptions()
+    );
+  }
+
+  deleteRelationship(
+    workspaceId: string,
+    taskId: string,
+    payload: Parameters<typeof deleteWorkspaceTaskRelationship>[2]
+  ): Promise<unknown> {
+    return deleteWorkspaceTaskRelationship(
+      workspaceId,
+      taskId,
+      payload,
+      this.client.getClientOptions()
+    );
+  }
+
+  get(workspaceId: string, taskId: string) {
+    return getWorkspaceTask(
+      workspaceId,
+      taskId,
+      this.client.getClientOptions()
+    );
+  }
+
+  getBoard(workspaceId: string, boardId: string) {
+    return getWorkspaceTaskBoard(
+      workspaceId,
+      boardId,
+      this.client.getClientOptions()
+    );
+  }
+
+  getBoardsData(workspaceId: string, options?: ListWorkspaceTaskBoardsOptions) {
+    return getWorkspaceBoardsData(
+      workspaceId,
+      options,
+      this.client.getClientOptions()
+    );
+  }
+
+  getProject(workspaceId: string, projectId: string) {
+    return getWorkspaceTaskProject(
+      workspaceId,
+      projectId,
+      this.client.getClientOptions()
+    );
+  }
+
+  getProjectTasks(workspaceId: string, projectId: string) {
+    return getWorkspaceTaskProjectTasks(
+      workspaceId,
+      projectId,
+      this.client.getClientOptions()
+    );
+  }
+
+  getRelationships(workspaceId: string, taskId: string) {
+    return getWorkspaceTaskRelationships(
+      workspaceId,
+      taskId,
+      this.client.getClientOptions()
+    );
+  }
+
+  list(workspaceId: string, options?: ListWorkspaceTasksOptions) {
+    return listWorkspaceTasks(
+      workspaceId,
+      options,
+      this.client.getClientOptions()
+    );
+  }
+
+  listBoards(workspaceId: string, options?: ListWorkspaceTaskBoardsOptions) {
+    return listWorkspaceTaskBoards(
+      workspaceId,
+      options,
+      this.client.getClientOptions()
+    );
+  }
+
+  listBoardsWithLists(workspaceId: string) {
+    return listWorkspaceBoardsWithLists(
+      workspaceId,
+      this.client.getClientOptions()
+    );
+  }
+
+  listLabels(workspaceId: string) {
+    return listWorkspaceLabels(workspaceId, this.client.getClientOptions());
+  }
+
+  listLists(workspaceId: string, boardId: string) {
+    return listWorkspaceTaskLists(
+      workspaceId,
+      boardId,
+      this.client.getClientOptions()
+    );
+  }
+
+  listProjects(workspaceId: string) {
+    return listWorkspaceTaskProjects(
+      workspaceId,
+      this.client.getClientOptions()
+    );
+  }
+
+  listStatusTemplates() {
+    return listTaskBoardStatusTemplates(this.client.getClientOptions());
+  }
+
+  move(workspaceId: string, taskId: string, payload: MoveWorkspaceTaskPayload) {
+    return moveWorkspaceTask(
+      workspaceId,
+      taskId,
+      payload,
+      this.client.getClientOptions()
+    );
+  }
+
+  removeLabel(workspaceId: string, taskId: string, labelId: string) {
+    return removeWorkspaceTaskLabel(
+      workspaceId,
+      taskId,
+      labelId,
+      this.client.getClientOptions()
+    );
+  }
+
+  triggerEmbedding(workspaceId: string, taskId: string) {
+    return triggerWorkspaceTaskEmbedding(
+      workspaceId,
+      taskId,
+      this.client.getClientOptions()
+    );
+  }
+
+  update(
+    workspaceId: string,
+    taskId: string,
+    payload: WorkspaceTaskUpdatePayload
+  ) {
+    return updateWorkspaceTask(
+      workspaceId,
+      taskId,
+      payload,
+      this.client.getClientOptions()
+    );
+  }
+
+  updateBoard(
+    workspaceId: string,
+    boardId: string,
+    payload: UpdateWorkspaceTaskBoardPayload
+  ) {
+    return updateWorkspaceTaskBoard(
+      workspaceId,
+      boardId,
+      payload,
+      this.client.getClientOptions()
+    );
+  }
+
+  updateList(
+    workspaceId: string,
+    boardId: string,
+    listId: string,
+    payload: UpdateWorkspaceTaskListPayload
+  ) {
+    return updateWorkspaceTaskList(
+      workspaceId,
+      boardId,
+      listId,
+      payload,
+      this.client.getClientOptions()
+    );
+  }
+
+  createLabel(workspaceId: string, payload: { color: string; name: string }) {
+    return createWorkspaceLabel(
+      workspaceId,
+      payload,
+      this.client.getClientOptions()
+    );
+  }
+}
+
+export class TuturuuuUserClient {
+  private accessToken: string;
+  private readonly baseUrl: string;
+  private readonly fetchImpl: typeof fetch;
+  private readonly onSessionRefresh?: (
+    session: CliSession
+  ) => void | Promise<void>;
+  private refreshToken?: string;
+
+  readonly tasks: TasksClient;
+  readonly workspaces: WorkspacesClient;
+
+  constructor(config: TuturuuuUserClientConfig) {
+    this.accessToken = config.accessToken;
+    this.baseUrl = normalizeBaseUrl(config.baseUrl);
+    this.fetchImpl = config.fetch || globalThis.fetch;
+    this.onSessionRefresh = config.onSessionRefresh;
+    this.refreshToken = config.refreshToken;
+    this.tasks = new TasksClient(this);
+    this.workspaces = new WorkspacesClient(this);
+  }
+
+  getClientOptions(): InternalApiClientOptions {
+    return {
+      baseUrl: this.baseUrl,
+      defaultHeaders: {
+        Authorization: getAuthorizationHeader(this.accessToken),
+        'X-SDK-Client': 'tuturuuu-cli',
+      },
+      fetch: async (input, init) => {
+        const response = await this.fetchImpl(input, init);
+        if (response.status !== 401 || !this.refreshToken) {
+          return response;
+        }
+
+        const nextSession = await refreshCliSession({
+          baseUrl: this.baseUrl,
+          fetch: this.fetchImpl,
+          refreshToken: this.refreshToken,
+        });
+        this.accessToken = nextSession.accessToken;
+        this.refreshToken = nextSession.refreshToken;
+        await this.onSessionRefresh?.(nextSession);
+
+        const headers = new Headers(init?.headers);
+        headers.set('Authorization', getAuthorizationHeader(this.accessToken));
+
+        return this.fetchImpl(input, {
+          ...init,
+          headers,
+        });
+      },
+    };
+  }
+}

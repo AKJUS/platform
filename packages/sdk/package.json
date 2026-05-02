@@ -1,6 +1,6 @@
 {
   "name": "tuturuuu",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "Official TypeScript/JavaScript SDK for the Tuturuuu platform",
   "license": "MIT",
   "author": "Tuturuuu",
@@ -16,6 +16,11 @@
   "keywords": ["tuturuuu", "sdk", "api"],
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "bin": {
+    "ttr": "./dist/cli/index.js",
+    "tuturuuu": "./dist/cli/index.js",
+    "tutur3u": "./dist/cli/index.js"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -58,6 +63,13 @@
       "import": "./dist/epm.js",
       "require": "./dist/epm.js",
       "default": "./dist/epm.js"
+    },
+    "./platform": {
+      "types": "./dist/platform.d.ts",
+      "bun": "./dist/platform.js",
+      "import": "./dist/platform.js",
+      "require": "./dist/platform.js",
+      "default": "./dist/platform.js"
     }
   },
   "files": ["dist", "README.md", "LICENSE"],
@@ -75,6 +87,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@tuturuuu/internal-api": "workspace:*",
     "@tuturuuu/types": "0.2.3",
     "zod": "^4.4.1"
   },
