@@ -21,6 +21,10 @@ PLUGIN_NAME = "tuturuuu"
 MAX_DEFAULT_PROMPT_LENGTH = 120
 PROMPT_COVERAGE_PATTERNS = {
     "tuturuuu-platform": re.compile(r"\bplatform\b", re.IGNORECASE),
+    "tuturuuu-cli": re.compile(r"\b(cli|ttr)\b", re.IGNORECASE),
+    "tuturuuu-development-tooling": re.compile(
+        r"\b(development workflow|tooling|future agents?)\b", re.IGNORECASE
+    ),
     "tuturuuu-mobile-task-board": re.compile(
         r"\b(flutter|mobile|task-board|task board)\b", re.IGNORECASE
     ),

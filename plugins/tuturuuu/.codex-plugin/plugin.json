@@ -1,7 +1,7 @@
 {
   "name": "tuturuuu",
-  "version": "0.1.0",
-  "description": "Codex operating guidance, validation, CI, and focused workflows for the Tuturuuu platform monorepo.",
+  "version": "0.2.0",
+  "description": "Codex operating guidance, CLI support, validation, CI, and focused workflows for the Tuturuuu platform monorepo.",
   "author": {
     "name": "Tuturuuu",
     "email": "contact@tuturuuu.com",
@@ -15,26 +15,30 @@
   "interface": {
     "displayName": "Tuturuuu",
     "shortDescription": "Keep Tuturuuu platform work aligned with repo conventions.",
-    "longDescription": "Provides Codex skills for safe Tuturuuu platform development, including repo-wide workflow rules, Flutter mobile task-board guidance, Supabase database patterns, CI/docs maintenance, review-comment follow-through, and plugin validation.",
+    "longDescription": "Provides Codex skills for safe Tuturuuu platform development, including repo-wide workflow rules, native ttr CLI install and task workflows, Flutter mobile task-board guidance, Supabase database patterns, CI/docs maintenance, review-comment follow-through, plugin validation, and incremental tooling improvements.",
     "developerName": "Tuturuuu",
     "category": "Productivity",
     "capabilities": [
       "Repository guidance",
+      "CLI installation and task workflows",
       "Workflow checklists",
       "Mobile task-board support",
       "Database change guidance",
       "CI and docs validation",
-      "Review comment resolution"
+      "Review comment resolution",
+      "Development tooling improvement"
     ],
     "websiteURL": "https://tuturuuu.com",
     "privacyPolicyURL": "https://tuturuuu.com/privacy",
     "termsOfServiceURL": "https://tuturuuu.com/terms",
     "defaultPrompt": [
       "Make this platform change and run the checks it needs.",
+      "Install the Tuturuuu CLI and verify ttr login works.",
       "Update the Supabase schema or API write path safely.",
       "Fix this Flutter task-board behavior and verify it.",
       "Update the docs or CI workflow and validate the follow-through.",
-      "Clear the unresolved review comments on this PR."
+      "Clear the unresolved review comments on this PR.",
+      "Improve this Tuturuuu development workflow for future agents."
     ],
     "brandColor": "#000000",
     "composerIcon": "./assets/light.png",

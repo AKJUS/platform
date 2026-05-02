@@ -37,6 +37,8 @@ Use the more focused plugin skills when they match the task:
 
 - `$tuturuuu-database` for Supabase schema, RLS, API write, storage, or generated type changes.
 - `$tuturuuu-ci-docs` for workflow files, validators, docs pages, and docs navigation.
+- `$tuturuuu-cli` for installing, using, debugging, or publishing the native `ttr` CLI and browser/copy-token login flows.
+- `$tuturuuu-development-tooling` for Codex plugin, skill, validation, docs, scripts, and durable agent workflow improvements.
 - `$tuturuuu-mobile-task-board` for Flutter task-board date, routing, assignee, detail, or version bump work.
 - `$tuturuuu-review-comments` for fetching, fixing, resolving, and reporting unresolved GitHub PR review threads.
 
@@ -45,6 +47,11 @@ For web dashboard surfaces, default to thin server gates plus client shells back
 For protected or authenticated app CRUD from client/shared UI code, add or extend API routes and internal-api helpers instead of reading Supabase directly from client components.
 
 For shared data shapes reused beyond one callback, export them from `packages/types/src/db.ts` and consume them through `@tuturuuu/types`.
+
+When a session reveals durable workflow knowledge, make an incremental
+improvement to the relevant Tuturuuu tooling surface when practical: plugin
+skill text, `apps/docs`, validation scripts, focused tests, or helper scripts.
+Keep the improvement small and tied to the task.
 
 ## Verification
 

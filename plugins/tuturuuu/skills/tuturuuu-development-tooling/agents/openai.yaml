@@ -1,0 +1,4 @@
+interface:
+  display_name: "Tuturuuu Development Tooling"
+  short_description: "Improve Tuturuuu agent and developer workflows"
+  default_prompt: "Improve this Tuturuuu development workflow for future agents."

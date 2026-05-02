@@ -7,6 +7,7 @@ Use this checklist before and after code changes in the current Tuturuuu platfor
 - Read the task-local code and docs before proposing abstractions.
 - Check for existing helpers in `packages/internal-api`, `packages/types`, `packages/ui`, and app-local utilities.
 - Identify whether the change affects user-facing copy, route navigation, database schema, generated types, docs, or mobile localization.
+- Identify whether the task revealed a durable workflow learning that belongs in `apps/docs`, a Tuturuuu plugin skill, a reference checklist, a validation script, or a helper script.
 
 ## Web And Shared Code
 
@@ -39,4 +40,5 @@ Use this checklist before and after code changes in the current Tuturuuu platfor
 - Run focused tests for changed behavior.
 - Run `bun check` for TypeScript, JavaScript, root script, or repo config changes.
 - Update `apps/docs` for durable workflow, deployment, architecture, debugging, or operations knowledge.
+- Update the Tuturuuu plugin when agent-facing CLI, validation, setup, or workflow knowledge changes.
 - Use Conventional Commit style if asked to commit.

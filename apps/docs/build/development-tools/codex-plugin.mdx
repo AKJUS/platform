@@ -30,6 +30,16 @@ codex plugin marketplace add ./
 - `$tuturuuu-platform`: repo-wide workflow guidance for `apps/web`,
   `packages/*`, `apps/database`, `apps/docs`, translations, navigation, and
   verification follow-through.
+- `$tuturuuu-cli`: native `ttr` CLI install, browser login, copy-token login,
+  workspace discovery, open-task defaults, compact task tables, and release
+  verification guidance. It documents autonomous Bun and CLI installation with
+  `curl -fsSL https://bun.sh/install | bash` on macOS/Linux,
+  `powershell -c "irm bun.sh/install.ps1 | iex"` on Windows, then
+  `bun i -g tuturuuu`.
+- `$tuturuuu-development-tooling`: shared guidance for improving Codex skills,
+  plugin behavior, validation scripts, docs runbooks, helper scripts, and
+  durable workflow learnings that should benefit future Tuturuuu contributors
+  and assistants.
 - `$tuturuuu-mobile-task-board`: Flutter mobile task-board guidance for task
   dates, overdue behavior, task detail routing, description mode, assignee
   flows, and mobile version bump checks.
@@ -76,6 +86,8 @@ For individual skills, run the Codex skill validator:
 
 ```bash
 python3 ~/.codex/skills/.system/skill-creator/scripts/quick_validate.py plugins/tuturuuu/skills/tuturuuu-platform
+python3 ~/.codex/skills/.system/skill-creator/scripts/quick_validate.py plugins/tuturuuu/skills/tuturuuu-cli
+python3 ~/.codex/skills/.system/skill-creator/scripts/quick_validate.py plugins/tuturuuu/skills/tuturuuu-development-tooling
 python3 ~/.codex/skills/.system/skill-creator/scripts/quick_validate.py plugins/tuturuuu/skills/tuturuuu-mobile-task-board
 python3 ~/.codex/skills/.system/skill-creator/scripts/quick_validate.py plugins/tuturuuu/skills/tuturuuu-database
 python3 ~/.codex/skills/.system/skill-creator/scripts/quick_validate.py plugins/tuturuuu/skills/tuturuuu-ci-docs

@@ -1,0 +1,66 @@
+---
+name: tuturuuu-development-tooling
+description: Tuturuuu development tooling and shared-learning guidance. Use when improving Codex skills, plugin behavior, repo automation, validation scripts, docs runbooks, developer experience, agent workflows, or recurring learnings that should benefit future Tuturuuu contributors and assistants.
+---
+
+# Tuturuuu Development Tooling
+
+## Core Workflow
+
+Use this skill when a task changes how agents, assistants, or contributors build,
+verify, debug, operate, or learn from the Tuturuuu platform.
+
+Every development-tooling change should ask:
+
+- Can this reduce repeated manual setup for future sessions?
+- Can this become a plugin skill, reference checklist, script, or docs runbook?
+- Can this be validated automatically in CI or a focused local script?
+- Did the session reveal a durable gotcha worth preserving for future agents?
+
+## Incremental Improvement Standard
+
+When touching Tuturuuu tooling, make the smallest useful improvement that helps
+future work. Examples:
+
+- add a focused validation command after discovering a repeated failure mode
+- update a plugin skill when a new workflow becomes standard
+- document CLI, deploy, database, mobile, or CI behavior in `apps/docs`
+- add a helper script when an install or verification flow is easy to automate
+- refine prompts, checklists, or skill descriptions so future triggering is more reliable
+
+Do not expand scope into broad refactors. Keep improvements tied to evidence from
+the current task or recent local failures.
+
+## Plugin And Skill Changes
+
+For `plugins/tuturuuu` changes:
+
+- keep `.codex-plugin/plugin.json` present and aligned with the folder name
+- keep every skill folder aligned with its `SKILL.md` frontmatter `name`
+- include `agents/openai.yaml` for every skill
+- keep default prompts short, natural, and action-oriented
+- keep skill text portable across machines
+- put detailed operational material in `references/`
+- update `apps/docs/build/development-tools/codex-plugin.mdx`
+- run `python3 plugins/tuturuuu/scripts/validate_plugin.py`
+
+## Documentation Follow-Through
+
+If a workflow, install step, debugging path, release process, or validation
+pattern changed, update `apps/docs` in the same session. Prefer updating an
+existing page over creating a new page.
+
+When the improvement is only relevant to agent behavior, update the Tuturuuu
+plugin skill or reference page as the durable source.
+
+## Verification
+
+Run the focused validation for changed tooling first, then the repo-required
+checks for touched file types. For plugin changes, the focused validation is:
+
+```bash
+python3 plugins/tuturuuu/scripts/validate_plugin.py
+```
+
+If TypeScript, JavaScript, package metadata, workflow config, or docs pages are
+touched, finish with `bun check`.

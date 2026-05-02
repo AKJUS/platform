@@ -1,7 +1,7 @@
 {
   "name": "tutur3u",
   "devDependencies": {
-    "@biomejs/biome": "^2.4.13",
+    "@biomejs/biome": "^2.4.14",
     "@lingual/i18n-check": "0.9.4",
     "@tuturuuu/typescript-config": "workspace:*",
     "@typescript/native-preview": "^7.0.0-dev.20260430.1",
@@ -22,7 +22,7 @@
     "apple:p8-jwt": "node scripts/apple-p8-jwt-signer.js",
     "android:self-sign": "node scripts/android-self-sign.js",
     "prepare": "node scripts/install-git-hooks.js",
-    "setup": "bun i && bun run build -F @tuturuuu/types -F @tuturuuu/supabase -F @tuturuuu/masonry -F @tuturuuu/internal-api",
+    "setup": "bun i && bun run build -F @tuturuuu/types -F @tuturuuu/supabase -F @tuturuuu/masonry -F @tuturuuu/internal-api -F tuturuuu",
     "setup:mobile": "cd apps/mobile && flutter pub get && flutter pub upgrade",
     "ttr": "bun packages/sdk/src/cli/index.ts",
     "build": "turbo run build",
@@ -165,6 +165,7 @@
     "lightningcss",
     "protobufjs",
     "puppeteer",
+    "tuturuuu",
     "sharp",
     "supabase",
     "unrs-resolver"
