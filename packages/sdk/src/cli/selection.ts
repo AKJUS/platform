@@ -1,7 +1,7 @@
 import type { TuturuuuUserClient } from '../platform';
 import { type FlagValue, getFlag, getTaskStateFilters } from './args';
 import { type CliConfig, writeCliConfig } from './config';
-import { selectItem } from './select';
+import { color, selectItem } from './select';
 
 type ListedWorkspace = Awaited<
   ReturnType<TuturuuuUserClient['workspaces']['list']>
@@ -51,6 +51,33 @@ function ensureSelectable(json: boolean) {
   }
 }
 
+function formatBadge(value?: string | null) {
+  const label = String(value || 'free').toUpperCase();
+  const badge = `[${label}]`;
+
+  if (['DONE', 'CLOSED', 'ARCHIVED'].includes(label)) {
+    return color.dim(badge);
+  }
+
+  if (['PRO', 'PLUS', 'PREMIUM'].includes(label)) {
+    return color.magenta(badge);
+  }
+
+  if (['BUSINESS', 'TEAM'].includes(label)) {
+    return color.yellow(badge);
+  }
+
+  if (['ENTERPRISE', 'STUDIO'].includes(label)) {
+    return color.cyan(badge);
+  }
+
+  if (['ERROR', 'BLOCKED', 'BLOCKING'].includes(label)) {
+    return color.red(badge);
+  }
+
+  return color.green(badge);
+}
+
 export async function chooseWorkspace(
   client: TuturuuuUserClient,
   config: CliConfig,
@@ -68,11 +95,9 @@ export async function chooseWorkspace(
         (currentWorkspaceId === 'personal' && workspace.personal === true),
       findDefaultIndex(workspaces, (workspace) => workspace.personal === true)
     ),
+    getBadge: (workspace) => formatBadge(workspace.tier),
     getDescription: (workspace) =>
-      [
-        workspace.personal ? 'personal' : '',
-        workspace.tier ? String(workspace.tier) : '',
-      ]
+      [workspace.personal ? 'personal' : '', workspace.id]
         .filter(Boolean)
         .join(' '),
     getLabel: (workspace) => workspace.name || workspace.id,
@@ -95,10 +120,9 @@ export async function chooseBoard(
       boards,
       (board) => board.id === config.currentBoardId
     ),
-    getDescription: (board) =>
-      [board.ticket_prefix ? `#${board.ticket_prefix}` : '', board.id]
-        .filter(Boolean)
-        .join(' '),
+    getBadge: (board) =>
+      board.ticket_prefix ? color.blue(`[${board.ticket_prefix}]`) : undefined,
+    getDescription: (board) => [board.id].filter(Boolean).join(' '),
     getLabel: (board) => board.name || board.id,
     items: boards,
     title: 'Select board',
@@ -120,7 +144,8 @@ export async function chooseList(
       lists,
       (list) => list.id === config.currentListId
     ),
-    getDescription: (list) => [list.status, list.id].filter(Boolean).join(' '),
+    getBadge: (list) => formatBadge(list.status),
+    getDescription: (list) => [list.id].filter(Boolean).join(' '),
     getLabel: (list) => list.name || list.id,
     items: lists,
     title: 'Select list',
@@ -149,16 +174,12 @@ async function chooseTask(
       tasks,
       (task) => task.id === config.currentTaskId
     ),
+    getBadge: (task) =>
+      task.ticket_prefix && task.display_number
+        ? color.yellow(`[${task.ticket_prefix}-${task.display_number}]`)
+        : undefined,
     getDescription: (task) =>
-      [
-        task.ticket_prefix && task.display_number
-          ? `${task.ticket_prefix}-${task.display_number}`
-          : '',
-        task.board_name || '',
-        task.id,
-      ]
-        .filter(Boolean)
-        .join(' '),
+      [task.board_name || '', task.id].filter(Boolean).join(' '),
     getLabel: (task) => task.name || task.id,
     items: tasks,
     title: 'Select task',
@@ -179,8 +200,8 @@ export async function chooseLabel(
       labels,
       (label) => label.id === config.currentLabelId
     ),
-    getDescription: (label) =>
-      [label.color, label.id].filter(Boolean).join(' '),
+    getBadge: (label) => formatBadge(label.color),
+    getDescription: (label) => [label.id].filter(Boolean).join(' '),
     getLabel: (label) => label.name || label.id,
     items: labels,
     title: 'Select label',
@@ -201,8 +222,8 @@ export async function chooseProject(
       projects,
       (project) => project.id === config.currentProjectId
     ),
-    getDescription: (project) =>
-      [project.status || '', project.id].filter(Boolean).join(' '),
+    getBadge: (project) => formatBadge(project.status),
+    getDescription: (project) => [project.id].filter(Boolean).join(' '),
     getLabel: (project) => project.name || project.id,
     items: projects,
     title: 'Select project',

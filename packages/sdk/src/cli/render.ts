@@ -59,7 +59,9 @@ function renderTable(rows: RenderableRecord[]) {
     return;
   }
 
-  console.table(rows);
+  console.table(
+    Object.fromEntries(rows.map((row, index) => [String(index + 1), row]))
+  );
 }
 
 function renderWorkspaces(data: unknown, currentWorkspaceId?: string) {

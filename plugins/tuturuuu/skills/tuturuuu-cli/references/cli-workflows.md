@@ -23,6 +23,7 @@ Verify:
 
 ```bash
 ttr help
+ttr --version
 ```
 
 ## Common Commands
@@ -30,6 +31,7 @@ ttr help
 ```bash
 ttr login
 ttr login --copy
+ttr -v
 ttr whoami
 ttr workspaces
 ttr workspaces use
@@ -54,6 +56,9 @@ ttr tasks move
 
 The CLI defaults to the `personal` workspace after login and when no workspace
 has been selected.
+
+Interactive picker rows use one-based indexes and tier/status badges before the
+name, such as `[FREE] Tuturuuu` or `[PRO] Personal`.
 
 ## Monorepo Behavior
 

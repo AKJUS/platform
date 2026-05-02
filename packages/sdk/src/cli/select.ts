@@ -1,10 +1,36 @@
 export interface SelectItemOptions<T> {
   defaultIndex?: number;
+  getBadge?: (item: T) => string | undefined;
   getDescription?: (item: T) => string | undefined;
   getLabel: (item: T) => string;
   items: T[];
   title: string;
 }
+
+type ColorCode = 1 | 2 | 22 | 31 | 32 | 33 | 34 | 35 | 36 | 90;
+
+function supportsColor() {
+  return (
+    process.stderr.isTTY &&
+    process.env.NO_COLOR === undefined &&
+    process.env.TERM !== 'dumb'
+  );
+}
+
+function colorize(code: ColorCode, value: string) {
+  return supportsColor() ? `\x1b[${code}m${value}\x1b[0m` : value;
+}
+
+export const color = {
+  blue: (value: string) => colorize(34, value),
+  bold: (value: string) => colorize(1, value),
+  cyan: (value: string) => colorize(36, value),
+  dim: (value: string) => colorize(2, value),
+  green: (value: string) => colorize(32, value),
+  magenta: (value: string) => colorize(35, value),
+  red: (value: string) => colorize(31, value),
+  yellow: (value: string) => colorize(33, value),
+};
 
 function clampIndex(index: number, length: number) {
   return Math.max(0, Math.min(index, Math.max(0, length - 1)));
@@ -18,6 +44,7 @@ function isRawModeCapable(
 
 export async function selectItem<T>({
   defaultIndex = 0,
+  getBadge,
   getDescription,
   getLabel,
   items,
@@ -56,17 +83,30 @@ export async function selectItem<T>({
       }
       write('\x1b[J\x1b[?25l');
 
+      const indexWidth = String(items.length).length;
       const lines = [
-        title,
-        'Use up/down or j/k to move, space/enter to select, q/esc to cancel.',
+        color.bold(color.cyan(title)),
+        color.dim(
+          'Use up/down or j/k to move, space/enter to select, q/esc to cancel.'
+        ),
         '',
         ...items.map((item, index) => {
-          const prefix = index === selectedIndex ? '>' : ' ';
-          const label = getLabel(item);
+          const selected = index === selectedIndex;
+          const prefix = selected ? color.green('>') : ' ';
+          const itemIndex = color.cyan(
+            `${String(index + 1).padStart(indexWidth, ' ')}.`
+          );
+          const badge = getBadge?.(item);
+          const label = selected ? color.bold(getLabel(item)) : getLabel(item);
           const description = getDescription?.(item);
-          return description
-            ? `${prefix} ${label}  ${description}`
-            : `${prefix} ${label}`;
+          return [
+            `${prefix} ${itemIndex}`,
+            badge,
+            label,
+            description ? color.dim(description) : '',
+          ]
+            .filter(Boolean)
+            .join(' ');
         }),
       ];
 

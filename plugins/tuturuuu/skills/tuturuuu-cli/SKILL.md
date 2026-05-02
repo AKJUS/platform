@@ -36,6 +36,7 @@ After installation, verify the command path with:
 
 ```bash
 ttr help
+ttr --version
 ```
 
 Inside the Tuturuuu monorepo root, `bun ttr ...` runs the local workspace
@@ -63,6 +64,10 @@ with `Accept: application/json`.
 The CLI should support keyboard selection for human terminal workflows. Omit an
 id from `use`, `get`, `update`, `delete`, or `move` commands to choose with
 up/down or `j`/`k`, then space/enter. Escape or `q` cancels.
+
+Picker rows should show one-based indexes and colored badges before names, for
+example `[FREE] Tuturuuu` or `[PRO] Personal`, with lower-priority identifiers
+kept as muted metadata.
 
 Keep selection disabled for `--json` and non-TTY sessions so agent scripts get a
 clear error instead of mixed prompt output.

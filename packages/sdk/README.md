@@ -61,6 +61,7 @@ The package ships a native Bun-powered CLI. `ttr` is the primary command, with
 
 ```bash
 ttr login
+ttr --version
 ttr workspaces
 ttr workspaces use
 ttr boards
@@ -103,8 +104,11 @@ machine-readable output.
 
 For terminal workflows, omit an id from `use`, `get`, `update`, `delete`, or
 `move` commands to pick a workspace, board, list, task, label, or project with
-the keyboard. Use up/down or `j`/`k` to move, space/enter to select, and
-escape/`q` to cancel. Interactive selection is disabled for `--json` output.
+the keyboard. The interactive picker shows one-based indexes, colored badges
+such as `[FREE] Tuturuuu` and `[PRO] Personal`, the selected row, and muted
+metadata. Use up/down or `j`/`k` to move, space/enter to select, and escape/`q`
+to cancel. Interactive selection is disabled for `--json` output. Use `ttr -v`
+or `ttr --version` to print the installed CLI version.
 
 ### Client Initialization
 

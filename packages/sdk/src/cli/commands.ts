@@ -149,6 +149,11 @@ function getPayload(flags: Record<string, FlagValue>) {
 }
 
 export async function runCli(argv = process.argv.slice(2)) {
+  if (argv.length === 1 && (argv[0] === '-v' || argv[0] === '--version')) {
+    process.stdout.write(`${packageJson.version}\n`);
+    return;
+  }
+
   const { flags, positionals } = parseArgs(argv);
   const [group, rawAction, rawFirstId] = positionals;
   const relationshipAction =
@@ -189,6 +194,9 @@ export async function runCli(argv = process.argv.slice(2)) {
         '  tasks --done                completed tasks',
         '  tasks --closed              closed tasks',
         '  tasks --compact             title, list, and workspace only',
+        '',
+        'Global options:',
+        '  -v, --version               print the CLI version',
       ].join('\n')}\n`
     );
     return;
