@@ -98,6 +98,14 @@ Read-oriented groups list by default:
 Compact task output is for agent workflows and should display only task title,
 task list name, and workspace name unless the user asks for JSON.
 
+Create commands should support a quoted positional name as a shorthand for
+`--name`, especially `ttr tasks create "Add Tuturuuu CLI"`.
+
+When marking a task completed from the CLI, include a `completed_at` timestamp.
+That lets Tuturuuu move the task to the first `done` list by default. Preserve
+an explicit done destination when the user provides `--list <id>` or `list_id`
+inside `--json-payload`.
+
 ## Verification
 
 For CLI changes, run focused checks first:

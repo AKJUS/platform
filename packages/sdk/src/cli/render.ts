@@ -27,17 +27,22 @@ function getNestedRecord(value: unknown, key: string) {
 }
 
 function getTaskListName(task: unknown) {
-  return asString(getNestedRecord(task, 'task_lists').name, 'No list');
+  const record = asRecord(task);
+  return asString(
+    getNestedRecord(task, 'task_lists').name,
+    asString(record.list_name, asString(record.list_id, 'No list'))
+  );
 }
 
 function getTaskBoardName(task: unknown) {
-  return asString(asRecord(task).board_name, 'No board');
+  const record = asRecord(task);
+  return asString(record.board_name, asString(record.board_id, 'No board'));
 }
 
 function getTaskStatus(task: unknown) {
   const record = asRecord(task);
   if (record.closed_at) return 'closed';
-  if (record.completed_at) return 'done';
+  if (record.completed_at || record.completed === true) return 'done';
   return 'open';
 }
 
@@ -139,8 +144,30 @@ function renderProjects(data: unknown) {
   );
 }
 
+function getTaskRows(tasks: unknown[]) {
+  return tasks.map((task) => {
+    const record = asRecord(task);
+    return {
+      Key: getTaskKey(task),
+      Title: asString(record.name, 'Untitled task'),
+      List: getTaskListName(task),
+      Board: getTaskBoardName(task),
+      Status: getTaskStatus(task),
+      Priority: asString(record.priority),
+      Due: asString(record.end_date),
+    };
+  });
+}
+
 function renderTasks(data: unknown, options: RenderOptions) {
-  const tasks = asArray(asRecord(data).tasks);
+  const record = asRecord(data);
+  const task = record.task;
+  const tasks = task ? [task] : asArray(record.tasks);
+
+  if (tasks.length === 0 && record.message) {
+    process.stdout.write(`${asString(record.message)}\n`);
+    return;
+  }
 
   if (options.compact) {
     renderTable(
@@ -153,22 +180,9 @@ function renderTasks(data: unknown, options: RenderOptions) {
     return;
   }
 
-  renderTable(
-    tasks.map((task) => {
-      const record = asRecord(task);
-      return {
-        Key: getTaskKey(task),
-        Title: asString(record.name, 'Untitled task'),
-        List: getTaskListName(task),
-        Board: getTaskBoardName(task),
-        Status: getTaskStatus(task),
-        Priority: asString(record.priority),
-        Due: asString(record.end_date),
-      };
-    })
-  );
+  renderTable(getTaskRows(tasks));
 
-  const count = asRecord(data).count;
+  const count = record.count;
   if (typeof count === 'number') {
     process.stdout.write(`${count} total\n`);
   }

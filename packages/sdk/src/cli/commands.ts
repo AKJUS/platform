@@ -148,6 +148,25 @@ function getPayload(flags: Record<string, FlagValue>) {
   return payload ? (JSON.parse(payload) as Record<string, unknown>) : {};
 }
 
+export function getTaskUpdatePayload(flags: Record<string, FlagValue>) {
+  const payload = getPayload(flags);
+  const listId = getFlag(flags, 'list') || getFlag(flags, 'list-id');
+
+  if (listId && payload.list_id === undefined) {
+    payload.list_id = listId;
+  }
+
+  if (
+    payload.completed === true &&
+    payload.completed_at === undefined &&
+    payload.closed_at === undefined
+  ) {
+    payload.completed_at = new Date().toISOString();
+  }
+
+  return payload;
+}
+
 export async function runCli(argv = process.argv.slice(2)) {
   if (argv.length === 1 && (argv[0] === '-v' || argv[0] === '--version')) {
     process.stdout.write(`${packageJson.version}\n`);
@@ -156,6 +175,7 @@ export async function runCli(argv = process.argv.slice(2)) {
 
   const { flags, positionals } = parseArgs(argv);
   const [group, rawAction, rawFirstId] = positionals;
+  const positionalValue = positionals.slice(2).join(' ').trim();
   const relationshipAction =
     group === 'relationships' &&
     rawAction &&
@@ -341,7 +361,7 @@ export async function runCli(argv = process.argv.slice(2)) {
       render(
         await client.tasks.createBoard(workspaceId, {
           icon: (getFlag(flags, 'icon') || null) as never,
-          name: getFlag(flags, 'name') || 'Untitled Board',
+          name: getFlag(flags, 'name') || positionalValue || 'Untitled Board',
           template_id: getFlag(flags, 'template-id'),
         }),
         { group, json }
@@ -417,7 +437,7 @@ export async function runCli(argv = process.argv.slice(2)) {
       render(
         await client.tasks.createList(workspaceId, boardId, {
           color: getFlag(flags, 'color'),
-          name: getFlag(flags, 'name') || 'Untitled List',
+          name: getFlag(flags, 'name') || positionalValue || 'Untitled List',
           status: getFlag(flags, 'status'),
         }),
         { group, json }
@@ -517,7 +537,7 @@ export async function runCli(argv = process.argv.slice(2)) {
           end_date: getFlag(flags, 'end-date') || null,
           label_ids: parseCsv(getFlag(flags, 'labels')),
           listId: listSelection.listId,
-          name: getFlag(flags, 'name') || 'Untitled Task',
+          name: getFlag(flags, 'name') || positionalValue || 'Untitled Task',
           priority: (getFlag(flags, 'priority') as never) || null,
           project_ids: parseCsv(getFlag(flags, 'projects')),
           start_date: getFlag(flags, 'start-date') || null,
@@ -540,7 +560,7 @@ export async function runCli(argv = process.argv.slice(2)) {
         await client.tasks.update(
           workspaceId,
           selection.taskId,
-          getPayload(flags)
+          getTaskUpdatePayload(flags)
         ),
         { group, json }
       );

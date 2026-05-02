@@ -37,6 +37,8 @@ ttr workspaces
 ttr workspaces use
 ttr tasks
 ttr tasks use
+ttr tasks create "Add Tuturuuu CLI"
+ttr tasks update <task-id> --json-payload '{"completed":true}'
 ttr tasks --compact
 ttr tasks --all
 ttr tasks --done
