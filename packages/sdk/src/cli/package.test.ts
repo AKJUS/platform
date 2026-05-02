@@ -9,4 +9,8 @@ describe('CLI package metadata', () => {
       tutur3u: './dist/cli/index.js',
     });
   });
+
+  it('provides a local ttr script for workspace development', () => {
+    expect(packageJson.scripts.ttr).toBe('bun src/cli/index.ts');
+  });
 });

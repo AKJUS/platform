@@ -79,6 +79,7 @@
   "scripts": {
     "build": "tsc --project tsconfig.build.json",
     "dev": "tsc --project tsconfig.build.json --watch --incremental",
+    "ttr": "bun src/cli/index.ts",
     "type-check": "tsgo --project tsconfig.build.json",
     "clean": "rm -rf dist .turbo tsconfig.build.tsbuildinfo",
     "prepack": "bun run clean && bun run build",

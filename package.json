@@ -24,6 +24,7 @@
     "prepare": "node scripts/install-git-hooks.js",
     "setup": "bun i && bun run build -F @tuturuuu/types -F @tuturuuu/supabase -F @tuturuuu/masonry -F @tuturuuu/internal-api",
     "setup:mobile": "cd apps/mobile && flutter pub get && flutter pub upgrade",
+    "ttr": "bun packages/sdk/src/cli/index.ts",
     "build": "turbo run build",
     "build:android": "cd apps/mobile && flutter build aab --dart-define-from-file=.env.production --flavor production --target lib/main_production.dart",
     "build:android:dev": "cd apps/mobile && flutter build aab --dart-define-from-file=.env --flavor development --target lib/main_development.dart",
