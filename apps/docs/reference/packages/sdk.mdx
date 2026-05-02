@@ -137,7 +137,8 @@ default, so `ttr tasks` and `ttr workspaces` are equivalent to their explicit
 `completed_at` or `closed_at`; use `--all`, `--done`, `--closed`,
 `--include-done`, or `--include-closed` to adjust that filter. Add `--compact`
 to task lists when an agent only needs the task title, task list name, and
-workspace name. Add `--json` when another agent or script needs
+workspace name. Task lists are ordered by priority and due date, with prettier
+due dates in table output. Add `--json` when another agent or script needs
 machine-readable output. `tasks create`, `boards create`, and `lists create`
 accept a quoted positional name as a shorthand for `--name`. Marking a task
 completed stamps `completed_at` so Tuturuuu moves it to the first `done` list;

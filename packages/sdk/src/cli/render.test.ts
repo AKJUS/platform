@@ -1,8 +1,9 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { render } from './render';
+import { render, sortTaskResponseForCli } from './render';
 
 describe('CLI rendering', () => {
   afterEach(() => {
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -63,5 +64,79 @@ describe('CLI rendering', () => {
     render({ message: 'Task deleted.' }, { group: 'tasks' });
 
     expect(write).toHaveBeenCalledWith('Task deleted.\n');
+  });
+
+  it('orders task lists by priority and due date', () => {
+    expect(
+      sortTaskResponseForCli({
+        tasks: [
+          {
+            id: 'low-overdue',
+            name: 'Low overdue',
+            priority: 'low',
+            end_date: '2026-05-01T00:00:00.000Z',
+          },
+          {
+            id: 'critical-later',
+            name: 'Critical later',
+            priority: 'critical',
+            end_date: '2026-05-10T00:00:00.000Z',
+          },
+          {
+            id: 'critical-sooner',
+            name: 'Critical sooner',
+            priority: 'critical',
+            end_date: '2026-05-03T00:00:00.000Z',
+          },
+          {
+            id: 'normal-undated',
+            name: 'Normal undated',
+            priority: 'normal',
+          },
+        ],
+      })
+    ).toMatchObject({
+      tasks: [
+        { id: 'critical-sooner' },
+        { id: 'critical-later' },
+        { id: 'normal-undated' },
+        { id: 'low-overdue' },
+      ],
+    });
+  });
+
+  it('formats task due dates for table output', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-03T12:00:00.000+07:00'));
+    const table = vi.spyOn(console, 'table').mockImplementation(() => {});
+
+    render(
+      {
+        tasks: [
+          {
+            id: 'task-1',
+            name: 'Due tomorrow',
+            end_date: '2026-05-04T23:59:59.000+07:00',
+          },
+          {
+            id: 'task-2',
+            name: 'Due later',
+            end_date: '2026-05-10T00:00:00.000+07:00',
+          },
+        ],
+      },
+      { group: 'tasks' }
+    );
+
+    expect(table).toHaveBeenCalledWith({
+      '1': expect.objectContaining({
+        Due: 'Tomorrow',
+        Title: 'Due tomorrow',
+      }),
+      '2': expect.objectContaining({
+        Due: 'May 10',
+        Title: 'Due later',
+      }),
+    });
   });
 });

@@ -45,6 +45,9 @@ ttr tasks --done
 ttr tasks --closed
 ```
 
+`ttr tasks` orders rows by priority and then due date. Human table output should
+show compact due labels such as `Today`, `Tomorrow`, or `May 10`.
+
 Omit IDs in a TTY to select with the keyboard:
 
 ```bash

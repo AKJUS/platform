@@ -98,6 +98,10 @@ Read-oriented groups list by default:
 Compact task output is for agent workflows and should display only task title,
 task list name, and workspace name unless the user asks for JSON.
 
+Task list output should be ordered by priority first, then due date. Human table
+output should format due dates into short readable labels such as `Today`,
+`Tomorrow`, or `May 10`.
+
 Create commands should support a quoted positional name as a shorthand for
 `--name`, especially `ttr tasks create "Add Tuturuuu CLI"`.
 

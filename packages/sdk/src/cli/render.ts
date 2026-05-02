@@ -22,6 +22,13 @@ function asString(value: unknown, fallback = '') {
   return typeof value === 'string' && value.trim() ? value : fallback;
 }
 
+function asTimestamp(value: unknown) {
+  if (typeof value !== 'string' || !value.trim())
+    return Number.POSITIVE_INFINITY;
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? timestamp : Number.POSITIVE_INFINITY;
+}
+
 function getNestedRecord(value: unknown, key: string) {
   return asRecord(asRecord(value)[key]);
 }
@@ -56,6 +63,80 @@ function getTaskKey(task: unknown) {
   }
 
   return asString(record.id);
+}
+
+function getTaskPriorityRank(task: unknown) {
+  const priority = asString(asRecord(task).priority).toLowerCase();
+  const rankByPriority: Record<string, number> = {
+    critical: 0,
+    high: 1,
+    normal: 2,
+    low: 3,
+  };
+
+  return rankByPriority[priority] ?? 4;
+}
+
+function compareTasksForCli(left: unknown, right: unknown) {
+  const priorityDiff = getTaskPriorityRank(left) - getTaskPriorityRank(right);
+  if (priorityDiff !== 0) return priorityDiff;
+
+  const dueDiff =
+    asTimestamp(asRecord(left).end_date) -
+    asTimestamp(asRecord(right).end_date);
+  if (dueDiff !== 0) return dueDiff;
+
+  const createdDiff =
+    asTimestamp(asRecord(right).created_at) -
+    asTimestamp(asRecord(left).created_at);
+  if (createdDiff !== 0) return createdDiff;
+
+  return asString(asRecord(left).name).localeCompare(
+    asString(asRecord(right).name)
+  );
+}
+
+export function sortTasksForCli(tasks: unknown[]) {
+  return [...tasks].sort(compareTasksForCli);
+}
+
+export function sortTaskResponseForCli(data: unknown) {
+  const record = asRecord(data);
+  const tasks = asArray(record.tasks);
+  return tasks.length > 0 ? { ...record, tasks: sortTasksForCli(tasks) } : data;
+}
+
+function formatDueDate(value: unknown) {
+  if (typeof value !== 'string' || !value.trim()) return '';
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  const now = new Date();
+  const startOfToday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate()
+  );
+  const startOfDueDate = new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate()
+  );
+  const dayDiff = Math.round(
+    (startOfDueDate.getTime() - startOfToday.getTime()) / 86_400_000
+  );
+
+  if (dayDiff === -1) return 'Yesterday';
+  if (dayDiff === 0) return 'Today';
+  if (dayDiff === 1) return 'Tomorrow';
+
+  const sameYear = date.getFullYear() === now.getFullYear();
+  return new Intl.DateTimeFormat('en', {
+    day: 'numeric',
+    month: 'short',
+    ...(sameYear ? {} : { year: 'numeric' }),
+  }).format(date);
 }
 
 function renderTable(rows: RenderableRecord[]) {
@@ -145,7 +226,7 @@ function renderProjects(data: unknown) {
 }
 
 function getTaskRows(tasks: unknown[]) {
-  return tasks.map((task) => {
+  return sortTasksForCli(tasks).map((task) => {
     const record = asRecord(task);
     return {
       Key: getTaskKey(task),
@@ -154,7 +235,7 @@ function getTaskRows(tasks: unknown[]) {
       Board: getTaskBoardName(task),
       Status: getTaskStatus(task),
       Priority: asString(record.priority),
-      Due: asString(record.end_date),
+      Due: formatDueDate(record.end_date),
     };
   });
 }
@@ -171,7 +252,7 @@ function renderTasks(data: unknown, options: RenderOptions) {
 
   if (options.compact) {
     renderTable(
-      tasks.map((task) => ({
+      sortTasksForCli(tasks).map((task) => ({
         Title: asString(asRecord(task).name, 'Untitled task'),
         List: getTaskListName(task),
         Workspace: options.workspaceName || options.currentWorkspaceId || '',

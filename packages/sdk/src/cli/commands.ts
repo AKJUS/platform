@@ -22,7 +22,7 @@ import {
   readCliConfig,
   writeCliConfig,
 } from './config';
-import { render, renderWhoami } from './render';
+import { render, renderWhoami, sortTaskResponseForCli } from './render';
 import {
   chooseBoard,
   chooseLabel,
@@ -468,29 +468,27 @@ export async function runCli(argv = process.argv.slice(2)) {
         flags.compact === true
           ? resolveWorkspaceName(workspaceId, await client.workspaces.list())
           : undefined;
-      render(
-        await client.tasks.list(workspaceId, {
-          boardId: getFlag(flags, 'board') || config.currentBoardId,
-          ...getTaskStateFilters(flags),
-          includeCount: flags.count === true,
-          includeDeleted: flags.deleted === true,
-          limit: getFlag(flags, 'limit')
-            ? Number(getFlag(flags, 'limit'))
-            : undefined,
-          listId: getFlag(flags, 'list') || config.currentListId,
-          offset: getFlag(flags, 'offset')
-            ? Number(getFlag(flags, 'offset'))
-            : undefined,
-          q: getFlag(flags, 'q'),
-        }),
-        {
-          compact: flags.compact === true,
-          currentWorkspaceId: workspaceId,
-          group,
-          json,
-          workspaceName,
-        }
-      );
+      const taskResponse = await client.tasks.list(workspaceId, {
+        boardId: getFlag(flags, 'board') || config.currentBoardId,
+        ...getTaskStateFilters(flags),
+        includeCount: flags.count === true,
+        includeDeleted: flags.deleted === true,
+        limit: getFlag(flags, 'limit')
+          ? Number(getFlag(flags, 'limit'))
+          : undefined,
+        listId: getFlag(flags, 'list') || config.currentListId,
+        offset: getFlag(flags, 'offset')
+          ? Number(getFlag(flags, 'offset'))
+          : undefined,
+        q: getFlag(flags, 'q'),
+      });
+      render(sortTaskResponseForCli(taskResponse), {
+        compact: flags.compact === true,
+        currentWorkspaceId: workspaceId,
+        group,
+        json,
+        workspaceName,
+      });
       return;
     }
     if (action === 'use' || action === 'select') {
