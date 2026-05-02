@@ -35,7 +35,7 @@ jobs:
         run: bun install --frozen-lockfile
 
       - name: Build workspace dependencies
-        run: bun run build -F @tuturuuu/types -F @tuturuuu/supabase -F @tuturuuu/masonry
+        run: bun run build -F @tuturuuu/types -F @tuturuuu/supabase -F @tuturuuu/internal-api -F @tuturuuu/masonry
 
       - name: Run type check
         run: bun run type-check

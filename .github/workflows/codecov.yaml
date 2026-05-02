@@ -33,7 +33,7 @@ jobs:
         run: bun install
 
       - name: Build workspace dependencies
-        run: bunx turbo run build --filter=@tuturuuu/types --filter=@tuturuuu/supabase
+        run: bunx turbo run build --filter=@tuturuuu/types --filter=@tuturuuu/supabase --filter=@tuturuuu/internal-api
 
       - name: Run tests
         run: bun vitest run --coverage

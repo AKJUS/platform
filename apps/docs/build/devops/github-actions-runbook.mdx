@@ -1,7 +1,7 @@
 ---
 title: 'GitHub Actions Runbook'
 description: 'How the repository’s automation is organized, gated, and operated.'
-updatedAt: '2026-04-22'
+updatedAt: '2026-05-02'
 ---
 
 GitHub Actions is the primary automation plane for Tuturuuu.
@@ -42,7 +42,8 @@ These workflows:
 
 - install Bun and Node 24
 - install dependencies
-- build selected shared workspace dependencies
+- build selected shared workspace dependencies before Vercel resolves package exports:
+  `@tuturuuu/types`, `@tuturuuu/supabase`, and `@tuturuuu/internal-api`
 - run `vercel pull`
 - run `vercel build`
 - deploy prebuilt artifacts
