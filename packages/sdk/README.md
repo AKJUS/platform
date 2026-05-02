@@ -61,15 +61,18 @@ The package ships a native Bun-powered CLI. `ttr` is the primary command, with
 
 ```bash
 ttr login
-ttr workspaces list
+ttr workspaces
 ttr workspaces use personal
-ttr boards list
-ttr tasks list --board <board-id>
+ttr boards
+ttr tasks --board <board-id>
+ttr tasks --compact
 ttr tasks create --list <list-id> --name "Write release notes"
 ```
 
 Login opens the browser and creates a fresh session specifically labeled for
-the Tuturuuu CLI. For headless environments, use copy-token mode:
+the Tuturuuu CLI. The terminal and browser confirmation page show the signed-in
+account email when the web session exposes it. For headless environments, use
+copy-token mode:
 
 ```bash
 ttr login --copy
@@ -84,8 +87,14 @@ and prints update instructions to stderr when one is available. Use
 to disable this notification.
 
 Task commands cover workspaces, boards, lists, tasks, labels, projects,
-relationships, moves, and bulk task updates. Use `--json` on read commands when
-another agent or script needs machine-readable output.
+relationships, moves, and bulk task updates. Read-oriented groups list by
+default, so `ttr tasks` and `ttr workspaces` are equivalent to their explicit
+`list` forms. `ttr tasks` shows open tasks by default by excluding rows with
+`completed_at` or `closed_at`; use `--all`, `--done`, `--closed`,
+`--include-done`, or `--include-closed` to adjust that filter. Add `--compact`
+to task lists when an agent only needs the task title, task list name, and
+workspace name. Use `--json` on read commands when another agent or script needs
+machine-readable output.
 
 ### Client Initialization
 

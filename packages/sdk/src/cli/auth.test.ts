@@ -13,6 +13,7 @@ describe('CLI auth exchange', () => {
             expires_in: 3600,
             token_type: 'bearer',
           },
+          email: 'ada@example.com',
           sessionCreated: true,
           userId: 'user-1',
           valid: true,

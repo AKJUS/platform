@@ -23,7 +23,7 @@ describe('CLI auth start route', () => {
     vi.mocked(createClient).mockResolvedValue({} as never);
     vi.mocked(resolveAuthenticatedSessionUser).mockResolvedValue({
       authError: null,
-      user: { id: 'user-1' },
+      user: { email: 'ada@example.com', id: 'user-1' },
     } as never);
     vi.mocked(generateCrossAppToken).mockResolvedValue('cli-token');
   });
@@ -36,7 +36,7 @@ describe('CLI auth start route', () => {
     );
 
     expect(response.headers.get('location')).toBe(
-      'http://127.0.0.1:4389/callback?token=cli-token&state=s1'
+      'http://127.0.0.1:4389/callback?token=cli-token&state=s1&email=ada%40example.com'
     );
   });
 
@@ -50,14 +50,27 @@ describe('CLI auth start route', () => {
     expect(response.status).toBe(400);
   });
 
-  it('returns a copy token payload in copy mode', async () => {
+  it('renders a copy token page in copy mode', async () => {
     const response = await GET(
       new NextRequest(
         'https://tuturuuu.com/api/cli/auth/start?state=s1&mode=copy'
       )
     );
 
+    expect(response.headers.get('content-type')).toContain('text/html');
+    await expect(response.text()).resolves.toContain('ada@example.com');
+  });
+
+  it('returns a copy token payload in copy mode for json clients', async () => {
+    const response = await GET(
+      new NextRequest(
+        'https://tuturuuu.com/api/cli/auth/start?state=s1&mode=copy',
+        { headers: { accept: 'application/json' } }
+      )
+    );
+
     await expect(response.json()).resolves.toEqual({
+      email: 'ada@example.com',
       token: 'cli-token',
     });
   });

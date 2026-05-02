@@ -11,9 +11,19 @@ export interface CliTokenExchangeResponse {
     refresh_token: string;
     token_type?: string;
   };
+  email?: string | null;
   sessionCreated: boolean;
   userId: string;
   valid: boolean;
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replace(/&/gu, '&amp;')
+    .replace(/</gu, '&lt;')
+    .replace(/>/gu, '&gt;')
+    .replace(/"/gu, '&quot;')
+    .replace(/'/gu, '&#39;');
 }
 
 export async function exchangeCliToken({
@@ -113,7 +123,7 @@ export function buildLoginUrl({
 }
 
 export async function readTokenFromStdin() {
-  process.stdout.write('Paste the CLI token: ');
+  process.stdout.write('Paste token: ');
   for await (const chunk of process.stdin) {
     const token = chunk.toString().trim();
     if (token) {
@@ -132,6 +142,8 @@ export async function receiveTokenFromBrowser(baseUrl: string) {
       const url = new URL(request.url || '/', 'http://127.0.0.1');
       const token = url.searchParams.get('token');
       const returnedState = url.searchParams.get('state');
+      const email = url.searchParams.get('email');
+      const safeEmail = email ? escapeHtml(email) : null;
 
       if (url.pathname !== '/callback') {
         response.writeHead(404);
@@ -149,7 +161,59 @@ export async function receiveTokenFromBrowser(baseUrl: string) {
 
       response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
       response.end(
-        '<!doctype html><title>Tuturuuu CLI</title><p>CLI login complete. You can close this tab.</p>'
+        `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tuturuuu CLI login complete</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      body {
+        align-items: center;
+        background: Canvas;
+        color: CanvasText;
+        display: grid;
+        margin: 0;
+        min-height: 100vh;
+        padding: 24px;
+      }
+
+      main {
+        margin: 0 auto;
+        max-width: 640px;
+        width: min(100%, 640px);
+      }
+
+      h1 {
+        font-size: 28px;
+        line-height: 1.15;
+        margin: 0 0 12px;
+      }
+
+      p {
+        color: color-mix(in srgb, CanvasText 72%, Canvas);
+        line-height: 1.6;
+        margin: 0;
+      }
+
+      .account {
+        margin-top: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Tuturuuu CLI login complete</h1>
+      <p>Your dedicated CLI session is ready. You can close this tab and return to the terminal.</p>
+      ${safeEmail ? `<p class="account">Signed in as <strong>${safeEmail}</strong>.</p>` : ''}
+    </main>
+  </body>
+</html>`
       );
       resolve(token);
       server.close();
@@ -170,9 +234,10 @@ export async function receiveTokenFromBrowser(baseUrl: string) {
         state,
       });
 
+      process.stdout.write('Opening browser for Tuturuuu CLI login...\n');
       const opened = await openBrowser(loginUrl);
       if (!opened) {
-        process.stdout.write(`Open this URL to continue login:\n${loginUrl}\n`);
+        process.stdout.write(`Open this URL to continue:\n${loginUrl}\n`);
       }
     });
   });

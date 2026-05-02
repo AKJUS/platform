@@ -190,6 +190,8 @@ export async function GET(
           : 'none';
     const includeCount = url.searchParams.get('includeCount') === 'true';
     const assignedToMe = url.searchParams.get('assignedToMe') === 'true';
+    const completedMode = url.searchParams.get('completed');
+    const closedMode = url.searchParams.get('closed');
 
     const forTimeTracking = url.searchParams.get('forTimeTracking') === 'true';
 
@@ -380,6 +382,18 @@ export async function GET(
       query = query
         .is('closed_at', null)
         .in('task_lists.status', ['not_started', 'active']);
+    }
+
+    if (completedMode === 'exclude') {
+      query = query.is('completed_at', null);
+    } else if (completedMode === 'only') {
+      query = query.not('completed_at', 'is', null) as typeof query;
+    }
+
+    if (closedMode === 'exclude') {
+      query = query.is('closed_at', null);
+    } else if (closedMode === 'only') {
+      query = query.not('closed_at', 'is', null) as typeof query;
     }
 
     if (assignedToMe) {

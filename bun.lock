@@ -930,7 +930,7 @@
     },
     "packages/internal-api": {
       "name": "@tuturuuu/internal-api",
-      "version": "0.0.1",
+      "version": "0.0.2",
       "dependencies": {
         "@tuturuuu/types": "0.2.4",
       },
@@ -1042,14 +1042,14 @@
     },
     "packages/sdk": {
       "name": "tuturuuu",
-      "version": "0.3.1",
+      "version": "0.3.2",
       "bin": {
         "ttr": "./dist/cli/index.js",
         "tuturuuu": "./dist/cli/index.js",
         "tutur3u": "./dist/cli/index.js",
       },
       "dependencies": {
-        "@tuturuuu/internal-api": "0.0.1",
+        "@tuturuuu/internal-api": "0.0.2",
         "@tuturuuu/types": "0.2.4",
         "zod": "^4.4.1",
       },

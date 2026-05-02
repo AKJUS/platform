@@ -83,6 +83,8 @@ export interface ListWorkspaceTasksOptions {
   identifier?: string;
   limit?: number;
   offset?: number;
+  completed?: 'exclude' | 'only';
+  closed?: 'exclude' | 'only';
   includeRelationshipSummary?: boolean;
   includeDeleted?: boolean | 'only';
   includeCount?: boolean;
@@ -602,6 +604,8 @@ export async function listWorkspaceTasks(
         identifier: options?.identifier,
         limit: options?.limit,
         offset: options?.offset,
+        completed: options?.completed,
+        closed: options?.closed,
         includeRelationshipSummary: options?.includeRelationshipSummary,
         includeDeleted:
           options?.includeDeleted === 'only'

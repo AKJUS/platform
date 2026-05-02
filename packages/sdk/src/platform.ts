@@ -43,6 +43,10 @@ import {
   updateWorkspaceTaskList,
   type WorkspaceTaskUpdatePayload,
 } from '@tuturuuu/internal-api/tasks';
+import {
+  getCurrentUserDefaultWorkspace,
+  getCurrentUserProfile,
+} from '@tuturuuu/internal-api/users';
 import { listWorkspaces } from '@tuturuuu/internal-api/workspaces';
 import { refreshCliSession } from './cli/auth';
 import { type CliSession, normalizeBaseUrl } from './cli/config';
@@ -64,6 +68,18 @@ export class WorkspacesClient {
 
   list() {
     return listWorkspaces(this.client.getClientOptions());
+  }
+}
+
+export class UsersClient {
+  constructor(private readonly client: TuturuuuUserClient) {}
+
+  defaultWorkspace() {
+    return getCurrentUserDefaultWorkspace(this.client.getClientOptions());
+  }
+
+  profile() {
+    return getCurrentUserProfile(this.client.getClientOptions());
   }
 }
 
@@ -363,6 +379,7 @@ export class TuturuuuUserClient {
   private refreshToken?: string;
 
   readonly tasks: TasksClient;
+  readonly users: UsersClient;
   readonly workspaces: WorkspacesClient;
 
   constructor(config: TuturuuuUserClientConfig) {
@@ -372,6 +389,7 @@ export class TuturuuuUserClient {
     this.onSessionRefresh = config.onSessionRefresh;
     this.refreshToken = config.refreshToken;
     this.tasks = new TasksClient(this);
+    this.users = new UsersClient(this);
     this.workspaces = new WorkspacesClient(this);
   }
 

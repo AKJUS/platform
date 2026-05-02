@@ -1,6 +1,6 @@
 {
   "name": "tuturuuu",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Official TypeScript/JavaScript SDK for the Tuturuuu platform",
   "license": "MIT",
   "author": "Tuturuuu",
@@ -88,7 +88,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@tuturuuu/internal-api": "0.0.1",
+    "@tuturuuu/internal-api": "0.0.2",
     "@tuturuuu/types": "0.2.4",
     "zod": "^4.4.1"
   },
