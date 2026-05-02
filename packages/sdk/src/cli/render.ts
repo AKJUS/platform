@@ -66,6 +66,133 @@ function padVisible(value: string, width: number) {
   return `${value}${' '.repeat(Math.max(0, width - visibleLength(value)))}`;
 }
 
+function terminalWidth() {
+  const columns = process.stdout.columns;
+  return typeof columns === 'number' && Number.isFinite(columns) && columns > 0
+    ? Math.max(40, Math.floor(columns))
+    : 120;
+}
+
+function tableWidth(widths: number[]) {
+  return (
+    widths.reduce((total, width) => total + width, 0) + widths.length * 3 + 1
+  );
+}
+
+function isFlexibleColumnName(name: string) {
+  return /description|name|title/i.test(name);
+}
+
+function fitWidthsToTerminal(widths: number[], columnNames: string[]) {
+  const maxWidth = terminalWidth();
+  if (tableWidth(widths) <= maxWidth) return widths;
+
+  const maxContentWidth = Math.max(
+    widths.length,
+    maxWidth - (widths.length * 3 + 1)
+  );
+  const minWidths = widths.map((width, index) =>
+    index === 0 ? width : Math.min(width, 3)
+  );
+  const nextWidths = [...minWidths];
+  let remainingWidth =
+    maxContentWidth - minWidths.reduce((total, width) => total + width, 0);
+
+  const allocate = (index: number, limit = Number.POSITIVE_INFINITY) => {
+    if (remainingWidth <= 0) return;
+    const desiredWidth = widths[index] ?? 0;
+    const currentWidth = nextWidths[index] ?? 0;
+    const extraWidth = Math.min(
+      desiredWidth - currentWidth,
+      limit,
+      remainingWidth
+    );
+    if (extraWidth <= 0) return;
+    nextWidths[index] = currentWidth + extraWidth;
+    remainingWidth -= extraWidth;
+  };
+
+  const flexibleIndexes = columnNames
+    .map((name, index) => (isFlexibleColumnName(name) ? index : -1))
+    .filter((index) => index > 0);
+
+  for (const index of flexibleIndexes) {
+    allocate(
+      index,
+      Math.max(0, Math.floor(maxWidth * 0.45) - (nextWidths[index] ?? 0))
+    );
+  }
+
+  while (remainingWidth > 0) {
+    const candidates = widths
+      .map((width, index) => ({
+        index,
+        remaining: width - (nextWidths[index] ?? 0),
+      }))
+      .filter((candidate) => candidate.remaining > 0)
+      .sort((left, right) => {
+        const leftFlexible = flexibleIndexes.includes(left.index);
+        const rightFlexible = flexibleIndexes.includes(right.index);
+        if (leftFlexible !== rightFlexible) return leftFlexible ? -1 : 1;
+        return right.remaining - left.remaining;
+      });
+
+    const candidate = candidates[0];
+    if (!candidate) break;
+    allocate(candidate.index, 1);
+  }
+
+  return nextWidths;
+}
+
+function splitLongToken(value: string, width: number) {
+  const segments: string[] = [];
+  let remaining = value;
+
+  while (visibleLength(remaining) > width) {
+    segments.push(remaining.slice(0, width));
+    remaining = remaining.slice(width);
+  }
+
+  if (remaining) segments.push(remaining);
+  return segments;
+}
+
+function wrapCell(value: string, width: number) {
+  const normalized = stripAnsi(value).replace(/\s+/g, ' ').trim();
+  if (!normalized) return [''];
+
+  const lines: string[] = [];
+  let currentLine = '';
+
+  for (const word of normalized.split(' ')) {
+    if (visibleLength(word) > width) {
+      if (currentLine) {
+        lines.push(currentLine);
+        currentLine = '';
+      }
+      lines.push(...splitLongToken(word, width));
+      continue;
+    }
+
+    if (!currentLine) {
+      currentLine = word;
+      continue;
+    }
+
+    if (visibleLength(`${currentLine} ${word}`) <= width) {
+      currentLine = `${currentLine} ${word}`;
+      continue;
+    }
+
+    lines.push(currentLine);
+    currentLine = word;
+  }
+
+  if (currentLine) lines.push(currentLine);
+  return lines.length > 0 ? lines : [''];
+}
+
 function asTimestamp(value: unknown) {
   if (typeof value !== 'string' || !value.trim())
     return Number.POSITIVE_INFINITY;
@@ -245,6 +372,7 @@ function formatColorSwatch(colorValue: string) {
 }
 
 function formatListName(name: string, colorValue: string) {
+  if (!name) return '';
   const swatch = formatColorSwatch(colorValue);
   return swatch ? `${swatch} ${colorizeConfigured(name, colorValue)}` : name;
 }
@@ -263,41 +391,83 @@ function renderTable(
   );
   const tableRows = rows.map((row, index) => ({
     index: String(index + 1),
-    cells: columns.map((column) => {
-      const value = String(row[column] ?? '');
-      return options.styleCell?.({ column, row, value }) ?? value;
-    }),
+    row,
+    cells: columns.map((column) => String(row[column] ?? '')),
   }));
 
-  const widths = [
-    Math.max(String(rows.length).length, 1),
-    ...columns.map((column, columnIndex) =>
-      Math.max(
-        visibleLength(column),
-        ...tableRows.map((row) => visibleLength(row.cells[columnIndex] ?? ''))
-      )
-    ),
-  ];
+  const columnNames = ['', ...columns];
+  const widths = fitWidthsToTerminal(
+    [
+      Math.max(String(rows.length).length, 1),
+      ...columns.map((column, columnIndex) =>
+        Math.max(
+          visibleLength(column),
+          ...tableRows.map((tableRow) => {
+            const value = tableRow.cells[columnIndex] ?? '';
+            return visibleLength(
+              options.styleCell?.({
+                column,
+                row: tableRow.row,
+                value,
+              }) ?? value
+            );
+          })
+        )
+      ),
+    ],
+    columnNames
+  );
 
-  const separator = color.dim(
-    `+-${widths.map((width) => '-'.repeat(width)).join('-+-')}-+`
+  const topSeparator = color.dim(
+    `┌─${widths.map((width) => '─'.repeat(width)).join('─┬─')}─┐`
+  );
+  const middleSeparator = color.dim(
+    `├─${widths.map((width) => '─'.repeat(width)).join('─┼─')}─┤`
+  );
+  const bottomSeparator = color.dim(
+    `└─${widths.map((width) => '─'.repeat(width)).join('─┴─')}─┘`
   );
   const formatRow = (cells: string[]) =>
-    `${color.dim('|')} ${cells
+    `${color.dim('│')} ${cells
       .map((cell, index) => padVisible(cell, widths[index] ?? 0))
-      .join(` ${color.dim('|')} `)} ${color.dim('|')}`;
+      .join(` ${color.dim('│')} `)} ${color.dim('│')}`;
 
-  process.stdout.write(`${separator}\n`);
-  process.stdout.write(
-    `${formatRow(['', ...columns.map((column) => color.bold(column))])}\n`
-  );
-  process.stdout.write(`${separator}\n`);
-  for (const row of tableRows) {
+  process.stdout.write(`${topSeparator}\n`);
+  for (const headerCells of wrapTableRow(['', ...columns])) {
     process.stdout.write(
-      `${formatRow([color.dim(row.index), ...row.cells])}\n`
+      `${formatRow(headerCells.map((cell) => (cell ? color.bold(cell) : '')))}\n`
     );
   }
-  process.stdout.write(`${separator}\n`);
+  process.stdout.write(`${middleSeparator}\n`);
+  for (const row of tableRows) {
+    const rawCells = [row.index, ...row.cells];
+    for (const [lineIndex, cells] of wrapTableRow(rawCells).entries()) {
+      process.stdout.write(
+        `${formatRow(
+          cells.map((cell, cellIndex) => {
+            if (cellIndex === 0) return lineIndex === 0 ? color.dim(cell) : '';
+
+            const column = columns[cellIndex - 1] ?? '';
+            return (
+              options.styleCell?.({ column, row: row.row, value: cell }) ?? cell
+            );
+          })
+        )}\n`
+      );
+    }
+  }
+  process.stdout.write(`${bottomSeparator}\n`);
+
+  function wrapTableRow(cells: string[]) {
+    const wrappedCells = cells.map((cell, index) =>
+      wrapCell(cell, widths[index] ?? 1)
+    );
+    const rowHeight = Math.max(...wrappedCells.map((cell) => cell.length));
+
+    return Array.from({ length: rowHeight }, (_, lineIndex) =>
+      wrappedCells.map((cell) => cell[lineIndex] ?? '')
+    );
+  }
 }
 
 function styleTier(value: string) {
@@ -310,7 +480,7 @@ function styleTier(value: string) {
 
 function styleTaskCell({ column, row, value }: Parameters<TableCellStyle>[0]) {
   if (column === 'Key') return color.cyan(value);
-  if (column === 'List')
+  if (column === 'List' && value)
     return formatListName(value, asString(row.__ListColor));
   if (column === 'Status') {
     if (value === 'open') return color.green(value);
@@ -350,7 +520,8 @@ function styleListCell({ column, row, value }: Parameters<TableCellStyle>[0]) {
     if (value === 'active') return color.green(value);
     if (value === 'not_started') return color.yellow(value);
   }
-  if (column === 'Name') return formatListName(value, asString(row.__Color));
+  if (column === 'Name' && value)
+    return formatListName(value, asString(row.__Color));
   if (column === 'Color' && value)
     return `${formatColorSwatch(value)} ${value}`;
   return value;

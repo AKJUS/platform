@@ -183,8 +183,10 @@ default, so `ttr tasks` and `ttr workspaces` are equivalent to their explicit
 `--include-done`, or `--include-closed` to adjust that filter. Add `--compact`
 to task lists when an agent only needs the task title, task list name, and
 workspace name. Task lists are ordered by priority and due date, with prettier
-due dates and configured task-list colors in table output. Add `--json` when
-another agent or script needs machine-readable output. `tasks create`, `boards
+due dates and configured task-list colors in table output. Human-readable
+tables use smooth box borders, respect the terminal width, and wrap long cell
+content so task titles stay readable instead of overflowing narrow panes. Add
+`--json` when another agent or script needs machine-readable output. `tasks create`, `boards
 create`, and `lists create` accept a quoted positional name as a shorthand for
 `--name`. Task CRUD accepts either the task UUID or the board identifier shown in
 the UI, such as `VHP-12`; prefixed identifiers resolve within the selected

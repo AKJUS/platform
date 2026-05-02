@@ -180,4 +180,53 @@ describe('CLI rendering', () => {
     expect(output).toContain('■ Upcoming');
     expect(output).toContain('■ PURPLE');
   });
+
+  it('wraps tables to the available terminal width', () => {
+    const columnsDescriptor = Object.getOwnPropertyDescriptor(
+      process.stdout,
+      'columns'
+    );
+    Object.defineProperty(process.stdout, 'columns', {
+      configurable: true,
+      value: 60,
+    });
+    const write = vi
+      .spyOn(process.stdout, 'write')
+      .mockImplementation(() => true);
+
+    try {
+      render(
+        {
+          tasks: [
+            {
+              board_name: 'Tasks',
+              display_number: 86,
+              end_date: '2026-05-04T23:59:59.000+07:00',
+              id: 'task-1',
+              name: 'Show separate FAB for create task projects and task initiatives immediately',
+              priority: 'normal',
+              task_lists: { name: 'Upcoming' },
+              ticket_prefix: 'VHP',
+            },
+          ],
+        },
+        { group: 'tasks' }
+      );
+    } finally {
+      if (columnsDescriptor) {
+        Object.defineProperty(process.stdout, 'columns', columnsDescriptor);
+      } else {
+        Reflect.deleteProperty(process.stdout, 'columns');
+      }
+    }
+
+    const output = write.mock.calls.map(([value]) => String(value)).join('');
+    const lines = output.trimEnd().split('\n');
+    expect(output).toContain('┌');
+    expect(output).toContain('immediately');
+    const ansiPattern = new RegExp(['\\u001B', '\\[[0-9;]*m'].join(''), 'g');
+    expect(
+      lines.every((line) => line.replace(ansiPattern, '').length <= 60)
+    ).toBe(true);
+  });
 });
