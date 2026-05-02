@@ -13,7 +13,11 @@ test('internal-api package exists with exported client entrypoint', () => {
   const packageJson = JSON.parse(read('packages/internal-api/package.json'));
 
   assert.equal(packageJson.name, '@tuturuuu/internal-api');
-  assert.equal(packageJson.exports['./client'], './src/client.ts');
+  assert.deepEqual(packageJson.exports['./client'], {
+    types: './dist/client.d.ts',
+    import: './dist/client.js',
+    require: './dist/client.js',
+  });
 });
 
 test('migrated shared hooks no longer import the deprecated Supabase browser client', () => {

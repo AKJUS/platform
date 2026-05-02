@@ -932,7 +932,7 @@
       "name": "@tuturuuu/internal-api",
       "version": "0.0.1",
       "dependencies": {
-        "@tuturuuu/types": "workspace:*",
+        "@tuturuuu/types": "0.2.4",
       },
       "devDependencies": {
         "@tuturuuu/typescript-config": "workspace:*",
@@ -1049,8 +1049,8 @@
         "tutur3u": "./dist/cli/index.js",
       },
       "dependencies": {
-        "@tuturuuu/internal-api": "workspace:*",
-        "@tuturuuu/types": "0.2.3",
+        "@tuturuuu/internal-api": "0.0.1",
+        "@tuturuuu/types": "0.2.4",
         "zod": "^4.4.1",
       },
       "devDependencies": {
@@ -1134,7 +1134,7 @@
     },
     "packages/types": {
       "name": "@tuturuuu/types",
-      "version": "0.2.3",
+      "version": "0.2.4",
       "dependencies": {
         "@tiptap/react": "3.22.5",
         "react": "^19.2.5",

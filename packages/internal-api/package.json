@@ -2,37 +2,131 @@
   "name": "@tuturuuu/internal-api",
   "version": "0.0.1",
   "license": "MIT",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": ["dist", "README.md"],
   "publishConfig": {
     "access": "public"
   },
   "scripts": {
+    "build": "tsc --project tsconfig.build.json",
+    "clean": "rm -rf dist .turbo tsconfig.build.tsbuildinfo",
+    "prepack": "bun run clean && bun run build",
     "test": "vitest run",
     "test:watch": "vitest",
     "type-check": "tsgo --project tsconfig.typecheck.json"
   },
   "exports": {
-    ".": "./src/index.ts",
-    "./ai": "./src/ai.ts",
-    "./auth": "./src/auth.ts",
-    "./client": "./src/client.ts",
-    "./calendar": "./src/calendar.ts",
-    "./education": "./src/education.ts",
-    "./finance": "./src/finance.ts",
-    "./infrastructure": "./src/infrastructure.ts",
-    "./mail": "./src/mail.ts",
-    "./promotions": "./src/promotions.ts",
-    "./reports": "./src/reports.ts",
-    "./roles": "./src/roles.ts",
-    "./settings": "./src/settings.ts",
-    "./storage": "./src/storage.ts",
-    "./tasks": "./src/tasks.ts",
-    "./tasks-scheduling": "./src/tasks-scheduling.ts",
-    "./templates": "./src/templates.ts",
-    "./time-tracking": "./src/time-tracking.ts",
-    "./users": "./src/users.ts",
-    "./users-feedbacks": "./src/users-feedbacks.ts",
-    "./workspace-configs": "./src/workspace-configs.ts",
-    "./workspaces": "./src/workspaces.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.js"
+    },
+    "./ai": {
+      "types": "./dist/ai.d.ts",
+      "import": "./dist/ai.js",
+      "require": "./dist/ai.js"
+    },
+    "./auth": {
+      "types": "./dist/auth.d.ts",
+      "import": "./dist/auth.js",
+      "require": "./dist/auth.js"
+    },
+    "./calendar": {
+      "types": "./dist/calendar.d.ts",
+      "import": "./dist/calendar.js",
+      "require": "./dist/calendar.js"
+    },
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "import": "./dist/client.js",
+      "require": "./dist/client.js"
+    },
+    "./education": {
+      "types": "./dist/education.d.ts",
+      "import": "./dist/education.js",
+      "require": "./dist/education.js"
+    },
+    "./finance": {
+      "types": "./dist/finance.d.ts",
+      "import": "./dist/finance.js",
+      "require": "./dist/finance.js"
+    },
+    "./infrastructure": {
+      "types": "./dist/infrastructure.d.ts",
+      "import": "./dist/infrastructure.js",
+      "require": "./dist/infrastructure.js"
+    },
+    "./mail": {
+      "types": "./dist/mail.d.ts",
+      "import": "./dist/mail.js",
+      "require": "./dist/mail.js"
+    },
+    "./promotions": {
+      "types": "./dist/promotions.d.ts",
+      "import": "./dist/promotions.js",
+      "require": "./dist/promotions.js"
+    },
+    "./reports": {
+      "types": "./dist/reports.d.ts",
+      "import": "./dist/reports.js",
+      "require": "./dist/reports.js"
+    },
+    "./roles": {
+      "types": "./dist/roles.d.ts",
+      "import": "./dist/roles.js",
+      "require": "./dist/roles.js"
+    },
+    "./settings": {
+      "types": "./dist/settings.d.ts",
+      "import": "./dist/settings.js",
+      "require": "./dist/settings.js"
+    },
+    "./storage": {
+      "types": "./dist/storage.d.ts",
+      "import": "./dist/storage.js",
+      "require": "./dist/storage.js"
+    },
+    "./tasks": {
+      "types": "./dist/tasks.d.ts",
+      "import": "./dist/tasks.js",
+      "require": "./dist/tasks.js"
+    },
+    "./tasks-scheduling": {
+      "types": "./dist/tasks-scheduling.d.ts",
+      "import": "./dist/tasks-scheduling.js",
+      "require": "./dist/tasks-scheduling.js"
+    },
+    "./templates": {
+      "types": "./dist/templates.d.ts",
+      "import": "./dist/templates.js",
+      "require": "./dist/templates.js"
+    },
+    "./time-tracking": {
+      "types": "./dist/time-tracking.d.ts",
+      "import": "./dist/time-tracking.js",
+      "require": "./dist/time-tracking.js"
+    },
+    "./users": {
+      "types": "./dist/users.d.ts",
+      "import": "./dist/users.js",
+      "require": "./dist/users.js"
+    },
+    "./users-feedbacks": {
+      "types": "./dist/users-feedbacks.d.ts",
+      "import": "./dist/users-feedbacks.js",
+      "require": "./dist/users-feedbacks.js"
+    },
+    "./workspace-configs": {
+      "types": "./dist/workspace-configs.d.ts",
+      "import": "./dist/workspace-configs.js",
+      "require": "./dist/workspace-configs.js"
+    },
+    "./workspaces": {
+      "types": "./dist/workspaces.d.ts",
+      "import": "./dist/workspaces.js",
+      "require": "./dist/workspaces.js"
+    }
   },
   "devDependencies": {
     "@tuturuuu/typescript-config": "workspace:*",
@@ -42,6 +136,6 @@
   },
   "packageManager": "bun@1.3.13",
   "dependencies": {
-    "@tuturuuu/types": "workspace:*"
+    "@tuturuuu/types": "0.2.4"
   }
 }
