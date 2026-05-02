@@ -60,8 +60,11 @@ The package ships a native Bun-powered CLI. `ttr` is the primary command, with
 `tuturuuu` and `tutur3u` as aliases.
 
 ```bash
+ttr --help
 ttr login
+ttr upgrade
 ttr --version
+ttr whoami
 ttr workspaces
 ttr workspaces use
 ttr boards
@@ -72,6 +75,9 @@ ttr tasks --board <board-id>
 ttr tasks --compact
 ttr tasks create "Add Tuturuuu CLI"
 ttr tasks create --list <list-id> --name "Write release notes"
+ttr tasks done <task-id>
+ttr tasks close <task-id>
+ttr tasks update <task-id> --json-payload '{"completed":true}'
 ```
 
 Login opens the browser and creates a fresh session specifically labeled for
@@ -89,9 +95,35 @@ workspace after login and when no workspace has been selected. Set
 `TUTURUUU_CONFIG` to use a custom config file, or
 `ttr config set-base-url <url>` to target a non-production Tuturuuu instance.
 Once per day, the CLI checks the npm registry for a newer `tuturuuu` release
-and prints update instructions to stderr when one is available. Use
+Once per hour, the CLI checks the npm registry for a newer `tuturuuu` release
+and prints update instructions to stderr when one is available. Use `ttr
+upgrade` to run `bun i -g tuturuuu`. Use
 `--no-update-check` for a single command or set `TUTURUUU_DISABLE_UPDATE_CHECK=1`
 to disable this notification.
+
+Scoped help is available without login, saved config reads, or update checks:
+
+```bash
+ttr --help
+ttr upgrade --help
+ttr tasks --help
+ttr tasks create --help
+ttr tasks done --help
+ttr tasks close --help
+ttr tasks update --help
+ttr workspaces --help
+ttr help tasks create
+```
+
+Use `ttr whoami` to inspect login state, account email, selected workspace,
+selected board/list/task/label/project ids, base URL, config path, and the
+`Tuturuuu CLI` session label. For agents, prefer parseable output:
+
+```bash
+ttr whoami --json
+ttr workspaces --json --no-update-check
+ttr tasks --json --no-update-check
+```
 
 Task commands cover workspaces, boards, lists, tasks, labels, projects,
 relationships, moves, and bulk task updates. Read-oriented groups list by
@@ -106,7 +138,28 @@ script needs machine-readable output. `tasks create`, `boards create`, and
 `lists create` accept a quoted positional name as a shorthand for `--name`.
 Marking a task completed stamps `completed_at` so Tuturuuu moves it to the first
 `done` list; pass `--list <done-list-id>` or include `list_id` in
-`--json-payload` to choose another done destination.
+`--json-payload` to choose another done destination. Use `ttr tasks done
+[task-id]` as the quick shortcut. Use `ttr tasks close [task-id]` to stamp
+`closed_at`; pass `--list <closed-list-id>` to choose a specific closed
+destination.
+
+Common task examples:
+
+```bash
+ttr tasks
+ttr tasks --compact
+ttr tasks --json --no-update-check
+ttr tasks create "Add Tuturuuu CLI"
+ttr tasks create --list <list-id> --name "Write release notes"
+ttr tasks done <task-id>
+ttr tasks done <task-id> --list <done-list-id>
+ttr tasks close <task-id>
+ttr tasks close <task-id> --list <closed-list-id>
+ttr tasks move
+ttr tasks move <task-id> --list <done-list-id>
+ttr tasks update <task-id> --json-payload '{"completed":true}'
+ttr tasks update <task-id> --list <done-list-id> --json-payload '{"completed":true}'
+```
 
 For terminal workflows, omit an id from `use`, `get`, `update`, `delete`, or
 `move` commands to pick a workspace, board, list, task, label, or project with

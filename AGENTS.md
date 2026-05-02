@@ -86,6 +86,18 @@ Foundational mandates here take absolute precedence. **NEVER** invent ad-hoc beh
 - **UI Package**: To add a new package to `packages/ui`: `cd packages/ui && bun add <package>`.
 - **Constraint**: **NEVER** manually edit `package.json` to add a new package. Use the `bun add` command to ensure `bun.lock` remains consistent.
 
+### 4.6 Tuturuuu CLI (`ttr`)
+
+- **Invoke**: Use `ttr` for the globally installed CLI. Inside this monorepo, `bun ttr ...` runs the repo-local SDK script; `bun ttr login` is a package-script lookup, not a global CLI install command.
+- **Install/Repair**: If Bun is missing and the user asks for autonomous setup, install Bun with `curl -fsSL https://bun.sh/install | bash` on macOS/Linux or `powershell -c "irm bun.sh/install.ps1 | iex"` on Windows, then run `bun i -g tuturuuu`.
+- **Login**: Prefer `ttr login` for browser login. Use `ttr login --copy` for headless environments. The session must be designated `Tuturuuu CLI`, show the account email when available, and default to the `personal` workspace.
+- **Discovery**: Use `ttr whoami`, `ttr workspaces`, `ttr boards`, `ttr lists`, and `ttr tasks` before guessing workspace, board, list, or task ids. Use `ttr tasks --json --no-update-check` for agent-readable task data.
+- **Scoped Help**: Prefer scoped help before unfamiliar operations: `ttr --help`, `ttr tasks --help`, `ttr tasks create --help`, `ttr tasks update --help`, `ttr workspaces --help`, or `ttr help tasks create`.
+- **Task Defaults**: `ttr tasks` lists open tasks by default. Use `--all`, `--done`, `--closed`, `--include-done`, `--include-closed`, `--compact`, `--json`, and `--no-update-check` intentionally.
+- **Mutation Examples**: Create with `ttr tasks create "Add Tuturuuu CLI"` or `ttr tasks create --list <list-id> --name "Write release notes"`. Mark done with `ttr tasks done <task-id>`; pass `--list <done-list-id>` when a specific done destination is required. Mark closed with `ttr tasks close <task-id>` or `ttr tasks close <task-id> --list <closed-list-id>`. Use `ttr tasks update <task-id> --json-payload '{"completed":true}'` only when a raw update payload is needed.
+- **Interactive Selection**: In a TTY, omit ids on `use`, `get`, `update`, `delete`, or `move` to select with up/down or `j`/`k`, then space/enter. Use explicit ids and `--json` for scripts and non-interactive agents.
+- **Version Checks**: Use `ttr -v` or `ttr --version` to print the installed version. The CLI checks for updates at most once per hour, may print update notices to stderr, and can be upgraded with `ttr upgrade`. Keep stdout JSON clean for machine-readable commands.
+
 ## 5. Engineering Standards
 
 ### 5.1 Data Fetching (TanStack Query)

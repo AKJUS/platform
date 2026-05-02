@@ -17,6 +17,7 @@ Before changing CLI code, inspect the owning surfaces:
 - `packages/internal-api/src/*` for shared route helpers used by the CLI.
 - `apps/web/src/app/api/cli/auth/*` for browser login and token exchange.
 - `apps/docs/reference/packages/sdk.mdx` and `packages/sdk/README.md` for durable usage documentation.
+- `plugins/tuturuuu/skills/tuturuuu-cli/references/cli-workflows.md` for detailed agent-facing examples.
 
 ## Install Or Repair The CLI
 
@@ -39,10 +40,33 @@ ttr help
 ttr --version
 ```
 
+Use `ttr upgrade` to update an existing global install. It should run
+`bun i -g tuturuuu`.
+
 Inside the Tuturuuu monorepo root, `bun ttr ...` runs the local workspace
 script. Outside the repo or after global installation, use `ttr ...` directly.
 Do not diagnose `bun ttr login` as a registry install problem; Bun treats that
 form as a package script lookup.
+
+## Scoped Help
+
+The CLI should support scoped help without requiring login, reading saved config,
+or checking npm for updates. Keep these forms equivalent where possible:
+
+```bash
+ttr --help
+ttr upgrade --help
+ttr tasks --help
+ttr tasks create --help
+ttr tasks done --help
+ttr tasks close --help
+ttr tasks update --help
+ttr help tasks create
+```
+
+When adding commands, add help in the same patch. Global help should orient the
+command map, group help should explain defaults and shared flags, and action
+help should show concrete examples plus required payload flags.
 
 ## Login UX
 
@@ -110,11 +134,30 @@ That lets Tuturuuu move the task to the first `done` list by default. Preserve
 an explicit done destination when the user provides `--list <id>` or `list_id`
 inside `--json-payload`.
 
+Prefer quick shortcuts for common status changes:
+
+```bash
+ttr tasks done <task-id>
+ttr tasks done <task-id> --list <done-list-id>
+ttr tasks close <task-id>
+ttr tasks close <task-id> --list <closed-list-id>
+```
+
+`ttr tasks done` should set `completed: true`, stamp `completed_at`, and use the
+first `done` list on the task board unless an explicit destination is provided.
+`ttr tasks close` should stamp `closed_at`, clear completion, and use the first
+`closed` list on the task board when available.
+
+Use `ttr tasks --json --no-update-check` for agent-readable task discovery. It
+keeps stdout parseable and avoids update-check chatter while the agent decides
+which tasks to read or mutate.
+
 ## Verification
 
 For CLI changes, run focused checks first:
 
 ```bash
+bun --cwd packages/sdk test src/cli/commands.test.ts
 bun --cwd packages/sdk test src/cli/auth.test.ts src/cli/browser.test.ts src/cli/package.test.ts
 bun --cwd packages/sdk type-check
 ```

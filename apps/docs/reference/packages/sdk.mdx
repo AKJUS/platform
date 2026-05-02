@@ -89,8 +89,11 @@ The SDK package includes a native Bun-powered CLI. `ttr` is the primary command,
 and `tuturuuu` plus `tutur3u` are aliases for the same binary.
 
 ```bash
+ttr --help
 ttr login
+ttr upgrade
 ttr --version
+ttr whoami
 ttr workspaces
 ttr workspaces use
 ttr boards
@@ -101,6 +104,9 @@ ttr tasks --board <board-id>
 ttr tasks --compact
 ttr tasks create "Add Tuturuuu CLI"
 ttr tasks create --list <list-id> --name "Write release notes"
+ttr tasks done <task-id>
+ttr tasks close <task-id>
+ttr tasks update <task-id> --json-payload '{"completed":true}'
 ```
 
 `ttr login` opens the browser and creates a fresh Supabase session specifically
@@ -125,10 +131,49 @@ and paste it into the terminal. Set `TUTURUUU_CONFIG` to use a custom config
 file, or use `ttr config set-base-url <url>` to target a local or staging web
 origin.
 
-The CLI checks the npm registry at most once per day and writes a notice to
+The CLI checks the npm registry at most once per hour and writes a notice to
 stderr when a newer `tuturuuu` version is available. This keeps `--json` output
-machine-readable for agents. Use `--no-update-check` on a single command, or set
-`TUTURUUU_DISABLE_UPDATE_CHECK=1`, to disable the check.
+machine-readable for agents. Use `ttr upgrade` to run `bun i -g tuturuuu`. Use
+`--no-update-check` on a single command, or set `TUTURUUU_DISABLE_UPDATE_CHECK=1`,
+to disable the check.
+
+### Scoped Help
+
+Use scoped help when you know the area but not the exact flags. Help commands do
+not require login, do not read the saved config, and do not run the update check.
+
+```bash
+ttr --help
+ttr upgrade --help
+ttr tasks --help
+ttr tasks create --help
+ttr tasks done --help
+ttr tasks close --help
+ttr tasks update --help
+ttr workspaces --help
+ttr help tasks create
+```
+
+Global help shows the command map. Group help explains defaults and shared
+flags. Action help focuses on a single operation, including required ids,
+payload flags, and practical examples.
+
+### Agent-Friendly Discovery
+
+For autonomous engineering workflows, start by discovering the current account
+and selected context:
+
+```bash
+ttr whoami
+ttr whoami --json
+ttr workspaces --json --no-update-check
+ttr tasks --json --no-update-check
+```
+
+`ttr whoami` shows login state, account email, current workspace, selected
+board/list/task/label/project ids, base URL, config path, and the `Tuturuuu CLI`
+session label. Use `--json --no-update-check` when another agent is going to
+parse stdout.
 
 The v1 task surface covers workspaces, boards, lists, tasks, labels, projects,
 relationships, moves, and bulk task updates. Read-oriented groups list by
@@ -143,7 +188,52 @@ machine-readable output. `tasks create`, `boards create`, and `lists create`
 accept a quoted positional name as a shorthand for `--name`. Marking a task
 completed stamps `completed_at` so Tuturuuu moves it to the first `done` list;
 pass `--list <done-list-id>` or include `list_id` in `--json-payload` to choose
-another done destination.
+another done destination. Use `ttr tasks done [task-id]` as the quick shortcut.
+Use `ttr tasks close [task-id]` to stamp `closed_at`; pass `--list
+<closed-list-id>` to choose a specific closed destination.
+
+Common task workflows:
+
+```bash
+# List open tasks in the selected workspace.
+ttr tasks
+
+# Compact human output: task title, task list, and workspace.
+ttr tasks --compact
+
+# Machine-readable output for agents.
+ttr tasks --json --no-update-check
+
+# Create from the selected board/list, prompting when needed.
+ttr tasks create "Add Tuturuuu CLI"
+
+# Create directly into a known list.
+ttr tasks create --list <list-id> --name "Write release notes"
+
+# Move with the keyboard picker.
+ttr tasks move
+
+# Move directly to a done list.
+ttr tasks move <task-id> --list <done-list-id>
+
+# Quick mark done and use the first done list on the task board when available.
+ttr tasks done <task-id>
+
+# Quick mark done with an explicit done destination.
+ttr tasks done <task-id> --list <done-list-id>
+
+# Quick mark closed and use the first closed list on the task board when available.
+ttr tasks close <task-id>
+
+# Quick mark closed with an explicit closed destination.
+ttr tasks close <task-id> --list <closed-list-id>
+
+# Mark completed and let Tuturuuu choose the default done list.
+ttr tasks update <task-id> --json-payload '{"completed":true}'
+
+# Mark completed and choose a specific done destination.
+ttr tasks update <task-id> --list <done-list-id> --json-payload '{"completed":true}'
+```
 
 For terminal workflows, omit an id from `use`, `get`, `update`, `delete`, or
 `move` commands to pick a workspace, board, list, task, label, or project with

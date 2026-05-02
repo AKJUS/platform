@@ -1,6 +1,6 @@
 import type { CliConfig } from './config';
 
-const UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const UPDATE_CHECK_INTERVAL_MS = 60 * 60 * 1000;
 const NPM_LATEST_URL = 'https://registry.npmjs.org/tuturuuu/latest';
 
 type StderrLike = Pick<NodeJS.WriteStream, 'write'>;
@@ -115,7 +115,7 @@ export async function checkForCliUpdate({
       stderr.write(
         [
           `A new Tuturuuu CLI version is available: ${currentVersion} -> ${latestVersion}`,
-          'Update with: bun add -g tuturuuu',
+          'Update with: ttr upgrade',
           '',
         ].join('\n')
       );

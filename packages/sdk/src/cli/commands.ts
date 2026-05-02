@@ -1,3 +1,4 @@
+import { spawn } from 'node:child_process';
 import packageJson from '../../package.json';
 import { TuturuuuUserClient } from '../platform';
 import {
@@ -22,6 +23,7 @@ import {
   readCliConfig,
   writeCliConfig,
 } from './config';
+import { getGlobalHelp, getHelpOutput } from './help';
 import { render, renderWhoami, sortTaskResponseForCli } from './render';
 import {
   chooseBoard,
@@ -40,6 +42,30 @@ import {
   selectTaskId,
 } from './selection';
 import { checkForCliUpdate, isCliUpdateCheckDisabled } from './update';
+
+const doneActions = new Set(['complete', 'completed', 'done', 'mark-done']);
+const closeActions = new Set(['archive', 'close', 'closed', 'mark-closed']);
+
+function upgradeCli() {
+  process.stdout.write('Upgrading Tuturuuu CLI with Bun...\n');
+
+  return new Promise<void>((resolve, reject) => {
+    const child = spawn('bun', ['i', '-g', 'tuturuuu'], {
+      shell: false,
+      stdio: 'inherit',
+    });
+
+    child.on('error', reject);
+    child.on('exit', (code) => {
+      if (code === 0) {
+        resolve();
+        return;
+      }
+
+      reject(new Error(`Upgrade failed with exit code ${code ?? 'unknown'}.`));
+    });
+  });
+}
 
 function getWorkspaceId(config: CliConfig, flags: Record<string, FlagValue>) {
   const explicit = getFlag(flags, 'workspace') || getFlag(flags, 'ws');
@@ -167,6 +193,97 @@ export function getTaskUpdatePayload(flags: Record<string, FlagValue>) {
   return payload;
 }
 
+export function getTaskDonePayload(
+  flags: Record<string, FlagValue>,
+  listId?: string
+) {
+  const payload = getPayload(flags);
+  const explicitListId =
+    listId || getFlag(flags, 'list') || getFlag(flags, 'list-id');
+
+  payload.completed = true;
+
+  if (payload.completed_at === undefined) {
+    payload.completed_at = new Date().toISOString();
+  }
+
+  if (explicitListId && payload.list_id === undefined) {
+    payload.list_id = explicitListId;
+  }
+
+  return payload;
+}
+
+export function getTaskClosePayload(
+  flags: Record<string, FlagValue>,
+  listId?: string
+) {
+  const payload = getPayload(flags);
+  const explicitListId =
+    listId || getFlag(flags, 'list') || getFlag(flags, 'list-id');
+
+  payload.completed = false;
+
+  if (payload.completed_at === undefined) {
+    payload.completed_at = null;
+  }
+
+  if (payload.closed_at === undefined) {
+    payload.closed_at = new Date().toISOString();
+  }
+
+  if (explicitListId && payload.list_id === undefined) {
+    payload.list_id = explicitListId;
+  }
+
+  return payload;
+}
+
+async function getDefaultStatusListId({
+  client,
+  config,
+  flags,
+  json,
+  status,
+  taskId,
+  workspaceId,
+}: {
+  client: TuturuuuUserClient;
+  config: CliConfig;
+  flags: Record<string, FlagValue>;
+  json: boolean;
+  status: 'closed' | 'done';
+  taskId: string;
+  workspaceId: string;
+}) {
+  const explicitListId = getFlag(flags, 'list') || getFlag(flags, 'list-id');
+  if (explicitListId) {
+    return explicitListId;
+  }
+
+  const task = await client.tasks.get(workspaceId, taskId);
+  const boardId =
+    getFlag(flags, 'board') || task.task.board_id || config.currentBoardId;
+
+  if (!boardId) {
+    if (json) {
+      return undefined;
+    }
+
+    const listSelection = await selectListId(
+      client,
+      config,
+      workspaceId,
+      flags,
+      json
+    );
+    return listSelection.listId;
+  }
+
+  const { lists } = await client.tasks.listLists(workspaceId, boardId);
+  return lists.find((list) => list.status === status)?.id;
+}
+
 export async function runCli(argv = process.argv.slice(2)) {
   if (argv.length === 1 && (argv[0] === '-v' || argv[0] === '--version')) {
     process.stdout.write(`${packageJson.version}\n`);
@@ -175,6 +292,23 @@ export async function runCli(argv = process.argv.slice(2)) {
 
   const { flags, positionals } = parseArgs(argv);
   const [group, rawAction, rawFirstId] = positionals;
+  const helpRequested =
+    flags.help === true ||
+    argv.includes('-h') ||
+    group === 'help' ||
+    rawAction === 'help';
+  if (helpRequested) {
+    const helpGroup = group === 'help' ? rawAction : group;
+    const helpAction =
+      group === 'help'
+        ? rawFirstId
+        : rawAction === 'help'
+          ? rawFirstId
+          : rawAction;
+    process.stdout.write(getHelpOutput(helpGroup, helpAction));
+    return;
+  }
+
   const positionalValue = positionals.slice(2).join(' ').trim();
   const relationshipAction =
     group === 'relationships' &&
@@ -186,39 +320,13 @@ export async function runCli(argv = process.argv.slice(2)) {
   const firstId = relationshipAction ? rawAction : rawFirstId;
   const json = flags.json === true;
 
-  if (!group || group === 'help' || flags.help) {
-    process.stdout.write(
-      `${[
-        'Usage: ttr <command> [options]',
-        '',
-        'Commands:',
-        '  login [--copy] [--token <token>] [--base-url <url>]',
-        '  logout',
-        '  whoami',
-        '  config set-base-url <url>',
-        '  workspaces [list]|use [id]',
-        '  boards [list]|use|create|update|delete',
-        '  lists [list]|use|create|update|delete --board <id>',
-        '  tasks [list]|use|get|create|update|delete|move|bulk',
-        '  labels [list]|use|create',
-        '  projects [list]|use|create|get|tasks',
-        '  relationships [list]|create|delete <task-id>',
-        '',
-        'Selection:',
-        '  Omit an id on use/get/update/delete/move to pick with up/down/space/enter.',
-        '  The personal workspace is selected by default.',
-        '',
-        'Task list filters:',
-        '  tasks                       open tasks only',
-        '  tasks --all                 include done and closed tasks',
-        '  tasks --done                completed tasks',
-        '  tasks --closed              closed tasks',
-        '  tasks --compact             title, list, and workspace only',
-        '',
-        'Global options:',
-        '  -v, --version               print the CLI version',
-      ].join('\n')}\n`
-    );
+  if (!group) {
+    process.stdout.write(getGlobalHelp());
+    return;
+  }
+
+  if (group === 'upgrade') {
+    await upgradeCli();
     return;
   }
 
@@ -559,6 +667,64 @@ export async function runCli(argv = process.argv.slice(2)) {
           workspaceId,
           selection.taskId,
           getTaskUpdatePayload(flags)
+        ),
+        { group, json }
+      );
+      return;
+    }
+    if (doneActions.has(action || '')) {
+      const selection = await selectTaskId(
+        client,
+        config,
+        workspaceId,
+        flags,
+        json,
+        firstId
+      );
+      config = selection.config;
+      const doneListId = await getDefaultStatusListId({
+        client,
+        config,
+        flags,
+        json,
+        status: 'done',
+        taskId: selection.taskId,
+        workspaceId,
+      });
+      render(
+        await client.tasks.update(
+          workspaceId,
+          selection.taskId,
+          getTaskDonePayload(flags, doneListId)
+        ),
+        { group, json }
+      );
+      return;
+    }
+    if (closeActions.has(action || '')) {
+      const selection = await selectTaskId(
+        client,
+        config,
+        workspaceId,
+        flags,
+        json,
+        firstId
+      );
+      config = selection.config;
+      const closedListId = await getDefaultStatusListId({
+        client,
+        config,
+        flags,
+        json,
+        status: 'closed',
+        taskId: selection.taskId,
+        workspaceId,
+      });
+      render(
+        await client.tasks.update(
+          workspaceId,
+          selection.taskId,
+          getTaskClosePayload(flags, closedListId)
         ),
         { group, json }
       );

@@ -12,18 +12,18 @@ describe('CLI update checks', () => {
     expect(compareVersions('1.0.0', '1.0.1')).toBe(-1);
   });
 
-  it('uses a daily cache window for update checks', () => {
+  it('uses an hourly cache window for update checks', () => {
     expect(
       shouldCheckForUpdate({
         checkedAt: '2026-05-02T00:00:00.000Z',
-        now: new Date('2026-05-02T12:00:00.000Z'),
+        now: new Date('2026-05-02T00:30:00.000Z'),
       })
     ).toBe(false);
 
     expect(
       shouldCheckForUpdate({
-        checkedAt: '2026-05-01T00:00:00.000Z',
-        now: new Date('2026-05-02T12:00:00.000Z'),
+        checkedAt: '2026-05-02T00:00:00.000Z',
+        now: new Date('2026-05-02T01:00:00.000Z'),
       })
     ).toBe(true);
   });
