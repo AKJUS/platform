@@ -78,7 +78,9 @@ class _TaskBoardTaskEditorSheetState extends State<_TaskBoardTaskEditorSheet> {
   bool _isMoving = false;
   bool _isDeleting = false;
   Timer? _descriptionAutosaveTimer;
+  Timer? _infoAutosaveTimer;
   bool _isAutosavingDescription = false;
+  bool _isAutosavingInfo = false;
 
   bool get _isCreate => widget.task == null;
 
@@ -230,6 +232,7 @@ class _TaskBoardTaskEditorSheetState extends State<_TaskBoardTaskEditorSheet> {
   @override
   void dispose() {
     _descriptionAutosaveTimer?.cancel();
+    _infoAutosaveTimer?.cancel();
     _persistPendingDescriptionOnDispose();
     _nameController.removeListener(_handleFormFieldChanged);
     _descriptionController.removeListener(_handleFormFieldChanged);
@@ -242,6 +245,7 @@ class _TaskBoardTaskEditorSheetState extends State<_TaskBoardTaskEditorSheet> {
   void _handleFormFieldChanged() {
     if (!mounted) return;
     setState(() {});
+    _scheduleEmbeddedInfoAutosave();
   }
 
   @override
@@ -437,7 +441,7 @@ class _TaskBoardTaskEditorSheetState extends State<_TaskBoardTaskEditorSheet> {
                 enabled: !_isBusy,
                 singleSelection: true,
                 autoApplyOnSelection: true,
-                onApplySelection: (nextSelectedIds) => setState(() {
+                onApplySelection: (nextSelectedIds) => _updateInfoField(() {
                   final selectedPriority = nextSelectedIds.firstOrNull;
                   _priority = _normalizePriority(selectedPriority);
                 }),
@@ -456,7 +460,7 @@ class _TaskBoardTaskEditorSheetState extends State<_TaskBoardTaskEditorSheet> {
                 onPick: _isBusy ? null : () => _pickDate(isStart: true),
                 onClear: _isBusy || _startDate == null
                     ? null
-                    : () => setState(() => _startDate = null),
+                    : () => _updateInfoField(() => _startDate = null),
               ),
               const shad.Gap(8),
               _DateFieldRow(
@@ -465,7 +469,7 @@ class _TaskBoardTaskEditorSheetState extends State<_TaskBoardTaskEditorSheet> {
                 onPick: _isBusy ? null : () => _pickDate(isStart: false),
                 onClear: _isBusy || _endDate == null
                     ? null
-                    : () => setState(() => _endDate = null),
+                    : () => _updateInfoField(() => _endDate = null),
               ),
             ],
           ),
@@ -483,7 +487,7 @@ class _TaskBoardTaskEditorSheetState extends State<_TaskBoardTaskEditorSheet> {
                 enabled: !_isBusy,
                 singleSelection: true,
                 autoApplyOnSelection: true,
-                onApplySelection: (nextSelectedIds) => setState(() {
+                onApplySelection: (nextSelectedIds) => _updateInfoField(() {
                   _estimationPoints = int.tryParse(
                     nextSelectedIds.firstOrNull ?? '',
                   );
@@ -495,7 +499,7 @@ class _TaskBoardTaskEditorSheetState extends State<_TaskBoardTaskEditorSheet> {
                 options: _taskEditorAssigneeOptions(),
                 selectedIds: _selectedAssigneeIds,
                 enabled: !_isBusy,
-                onApplySelection: (nextSelectedIds) => setState(() {
+                onApplySelection: (nextSelectedIds) => _updateInfoField(() {
                   _selectedAssigneeIds = nextSelectedIds;
                 }),
               ),
@@ -506,7 +510,7 @@ class _TaskBoardTaskEditorSheetState extends State<_TaskBoardTaskEditorSheet> {
                 options: _taskEditorLabelOptions(),
                 selectedIds: _selectedLabelIds,
                 enabled: !_isBusy,
-                onApplySelection: (nextSelectedIds) => setState(() {
+                onApplySelection: (nextSelectedIds) => _updateInfoField(() {
                   _selectedLabelIds = nextSelectedIds;
                 }),
               ),
@@ -517,7 +521,7 @@ class _TaskBoardTaskEditorSheetState extends State<_TaskBoardTaskEditorSheet> {
                 selectedIds: _selectedProjectIds,
                 enabled: !_isBusy,
                 autoApplyOnSelection: true,
-                onApplySelection: (nextSelectedIds) => setState(() {
+                onApplySelection: (nextSelectedIds) => _updateInfoField(() {
                   _selectedProjectIds = nextSelectedIds;
                 }),
               ),
@@ -560,8 +564,6 @@ class _TaskBoardTaskEditorSheetState extends State<_TaskBoardTaskEditorSheet> {
             context,
           ),
         },
-        if (section == _TaskBoardTaskDetailSection.information)
-          _buildEmbeddedSaveBar(context),
       ],
     );
 
@@ -654,42 +656,6 @@ class _TaskBoardTaskEditorSheetState extends State<_TaskBoardTaskEditorSheet> {
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildEmbeddedSaveBar(BuildContext context) {
-    final theme = shad.Theme.of(context);
-    final canSave = _canSave;
-    final showBar = _hasTaskChanges || _isSaving;
-
-    return AnimatedSize(
-      duration: const Duration(milliseconds: 180),
-      curve: Curves.easeInOut,
-      child: showBar
-          ? Padding(
-              padding: const EdgeInsets.only(top: 12),
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.secondary.withValues(alpha: 0.24),
-                  border: Border.all(color: theme.colorScheme.border),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    const Spacer(),
-                    shad.PrimaryButton(
-                      onPressed: canSave ? _saveTask : null,
-                      child: _isSaving
-                          ? const _TaskButtonLoadingIndicator(size: 16)
-                          : _CenteredButtonText(context.l10n.commonSave),
-                    ),
-                  ],
-                ),
-              ),
-            )
-          : const SizedBox.shrink(),
     );
   }
 
@@ -876,6 +842,7 @@ class _TaskBoardTaskEditorSheetState extends State<_TaskBoardTaskEditorSheet> {
 
   Future<void> _saveTask() async {
     _descriptionAutosaveTimer?.cancel();
+    _infoAutosaveTimer?.cancel();
     await _saveTaskEditorTask(this);
   }
 
@@ -1090,6 +1057,11 @@ class _TaskBoardTaskEditorSheetState extends State<_TaskBoardTaskEditorSheet> {
     setState(updates);
   }
 
+  void _updateInfoField(VoidCallback updates) {
+    setState(updates);
+    _scheduleEmbeddedInfoAutosave();
+  }
+
   void _markCurrentValuesSaved() {
     _initialName = _nameController.text.trim();
     _initialDescription = normalizeTaskDescriptionPayload(
@@ -1120,6 +1092,48 @@ class _TaskBoardTaskEditorSheetState extends State<_TaskBoardTaskEditorSheet> {
       const Duration(seconds: 5),
       () => unawaited(_persistEmbeddedDescriptionAutosave()),
     );
+  }
+
+  void _scheduleEmbeddedInfoAutosave() {
+    if (!widget.embedded ||
+        widget.task == null ||
+        widget.embeddedSection != _TaskBoardTaskDetailSection.information) {
+      return;
+    }
+
+    _infoAutosaveTimer?.cancel();
+    if (!_hasTaskChanges || _nameController.text.trim().isEmpty) {
+      return;
+    }
+
+    _infoAutosaveTimer = Timer(
+      const Duration(milliseconds: 900),
+      () => unawaited(_persistEmbeddedInfoAutosave()),
+    );
+  }
+
+  Future<void> _persistEmbeddedInfoAutosave() async {
+    if (!widget.embedded ||
+        widget.task == null ||
+        _isAutosavingInfo ||
+        _isSaving ||
+        !_hasTaskChanges ||
+        _nameController.text.trim().isEmpty) {
+      return;
+    }
+
+    _isAutosavingInfo = true;
+    try {
+      await _saveTaskEditorTask(
+        this,
+        closeOnSuccess: false,
+        showSuccessToast: false,
+      );
+    } on Exception catch (error) {
+      debugPrint('Task information autosave failed: $error');
+    } finally {
+      _isAutosavingInfo = false;
+    }
   }
 
   Future<void> _persistEmbeddedDescriptionAutosave() async {

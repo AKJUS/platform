@@ -24,8 +24,7 @@ import 'package:mobile/features/workspace/cubit/workspace_cubit.dart';
 import 'package:mobile/features/workspace/cubit/workspace_state.dart';
 import 'package:mobile/l10n/l10n.dart';
 import 'package:mobile/widgets/async_delete_confirmation_dialog.dart';
-import 'package:mobile/widgets/fab/fab_action.dart';
-import 'package:mobile/widgets/fab/speed_dial_fab.dart';
+import 'package:mobile/widgets/fab/extended_fab.dart';
 import 'package:mobile/widgets/nova_loading_indicator.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
@@ -154,18 +153,12 @@ class _TaskEstimatesViewState extends State<TaskEstimatesView> {
                 ),
               ],
             ),
-            if (_canManageProjects)
-              SpeedDialFab(
-                label: context.l10n.taskPlanningTitle,
-                icon: Icons.add,
+            if (_canManageProjects && _activeTab == _tabLabels)
+              ExtendedFab(
+                label: context.l10n.taskLabelsCreate,
+                icon: Icons.label_outline,
+                onPressed: _openCreateLabel,
                 includeBottomSafeArea: false,
-                actions: [
-                  FabAction(
-                    icon: Icons.label_outline,
-                    label: context.l10n.taskLabelsCreate,
-                    onPressed: _openCreateLabel,
-                  ),
-                ],
               ),
           ],
         ),

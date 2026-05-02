@@ -22,8 +22,7 @@ import 'package:mobile/features/task_portfolio/widgets/task_portfolio_feedback.d
 import 'package:mobile/features/workspace/cubit/workspace_cubit.dart';
 import 'package:mobile/features/workspace/cubit/workspace_state.dart';
 import 'package:mobile/l10n/l10n.dart';
-import 'package:mobile/widgets/fab/fab_action.dart';
-import 'package:mobile/widgets/fab/speed_dial_fab.dart';
+import 'package:mobile/widgets/fab/extended_fab.dart';
 import 'package:mobile/widgets/nova_loading_indicator.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
@@ -160,24 +159,21 @@ class _TaskPortfolioViewState extends State<TaskPortfolioView> {
                 ),
               ],
             ),
-            if (_permissionsController.canManageProjects)
-              SpeedDialFab(
-                label: context.l10n.taskPortfolioTitle,
-                icon: Icons.add,
+            if (_permissionsController.canManageProjects) ...[
+              ExtendedFab(
+                label: context.l10n.taskPortfolioCreateInitiative,
+                icon: Icons.account_tree_outlined,
+                onPressed: _openCreateInitiative,
+                bottom: 84,
                 includeBottomSafeArea: false,
-                actions: [
-                  FabAction(
-                    icon: Icons.folder_open_outlined,
-                    label: context.l10n.taskPortfolioCreateProject,
-                    onPressed: _openCreateProject,
-                  ),
-                  FabAction(
-                    icon: Icons.account_tree_outlined,
-                    label: context.l10n.taskPortfolioCreateInitiative,
-                    onPressed: _openCreateInitiative,
-                  ),
-                ],
               ),
+              ExtendedFab(
+                label: context.l10n.taskPortfolioCreateProject,
+                icon: Icons.folder_open_outlined,
+                onPressed: _openCreateProject,
+                includeBottomSafeArea: false,
+              ),
+            ],
           ],
         ),
       ),

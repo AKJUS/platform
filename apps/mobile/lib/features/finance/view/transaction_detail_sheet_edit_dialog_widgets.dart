@@ -992,7 +992,6 @@ class _CategoryPickerDialog extends StatefulWidget {
 class _CategoryPickerDialogState extends State<_CategoryPickerDialog> {
   late final TextEditingController _searchController;
   late bool _showsExpense;
-  bool _showAllFrequent = false;
 
   @override
   void initState() {
@@ -1053,9 +1052,6 @@ class _CategoryPickerDialogState extends State<_CategoryPickerDialog> {
             final nameB = b.name?.toLowerCase() ?? '';
             return nameA.compareTo(nameB);
           });
-    final visibleFrequentCategories = _showAllFrequent
-        ? frequentCategories
-        : frequentCategories.take(5).toList(growable: false);
     final frequentIds = frequentCategories
         .map((category) => category.id)
         .toSet();
@@ -1107,23 +1103,8 @@ class _CategoryPickerDialogState extends State<_CategoryPickerDialog> {
                       if (query.isEmpty && frequentCategories.isNotEmpty) ...[
                         _PickerSectionHeader(
                           title: context.l10n.financeFrequentlyUsedCategories,
-                          trailing: frequentCategories.length > 5
-                              ? shad.GhostButton(
-                                  onPressed: () {
-                                    setState(
-                                      () =>
-                                          _showAllFrequent = !_showAllFrequent,
-                                    );
-                                  },
-                                  child: Text(
-                                    _showAllFrequent
-                                        ? context.l10n.commonShowLess
-                                        : context.l10n.commonShowMore,
-                                  ),
-                                )
-                              : null,
                         ),
-                        ...visibleFrequentCategories.map(
+                        ...frequentCategories.map(
                           (category) => Padding(
                             padding: const EdgeInsets.only(bottom: 8),
                             child: _CategoryPickerTile(
@@ -1215,11 +1196,9 @@ class _CategoryPickerTile extends StatelessWidget {
 class _PickerSectionHeader extends StatelessWidget {
   const _PickerSectionHeader({
     required this.title,
-    this.trailing,
   });
 
   final String title;
-  final Widget? trailing;
 
   @override
   Widget build(BuildContext context) {
@@ -1239,7 +1218,6 @@ class _PickerSectionHeader extends StatelessWidget {
               ),
             ),
           ),
-          if (trailing != null) trailing!,
         ],
       ),
     );

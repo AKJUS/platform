@@ -537,7 +537,11 @@ List<RelatedTaskInfo> _appendUniqueTask(
   return [...tasks, task];
 }
 
-Future<void> _saveTaskEditorTask(_TaskBoardTaskEditorSheetState state) async {
+Future<void> _saveTaskEditorTask(
+  _TaskBoardTaskEditorSheetState state, {
+  bool closeOnSuccess = true,
+  bool showSuccessToast = true,
+}) async {
   final title = state._nameController.text.trim();
   final fallbackErrorMessage = state.context.l10n.commonSomethingWentWrong;
 
@@ -621,16 +625,18 @@ Future<void> _saveTaskEditorTask(_TaskBoardTaskEditorSheetState state) async {
     }
 
     if (!state.mounted || !toastContext.mounted) return;
-    shad.showToast(
-      context: toastContext,
-      builder: (context, overlay) => shad.Alert(
-        content: Text(
-          state._isCreate
-              ? context.l10n.taskBoardDetailTaskCreated
-              : context.l10n.taskBoardDetailTaskSaved,
+    if (showSuccessToast) {
+      shad.showToast(
+        context: toastContext,
+        builder: (context, overlay) => shad.Alert(
+          content: Text(
+            state._isCreate
+                ? context.l10n.taskBoardDetailTaskCreated
+                : context.l10n.taskBoardDetailTaskSaved,
+          ),
         ),
-      ),
-    );
+      );
+    }
     if (state.widget.embedded && !state._isCreate) {
       state._markCurrentValuesSaved();
       final refreshedTask = _findTaskEditorTaskInState(
@@ -640,7 +646,7 @@ Future<void> _saveTaskEditorTask(_TaskBoardTaskEditorSheetState state) async {
       if (refreshedTask != null) {
         state.widget.onTaskChanged?.call(refreshedTask);
       }
-    } else {
+    } else if (closeOnSuccess) {
       await state._closeEditor();
     }
   } on Object catch (error) {
@@ -826,19 +832,22 @@ Future<void> _pickTaskDate(
   if (picked == null || !state.mounted) return;
 
   final normalized = isStart ? _taskStartOfDay(picked) : _taskEndOfDay(picked);
-  state._updateState(() {
-    if (isStart) {
-      state._startDate = normalized;
-      if (state._endDate != null && normalized.isAfter(state._endDate!)) {
-        state._endDate = _taskEndOfDay(picked);
+  state
+    .._updateState(() {
+      if (isStart) {
+        state._startDate = normalized;
+        if (state._endDate != null && normalized.isAfter(state._endDate!)) {
+          state._endDate = _taskEndOfDay(picked);
+        }
+      } else {
+        state._endDate = normalized;
+        if (state._startDate != null &&
+            normalized.isBefore(state._startDate!)) {
+          state._startDate = _taskStartOfDay(picked);
+        }
       }
-    } else {
-      state._endDate = normalized;
-      if (state._startDate != null && normalized.isBefore(state._startDate!)) {
-        state._startDate = _taskStartOfDay(picked);
-      }
-    }
-  });
+    })
+    .._scheduleEmbeddedInfoAutosave();
 }
 
 Future<void> _closeTaskEditor(_TaskBoardTaskEditorSheetState state) async {
