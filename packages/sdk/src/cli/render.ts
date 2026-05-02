@@ -83,6 +83,53 @@ function isFlexibleColumnName(name: string) {
   return /description|name|title/i.test(name);
 }
 
+function getPreferredMinimumWidth(
+  columnName: string,
+  desiredWidth: number,
+  index: number
+) {
+  if (index === 0) return desiredWidth;
+
+  const normalized = columnName.toLowerCase();
+  const preferred = (() => {
+    switch (normalized) {
+      case 'key':
+        return 6;
+      case 'title':
+      case 'name':
+        return 24;
+      case 'list':
+      case 'workspace':
+        return 12;
+      case 'board':
+        return 7;
+      case 'status':
+        return 6;
+      case 'priority':
+        return 8;
+      case 'due':
+        return 8;
+      case 'id':
+        return 12;
+      default:
+        return Math.max(visibleLength(columnName), 6);
+    }
+  })();
+
+  return Math.min(desiredWidth, preferred);
+}
+
+function getHardMinimumWidth(columnName: string, index: number) {
+  if (index === 0) return 1;
+
+  const normalized = columnName.toLowerCase();
+  if (normalized === 'title' || normalized === 'name') return 10;
+  if (normalized === 'key') return 4;
+  if (normalized === 'list' || normalized === 'board') return 4;
+  if (normalized === 'status' || normalized === 'priority') return 4;
+  return 3;
+}
+
 function fitWidthsToTerminal(widths: number[], columnNames: string[]) {
   const maxWidth = terminalWidth();
   if (tableWidth(widths) <= maxWidth) return widths;
@@ -92,8 +139,25 @@ function fitWidthsToTerminal(widths: number[], columnNames: string[]) {
     maxWidth - (widths.length * 3 + 1)
   );
   const minWidths = widths.map((width, index) =>
-    index === 0 ? width : Math.min(width, 3)
+    getPreferredMinimumWidth(columnNames[index] ?? '', width, index)
   );
+
+  while (
+    minWidths.reduce((total, width) => total + width, 0) > maxContentWidth
+  ) {
+    const candidate = minWidths
+      .map((width, index) => ({
+        index,
+        shrinkableBy:
+          width - getHardMinimumWidth(columnNames[index] ?? '', index),
+      }))
+      .filter((item) => item.shrinkableBy > 0)
+      .sort((left, right) => right.shrinkableBy - left.shrinkableBy)[0];
+
+    if (!candidate) break;
+    minWidths[candidate.index] = (minWidths[candidate.index] ?? 1) - 1;
+  }
+
   const nextWidths = [...minWidths];
   let remainingWidth =
     maxContentWidth - minWidths.reduce((total, width) => total + width, 0);
@@ -115,6 +179,13 @@ function fitWidthsToTerminal(widths: number[], columnNames: string[]) {
   const flexibleIndexes = columnNames
     .map((name, index) => (isFlexibleColumnName(name) ? index : -1))
     .filter((index) => index > 0);
+  const fixedIndexes = widths
+    .map((_, index) => index)
+    .filter((index) => index > 0 && !flexibleIndexes.includes(index));
+
+  for (const index of fixedIndexes) {
+    allocate(index);
+  }
 
   for (const index of flexibleIndexes) {
     allocate(
@@ -234,6 +305,9 @@ function getTaskStatus(task: unknown) {
 
 function getTaskKey(task: unknown) {
   const record = asRecord(task);
+  const displayKey = asString(record.display_key);
+  if (displayKey) return displayKey;
+
   const prefix = asString(record.ticket_prefix);
   const displayNumber = record.display_number;
 

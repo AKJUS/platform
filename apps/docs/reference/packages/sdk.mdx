@@ -1,7 +1,7 @@
 ---
 title: 'tuturuuu'
 description: 'Official TypeScript/JavaScript SDK for the Tuturuuu platform'
-updatedAt: '2026-05-02'
+updatedAt: '2026-05-03'
 ---
 
 # Tuturuuu SDK
@@ -186,15 +186,16 @@ workspace name. Task lists are ordered by priority and due date, with prettier
 due dates and configured task-list colors in table output. Human-readable
 tables use smooth box borders, respect the terminal width, and wrap long cell
 content so task titles stay readable instead of overflowing narrow panes. Add
-`--json` when another agent or script needs machine-readable output. `tasks create`, `boards
-create`, and `lists create` accept a quoted positional name as a shorthand for
-`--name`. Task CRUD accepts either the task UUID or the board identifier shown in
-the UI, such as `VHP-12`; prefixed identifiers resolve within the selected
-workspace even when another list is selected. Marking a task completed stamps
-`completed_at` so Tuturuuu moves it to the first `done` list; pass `--list
-<done-list-id>` or include `list_id` in `--json-payload` to choose another done
-destination. Use `ttr tasks done [task-id]` as the quick shortcut. Use `ttr
-tasks close [task-id]` to stamp `closed_at`; pass `--list
+`--json` when another agent or script needs machine-readable output. `tasks
+create`, `boards create`, and `lists create` accept a quoted positional name as
+a shorthand for `--name`. Task CRUD accepts either the task UUID or the board
+identifier shown in the UI, such as `VHP-12`; prefixed identifiers resolve
+within the selected workspace even when another list is selected, and matching
+human-readable output keeps that prefixed identifier visible. Marking a task
+completed stamps `completed_at` so Tuturuuu moves it to the first `done` list;
+pass `--list <done-list-id>` or include `list_id` in `--json-payload` to choose
+another done destination. Use `ttr tasks done [task-id]` as the quick shortcut.
+Use `ttr tasks close [task-id]` to stamp `closed_at`; pass `--list
 <closed-list-id>` to choose a specific closed destination.
 
 Common task workflows:

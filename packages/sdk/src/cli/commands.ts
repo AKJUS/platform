@@ -284,6 +284,64 @@ async function getDefaultStatusListId({
   return lists.find((list) => list.status === status)?.id;
 }
 
+async function renderTaskMutationResult({
+  client,
+  displayKey,
+  fallback,
+  group,
+  json,
+  taskId,
+  workspaceId,
+}: {
+  client: TuturuuuUserClient;
+  displayKey?: string;
+  fallback: unknown;
+  group: string;
+  json: boolean;
+  taskId: string;
+  workspaceId: string;
+}) {
+  if (json) {
+    render(fallback, { group, json });
+    return;
+  }
+
+  try {
+    render(
+      withTaskDisplayKey(
+        await client.tasks.get(workspaceId, taskId),
+        displayKey
+      ),
+      {
+        group,
+        json,
+      }
+    );
+  } catch {
+    render(withTaskDisplayKey(fallback, displayKey), { group, json });
+  }
+}
+
+function getIdentifierDisplayKey(identifier?: string) {
+  const value = identifier?.trim();
+  return value && /^[a-z][a-z0-9]*-\d+$/i.test(value)
+    ? value.toUpperCase()
+    : undefined;
+}
+
+function withTaskDisplayKey(data: unknown, displayKey?: string) {
+  if (!displayKey || !data || typeof data !== 'object') return data;
+  const record = data as { task?: unknown };
+  if (!record.task || typeof record.task !== 'object') return data;
+  return {
+    ...record,
+    task: {
+      ...(record.task as Record<string, unknown>),
+      display_key: displayKey,
+    },
+  };
+}
+
 export async function runCli(argv = process.argv.slice(2)) {
   if (argv.length === 1 && (argv[0] === '-v' || argv[0] === '--version')) {
     process.stdout.write(`${packageJson.version}\n`);
@@ -622,10 +680,16 @@ export async function runCli(argv = process.argv.slice(2)) {
         firstId
       );
       config = selection.config;
-      render(await client.tasks.get(workspaceId, selection.taskId), {
-        group,
-        json,
-      });
+      render(
+        withTaskDisplayKey(
+          await client.tasks.get(workspaceId, selection.taskId),
+          getIdentifierDisplayKey(firstId)
+        ),
+        {
+          group,
+          json,
+        }
+      );
       return;
     }
     if (action === 'create') {
@@ -662,14 +726,20 @@ export async function runCli(argv = process.argv.slice(2)) {
         firstId
       );
       config = selection.config;
-      render(
-        await client.tasks.update(
-          workspaceId,
-          selection.taskId,
-          getTaskUpdatePayload(flags)
-        ),
-        { group, json }
+      const response = await client.tasks.update(
+        workspaceId,
+        selection.taskId,
+        getTaskUpdatePayload(flags)
       );
+      await renderTaskMutationResult({
+        client,
+        displayKey: getIdentifierDisplayKey(firstId),
+        fallback: response,
+        group,
+        json,
+        taskId: selection.taskId,
+        workspaceId,
+      });
       return;
     }
     if (doneActions.has(action || '')) {
@@ -691,14 +761,20 @@ export async function runCli(argv = process.argv.slice(2)) {
         taskId: selection.taskId,
         workspaceId,
       });
-      render(
-        await client.tasks.update(
-          workspaceId,
-          selection.taskId,
-          getTaskDonePayload(flags, doneListId)
-        ),
-        { group, json }
+      const response = await client.tasks.update(
+        workspaceId,
+        selection.taskId,
+        getTaskDonePayload(flags, doneListId)
       );
+      await renderTaskMutationResult({
+        client,
+        displayKey: getIdentifierDisplayKey(firstId),
+        fallback: response,
+        group,
+        json,
+        taskId: selection.taskId,
+        workspaceId,
+      });
       return;
     }
     if (closeActions.has(action || '')) {
@@ -720,14 +796,20 @@ export async function runCli(argv = process.argv.slice(2)) {
         taskId: selection.taskId,
         workspaceId,
       });
-      render(
-        await client.tasks.update(
-          workspaceId,
-          selection.taskId,
-          getTaskClosePayload(flags, closedListId)
-        ),
-        { group, json }
+      const response = await client.tasks.update(
+        workspaceId,
+        selection.taskId,
+        getTaskClosePayload(flags, closedListId)
       );
+      await renderTaskMutationResult({
+        client,
+        displayKey: getIdentifierDisplayKey(firstId),
+        fallback: response,
+        group,
+        json,
+        taskId: selection.taskId,
+        workspaceId,
+      });
       return;
     }
     if (action === 'delete') {
