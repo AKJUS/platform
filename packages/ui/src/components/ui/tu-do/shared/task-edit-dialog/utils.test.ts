@@ -208,8 +208,7 @@ describe('task edit dialog utils', () => {
   });
 
   it('saves and verifies the persisted description payload', async () => {
-    taskApiMocks.mockUpdateWorkspaceTaskDescription.mockResolvedValueOnce({});
-    taskApiMocks.mockFetchWorkspaceTaskDescription.mockResolvedValueOnce({
+    taskApiMocks.mockUpdateWorkspaceTaskDescription.mockResolvedValueOnce({
       description: JSON.stringify(content),
       description_yjs_state: [1, 2, 3],
     });
@@ -231,10 +230,9 @@ describe('task edit dialog utils', () => {
       description: JSON.stringify(content),
       description_yjs_state: [1, 2, 3],
     });
-    expect(taskApiMocks.mockFetchWorkspaceTaskDescription).toHaveBeenCalledWith(
-      'ws-1',
-      'task-1'
-    );
+    expect(
+      taskApiMocks.mockFetchWorkspaceTaskDescription
+    ).not.toHaveBeenCalled();
   });
 
   it('does not overwrite cached description when saving yjs-state-only payloads', async () => {
@@ -274,8 +272,7 @@ describe('task edit dialog utils', () => {
   });
 
   it('fails verification when the restored description does not match', async () => {
-    taskApiMocks.mockUpdateWorkspaceTaskDescription.mockResolvedValueOnce({});
-    taskApiMocks.mockFetchWorkspaceTaskDescription.mockResolvedValueOnce({
+    taskApiMocks.mockUpdateWorkspaceTaskDescription.mockResolvedValueOnce({
       description: JSON.stringify({
         type: 'doc',
         content: [
@@ -332,30 +329,36 @@ describe('task edit dialog utils', () => {
     ).not.toHaveBeenCalled();
   });
 
-  it('returns false when the verification fetch fails', async () => {
-    taskApiMocks.mockUpdateWorkspaceTaskDescription.mockResolvedValueOnce({});
-    taskApiMocks.mockFetchWorkspaceTaskDescription.mockRejectedValueOnce(
-      new Error('fetch failed')
-    );
+  it('returns false when the update response does not confirm the payload', async () => {
+    taskApiMocks.mockUpdateWorkspaceTaskDescription.mockResolvedValueOnce({
+      description: JSON.stringify({
+        type: 'doc',
+        content: [
+          {
+            type: 'paragraph',
+            content: [{ type: 'text', text: 'Stale content' }],
+          },
+        ],
+      }),
+      description_yjs_state: [1, 2, 3],
+    });
 
     const result = await saveAndVerifyYjsDescriptionToDatabase({
       wsId: 'ws-1',
       taskId: 'task-1',
       getContent: () => content,
       getYjsState: () => [1, 2, 3],
-      context: 'test-fetch-failure',
+      context: 'test-update-mismatch',
     });
 
     expect(result).toBe(false);
-    expect(taskApiMocks.mockFetchWorkspaceTaskDescription).toHaveBeenCalledWith(
-      'ws-1',
-      'task-1'
-    );
+    expect(
+      taskApiMocks.mockFetchWorkspaceTaskDescription
+    ).not.toHaveBeenCalled();
   });
 
   it('fails verification when description matches but yjs state differs', async () => {
-    taskApiMocks.mockUpdateWorkspaceTaskDescription.mockResolvedValueOnce({});
-    taskApiMocks.mockFetchWorkspaceTaskDescription.mockResolvedValueOnce({
+    taskApiMocks.mockUpdateWorkspaceTaskDescription.mockResolvedValueOnce({
       description: JSON.stringify(content),
       description_yjs_state: [3, 2, 1],
     });

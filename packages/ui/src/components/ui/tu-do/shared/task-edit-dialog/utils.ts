@@ -4,10 +4,7 @@ import type { Json } from '@tuturuuu/types';
 import type { Task } from '@tuturuuu/types/primitives/Task';
 import { MAX_TASK_DESCRIPTION_LENGTH } from '@tuturuuu/utils/constants';
 import { getDescriptionText } from '@tuturuuu/utils/text-helper';
-import {
-  fetchWorkspaceTaskDescription,
-  updateWorkspaceTaskDescription,
-} from './hooks/task-api';
+import { updateWorkspaceTaskDescription } from './hooks/task-api';
 
 function isErrorWithMessage(error: unknown): error is {
   code?: string;
@@ -338,7 +335,11 @@ export async function saveAndVerifyYjsDescriptionToDatabase({
       return true;
     }
 
-    await updateWorkspaceTaskDescription(wsId, taskId, payload);
+    const persistedDescription = await updateWorkspaceTaskDescription(
+      wsId,
+      taskId,
+      payload
+    );
 
     if (payload.description !== undefined) {
       updateTaskDescriptionCaches({
@@ -349,10 +350,6 @@ export async function saveAndVerifyYjsDescriptionToDatabase({
       });
     }
 
-    const persistedDescription = await fetchWorkspaceTaskDescription(
-      wsId,
-      taskId
-    );
     const descriptionMatches =
       payload.description === undefined ||
       persistedDescription.description === payload.description;

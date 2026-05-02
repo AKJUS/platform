@@ -234,6 +234,7 @@ export function TaskEditDialog({
   const updateEstimationRef = useRef<(points: number | null) => void>(() => {});
   const handleConvertToTaskRef = useRef<(() => Promise<void>) | null>(null);
   const descriptionRef = useRef<JSONContent | null>(formState.description);
+  const persistedDescriptionRef = useRef<string | null>(null);
 
   useEffect(() => {
     descriptionRef.current = formState.description;
@@ -343,6 +344,8 @@ export function TaskEditDialog({
       });
 
       if (!didPersist) return;
+
+      persistedDescriptionRef.current = serializedDescription;
 
       const broadcast = getActiveBroadcast();
       broadcastTaskDescriptionUpsert({
@@ -688,6 +691,17 @@ export function TaskEditDialog({
       collaborationMode,
       draftId,
     });
+
+  useEffect(() => {
+    if (!isOpen || isCreateMode) {
+      persistedDescriptionRef.current = null;
+      return;
+    }
+
+    persistedDescriptionRef.current =
+      serializeTaskDescriptionContent(parseDescription(task?.description)) ??
+      null;
+  }, [isOpen, isCreateMode, parseDescription, task?.description]);
 
   // Task mutations
   const {
@@ -1210,9 +1224,7 @@ export function TaskEditDialog({
       return false;
     }
 
-    const initialSerializedDescription =
-      serializeTaskDescriptionContent(parseDescription(task.description)) ??
-      null;
+    const initialSerializedDescription = persistedDescriptionRef.current;
 
     if (currentSerializedDescription === initialSerializedDescription) {
       return true;
@@ -1225,7 +1237,7 @@ export function TaskEditDialog({
           )
         : null;
 
-    return saveAndVerifyYjsDescriptionToDatabase({
+    const didPersist = await saveAndVerifyYjsDescriptionToDatabase({
       wsId: effectiveTaskWsId,
       taskId: task.id,
       getContent: () => currentContent,
@@ -1234,14 +1246,18 @@ export function TaskEditDialog({
       queryClient,
       context: 'close',
     });
+
+    if (didPersist) {
+      persistedDescriptionRef.current = currentSerializedDescription;
+    }
+
+    return didPersist;
   }, [
     isCreateMode,
     task?.id,
-    task?.description,
     effectiveTaskWsId,
     editorInstance,
     boardId,
-    parseDescription,
     queryClient,
   ]);
 
@@ -1261,12 +1277,10 @@ export function TaskEditDialog({
       return false;
     }
 
-    const initialSerializedDescription =
-      serializeTaskDescriptionContent(parseDescription(task.description)) ??
-      null;
+    const initialSerializedDescription = persistedDescriptionRef.current;
 
     return currentSerializedDescription !== initialSerializedDescription;
-  }, [isCreateMode, parseDescription, task?.description, task?.id]);
+  }, [isCreateMode, task?.id]);
 
   // Close handlers
   const { handleClose, handleForceClose, handleNavigateBack, handleCloseRef } =
