@@ -67,16 +67,32 @@ export function KanbanColumns({
   boardRef,
   columnsId,
 }: KanbanColumnsProps) {
+  const snapEdgePadding = columns.length > 0 ? '0.25rem' : '0px';
+
   return (
     <div
       ref={boardRef}
       className="scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent relative flex h-full w-full snap-x snap-proximity gap-3 overflow-x-auto overscroll-x-contain scroll-smooth"
+      style={
+        {
+          '--kanban-snap-left-padding': snapEdgePadding,
+          '--kanban-snap-right-padding': snapEdgePadding,
+          scrollPaddingLeft: 'var(--kanban-snap-left-padding)',
+          scrollPaddingRight: 'var(--kanban-snap-right-padding)',
+        } as React.CSSProperties
+      }
     >
       <SortableContext
         items={columnsId}
         strategy={horizontalListSortingStrategy}
       >
-        <div className="flex h-full min-w-max items-start gap-3 px-3 py-2">
+        <div
+          className="flex h-full min-w-max items-start gap-3 py-2"
+          style={{
+            paddingLeft: 'var(--kanban-snap-left-padding)',
+            paddingRight: 'var(--kanban-snap-right-padding)',
+          }}
+        >
           {columns.map((list) => {
             // Filter tasks for this list
             let listTasks = tasks.filter((task) => task.list_id === list.id);
@@ -126,6 +142,7 @@ export function KanbanColumns({
                 column={list}
                 boardId={boardId ?? ''}
                 tasks={listTasks}
+                availableLists={columns}
                 isPersonalWorkspace={isPersonalWorkspace}
                 onUpdate={onUpdate}
                 onAddTask={() =>

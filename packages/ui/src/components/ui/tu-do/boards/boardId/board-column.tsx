@@ -38,6 +38,7 @@ interface BoardColumnProps {
   column: TaskList;
   boardId: string;
   tasks: Task[];
+  availableLists?: TaskList[];
   isOverlay?: boolean;
   onUpdate?: () => void;
   selectedTasks?: Set<string>;
@@ -66,6 +67,7 @@ export function BoardColumn({
   column,
   boardId,
   tasks,
+  availableLists,
   isOverlay,
   onUpdate,
   selectedTasks,
@@ -253,7 +255,7 @@ export function BoardColumn({
       ref={composedRef}
       style={style}
       className={cn(
-        'group flex h-full w-87.5 max-w-[calc(100vw-1.5rem)] shrink-0 snap-start flex-col rounded-xl transition-all duration-200',
+        'group flex h-full w-87.5 max-w-[calc(100vw-var(--kanban-snap-left-padding)-var(--kanban-snap-right-padding))] shrink-0 snap-start flex-col rounded-xl transition-all duration-200',
         'touch-none select-none',
         colorClass,
         isDragging &&
@@ -311,6 +313,7 @@ export function BoardColumn({
       ) : (
         <VirtualizedTaskList
           tasks={tasks}
+          availableLists={availableLists}
           column={column}
           boardId={boardId}
           workspaceId={workspaceId ?? wsId}

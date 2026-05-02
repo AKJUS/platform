@@ -3,6 +3,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertCircle,
+  Archive,
   ArrowUpCircle,
   Ban,
   Box,
@@ -18,6 +19,7 @@ import {
   ListChecks,
   ListTodo,
   ListTree,
+  Loader2,
   MoreHorizontal,
   Play,
   Share2,
@@ -51,6 +53,7 @@ import {
   HoverCardTrigger,
 } from '@tuturuuu/ui/hover-card';
 import { toast } from '@tuturuuu/ui/sonner';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@tuturuuu/ui/tooltip';
 import { cn } from '@tuturuuu/utils/format';
 import {
   createTask,
@@ -600,6 +603,8 @@ function TaskCardInner({
     targetCompletionList && targetCompletionList.id !== task.list_id;
   const canMoveToClose =
     targetClosedList && targetClosedList.id !== task.list_id;
+  const canQuickArchive =
+    taskList?.status === 'done' && !isOverlay && Boolean(canMoveToClose);
 
   // Check if task is optimistically added (pending realtime confirmation)
   const isOptimistic = '_isOptimistic' in task && task._isOptimistic === true;
@@ -2098,14 +2103,48 @@ function TaskCardInner({
               )}
 
               {/* Checkbox: hidden for documents lists */}
-              {taskList?.status !== 'documents' && (
-                <TaskCardCheckbox
-                  task={task}
-                  taskList={taskList}
-                  isLoading={isLoading}
-                  onToggle={handleArchiveToggle}
-                />
-              )}
+              {taskList?.status !== 'documents' &&
+                (canQuickArchive ? (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        aria-label={t('archive')}
+                        disabled={isLoading}
+                        onPointerDown={(e) => {
+                          e.stopPropagation();
+                        }}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          void handleMoveToClose();
+                        }}
+                        className={cn(
+                          'flex h-5 w-5 flex-none items-center justify-center rounded-sm border border-dynamic-purple/50 bg-dynamic-purple/10 text-dynamic-purple transition-all duration-200',
+                          'hover:scale-110 hover:border-dynamic-purple/70 hover:bg-dynamic-purple/20',
+                          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dynamic-purple/40',
+                          'disabled:cursor-not-allowed disabled:opacity-60'
+                        )}
+                      >
+                        {isLoading ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Archive className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="text-xs">
+                      {t('archive')}
+                    </TooltipContent>
+                  </Tooltip>
+                ) : (
+                  <TaskCardCheckbox
+                    task={task}
+                    taskList={taskList}
+                    isLoading={isLoading}
+                    onToggle={handleArchiveToggle}
+                  />
+                ))}
             </div>
           </div>
         )}
@@ -2306,6 +2345,7 @@ interface MeasuredTaskCardProps {
   taskList: TaskList;
   boardId: string;
   workspaceId?: string;
+  availableLists?: TaskList[];
   onUpdate: () => void;
   isSelected: boolean;
   isMultiSelectMode?: boolean;
@@ -2323,6 +2363,7 @@ export function MeasuredTaskCard({
   taskList,
   boardId,
   workspaceId,
+  availableLists,
   onUpdate,
   isSelected,
   isMultiSelectMode,
@@ -2371,6 +2412,7 @@ export function MeasuredTaskCard({
         taskList={taskList}
         boardId={boardId}
         workspaceId={workspaceId}
+        availableLists={availableLists}
         onUpdate={onUpdate}
         isSelected={isSelected}
         isMultiSelectMode={isMultiSelectMode}

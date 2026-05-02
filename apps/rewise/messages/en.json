@@ -1674,6 +1674,7 @@
     "and": "and",
     "applied": "Applied",
     "applied_to_all": "{count} applied to all",
+    "archive": "Archive",
     "archive_all_tasks": "Archive all tasks",
     "archive_tasks": "Archive Tasks",
     "archive_tasks_confirmation": "Are you sure you want to archive all {count} task(s) from this list? They will be moved to the archive.",

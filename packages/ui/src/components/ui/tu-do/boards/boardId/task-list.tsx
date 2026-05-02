@@ -25,6 +25,7 @@ const OVERSCAN_PX = 400; // overscan in pixels above and below viewport for smoo
 //    which still updates list_id at column level.
 interface VirtualizedTaskListProps {
   tasks: Task[];
+  availableLists?: TaskList[];
   column: TaskList;
   boardId: string;
   workspaceId?: string;
@@ -51,6 +52,7 @@ interface VirtualizedTaskListProps {
 
 interface TaskListContentProps {
   tasks: Task[];
+  availableLists?: TaskList[];
   column: TaskList;
   boardId: string;
   workspaceId?: string;
@@ -74,6 +76,7 @@ interface TaskListContentProps {
 
 function TaskListContent({
   tasks,
+  availableLists,
   column,
   boardId,
   workspaceId,
@@ -126,6 +129,7 @@ function TaskListContent({
             taskList={column}
             boardId={boardId}
             workspaceId={workspaceId}
+            availableLists={availableLists}
             onUpdate={onUpdate}
             isSelected={Boolean(
               isMultiSelectMode && selectedTasks?.has(task.id)
@@ -195,6 +199,7 @@ function LoadMoreSentinel({
 
 function VirtualizedTaskListInner({
   tasks,
+  availableLists,
   column,
   boardId,
   workspaceId,
@@ -448,6 +453,7 @@ function VirtualizedTaskListInner({
             >
               <TaskListContent
                 tasks={visibleTasks}
+                availableLists={availableLists}
                 column={column}
                 boardId={boardId}
                 workspaceId={workspaceId}
@@ -473,6 +479,7 @@ function VirtualizedTaskListInner({
         >
           <TaskListContent
             tasks={tasks}
+            availableLists={availableLists}
             column={column}
             boardId={boardId}
             workspaceId={workspaceId}

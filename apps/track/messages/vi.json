@@ -1670,6 +1670,7 @@
     "and": "và",
     "applied": "Đã áp dụng",
     "applied_to_all": "{count} đã áp dụng cho tất cả",
+    "archive": "Lưu trữ",
     "archive_all_tasks": "Lưu trữ tất cả công việc",
     "archive_tasks": "Lưu trữ công việc",
     "archive_tasks_confirmation": "Bạn có chắc chắn muốn lưu trữ tất cả {count} công việc từ danh sách này không?",
