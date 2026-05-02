@@ -13,6 +13,7 @@ import 'package:mobile/data/models/task_relationships.dart';
 import 'package:mobile/data/models/workspace.dart';
 import 'package:mobile/data/models/workspace_user_option.dart';
 import 'package:mobile/data/repositories/task_repository.dart';
+import 'package:mobile/features/tasks_boards/cubit/task_board_detail_cubit.dart';
 import 'package:mobile/features/tasks_boards/view/task_board_detail_page.dart';
 import 'package:mobile/features/workspace/cubit/workspace_cubit.dart';
 import 'package:mobile/features/workspace/cubit/workspace_state.dart';
@@ -350,6 +351,10 @@ void main() {
         await tester.pumpWidget(
           buildTestApp(routerConfig: router, workspaceCubit: workspaceCubit),
         );
+        await pumpTaskBoardTransition(tester);
+        BlocProvider.of<TaskBoardDetailCubit>(
+          tester.element(find.text('Task A1').first),
+        ).setView(TaskBoardDetailView.kanban);
         await pumpTaskBoardTransition(tester);
 
         await tester.drag(find.byType(PageView).first, const Offset(-820, 0));

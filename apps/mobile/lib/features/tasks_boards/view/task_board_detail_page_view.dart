@@ -662,8 +662,13 @@ class _TaskBoardDetailPageViewState extends State<_TaskBoardDetailPageView> {
                     }
 
                     return RefreshIndicator(
-                      onRefresh: () =>
-                          context.read<TaskBoardDetailCubit>().reload(),
+                      onRefresh: () => _refreshBoardContent(
+                        context,
+                        lists: state.currentView == TaskBoardDetailView.list
+                            ? listViewLists
+                            : sortedLists,
+                        pageSizeHint: pageSizeHint,
+                      ),
                       child: switch (state.currentView) {
                         TaskBoardDetailView.list => _TaskBoardEnhancedListView(
                           boardId: widget.boardId,
@@ -879,6 +884,17 @@ class _TaskBoardDetailPageViewState extends State<_TaskBoardDetailPageView> {
     TaskBoardDetailState state,
   ) {
     return lists.any((list) => state.listHasMoreById[list.id] ?? true);
+  }
+
+  Future<void> _refreshBoardContent(
+    BuildContext context, {
+    required List<TaskBoardList> lists,
+    required int pageSizeHint,
+  }) {
+    return context.read<TaskBoardDetailCubit>().reload(
+      listIds: lists.map((list) => list.id),
+      pageSizeHint: pageSizeHint,
+    );
   }
 
   void _loadMoreVisibleLists(

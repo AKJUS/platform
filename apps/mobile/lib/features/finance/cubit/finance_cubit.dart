@@ -23,7 +23,7 @@ class FinanceCubit extends Cubit<FinanceState> {
 
   final FinanceRepository _repo;
   static const CachePolicy _cachePolicy = CachePolicies.summary;
-  static const _cacheTag = 'finance:overview';
+  static const String _cacheTag = financeOverviewCacheTag;
   static final Map<String, _FinanceCacheEntry> _cache = {};
   String? _loadedWorkspaceId;
 
@@ -54,6 +54,10 @@ class FinanceCubit extends Cubit<FinanceState> {
 
     final prefix = '$userId::';
     _cache.removeWhere((key, value) => key.startsWith(prefix));
+  }
+
+  static void clearWorkspaceCache(String wsId) {
+    _cache.remove(_memoryCacheKey(wsId));
   }
 
   static Future<void> prewarm({

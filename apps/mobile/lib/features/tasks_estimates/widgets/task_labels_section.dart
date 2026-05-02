@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:mobile/core/utils/color_hex.dart';
 import 'package:mobile/data/models/task_label.dart';
 import 'package:mobile/features/tasks/widgets/task_surface.dart';
 import 'package:mobile/features/tasks_estimates/utils/task_label_colors.dart';
@@ -63,9 +62,6 @@ class _TaskLabelCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = shad.Theme.of(context);
     final color = parseTaskLabelColor(label.color) ?? theme.colorScheme.primary;
-    final colorText = label.color.isNotEmpty
-        ? label.color.toUpperCase()
-        : colorToHexString(theme.colorScheme.primary);
 
     return TaskSurfacePane(
       child: Row(
@@ -95,13 +91,6 @@ class _TaskLabelCard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: theme.typography.p.copyWith(
                     fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const shad.Gap(2),
-                Text(
-                  colorText,
-                  style: theme.typography.textSmall.copyWith(
-                    color: theme.colorScheme.mutedForeground,
                   ),
                 ),
               ],

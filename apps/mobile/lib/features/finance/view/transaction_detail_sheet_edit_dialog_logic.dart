@@ -768,10 +768,13 @@ mixin _TransactionFormDialogStateHelpers on State<_TransactionFormDialog> {
 
     if (operators.contains(token)) {
       if (current.isEmpty) return;
-      if (operators.contains(lastChar) || lastChar == decimalSeparator) return;
+      if (lastChar == decimalSeparator) return;
+      final next = operators.contains(lastChar)
+          ? '${current.substring(0, current.length - 1)}$token'
+          : '$current$token';
       _replaceMoneyInput(
         controller,
-        '$current$token',
+        next,
         syncDestinationOverride:
             _activeMoneyField == _MoneyFieldTarget.destination,
       );

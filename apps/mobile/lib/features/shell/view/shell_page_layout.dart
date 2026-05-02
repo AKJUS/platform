@@ -145,6 +145,7 @@ extension _ShellPageLayout on _ShellPageState {
     if (isCompact) {
       return SizedBox(
         width: double.infinity,
+        height: _ShellPageState._compactBottomNavHeight,
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 560),
@@ -339,6 +340,7 @@ extension _ShellPageLayout on _ShellPageState {
             switchOutCurve: Curves.easeInCubic,
             layoutBuilder: (currentChild, previousChildren) => Stack(
               alignment: Alignment.center,
+              fit: StackFit.passthrough,
               children: [
                 ...previousChildren,
                 if (currentChild != null) currentChild,

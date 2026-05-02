@@ -299,11 +299,44 @@ class TaskBoardDetailCubit extends Cubit<TaskBoardDetailState> {
     }
   }
 
-  Future<void> reload() async {
+  Future<void> reload({
+    Iterable<String>? listIds,
+    int? pageSizeHint,
+  }) async {
     final wsId = state.workspaceId;
     final boardId = state.boardId;
     if (wsId == null || boardId == null) return;
+    final previousLoadedListIds = <String>{
+      ...state.loadedListIds,
+      ...state.listTasksByListId.keys,
+    };
+
     await loadBoardDetail(wsId: wsId, boardId: boardId, forceRefresh: true);
+
+    final refreshedBoard = state.board;
+    if (refreshedBoard == null) return;
+
+    final availableListIds = {
+      for (final list in refreshedBoard.lists) list.id,
+    };
+    final requestedListIds = listIds?.toSet();
+    final targetListIds =
+        (requestedListIds == null || requestedListIds.isEmpty
+                ? previousLoadedListIds
+                : requestedListIds)
+            .where(availableListIds.contains)
+            .toList(growable: false);
+
+    for (final listId in targetListIds) {
+      if (isClosed || state.workspaceId != wsId || state.boardId != boardId) {
+        return;
+      }
+      await loadListTasks(
+        listId: listId,
+        forceRefresh: true,
+        pageSizeHint: state.listPageSizeById[listId] ?? pageSizeHint,
+      );
+    }
   }
 
   Future<void> loadListTasks({

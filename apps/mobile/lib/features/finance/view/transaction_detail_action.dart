@@ -1,8 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:mobile/core/cache/cache_store.dart';
 import 'package:mobile/data/models/finance/exchange_rate.dart';
 import 'package:mobile/data/models/finance/transaction.dart';
 import 'package:mobile/data/repositories/finance_repository.dart';
+import 'package:mobile/features/finance/cubit/finance_cubit.dart';
+import 'package:mobile/features/finance/finance_cache.dart';
 import 'package:mobile/features/finance/view/transaction_detail_sheet.dart';
+
+Future<void> invalidateFinanceMutationCaches(String wsId) async {
+  FinanceCubit.clearWorkspaceCache(wsId);
+  await CacheStore.instance.invalidateTags(
+    const [
+      financeOverviewCacheTag,
+      financeTransactionsCacheTag,
+      financeWalletsCacheTag,
+    ],
+    workspaceId: wsId,
+  );
+}
 
 Future<bool> openTransactionDetailSheet(
   BuildContext context, {
@@ -32,8 +47,8 @@ Future<bool> openTransactionDetailSheet(
           isAmountConfidential,
           isDescriptionConfidential,
           isCategoryConfidential,
-        }) {
-          return repository.updateTransaction(
+        }) async {
+          final updated = await repository.updateTransaction(
             wsId: wsId,
             transactionId: transactionId,
             amount: amount,
@@ -47,12 +62,15 @@ Future<bool> openTransactionDetailSheet(
             isDescriptionConfidential: isDescriptionConfidential,
             isCategoryConfidential: isCategoryConfidential,
           );
+          await invalidateFinanceMutationCaches(wsId);
+          return updated;
         },
-    onDelete: (transactionId) {
-      return repository.deleteTransaction(
+    onDelete: (transactionId) async {
+      await repository.deleteTransaction(
         wsId: wsId,
         transactionId: transactionId,
       );
+      await invalidateFinanceMutationCaches(wsId);
     },
   );
 }
@@ -82,14 +100,14 @@ Future<bool> openCreateTransactionSheet(
           isAmountConfidential,
           isDescriptionConfidential,
           isCategoryConfidential,
-        }) {
+        }) async {
           if (walletId == null) {
             throw ArgumentError(
               'walletId must not be null when creating a transaction',
             );
           }
 
-          return repository.createTransaction(
+          await repository.createTransaction(
             wsId: wsId,
             amount: amount,
             description: description,
@@ -102,6 +120,7 @@ Future<bool> openCreateTransactionSheet(
             isDescriptionConfidential: isDescriptionConfidential,
             isCategoryConfidential: isCategoryConfidential,
           );
+          await invalidateFinanceMutationCaches(wsId);
         },
   );
 }

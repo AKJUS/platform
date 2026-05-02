@@ -72,6 +72,7 @@ class _ShellPageState extends State<ShellPage>
   static const double _assistantNavIconSize = 38;
   static const double _navItemSpacing = 2;
   static const double _floatingNavMinItemWidth = 96;
+  static const double _compactBottomNavHeight = 72;
   static const Duration _exitConfirmationWindow = Duration(seconds: 2);
   static const Duration _assistantSpinDuration = Duration(milliseconds: 680);
   static const MethodChannel _androidBackChannel = MethodChannel(
