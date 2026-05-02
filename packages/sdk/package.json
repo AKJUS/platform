@@ -90,7 +90,7 @@
   "dependencies": {
     "@tuturuuu/internal-api": "0.0.2",
     "@tuturuuu/types": "0.2.4",
-    "zod": "^4.4.1"
+    "zod": "^4.4.2"
   },
   "devDependencies": {
     "@tuturuuu/typescript-config": "workspace:*",
