@@ -207,6 +207,7 @@ export async function GET(
           id,
           name,
           status,
+          color,
           deleted,
           board_id,
           workspace_boards!inner (
@@ -233,6 +234,7 @@ export async function GET(
           id,
           name,
           status,
+          color,
           deleted,
           board_id,
           workspace_boards!inner (
@@ -269,6 +271,7 @@ export async function GET(
           id,
           name,
           status,
+          color,
           deleted,
           board_id,
           workspace_boards!inner (
@@ -322,6 +325,7 @@ export async function GET(
           id,
           name,
           status,
+          color,
           deleted,
           board_id,
           workspace_boards!inner (
