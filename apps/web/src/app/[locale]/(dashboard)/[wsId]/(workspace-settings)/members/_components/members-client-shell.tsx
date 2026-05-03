@@ -12,11 +12,23 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@tuturuuu/ui/dialog';
+import { permissionGroups } from '@tuturuuu/utils/permissions';
 import { useTranslations } from 'next-intl';
-import { parseAsStringLiteral, useQueryState } from 'nuqs';
+import {
+  parseAsArrayOf,
+  parseAsString,
+  parseAsStringLiteral,
+  useQueryState,
+} from 'nuqs';
+import { useMemo } from 'react';
 import { GuestSelfJoinSetting } from './guest-self-join-setting';
 import InviteLinksSection from './invite-links-section';
 import InviteMemberButton from './invite-member-button';
+import {
+  filterWorkspaceMembers,
+  getMemberFilterOptions,
+} from './member-filter-utils';
+import { MemberFilters } from './member-filters';
 import MemberList from './member-list';
 import MemberTabs from './member-tabs';
 import { memberStatusValues, useWorkspaceMembers } from './members-queries';
@@ -44,8 +56,51 @@ export default function MembersClientShell({
       .withDefault('all')
       .withOptions({ shallow: true })
   );
+  const [selectedRoleIds, setSelectedRoleIds] = useQueryState(
+    'roleIds',
+    parseAsArrayOf(parseAsString).withDefault([]).withOptions({
+      shallow: true,
+    })
+  );
+  const [selectedPermissionIds, setSelectedPermissionIds] = useQueryState(
+    'permissions',
+    parseAsArrayOf(parseAsString).withDefault([]).withOptions({
+      shallow: true,
+    })
+  );
 
   const { data, isPending, isError } = useWorkspaceMembers(wsId, status);
+  const members = data ?? [];
+
+  const permissionDefinitions = useMemo(
+    () =>
+      permissionGroups({
+        t: t as unknown as (key: string) => string,
+        user: null,
+        wsId,
+      }).flatMap((group) =>
+        group.permissions.map((permission) => ({
+          groupTitle: group.title,
+          id: permission.id,
+          title: permission.title,
+        }))
+      ),
+    [t, wsId]
+  );
+  const filterOptions = useMemo(
+    () => getMemberFilterOptions(members, permissionDefinitions),
+    [members, permissionDefinitions]
+  );
+  const filteredMembers = useMemo(
+    () =>
+      filterWorkspaceMembers(members, {
+        permissionIds: selectedPermissionIds,
+        roleIds: selectedRoleIds,
+      }),
+    [members, selectedPermissionIds, selectedRoleIds]
+  );
+  const hasActiveFilters =
+    selectedRoleIds.length > 0 || selectedPermissionIds.length > 0;
 
   return (
     <div className="space-y-8">
@@ -130,14 +185,27 @@ export default function MembersClientShell({
             {t('common.error')}
           </div>
         ) : (
-          <MemberList
-            workspace={workspace}
-            members={data ?? []}
-            invited={status === 'invited'}
-            loading={isPending}
-            canManageMembers={canManageMembers}
-            currentUser={currentUser}
-          />
+          <>
+            <MemberFilters
+              permissionOptions={filterOptions.permissions}
+              roleOptions={filterOptions.roles}
+              selectedPermissionIds={selectedPermissionIds}
+              selectedRoleIds={selectedRoleIds}
+              setSelectedPermissionIds={setSelectedPermissionIds}
+              setSelectedRoleIds={setSelectedRoleIds}
+              shownCount={filteredMembers.length}
+              totalCount={members.length}
+            />
+            <MemberList
+              workspace={workspace}
+              members={filteredMembers}
+              invited={status === 'invited'}
+              loading={isPending}
+              canManageMembers={canManageMembers}
+              currentUser={currentUser}
+              filtersActive={hasActiveFilters}
+            />
+          </>
         )}
       </div>
 

@@ -29,6 +29,7 @@ interface Props {
   loading?: boolean;
   canManageMembers?: boolean;
   currentUser?: User | null;
+  filtersActive?: boolean;
 }
 
 export default function MemberList({
@@ -38,6 +39,7 @@ export default function MemberList({
   loading,
   canManageMembers,
   currentUser,
+  filtersActive,
 }: Props) {
   const locale = useLocale();
   const t = useTranslations('ws-members');
@@ -58,10 +60,15 @@ export default function MemberList({
     return (
       <div className="col-span-full flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed bg-primary-foreground/20 p-8">
         <p className="text-center text-foreground/80">
-          {invited ? t('no_invited_members_found') : t('no_members_match')}.
+          {filtersActive
+            ? t('no_members_match_filters')
+            : invited
+              ? t('no_invited_members_found')
+              : t('no_members_match')}
+          .
         </p>
 
-        {!!workspace?.id && (
+        {!!workspace?.id && !filtersActive && (
           <InviteMemberButton
             wsId={workspace?.id}
             currentUser={currentUser ?? undefined}
