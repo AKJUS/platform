@@ -366,30 +366,84 @@ function formatDueDate(value: unknown) {
   if (Number.isNaN(date.getTime())) return value;
 
   const now = new Date();
-  const startOfToday = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate()
+  const timeZone = inferUserTimeZone();
+  const nowParts = getDateParts(now, timeZone);
+  const dueParts = getDateParts(date, timeZone);
+  const startOfToday = Date.UTC(
+    nowParts.year,
+    nowParts.month - 1,
+    nowParts.day
   );
-  const startOfDueDate = new Date(
-    date.getFullYear(),
-    date.getMonth(),
-    date.getDate()
+  const startOfDueDate = Date.UTC(
+    dueParts.year,
+    dueParts.month - 1,
+    dueParts.day
   );
-  const dayDiff = Math.round(
-    (startOfDueDate.getTime() - startOfToday.getTime()) / 86_400_000
-  );
+  const dayDiff = Math.round((startOfDueDate - startOfToday) / 86_400_000);
 
   if (dayDiff === -1) return 'Yesterday';
   if (dayDiff === 0) return 'Today';
   if (dayDiff === 1) return 'Tomorrow';
 
-  const sameYear = date.getFullYear() === now.getFullYear();
-  return new Intl.DateTimeFormat('en', {
+  const sameYear = dueParts.year === nowParts.year;
+  const options: Intl.DateTimeFormatOptions = {
     day: 'numeric',
     month: 'short',
     ...(sameYear ? {} : { year: 'numeric' }),
-  }).format(date);
+    ...(timeZone ? { timeZone } : {}),
+  };
+
+  return new Intl.DateTimeFormat('en', options).format(date);
+}
+
+function inferUserTimeZone() {
+  try {
+    const timeZone = new Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (!timeZone) return null;
+
+    new Intl.DateTimeFormat('en', { timeZone }).format(new Date());
+    return timeZone;
+  } catch {
+    return null;
+  }
+}
+
+function getDateParts(date: Date, timeZone: string | null) {
+  if (!timeZone) {
+    return {
+      day: date.getDate(),
+      month: date.getMonth() + 1,
+      year: date.getFullYear(),
+    };
+  }
+
+  try {
+    const parts = new Intl.DateTimeFormat('en', {
+      day: '2-digit',
+      month: '2-digit',
+      timeZone,
+      year: 'numeric',
+    }).formatToParts(date);
+    const getPart = (type: string) =>
+      Number(parts.find((part) => part.type === type)?.value);
+    const year = getPart('year');
+    const month = getPart('month');
+    const day = getPart('day');
+
+    if (
+      Number.isInteger(year) &&
+      Number.isInteger(month) &&
+      Number.isInteger(day)
+    ) {
+      return { day, month, year };
+    }
+  } catch {}
+
+  return {
+    day: date.getDate(),
+    month: date.getMonth() + 1,
+    year: date.getFullYear(),
+  };
 }
 
 function getNamedColorCode(value: string): ColorCode {

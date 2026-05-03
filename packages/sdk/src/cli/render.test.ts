@@ -108,6 +108,12 @@ describe('CLI rendering', () => {
   it('formats task due dates for table output', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-05-03T12:00:00.000+07:00'));
+    vi.spyOn(Intl.DateTimeFormat.prototype, 'resolvedOptions').mockReturnValue({
+      calendar: 'gregory',
+      locale: 'en',
+      numberingSystem: 'latn',
+      timeZone: 'Asia/Ho_Chi_Minh',
+    });
     const write = vi
       .spyOn(process.stdout, 'write')
       .mockImplementation(() => true);
