@@ -1,8 +1,11 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Settings, User as UserIcon } from '@tuturuuu/icons';
-import { removeWorkspaceMember } from '@tuturuuu/internal-api/workspaces';
+import { Loader2, Settings, User as UserIcon } from '@tuturuuu/icons';
+import {
+  removeWorkspaceMember,
+  updateWorkspaceMemberProfile,
+} from '@tuturuuu/internal-api/workspaces';
 import type { Workspace } from '@tuturuuu/types';
 import type { User } from '@tuturuuu/types/primitives/User';
 import { Avatar, AvatarFallback, AvatarImage } from '@tuturuuu/ui/avatar';
@@ -16,9 +19,13 @@ import {
   DialogTrigger,
 } from '@tuturuuu/ui/dialog';
 import { toast } from '@tuturuuu/ui/hooks/use-toast';
+import { Input } from '@tuturuuu/ui/input';
+import { Label } from '@tuturuuu/ui/label';
+import { MAX_NAME_LENGTH } from '@tuturuuu/utils/constants';
 import { getInitials } from '@tuturuuu/utils/name-helper';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
+import type { FormEvent } from 'react';
 import { useState } from 'react';
 import { workspaceMembersKeys } from './members-queries';
 
@@ -40,6 +47,9 @@ export function MemberSettingsButton({
   const t = useTranslations('ws-members');
 
   const [open, setOpen] = useState(false);
+  const [displayName, setDisplayName] = useState(user.display_name ?? '');
+
+  const canEditDisplayName = !!canManageMembers && (!!user.id || !!user.email);
 
   const deleteMutation = useMutation({
     mutationFn: async () => {
@@ -79,13 +89,58 @@ export function MemberSettingsButton({
     },
   });
 
+  const updateProfileMutation = useMutation({
+    mutationFn: async () => {
+      await updateWorkspaceMemberProfile(ws.id, {
+        displayName,
+        email: user.id ? null : user.email,
+        userId: user.id ?? null,
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: t('member-updated'),
+        description: t('profile_display_name_updated'),
+        color: 'teal',
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: workspaceMembersKeys.lists(),
+      });
+      setOpen(false);
+    },
+    onError: (error) => {
+      toast({
+        title: t('error'),
+        description:
+          error instanceof Error
+            ? error.message
+            : t('profile_display_name_update_error'),
+      });
+    },
+  });
+
   const deleteMember = async () => {
     if (!canManageMembers && currentUser?.id !== user.id) return;
     await deleteMutation.mutateAsync();
   };
 
+  const saveDisplayName = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!canEditDisplayName) return;
+
+    await updateProfileMutation.mutateAsync();
+  };
+
+  const setDialogOpen = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+    if (nextOpen) {
+      setDisplayName(user.display_name ?? '');
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={setDialogOpen}>
       <DialogTrigger asChild>
         <Button variant="ghost" size="icon">
           <Settings className="h-6 w-6 text-foreground/70" />
@@ -96,9 +151,9 @@ export function MemberSettingsButton({
         onOpenAutoFocus={(e) => e.preventDefault()}
       >
         <DialogHeader>
-          <DialogTitle>Member Settings</DialogTitle>
+          <DialogTitle>{t('member-settings')}</DialogTitle>
           <DialogDescription>
-            Manage member settings and permissions.
+            {t('members_workspace_settings_description')}
           </DialogDescription>
         </DialogHeader>
 
@@ -119,7 +174,7 @@ export function MemberSettingsButton({
               {user?.display_name ? (
                 user.display_name
               ) : (
-                <span className="opacity-50">Unknown</span>
+                <span className="opacity-50">{t('unknown_member')}</span>
               )}
             </p>
 
@@ -132,6 +187,39 @@ export function MemberSettingsButton({
           </div>
         </div>
 
+        {canEditDisplayName && (
+          <form className="space-y-3" onSubmit={saveDisplayName}>
+            <div className="space-y-2">
+              <Label htmlFor={`member-display-name-${user.id ?? user.email}`}>
+                {t('profile_display_name')}
+              </Label>
+              <Input
+                id={`member-display-name-${user.id ?? user.email}`}
+                value={displayName}
+                onChange={(event) => setDisplayName(event.target.value)}
+                placeholder={t('profile_display_name_placeholder')}
+                maxLength={MAX_NAME_LENGTH}
+              />
+              <p className="text-foreground/60 text-xs">
+                {t('profile_display_name_description')}
+              </p>
+            </div>
+
+            <Button
+              className="w-full"
+              disabled={updateProfileMutation.isPending}
+              type="submit"
+              variant="default"
+            >
+              {updateProfileMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                t('save_profile_display_name')
+              )}
+            </Button>
+          </form>
+        )}
+
         {(canManageMembers || currentUser?.id === user.id) && (
           <div className="mt-4">
             <Button
@@ -141,10 +229,10 @@ export function MemberSettingsButton({
               disabled={deleteMutation.isPending}
             >
               {currentUser?.id === user.id
-                ? 'Leave Workspace'
+                ? t('leave_workspace')
                 : user.pending
-                  ? 'Revoke Invitation'
-                  : 'Remove Member'}
+                  ? t('revoke_invitation')
+                  : t('remove_member')}
             </Button>
           </div>
         )}

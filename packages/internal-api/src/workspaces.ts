@@ -117,6 +117,33 @@ export async function listEnhancedWorkspaceMembers(
   );
 }
 
+export async function updateWorkspaceMemberProfile(
+  workspaceId: string,
+  payload: {
+    displayName: string | null;
+    email?: string | null;
+    userId?: string | null;
+  },
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  return client.json<{
+    message: string;
+    workspaceUser: {
+      id: string;
+      display_name: string | null;
+      email: string | null;
+    };
+  }>(`/api/workspaces/${encodePathSegment(workspaceId)}/members/profile`, {
+    body: JSON.stringify(payload),
+    cache: 'no-store',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    method: 'PUT',
+  });
+}
+
 export async function inviteWorkspaceMembers(
   workspaceId: string,
   emails: string[],

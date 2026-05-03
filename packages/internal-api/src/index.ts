@@ -378,4 +378,5 @@ export {
   listWorkspaceMembers,
   listWorkspaces,
   removeWorkspaceMember,
+  updateWorkspaceMemberProfile,
 } from './workspaces';
