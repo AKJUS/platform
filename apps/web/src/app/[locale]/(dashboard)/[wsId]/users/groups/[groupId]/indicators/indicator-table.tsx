@@ -21,7 +21,7 @@ interface IndicatorTableProps {
   ) => void;
   isValuePending: (userId: string, indicatorId: string) => boolean;
   canEditCell: (userId: string, indicatorId: string) => boolean;
-  calculateAverage: (userId: string) => string;
+  calculateAverage: (userId: string, indicators?: GroupIndicator[]) => string;
   onEditIndicator: (indicator: GroupIndicator) => void;
   onUserClick: (user: WorkspaceUser) => void;
 }
@@ -105,7 +105,7 @@ export function IndicatorTable({
                   <th className="sticky left-10 z-20 min-w-50 border-r bg-muted px-4 py-3 text-left font-semibold text-sm">
                     {t('ws-users.full_name')}
                   </th>
-                  {groupIndicators.map((indicator, idx) => (
+                  {groupIndicators.map((indicator) => (
                     <th
                       key={indicator.id}
                       className="min-w-50 border-r bg-muted px-4 py-3 font-semibold text-sm"
@@ -125,12 +125,21 @@ export function IndicatorTable({
                           {indicator.name}
                         </span>
                       )}
-                      {idx === groupIndicators.length - 1 && (
+                      {indicator.categories.length > 0 && (
+                        <div className="mt-1 flex flex-wrap justify-center gap-1">
+                          {indicator.categories.map((category) => (
+                            <Badge key={category.id} variant="outline">
+                              {category.name}
+                            </Badge>
+                          ))}
+                        </div>
+                      )}
+                      {!indicator.is_weighted && (
                         <Badge
                           variant="outline"
-                          className="mt-1 border-dynamic-green/30 text-dynamic-green"
+                          className="mt-1 border-dynamic-orange/30 text-dynamic-orange"
                         >
-                          {tIndicators('featured_in_reports')}
+                          {tIndicators('unweighted')}
                         </Badge>
                       )}
                     </th>
@@ -142,7 +151,7 @@ export function IndicatorTable({
               </thead>
               <tbody>
                 {users.map((user, index) => {
-                  const average = calculateAverage(user.id);
+                  const average = calculateAverage(user.id, groupIndicators);
                   return (
                     <tr
                       key={user.id}

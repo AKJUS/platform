@@ -1026,9 +1026,9 @@ values
         '00000000-0000-0000-0000-000000000003'
     );
 
--- Populate vitals
+-- Populate user group metrics
 insert into
-    public.healthcare_vitals (id, ws_id, name, unit)
+    public.user_group_metrics (id, ws_id, name, unit)
 values
     (
         '00000000-0000-0000-0000-000000000001',
@@ -1090,9 +1090,9 @@ values
         'Đau đầu là tình trạng đau ở vùng đầu.'
     );
 
--- Populate vital_groups
+-- Populate user group metric categories
 insert into
-    public.healthcare_vital_groups (id, ws_id, name, description)
+    public.user_group_metric_categories (id, ws_id, name, description)
 values
     (
         '00000000-0000-0000-0000-000000000001',
@@ -1107,9 +1107,9 @@ values
         'Nhóm các chỉ số tình trạng của bệnh nhân.'
     );
 
--- Populate vital_group_vitals
+-- Populate user group metric category links
 insert into
-    public.vital_group_vitals (group_id, vital_id)
+    public.user_group_metric_category_links (category_id, metric_id)
 values
     (
         '00000000-0000-0000-0000-000000000001',

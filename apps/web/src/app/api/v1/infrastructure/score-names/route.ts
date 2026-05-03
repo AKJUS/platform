@@ -17,7 +17,7 @@ export async function GET(req: Request) {
   }
 
   const { data, error, count } = await supabase
-    .from('healthcare_vitals')
+    .from('user_group_metrics')
     .select('*', { count: 'exact' })
     .eq('ws_id', wsId)
     .range(
@@ -26,9 +26,9 @@ export async function GET(req: Request) {
     );
 
   if (error) {
-    console.error('Error fetching healthcare_vitals:', error);
+    console.error('Error fetching user_group_metrics:', error);
     return NextResponse.json(
-      { message: 'Error fetching healthcare_vitals' },
+      { message: 'Error fetching user_group_metrics' },
       { status: 500 }
     );
   }

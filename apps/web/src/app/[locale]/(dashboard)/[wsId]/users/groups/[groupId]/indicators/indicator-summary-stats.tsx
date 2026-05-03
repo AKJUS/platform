@@ -17,9 +17,12 @@ export function IndicatorSummaryStats({
 }: IndicatorSummaryStatsProps) {
   const tIndicators = useTranslations('ws-user-group-indicators');
 
-  const { totalCells, filledCells } = useMemo(() => {
-    const indicatorIds = new Set(groupIndicators.map((gi) => gi.id));
-    const total = groupIndicators.length * userIds.size;
+  const { weightedIndicatorsCount, totalCells, filledCells } = useMemo(() => {
+    const weightedIndicators = groupIndicators.filter(
+      (indicator) => indicator.is_weighted
+    );
+    const indicatorIds = new Set(weightedIndicators.map((gi) => gi.id));
+    const total = weightedIndicators.length * userIds.size;
     const filled = userIndicators.filter(
       (ui) =>
         ui.value !== null &&
@@ -27,7 +30,11 @@ export function IndicatorSummaryStats({
         userIds.has(ui.user_id) &&
         indicatorIds.has(ui.indicator_id)
     ).length;
-    return { totalCells: total, filledCells: filled };
+    return {
+      weightedIndicatorsCount: weightedIndicators.length,
+      totalCells: total,
+      filledCells: filled,
+    };
   }, [groupIndicators, userIndicators, userIds]);
   const completionRate =
     totalCells > 0 ? Math.round((filledCells / totalCells) * 100) : 0;
@@ -41,6 +48,11 @@ export function IndicatorSummaryStats({
           </p>
           <p className="mt-1 font-semibold text-2xl">
             {groupIndicators.length}
+          </p>
+          <p className="mt-1 text-muted-foreground text-xs">
+            {tIndicators('weighted_indicators_count', {
+              count: weightedIndicatorsCount,
+            })}
           </p>
         </CardContent>
       </Card>

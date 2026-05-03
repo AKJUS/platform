@@ -195,7 +195,7 @@ export default function FollowUpClient({
   });
 
   // Query to fetch healthcare vitals scores for the user
-  const healthcareVitalsQuery = useQuery({
+  const userGroupMetricsQuery = useQuery({
     queryKey: [
       'ws',
       wsId,
@@ -203,12 +203,13 @@ export default function FollowUpClient({
       groupId,
       'user',
       userId,
-      'healthcare-vitals',
+      'user-group-metrics',
     ],
     enabled: Boolean(groupId),
     queryFn: async (): Promise<
       Array<{
         id: string;
+        is_weighted?: boolean;
         name: string;
         unit: string;
         factor: number;
@@ -229,10 +230,15 @@ export default function FollowUpClient({
     if (!groupId) return undefined;
 
     // Calculate scores and average from healthcare vitals
-    const vitals = healthcareVitalsQuery.data ?? [];
+    const vitals = userGroupMetricsQuery.data ?? [];
 
     const scores = vitals
-      .filter((vital) => vital.value !== null && vital.value !== undefined)
+      .filter(
+        (vital) =>
+          vital.is_weighted !== false &&
+          vital.value !== null &&
+          vital.value !== undefined
+      )
       .map((vital) => {
         const baseValue = vital.value ?? 0;
         // Apply factor only if feature flag is enabled
@@ -264,7 +270,7 @@ export default function FollowUpClient({
     userId,
     selectedGroup?.name,
     userName,
-    healthcareVitalsQuery.data,
+    userGroupMetricsQuery.data,
     effectiveManagerName,
     form,
   ]);
@@ -648,8 +654,8 @@ export default function FollowUpClient({
           )}
 
           {/* Performance Metrics Section */}
-          {healthcareVitalsQuery.data &&
-            healthcareVitalsQuery.data.length > 0 && (
+          {userGroupMetricsQuery.data &&
+            userGroupMetricsQuery.data.length > 0 && (
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base">
@@ -658,8 +664,8 @@ export default function FollowUpClient({
                 </CardHeader>
                 <CardContent>
                   <ScoreDisplay
-                    healthcareVitals={healthcareVitalsQuery.data}
-                    healthcareVitalsLoading={healthcareVitalsQuery.isLoading}
+                    userGroupMetrics={userGroupMetricsQuery.data}
+                    userGroupMetricsLoading={userGroupMetricsQuery.isLoading}
                     factorEnabled={ENABLE_FACTOR_CALCULATION}
                     scores={mockReport?.scores}
                     isNew={true}

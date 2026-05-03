@@ -237,7 +237,7 @@ export const generateModules = (): ModulePackage[] => {
 
       case 'grouped-score-names':
         // baseModule.name = 'Healthcare Vitals (grouped)';
-        // Maps to healthcare_vitals table, same as score-names
+        // Maps to user_group_metrics table, same as score-names
         baseModule.externalPath = `/migrate/score-names`;
         baseModule.mapping = groupedScoreNamesMapping;
         baseModule.legacyOnly = true; // Not applicable for Tuturuuu 1:1 sync

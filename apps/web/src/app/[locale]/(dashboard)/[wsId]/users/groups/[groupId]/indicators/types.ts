@@ -1,5 +1,13 @@
-export interface GroupIndicator {
+export interface MetricCategory {
   id: string;
+  name: string;
+  description: string | null;
+}
+
+export interface GroupIndicator {
+  categories: MetricCategory[];
+  id: string;
+  is_weighted: boolean;
   name: string;
   factor: number;
   unit: string;

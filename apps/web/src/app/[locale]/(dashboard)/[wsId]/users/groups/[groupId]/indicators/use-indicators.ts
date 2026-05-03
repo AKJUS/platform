@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl';
 import { useCallback, useState } from 'react';
 import type {
   GroupIndicator,
+  MetricCategory,
   PendingIndicatorValue,
   UserIndicator,
 } from './types';
@@ -14,6 +15,7 @@ interface UseIndicatorsParams {
   wsId: string;
   groupId: string;
   initialGroupIndicators: GroupIndicator[];
+  initialMetricCategories: MetricCategory[];
   initialUserIndicators: UserIndicator[];
   canCreate: boolean;
   canUpdate: boolean;
@@ -24,6 +26,7 @@ export function useIndicators({
   wsId,
   groupId,
   initialGroupIndicators,
+  initialMetricCategories,
   initialUserIndicators,
   canCreate,
   canUpdate,
@@ -52,10 +55,12 @@ export function useIndicators({
     staleTime: 5 * 60 * 1000,
   });
 
-  const groupIndicators =
-    indicatorsQuery.data?.groupIndicators || initialGroupIndicators;
-  const userIndicators =
-    indicatorsQuery.data?.userIndicators || initialUserIndicators;
+  const groupIndicators = (indicatorsQuery.data?.groupIndicators ||
+    initialGroupIndicators) as GroupIndicator[];
+  const metricCategories = (indicatorsQuery.data?.metricCategories ||
+    initialMetricCategories) as MetricCategory[];
+  const userIndicators = (indicatorsQuery.data?.userIndicators ||
+    initialUserIndicators) as UserIndicator[];
   const managerUserIds = new Set<string>(
     indicatorsQuery.data?.managerUserIds || []
   );
@@ -66,17 +71,27 @@ export function useIndicators({
       name,
       unit,
       factor,
+      categoryIds,
+      isWeighted,
     }: {
       name: string;
       unit: string;
       factor: number;
+      categoryIds: string[];
+      isWeighted: boolean;
     }) => {
       const res = await fetch(
         `/api/v1/workspaces/${wsId}/user-groups/${groupId}/indicators`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, unit, factor }),
+          body: JSON.stringify({
+            name,
+            unit,
+            factor,
+            categoryIds,
+            isWeighted,
+          }),
         }
       );
       if (!res.ok) throw new Error('Failed to create indicator');
@@ -94,24 +109,65 @@ export function useIndicators({
     },
   });
 
+  const createCategoryMutation = useMutation({
+    mutationFn: async ({
+      name,
+      description,
+    }: {
+      name: string;
+      description: string;
+    }) => {
+      const res = await fetch(
+        `/api/v1/workspaces/${wsId}/user-groups/${groupId}/indicators/categories`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, description }),
+        }
+      );
+      if (!res.ok) throw new Error('Failed to create metric category');
+      return await res.json();
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ['group-indicators-data', wsId, groupId],
+      });
+      toast.success(tIndicators('category_created_successfully'));
+    },
+    onError: (error) => {
+      console.error('Error creating metric category:', error);
+      toast.error(tIndicators('failed_to_create_category'));
+    },
+  });
+
   const updateIndicatorMutation = useMutation({
     mutationFn: async ({
       indicatorId,
       name,
       factor,
       unit,
+      categoryIds,
+      isWeighted,
     }: {
       indicatorId: string;
       name: string;
       factor: number;
       unit: string;
+      categoryIds: string[];
+      isWeighted: boolean;
     }) => {
       const res = await fetch(
         `/api/v1/workspaces/${wsId}/user-groups/${groupId}/indicators/${indicatorId}`,
         {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, factor, unit }),
+          body: JSON.stringify({
+            name,
+            factor,
+            unit,
+            categoryIds,
+            isWeighted,
+          }),
         }
       );
       if (!res.ok) throw new Error('Failed to update indicator');
@@ -299,8 +355,9 @@ export function useIndicators({
     [pendingValues, userIndicators]
   );
   const calculateAverage = useCallback(
-    (userId: string) => {
-      const userValues = groupIndicators
+    (userId: string, indicators = groupIndicators) => {
+      const userValues = indicators
+        .filter((indicator: GroupIndicator) => indicator.is_weighted)
         .map((indicator: GroupIndicator) => {
           const key = `${userId}|${indicator.id}`;
           if (pendingValues.has(key)) {
@@ -313,7 +370,7 @@ export function useIndicators({
           return userIndicator?.value;
         })
         .filter(
-          (value: number | null): value is number =>
+          (value: number | null | undefined): value is number =>
             value !== null && value !== undefined
         );
 
@@ -362,6 +419,7 @@ export function useIndicators({
 
   const isAnyMutationPending =
     createVitalMutation.isPending ||
+    createCategoryMutation.isPending ||
     updateIndicatorMutation.isPending ||
     deleteIndicatorMutation.isPending ||
     updateUserIndicatorValueMutation.isPending ||
@@ -370,10 +428,12 @@ export function useIndicators({
   return {
     // Data
     groupIndicators,
+    metricCategories,
     userIndicators,
     managerUserIds,
     // Mutations
     createVitalMutation,
+    createCategoryMutation,
     updateIndicatorMutation,
     deleteIndicatorMutation,
     // Value tracking

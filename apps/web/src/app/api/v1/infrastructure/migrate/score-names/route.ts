@@ -10,7 +10,7 @@ export async function PUT(req: Request) {
 
   const json = await req.json();
   const result = await batchUpsert({
-    table: 'healthcare_vitals',
+    table: 'user_group_metrics',
     data: json?.data || [],
   });
   return createMigrationResponse(result, 'score names');

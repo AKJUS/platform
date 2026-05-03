@@ -57,8 +57,8 @@ const MODULE_TABLE_MAP: Record<string, string> = {
   'bill-coupons': 'finance_invoice_promotions',
   'user-coupons': 'user_linked_promotions',
   lessons: 'user_group_posts',
-  'score-names': 'healthcare_vitals', // Indicator definitions
-  'grouped-score-names': 'healthcare_vitals', // Also maps to healthcare_vitals
+  'score-names': 'user_group_metrics', // Indicator definitions
+  'grouped-score-names': 'user_group_metrics', // Also maps to user_group_metrics
   'class-scores': 'user_indicators', // Maps to user_indicators (user_id, indicator_id, value)
   'class-members': 'workspace_user_groups_users',
   'user-group-users': 'workspace_user_groups_users',
@@ -100,7 +100,7 @@ const TABLES_WITH_WS_ID: Set<string> = new Set([
   'workspace_roles',
   'workspace_products',
   'workspace_promotions',
-  'healthcare_vitals', // Indicator definitions (score-names)
+  'user_group_metrics', // Indicator definitions (score-names)
   'workspace_settings',
   'workspace_configs',
 ]);

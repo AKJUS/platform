@@ -69,8 +69,8 @@ export default function EditableReportPreview({
   configs,
   isNew,
   groupId,
-  healthcareVitals = [],
-  healthcareVitalsLoading = false,
+  userGroupMetrics = [],
+  userGroupMetricsLoading = false,
   factorEnabled = false,
   managerOptions,
   selectedManagerName,
@@ -89,14 +89,15 @@ export default function EditableReportPreview({
   configs: WorkspaceConfig[];
   isNew: boolean;
   groupId?: string;
-  healthcareVitals?: Array<{
+  userGroupMetrics?: Array<{
     id: string;
+    is_weighted?: boolean;
     name: string;
     unit: string;
     factor: number;
     value: number | null;
   }>;
-  healthcareVitalsLoading?: boolean;
+  userGroupMetricsLoading?: boolean;
   factorEnabled?: boolean;
   managerOptions?: Array<{ value: string; label: string }>;
   selectedManagerName?: string;
@@ -144,7 +145,7 @@ export default function EditableReportPreview({
     wsId,
     report,
     isNew,
-    healthcareVitals,
+    userGroupMetrics,
     factorEnabled,
     scoreCalculationMethod,
     canApproveReports,
@@ -243,15 +244,20 @@ export default function EditableReportPreview({
   const currentScores = useMemo(() => {
     if (selectedLog) return selectedLog.scores ?? [];
     if (isNew) {
-      return healthcareVitals
-        .filter((vital) => vital.value !== null && vital.value !== undefined)
+      return userGroupMetrics
+        .filter(
+          (vital) =>
+            vital.is_weighted !== false &&
+            vital.value !== null &&
+            vital.value !== undefined
+        )
         .map((vital) => {
           const baseValue = vital.value ?? 0;
           return factorEnabled ? baseValue * (vital.factor ?? 1) : baseValue;
         });
     }
     return report.scores ?? [];
-  }, [selectedLog, isNew, healthcareVitals, factorEnabled, report.scores]);
+  }, [selectedLog, isNew, userGroupMetrics, factorEnabled, report.scores]);
 
   const hasScores = currentScores.length > 0;
   const [scoresOpen, setScoresOpen] = useState(hasScores);
@@ -463,8 +469,8 @@ export default function EditableReportPreview({
               <Separator className="my-2" />
 
               <ScoreDisplay
-                healthcareVitals={healthcareVitals}
-                healthcareVitalsLoading={healthcareVitalsLoading}
+                userGroupMetrics={userGroupMetrics}
+                userGroupMetricsLoading={userGroupMetricsLoading}
                 isNew={isNew}
                 scores={
                   selectedLog ? (selectedLog.scores ?? null) : report.scores

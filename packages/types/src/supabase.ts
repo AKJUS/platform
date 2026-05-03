@@ -4996,7 +4996,7 @@ export type Database = {
             foreignKeyName: 'healthcare_checkup_vital_groups_group_id_fkey';
             columns: ['group_id'];
             isOneToOne: false;
-            referencedRelation: 'healthcare_vital_groups';
+            referencedRelation: 'user_group_metric_categories';
             referencedColumns: ['id'];
           },
         ];
@@ -5032,7 +5032,7 @@ export type Database = {
             foreignKeyName: 'healthcare_checkup_vitals_vital_id_fkey';
             columns: ['vital_id'];
             isOneToOne: false;
-            referencedRelation: 'healthcare_vitals';
+            referencedRelation: 'user_group_metrics';
             referencedColumns: ['id'];
           },
         ];
@@ -5233,170 +5233,6 @@ export type Database = {
             columns: ['ws_id'];
             isOneToOne: false;
             referencedRelation: 'workspaces';
-            referencedColumns: ['id'];
-          },
-        ];
-      };
-      healthcare_vital_groups: {
-        Row: {
-          created_at: string | null;
-          description: string | null;
-          id: string;
-          name: string;
-          note: string | null;
-          ws_id: string;
-        };
-        Insert: {
-          created_at?: string | null;
-          description?: string | null;
-          id?: string;
-          name: string;
-          note?: string | null;
-          ws_id: string;
-        };
-        Update: {
-          created_at?: string | null;
-          description?: string | null;
-          id?: string;
-          name?: string;
-          note?: string | null;
-          ws_id?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'healthcare_vital_groups_ws_id_fkey';
-            columns: ['ws_id'];
-            isOneToOne: false;
-            referencedRelation: 'entity_limit_source__workspaces';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'healthcare_vital_groups_ws_id_fkey';
-            columns: ['ws_id'];
-            isOneToOne: false;
-            referencedRelation: 'entity_limit_source__workspaces';
-            referencedColumns: ['personal_ws_id'];
-          },
-          {
-            foreignKeyName: 'healthcare_vital_groups_ws_id_fkey';
-            columns: ['ws_id'];
-            isOneToOne: false;
-            referencedRelation: 'workspace_link_counts';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'healthcare_vital_groups_ws_id_fkey';
-            columns: ['ws_id'];
-            isOneToOne: false;
-            referencedRelation: 'workspaces';
-            referencedColumns: ['id'];
-          },
-        ];
-      };
-      healthcare_vitals: {
-        Row: {
-          created_at: string | null;
-          factor: number;
-          group_id: string | null;
-          id: string;
-          name: string;
-          unit: string;
-          ws_id: string;
-        };
-        Insert: {
-          created_at?: string | null;
-          factor?: number;
-          group_id?: string | null;
-          id?: string;
-          name: string;
-          unit: string;
-          ws_id: string;
-        };
-        Update: {
-          created_at?: string | null;
-          factor?: number;
-          group_id?: string | null;
-          id?: string;
-          name?: string;
-          unit?: string;
-          ws_id?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'healthcare_vitals_ws_id_fkey';
-            columns: ['ws_id'];
-            isOneToOne: false;
-            referencedRelation: 'entity_limit_source__workspaces';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'healthcare_vitals_ws_id_fkey';
-            columns: ['ws_id'];
-            isOneToOne: false;
-            referencedRelation: 'entity_limit_source__workspaces';
-            referencedColumns: ['personal_ws_id'];
-          },
-          {
-            foreignKeyName: 'healthcare_vitals_ws_id_fkey';
-            columns: ['ws_id'];
-            isOneToOne: false;
-            referencedRelation: 'workspace_link_counts';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'healthcare_vitals_ws_id_fkey';
-            columns: ['ws_id'];
-            isOneToOne: false;
-            referencedRelation: 'workspaces';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'public_healthcare_vitals_group_id_fkey';
-            columns: ['group_id'];
-            isOneToOne: false;
-            referencedRelation: 'group_users_with_post_checks';
-            referencedColumns: ['group_id'];
-          },
-          {
-            foreignKeyName: 'public_healthcare_vitals_group_id_fkey';
-            columns: ['group_id'];
-            isOneToOne: false;
-            referencedRelation: 'group_with_attendance';
-            referencedColumns: ['group_id'];
-          },
-          {
-            foreignKeyName: 'public_healthcare_vitals_group_id_fkey';
-            columns: ['group_id'];
-            isOneToOne: false;
-            referencedRelation: 'posts_dashboard_view';
-            referencedColumns: ['group_id'];
-          },
-          {
-            foreignKeyName: 'public_healthcare_vitals_group_id_fkey';
-            columns: ['group_id'];
-            isOneToOne: false;
-            referencedRelation: 'user_groups_with_tags';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'public_healthcare_vitals_group_id_fkey';
-            columns: ['group_id'];
-            isOneToOne: false;
-            referencedRelation: 'workspace_user_groups';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'public_healthcare_vitals_group_id_fkey';
-            columns: ['group_id'];
-            isOneToOne: false;
-            referencedRelation: 'workspace_user_groups_with_amount';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'public_healthcare_vitals_group_id_fkey';
-            columns: ['group_id'];
-            isOneToOne: false;
-            referencedRelation: 'workspace_user_groups_with_guest';
             referencedColumns: ['id'];
           },
         ];
@@ -14084,6 +13920,206 @@ export type Database = {
           },
         ];
       };
+      user_group_metric_categories: {
+        Row: {
+          created_at: string | null;
+          description: string | null;
+          id: string;
+          name: string;
+          note: string | null;
+          ws_id: string;
+        };
+        Insert: {
+          created_at?: string | null;
+          description?: string | null;
+          id?: string;
+          name: string;
+          note?: string | null;
+          ws_id: string;
+        };
+        Update: {
+          created_at?: string | null;
+          description?: string | null;
+          id?: string;
+          name?: string;
+          note?: string | null;
+          ws_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'user_group_metric_categories_ws_id_fkey';
+            columns: ['ws_id'];
+            isOneToOne: false;
+            referencedRelation: 'entity_limit_source__workspaces';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'user_group_metric_categories_ws_id_fkey';
+            columns: ['ws_id'];
+            isOneToOne: false;
+            referencedRelation: 'entity_limit_source__workspaces';
+            referencedColumns: ['personal_ws_id'];
+          },
+          {
+            foreignKeyName: 'user_group_metric_categories_ws_id_fkey';
+            columns: ['ws_id'];
+            isOneToOne: false;
+            referencedRelation: 'workspace_link_counts';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'user_group_metric_categories_ws_id_fkey';
+            columns: ['ws_id'];
+            isOneToOne: false;
+            referencedRelation: 'workspaces';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      user_group_metric_category_links: {
+        Row: {
+          category_id: string;
+          created_at: string | null;
+          metric_id: string;
+        };
+        Insert: {
+          category_id: string;
+          created_at?: string | null;
+          metric_id: string;
+        };
+        Update: {
+          category_id?: string;
+          created_at?: string | null;
+          metric_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'user_group_metric_category_links_category_id_fkey';
+            columns: ['category_id'];
+            isOneToOne: false;
+            referencedRelation: 'user_group_metric_categories';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'user_group_metric_category_links_metric_id_fkey';
+            columns: ['metric_id'];
+            isOneToOne: false;
+            referencedRelation: 'user_group_metrics';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      user_group_metrics: {
+        Row: {
+          created_at: string | null;
+          factor: number;
+          group_id: string | null;
+          id: string;
+          is_weighted: boolean;
+          name: string;
+          unit: string;
+          ws_id: string;
+        };
+        Insert: {
+          created_at?: string | null;
+          factor?: number;
+          group_id?: string | null;
+          id?: string;
+          is_weighted?: boolean;
+          name: string;
+          unit: string;
+          ws_id: string;
+        };
+        Update: {
+          created_at?: string | null;
+          factor?: number;
+          group_id?: string | null;
+          id?: string;
+          is_weighted?: boolean;
+          name?: string;
+          unit?: string;
+          ws_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'user_group_metrics_group_id_fkey';
+            columns: ['group_id'];
+            isOneToOne: false;
+            referencedRelation: 'group_users_with_post_checks';
+            referencedColumns: ['group_id'];
+          },
+          {
+            foreignKeyName: 'user_group_metrics_group_id_fkey';
+            columns: ['group_id'];
+            isOneToOne: false;
+            referencedRelation: 'group_with_attendance';
+            referencedColumns: ['group_id'];
+          },
+          {
+            foreignKeyName: 'user_group_metrics_group_id_fkey';
+            columns: ['group_id'];
+            isOneToOne: false;
+            referencedRelation: 'posts_dashboard_view';
+            referencedColumns: ['group_id'];
+          },
+          {
+            foreignKeyName: 'user_group_metrics_group_id_fkey';
+            columns: ['group_id'];
+            isOneToOne: false;
+            referencedRelation: 'user_groups_with_tags';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'user_group_metrics_group_id_fkey';
+            columns: ['group_id'];
+            isOneToOne: false;
+            referencedRelation: 'workspace_user_groups';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'user_group_metrics_group_id_fkey';
+            columns: ['group_id'];
+            isOneToOne: false;
+            referencedRelation: 'workspace_user_groups_with_amount';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'user_group_metrics_group_id_fkey';
+            columns: ['group_id'];
+            isOneToOne: false;
+            referencedRelation: 'workspace_user_groups_with_guest';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'user_group_metrics_ws_id_fkey';
+            columns: ['ws_id'];
+            isOneToOne: false;
+            referencedRelation: 'entity_limit_source__workspaces';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'user_group_metrics_ws_id_fkey';
+            columns: ['ws_id'];
+            isOneToOne: false;
+            referencedRelation: 'entity_limit_source__workspaces';
+            referencedColumns: ['personal_ws_id'];
+          },
+          {
+            foreignKeyName: 'user_group_metrics_ws_id_fkey';
+            columns: ['ws_id'];
+            isOneToOne: false;
+            referencedRelation: 'workspace_link_counts';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'user_group_metrics_ws_id_fkey';
+            columns: ['ws_id'];
+            isOneToOne: false;
+            referencedRelation: 'workspaces';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       user_group_post_checks: {
         Row: {
           approval_status: Database['public']['Enums']['approval_status'];
@@ -14639,7 +14675,7 @@ export type Database = {
             foreignKeyName: 'user_indicators_indicator_id_fkey';
             columns: ['indicator_id'];
             isOneToOne: false;
-            referencedRelation: 'healthcare_vitals';
+            referencedRelation: 'user_group_metrics';
             referencedColumns: ['id'];
           },
           {
@@ -14949,39 +14985,6 @@ export type Database = {
           year?: number | null;
         };
         Relationships: [];
-      };
-      vital_group_vitals: {
-        Row: {
-          created_at: string | null;
-          group_id: string;
-          vital_id: string;
-        };
-        Insert: {
-          created_at?: string | null;
-          group_id: string;
-          vital_id: string;
-        };
-        Update: {
-          created_at?: string | null;
-          group_id?: string;
-          vital_id?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: 'vital_group_vitals_group_id_fkey';
-            columns: ['group_id'];
-            isOneToOne: false;
-            referencedRelation: 'healthcare_vital_groups';
-            referencedColumns: ['id'];
-          },
-          {
-            foreignKeyName: 'vital_group_vitals_vital_id_fkey';
-            columns: ['vital_id'];
-            isOneToOne: false;
-            referencedRelation: 'healthcare_vitals';
-            referencedColumns: ['id'];
-          },
-        ];
       };
       wallet_interest_configs: {
         Row: {
@@ -26359,11 +26362,6 @@ export type Database = {
         Args: { ws_id: string };
         Returns: number;
       };
-      get_healthcare_vital_groups_count: {
-        Args: { ws_id: string };
-        Returns: number;
-      };
-      get_healthcare_vitals_count: { Args: { ws_id: string }; Returns: number };
       get_hourly_prompt_completion_tokens: {
         Args: { past_hours?: number };
         Returns: {
@@ -27180,6 +27178,14 @@ export type Database = {
         }[];
       };
       get_user_email: { Args: { p_user_id: string }; Returns: string };
+      get_user_group_metric_categories_count: {
+        Args: { ws_id: string };
+        Returns: number;
+      };
+      get_user_group_metrics_count: {
+        Args: { ws_id: string };
+        Returns: number;
+      };
       get_user_group_post_recipient_rows: {
         Args: {
           p_group_id: string;

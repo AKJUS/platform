@@ -25,16 +25,17 @@ export async function GET(req: Request, { params }: Params) {
     .from('user_indicators')
     .select(`
       value,
-      healthcare_vitals!inner(
+      user_group_metrics!inner(
         id,
         name,
         unit,
         factor,
+        is_weighted,
         group_id
       )
     `)
     .eq('user_id', userId)
-    .eq('healthcare_vitals.group_id', groupId);
+    .eq('user_group_metrics.group_id', groupId);
 
   if (error) {
     console.error(error);
@@ -45,11 +46,12 @@ export async function GET(req: Request, { params }: Params) {
   }
 
   const result = (data || []).map((item) => {
-    const vital = item.healthcare_vitals as unknown as {
+    const vital = item.user_group_metrics as unknown as {
       id: string;
       name: string;
       unit: string;
       factor: number;
+      is_weighted: boolean;
     };
 
     return {
@@ -57,6 +59,7 @@ export async function GET(req: Request, { params }: Params) {
       name: vital.name,
       unit: vital.unit,
       factor: vital.factor,
+      is_weighted: vital.is_weighted,
       value: item.value,
     };
   });

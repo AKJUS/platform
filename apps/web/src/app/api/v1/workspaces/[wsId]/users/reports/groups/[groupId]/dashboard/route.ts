@@ -26,9 +26,10 @@ type ReportStatusSummaryRow = {
   user_id: string;
 };
 
-type HealthcareVitalRow = {
+type UserGroupMetricRow = {
   factor: number;
   id: string;
+  is_weighted: boolean;
   name: string;
   unit: string;
   value: number | null;
@@ -166,7 +167,7 @@ export async function GET(request: Request, { params }: Params) {
       userStatusSummaryResult,
       reportsResult,
       reportDetailResult,
-      healthcareVitalsResult,
+      userGroupMetricsResult,
     ] = await Promise.all([
       sbAdmin
         .from('workspace_user_groups')
@@ -218,18 +219,19 @@ export async function GET(request: Request, { params }: Params) {
             .select(
               `
                 value,
-                healthcare_vitals!inner(
+                user_group_metrics!inner(
                   id,
                   name,
                   unit,
                   factor,
+                  is_weighted,
                   group_id,
                   created_at
                 )
               `
             )
             .eq('user_id', userId)
-            .eq('healthcare_vitals.group_id', groupId)
+            .eq('user_group_metrics.group_id', groupId)
         : Promise.resolve({ data: [], error: null }),
     ]);
 
@@ -239,7 +241,7 @@ export async function GET(request: Request, { params }: Params) {
       userStatusSummaryResult,
       reportsResult,
       reportDetailResult,
-      healthcareVitalsResult,
+      userGroupMetricsResult,
     ]) {
       if (!result.error) continue;
 
@@ -287,25 +289,26 @@ export async function GET(request: Request, { params }: Params) {
         reports.map((r) => ({ id: r.id, title: r.title, user_id: r.user_id }))
       );
     }
-    const healthcareVitals = (healthcareVitalsResult.data || [])
+    const userGroupMetrics = (userGroupMetricsResult.data || [])
       .sort(
         (left: any, right: any) =>
-          new Date(left.healthcare_vitals.created_at ?? 0).getTime() -
-          new Date(right.healthcare_vitals.created_at ?? 0).getTime()
+          new Date(left.user_group_metrics.created_at ?? 0).getTime() -
+          new Date(right.user_group_metrics.created_at ?? 0).getTime()
       )
       .map(
-        (item: any): HealthcareVitalRow => ({
-          id: item.healthcare_vitals.id,
-          name: item.healthcare_vitals.name,
-          unit: item.healthcare_vitals.unit,
-          factor: item.healthcare_vitals.factor,
+        (item: any): UserGroupMetricRow => ({
+          id: item.user_group_metrics.id,
+          name: item.user_group_metrics.name,
+          unit: item.user_group_metrics.unit,
+          factor: item.user_group_metrics.factor,
+          is_weighted: item.user_group_metrics.is_weighted,
           value: item.value,
         })
       );
 
     return NextResponse.json({
       group: groupResult.data,
-      healthcareVitals,
+      userGroupMetrics,
       managers: managersByGroup[groupId] ?? [],
       reportDetail,
       reports,

@@ -145,9 +145,10 @@ export default function GroupReportsClient({
     ],
     queryFn: async (): Promise<{
       group: { id: string; name: string | null };
-      healthcareVitals: Array<{
+      userGroupMetrics: Array<{
         factor: number;
         id: string;
+        is_weighted: boolean;
         name: string;
         unit: string;
         value: number | null;
@@ -373,10 +374,15 @@ export default function GroupReportsClient({
     useMemo(() => {
       if (reportId === 'new' && userId) {
         // Calculate scores and average from healthcare vitals
-        const vitals = dashboardQuery.data?.healthcareVitals ?? [];
+        const vitals = dashboardQuery.data?.userGroupMetrics ?? [];
 
         const scores = vitals
-          .filter((vital) => vital.value !== null && vital.value !== undefined)
+          .filter(
+            (vital) =>
+              vital.is_weighted &&
+              vital.value !== null &&
+              vital.value !== undefined
+          )
           .map((vital) => {
             const baseValue = vital.value ?? 0;
             // Apply factor only if feature flag is enabled
@@ -420,7 +426,7 @@ export default function GroupReportsClient({
       groupId,
       groupNameFallback,
       reportDetail,
-      dashboardQuery.data?.healthcareVitals,
+      dashboardQuery.data?.userGroupMetrics,
       dashboardQuery.data?.group?.name,
       dashboardQuery.data?.users,
       scoreCalculationMethod,
@@ -539,8 +545,8 @@ export default function GroupReportsClient({
           canUpdateReports={canUpdateReports}
           canDeleteReports={canDeleteReports}
           groupId={groupId}
-          healthcareVitals={dashboardQuery.data?.healthcareVitals ?? []}
-          healthcareVitalsLoading={dashboardQuery.isLoading}
+          userGroupMetrics={dashboardQuery.data?.userGroupMetrics ?? []}
+          userGroupMetricsLoading={dashboardQuery.isLoading}
           factorEnabled={ENABLE_FACTOR_CALCULATION}
           managerOptions={managerOptions}
           selectedManagerName={effectiveCreatorName ?? undefined}

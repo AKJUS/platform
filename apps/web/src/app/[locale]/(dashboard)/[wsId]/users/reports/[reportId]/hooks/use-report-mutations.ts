@@ -30,7 +30,7 @@ export function useReportMutations({
   wsId,
   report,
   isNew,
-  healthcareVitals = [],
+  userGroupMetrics = [],
   factorEnabled = false,
   scoreCalculationMethod = 'LATEST',
   canApproveReports = false,
@@ -38,8 +38,9 @@ export function useReportMutations({
   wsId: string;
   report: UserReport;
   isNew: boolean;
-  healthcareVitals?: Array<{
+  userGroupMetrics?: Array<{
     id: string;
+    is_weighted?: boolean;
     name: string;
     unit: string;
     factor: number;
@@ -67,9 +68,14 @@ export function useReportMutations({
       let calculatedScores = report.scores;
       let calculatedScore = report.score;
 
-      if (isNew && healthcareVitals.length > 0) {
-        const scores = healthcareVitals
-          .filter((vital) => vital.value !== null && vital.value !== undefined)
+      if (isNew && userGroupMetrics.length > 0) {
+        const scores = userGroupMetrics
+          .filter(
+            (vital) =>
+              vital.is_weighted !== false &&
+              vital.value !== null &&
+              vital.value !== undefined
+          )
           .map((vital) => {
             const baseValue = vital.value ?? 0;
             return factorEnabled ? baseValue * (vital.factor ?? 1) : baseValue;
@@ -324,8 +330,9 @@ export function useReportMutations({
 
       if (!dashboardRes.ok) throw new Error('Failed to fetch vitals');
       const dashboardData = await dashboardRes.json();
-      const vitals = (dashboardData.healthcareVitals || []) as Array<{
+      const vitals = (dashboardData.userGroupMetrics || []) as Array<{
         id: string;
+        is_weighted?: boolean;
         name: string;
         unit: string;
         factor: number;
@@ -333,7 +340,12 @@ export function useReportMutations({
       }>;
 
       const scores = vitals
-        .filter((vital) => vital.value !== null && vital.value !== undefined)
+        .filter(
+          (vital) =>
+            vital.is_weighted !== false &&
+            vital.value !== null &&
+            vital.value !== undefined
+        )
         .map((vital) => {
           const baseValue = vital.value ?? 0;
           return factorEnabled ? baseValue * (vital.factor ?? 1) : baseValue;
@@ -429,7 +441,7 @@ export function useReportMutations({
               report.group_id,
               'user',
               report.user_id,
-              'healthcare-vitals',
+              'user-group-metrics',
             ],
           })
         );

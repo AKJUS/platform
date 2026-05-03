@@ -695,27 +695,31 @@ values
 
 #### 5. Domain-specific Data
 
-The seed includes domain-specific data for different workspace types. For example, healthcare data:
+The seed includes domain-specific data for different workspace types. For example, user group metric data:
 
 ```sql
--- Populate healthcare_vitals
+-- Populate user group metrics
 insert into
-    public.healthcare_vitals (id, ws_id, name, unit)
+    public.user_group_metrics (id, ws_id, name, unit, is_weighted)
 values
     (
         '00000000-0000-0000-0000-000000000001',
         '00000000-0000-0000-0000-000000000003',
         'Nhiệt độ',
-        '°C'
+        '°C',
+        true
     ),
     (
         '00000000-0000-0000-0000-000000000002',
         '00000000-0000-0000-0000-000000000003',
         'Chiều cao',
-        'cm'
+        'cm',
+        false
     ),
-    /* additional vitals... */
+    /* additional metrics... */
 ```
+
+`user_group_metrics.is_weighted = false` keeps a metric visible for entry and category views without counting it toward report totals or averages. Metric categories live in `user_group_metric_categories` and are linked through `user_group_metric_category_links`.
 
 ### Creating Seed Data
 

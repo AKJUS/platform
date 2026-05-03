@@ -8,7 +8,7 @@ export const PROXY_ONLY_PUBLIC_TABLES = [
   'form_sections',
   'forms',
   'healthcare_diagnoses',
-  'healthcare_vital_groups',
+  'user_group_metric_categories',
   'mira_accessories',
   'mira_achievements',
   'notification_batches',

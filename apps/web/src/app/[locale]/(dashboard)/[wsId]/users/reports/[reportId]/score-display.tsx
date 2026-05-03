@@ -20,8 +20,9 @@ import { cn } from '@tuturuuu/utils/format';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 
-interface HealthcareVital {
+interface UserGroupMetric {
   id: string;
+  is_weighted?: boolean;
   name: string;
   unit: string;
   factor: number;
@@ -30,8 +31,8 @@ interface HealthcareVital {
 
 interface ScoreDisplayProps {
   // For new reports with healthcare vitals
-  healthcareVitals?: HealthcareVital[];
-  healthcareVitalsLoading?: boolean;
+  userGroupMetrics?: UserGroupMetric[];
+  userGroupMetricsLoading?: boolean;
   isNew?: boolean;
   // For existing reports
   scores?: number[] | null;
@@ -45,8 +46,8 @@ interface ScoreDisplayProps {
 }
 
 export default function ScoreDisplay({
-  healthcareVitals = [],
-  healthcareVitalsLoading = false,
+  userGroupMetrics = [],
+  userGroupMetricsLoading = false,
   isNew = false,
   scores = [],
   reportId,
@@ -74,12 +75,17 @@ export default function ScoreDisplay({
   // Get individual scores with metadata for display
   const getIndividualScoresWithMetadata = (): Array<{
     score: number;
-    vital?: HealthcareVital;
+    vital?: UserGroupMetric;
     isFromVital: boolean;
   }> => {
-    if (isNew && healthcareVitals.length > 0) {
-      return healthcareVitals
-        .filter((vital) => vital.value !== null && vital.value !== undefined)
+    if (isNew && userGroupMetrics.length > 0) {
+      return userGroupMetrics
+        .filter(
+          (vital) =>
+            vital.is_weighted !== false &&
+            vital.value !== null &&
+            vital.value !== undefined
+        )
         .map((vital) => {
           const baseValue = vital.value ?? 0;
           const calculatedScore = factorEnabled
@@ -95,16 +101,17 @@ export default function ScoreDisplay({
     // For existing reports — enrich with vital names when available
     return (scores || []).map((score, idx) => ({
       score,
-      vital: healthcareVitals[idx] ?? undefined,
-      isFromVital: idx < healthcareVitals.length,
+      vital: userGroupMetrics[idx] ?? undefined,
+      isFromVital: idx < userGroupMetrics.length,
     }));
   };
 
   // Get representative score
   const getRepresentativeScore = (): number | null => {
     const currentScores =
-      isNew && healthcareVitals.length > 0
-        ? healthcareVitals
+      isNew && userGroupMetrics.length > 0
+        ? userGroupMetrics
+            .filter((vital) => vital.is_weighted !== false)
             .filter(
               (vital) => vital.value !== null && vital.value !== undefined
             )
@@ -131,7 +138,7 @@ export default function ScoreDisplay({
   const individualScoresWithMetadata = getIndividualScoresWithMetadata();
 
   // Loading state
-  if (isNew && healthcareVitalsLoading) {
+  if (isNew && userGroupMetricsLoading) {
     return (
       <div className="text-muted-foreground text-sm">
         {t('common.loading')}...
@@ -190,7 +197,7 @@ export default function ScoreDisplay({
 
   // No data state
   if (
-    (isNew && healthcareVitals.length === 0) ||
+    (isNew && userGroupMetrics.length === 0) ||
     (!isNew && (!scores || scores.length === 0))
   ) {
     return (
@@ -256,7 +263,7 @@ export default function ScoreDisplay({
 
 interface ScoreWithMetadata {
   score: number;
-  vital?: HealthcareVital;
+  vital?: UserGroupMetric;
   isFromVital: boolean;
 }
 

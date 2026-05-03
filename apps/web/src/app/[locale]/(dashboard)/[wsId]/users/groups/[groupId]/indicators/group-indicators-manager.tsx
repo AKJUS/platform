@@ -4,14 +4,19 @@ import { RotateCcw, Save } from '@tuturuuu/icons';
 import type { WorkspaceUser } from '@tuturuuu/types/primitives/WorkspaceUser';
 import { Button } from '@tuturuuu/ui/button';
 import { StickyBottomBar } from '@tuturuuu/ui/sticky-bottom-bar';
+import { Tabs, TabsList, TabsTrigger } from '@tuturuuu/ui/tabs';
 import { cn } from '@tuturuuu/utils/format';
 import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
-import { AddIndicatorDialog, EditIndicatorDialog } from './indicator-dialogs';
+import {
+  AddCategoryDialog,
+  AddIndicatorDialog,
+  EditIndicatorDialog,
+} from './indicator-dialogs';
 import { IndicatorSummaryStats } from './indicator-summary-stats';
 import { IndicatorTable } from './indicator-table';
 import { IndicatorToolbar } from './indicator-toolbar';
-import type { GroupIndicator, UserIndicator } from './types';
+import type { GroupIndicator, MetricCategory, UserIndicator } from './types';
 import { useIndicators } from './use-indicators';
 import UserFeedbackDialog from './user-feedback-dialog';
 
@@ -21,6 +26,7 @@ interface Props {
   groupName: string;
   users: WorkspaceUser[];
   initialGroupIndicators: GroupIndicator[];
+  initialMetricCategories: MetricCategory[];
   initialUserIndicators: UserIndicator[];
   canCreateUserGroupsScores: boolean;
   canUpdateUserGroupsScores: boolean;
@@ -33,26 +39,32 @@ export default function GroupIndicatorsManager({
   groupName,
   users,
   initialGroupIndicators,
+  initialMetricCategories,
   initialUserIndicators,
   canCreateUserGroupsScores = false,
   canUpdateUserGroupsScores = false,
   canDeleteUserGroupsScores = false,
 }: Props) {
   const t = useTranslations();
+  const tIndicators = useTranslations('ws-user-group-indicators');
 
   // Dialog states
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [addCategoryDialogOpen, setAddCategoryDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [feedbackDialogOpen, setFeedbackDialogOpen] = useState(false);
+  const [selectedCategoryView, setSelectedCategoryView] = useState('all');
   const [selectedIndicator, setSelectedIndicator] =
     useState<GroupIndicator | null>(null);
   const [selectedUser, setSelectedUser] = useState<WorkspaceUser | null>(null);
 
   const {
     groupIndicators,
+    metricCategories,
     userIndicators,
     managerUserIds,
     createVitalMutation,
+    createCategoryMutation,
     updateIndicatorMutation,
     deleteIndicatorMutation,
     handleValueChange,
@@ -69,6 +81,7 @@ export default function GroupIndicatorsManager({
     wsId,
     groupId,
     initialGroupIndicators,
+    initialMetricCategories,
     initialUserIndicators,
     canCreate: canCreateUserGroupsScores,
     canUpdate: canUpdateUserGroupsScores,
@@ -86,6 +99,27 @@ export default function GroupIndicatorsManager({
     () => new Set(displayedUsers.map((u) => u.id)),
     [displayedUsers]
   );
+
+  const hasUncategorizedIndicators = useMemo(
+    () =>
+      groupIndicators.some((indicator) => indicator.categories.length === 0),
+    [groupIndicators]
+  );
+
+  const visibleIndicators = useMemo(() => {
+    if (selectedCategoryView === 'all') return groupIndicators;
+    if (selectedCategoryView === 'uncategorized') {
+      return groupIndicators.filter(
+        (indicator) => indicator.categories.length === 0
+      );
+    }
+
+    return groupIndicators.filter((indicator) =>
+      indicator.categories.some(
+        (category) => category.id === selectedCategoryView
+      )
+    );
+  }, [groupIndicators, selectedCategoryView]);
 
   const openEditDialog = (indicator: GroupIndicator) => {
     setSelectedIndicator(indicator);
@@ -131,19 +165,41 @@ export default function GroupIndicatorsManager({
       <div className="space-y-4">
         <IndicatorToolbar
           canCreate={canCreateUserGroupsScores}
-          onAddClick={() => setAddDialogOpen(true)}
+          onAddCategoryClick={() => setAddCategoryDialogOpen(true)}
+          onAddIndicatorClick={() => setAddDialogOpen(true)}
         />
 
-        {groupIndicators.length > 0 && (
+        {(metricCategories.length > 0 || hasUncategorizedIndicators) && (
+          <Tabs
+            value={selectedCategoryView}
+            onValueChange={setSelectedCategoryView}
+          >
+            <TabsList className="h-auto flex-wrap justify-start">
+              <TabsTrigger value="all">{t('common.all')}</TabsTrigger>
+              {metricCategories.map((category) => (
+                <TabsTrigger key={category.id} value={category.id}>
+                  {category.name}
+                </TabsTrigger>
+              ))}
+              {hasUncategorizedIndicators && (
+                <TabsTrigger value="uncategorized">
+                  {tIndicators('uncategorized')}
+                </TabsTrigger>
+              )}
+            </TabsList>
+          </Tabs>
+        )}
+
+        {visibleIndicators.length > 0 && (
           <IndicatorSummaryStats
-            groupIndicators={groupIndicators}
+            groupIndicators={visibleIndicators}
             userIndicators={userIndicators}
             userIds={displayedUserIds}
           />
         )}
 
         <IndicatorTable
-          groupIndicators={groupIndicators}
+          groupIndicators={visibleIndicators}
           users={displayedUsers}
           canUpdate={canUpdateUserGroupsScores}
           getIndicatorValue={getIndicatorValue}
@@ -160,6 +216,14 @@ export default function GroupIndicatorsManager({
         open={addDialogOpen}
         onOpenChange={setAddDialogOpen}
         createMutation={createVitalMutation}
+        metricCategories={metricCategories}
+        isAnyMutationPending={isAnyMutationPending}
+      />
+
+      <AddCategoryDialog
+        open={addCategoryDialogOpen}
+        onOpenChange={setAddCategoryDialogOpen}
+        createMutation={createCategoryMutation}
         isAnyMutationPending={isAnyMutationPending}
       />
 
@@ -169,6 +233,7 @@ export default function GroupIndicatorsManager({
         indicator={selectedIndicator}
         updateMutation={updateIndicatorMutation}
         deleteMutation={deleteIndicatorMutation}
+        metricCategories={metricCategories}
         canDelete={canDeleteUserGroupsScores}
         isAnyMutationPending={isAnyMutationPending}
       />

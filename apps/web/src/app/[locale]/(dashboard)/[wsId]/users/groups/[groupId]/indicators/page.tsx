@@ -13,6 +13,7 @@ import {
   withRequireAttentionFlag,
 } from '@/lib/require-attention-users';
 import GroupIndicatorsManager from './group-indicators-manager';
+import type { GroupIndicator, MetricCategory } from './types';
 
 export const metadata: Metadata = {
   title: 'Indicators',
@@ -56,6 +57,7 @@ export default async function UserGroupIndicatorsPage({ params }: Props) {
         const group = await getData(wsId, groupId);
         const indicators = await getIndicators(groupId);
         const groupIndicators = await getGroupIndicators(groupId);
+        const metricCategories = await getMetricCategories(wsId);
         const { data: users } = await getUserData(wsId, groupId);
 
         return (
@@ -66,6 +68,7 @@ export default async function UserGroupIndicatorsPage({ params }: Props) {
             users={users}
             initialGroupIndicators={groupIndicators}
             initialUserIndicators={indicators}
+            initialMetricCategories={metricCategories}
             canCreateUserGroupsScores={canCreateUserGroupsScores}
             canUpdateUserGroupsScores={canUpdateUserGroupsScores}
             canDeleteUserGroupsScores={canDeleteUserGroupsScores}
@@ -92,19 +95,67 @@ async function getData(wsId: string, groupId: string) {
   return data as UserGroup;
 }
 
+function mapMetricCategories(
+  metricCategoryLinks:
+    | {
+        user_group_metric_categories: MetricCategory | MetricCategory[] | null;
+      }[]
+    | null
+    | undefined
+) {
+  return (metricCategoryLinks ?? [])
+    .flatMap((row) => row.user_group_metric_categories ?? [])
+    .filter((category): category is MetricCategory => Boolean(category));
+}
+
 async function getGroupIndicators(groupId: string) {
   const supabase = await createClient();
 
   const { data, error } = await supabase
-    .from('healthcare_vitals')
-    .select('id, name, factor, unit')
+    .from('user_group_metrics')
+    .select(`
+      id,
+      name,
+      factor,
+      unit,
+      is_weighted,
+      user_group_metric_category_links(
+        user_group_metric_categories(id, name, description)
+      )
+    `)
     .eq('group_id', groupId)
     .order('created_at', { ascending: true });
 
   if (error) throw error;
   if (!data) return [];
 
-  return data;
+  return data.map(
+    (indicator): GroupIndicator => ({
+      id: indicator.id,
+      name: indicator.name,
+      factor: indicator.factor,
+      unit: indicator.unit,
+      is_weighted: indicator.is_weighted,
+      categories: mapMetricCategories(
+        indicator.user_group_metric_category_links
+      ),
+    })
+  );
+}
+
+async function getMetricCategories(wsId: string) {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from('user_group_metric_categories')
+    .select('id, name, description')
+    .eq('ws_id', wsId)
+    .order('name', { ascending: true });
+
+  if (error) throw error;
+  if (!data) return [];
+
+  return data satisfies MetricCategory[];
 }
 
 async function getIndicators(groupId: string) {
@@ -116,9 +167,9 @@ async function getIndicators(groupId: string) {
     user_id,
     indicator_id,
     value,
-    healthcare_vitals!inner(group_id)
+    user_group_metrics!inner(group_id)
   `)
-    .eq('healthcare_vitals.group_id', groupId);
+    .eq('user_group_metrics.group_id', groupId);
 
   if (error) throw error;
   if (!rawData) return [];

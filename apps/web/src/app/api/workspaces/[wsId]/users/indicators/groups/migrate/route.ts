@@ -15,7 +15,7 @@ export async function PUT(req: Request, { params }: Params) {
 
   const { error } = await supabase
     // .from('workspace_indicators')
-    .from('healthcare_vital_groups')
+    .from('user_group_metric_categories')
     .upsert(
       (data?.groups || []).map((u: VitalGroup) => ({
         ...u,

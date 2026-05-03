@@ -21,6 +21,11 @@ import { useTranslations } from 'next-intl';
 import { parseAsString, useQueryStates } from 'nuqs';
 import { useEffect, useState } from 'react';
 import GroupIndicatorsManager from '../[groupId]/indicators/group-indicators-manager';
+import type {
+  GroupIndicator,
+  MetricCategory,
+  UserIndicator,
+} from '../[groupId]/indicators/types';
 
 interface Props {
   wsId: string;
@@ -134,8 +139,12 @@ export default function GroupIndicatorsSelector({
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
-  const groupIndicators = indicatorsDataQuery.data?.groupIndicators || [];
-  const userIndicators = indicatorsDataQuery.data?.userIndicators || [];
+  const groupIndicators = (indicatorsDataQuery.data?.groupIndicators ||
+    []) as GroupIndicator[];
+  const metricCategories = (indicatorsDataQuery.data?.metricCategories ||
+    []) as MetricCategory[];
+  const userIndicators = (indicatorsDataQuery.data?.userIndicators ||
+    []) as UserIndicator[];
 
   // Fetch users
   const usersQuery = useQuery({
@@ -236,6 +245,7 @@ export default function GroupIndicatorsSelector({
               groupName={selectedGroup.name || ''}
               users={users}
               initialGroupIndicators={groupIndicators}
+              initialMetricCategories={metricCategories}
               initialUserIndicators={userIndicators}
               canCreateUserGroupsScores={canCreateUserGroupsScores}
               canUpdateUserGroupsScores={canUpdateUserGroupsScores}

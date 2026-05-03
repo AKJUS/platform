@@ -1,12 +1,51 @@
 import { createAdminClient } from '@tuturuuu/supabase/next/server';
+import type { TypedSupabaseClient } from '@tuturuuu/supabase/types';
 import { getPermissions } from '@tuturuuu/utils/workspace-helper';
 import { NextResponse } from 'next/server';
+import type { MetricCategory } from '@/app/[locale]/(dashboard)/[wsId]/users/groups/[groupId]/indicators/types';
 
 interface Params {
   params: Promise<{
     wsId: string;
     groupId: string;
   }>;
+}
+
+function mapMetricCategories(
+  metricCategoryLinks:
+    | {
+        user_group_metric_categories: MetricCategory | MetricCategory[] | null;
+      }[]
+    | null
+    | undefined
+) {
+  return (metricCategoryLinks ?? [])
+    .flatMap((row) => row.user_group_metric_categories ?? [])
+    .filter((category): category is MetricCategory => Boolean(category));
+}
+
+async function getValidMetricCategoryIds(
+  sbAdmin: TypedSupabaseClient,
+  wsId: string,
+  categoryIds: string[]
+) {
+  if (!categoryIds.length) return [];
+
+  const uniqueCategoryIds = [...new Set(categoryIds)];
+  const { data, error } = await sbAdmin
+    .from('user_group_metric_categories')
+    .select('id')
+    .eq('ws_id', wsId)
+    .in('id', uniqueCategoryIds);
+
+  if (error) throw error;
+
+  const validCategoryIds = (data ?? []).map((category) => category.id);
+  if (validCategoryIds.length !== uniqueCategoryIds.length) {
+    throw new Error('Invalid metric category');
+  }
+
+  return validCategoryIds;
 }
 
 export async function GET(req: Request, { params }: Params) {
@@ -29,8 +68,17 @@ export async function GET(req: Request, { params }: Params) {
 
   // Fetch group indicators
   const { data: groupIndicators, error: indicatorsError } = await sbAdmin
-    .from('healthcare_vitals')
-    .select('id, name, factor, unit')
+    .from('user_group_metrics')
+    .select(`
+      id,
+      name,
+      factor,
+      unit,
+      is_weighted,
+      user_group_metric_category_links(
+        user_group_metric_categories(id, name, description)
+      )
+    `)
     .eq('group_id', groupId)
     .order('created_at', { ascending: true });
 
@@ -42,6 +90,20 @@ export async function GET(req: Request, { params }: Params) {
     );
   }
 
+  const { data: metricCategories, error: metricCategoriesError } = await sbAdmin
+    .from('user_group_metric_categories')
+    .select('id, name, description')
+    .eq('ws_id', wsId)
+    .order('name', { ascending: true });
+
+  if (metricCategoriesError) {
+    console.error(metricCategoriesError);
+    return NextResponse.json(
+      { message: 'Error fetching metric categories' },
+      { status: 500 }
+    );
+  }
+
   // Fetch user indicators
   const { data: userIndicators, error: userIndicatorsError } = await sbAdmin
     .from('user_indicators')
@@ -49,9 +111,9 @@ export async function GET(req: Request, { params }: Params) {
       user_id,
       indicator_id,
       value,
-      healthcare_vitals!inner(group_id)
+      user_group_metrics!inner(group_id)
     `)
-    .eq('healthcare_vitals.group_id', groupId);
+    .eq('user_group_metrics.group_id', groupId);
 
   if (userIndicatorsError) {
     console.error(userIndicatorsError);
@@ -77,7 +139,17 @@ export async function GET(req: Request, { params }: Params) {
   }
 
   return NextResponse.json({
-    groupIndicators: groupIndicators || [],
+    groupIndicators: (groupIndicators || []).map((indicator) => ({
+      id: indicator.id,
+      name: indicator.name,
+      factor: indicator.factor,
+      unit: indicator.unit,
+      is_weighted: indicator.is_weighted,
+      categories: mapMetricCategories(
+        indicator.user_group_metric_category_links
+      ),
+    })),
+    metricCategories: metricCategories || [],
     userIndicators: (userIndicators || []).map((ui) => ({
       user_id: ui.user_id,
       indicator_id: ui.indicator_id,
@@ -103,7 +175,13 @@ export async function POST(req: Request, { params }: Params) {
     );
   }
 
-  const { name, unit, factor } = await req.json();
+  const {
+    name,
+    unit,
+    factor,
+    categoryIds = [],
+    isWeighted = true,
+  } = await req.json();
 
   if (!name) {
     return NextResponse.json({ message: 'Name is required' }, { status: 400 });
@@ -111,12 +189,28 @@ export async function POST(req: Request, { params }: Params) {
 
   const sbAdmin = await createAdminClient();
 
+  let validCategoryIds: string[];
+  try {
+    validCategoryIds = await getValidMetricCategoryIds(
+      sbAdmin,
+      wsId,
+      Array.isArray(categoryIds) ? categoryIds : []
+    );
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json(
+      { message: 'Invalid metric category' },
+      { status: 400 }
+    );
+  }
+
   const { data, error } = await sbAdmin
-    .from('healthcare_vitals')
+    .from('user_group_metrics')
     .insert({
       name,
       unit: unit?.trim() || '',
       factor: factor || 1,
+      is_weighted: isWeighted !== false,
       ws_id: wsId,
       group_id: groupId,
     })
@@ -129,6 +223,25 @@ export async function POST(req: Request, { params }: Params) {
       { message: 'Error creating indicator' },
       { status: 500 }
     );
+  }
+
+  if (validCategoryIds.length) {
+    const { error: categoryLinkError } = await sbAdmin
+      .from('user_group_metric_category_links')
+      .insert(
+        validCategoryIds.map((categoryId) => ({
+          category_id: categoryId,
+          metric_id: data.id,
+        }))
+      );
+
+    if (categoryLinkError) {
+      console.error(categoryLinkError);
+      return NextResponse.json(
+        { message: 'Error assigning metric categories' },
+        { status: 500 }
+      );
+    }
   }
 
   return NextResponse.json(data);
