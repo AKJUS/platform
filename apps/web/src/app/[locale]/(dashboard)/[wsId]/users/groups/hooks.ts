@@ -8,6 +8,7 @@ import {
 import type { UserGroup } from '@tuturuuu/types/primitives/UserGroup';
 
 export interface UserGroupsParams {
+  includeArchived?: boolean;
   q?: string;
   page?: number;
   pageSize?: number;
@@ -44,9 +45,15 @@ async function fetchUserGroupsPage(
   wsId: string,
   params: UserGroupsParams = {}
 ): Promise<UserGroupsPageResponse> {
-  const { q = '', page = 1, pageSize = GROUPS_INFINITE_PAGE_SIZE } = params;
+  const {
+    includeArchived = false,
+    q = '',
+    page = 1,
+    pageSize = GROUPS_INFINITE_PAGE_SIZE,
+  } = params;
   const searchParams = new URLSearchParams();
 
+  if (includeArchived) searchParams.set('includeArchived', 'true');
   if (q) searchParams.set('q', q);
   searchParams.set('page', String(page));
   searchParams.set('pageSize', String(pageSize));
@@ -82,14 +89,19 @@ export function useUserGroups(
     initialData?: UserGroupsResponse;
   }
 ) {
-  const { q = '', page = 1, pageSize = 10 } = params;
+  const { includeArchived = false, q = '', page = 1, pageSize = 10 } = params;
 
   return useQuery({
-    queryKey: ['workspace-user-groups', wsId, { q, page, pageSize }],
+    queryKey: [
+      'workspace-user-groups',
+      wsId,
+      { includeArchived, q, page, pageSize },
+    ],
     queryFn: async (): Promise<UserGroupsResponse> => {
       const { data, count, error, errorMessage } = await fetchUserGroupsPage(
         wsId,
         {
+          includeArchived,
           q,
           page,
           pageSize,
@@ -108,19 +120,28 @@ export function useUserGroups(
 
 export function useInfiniteUserGroups(
   wsId: string,
-  params: Pick<UserGroupsParams, 'q' | 'pageSize'> = {},
+  params: Pick<UserGroupsParams, 'includeArchived' | 'q' | 'pageSize'> = {},
   options?: {
     enabled?: boolean;
     initialData?: UserGroupsResponse;
   }
 ) {
-  const { q = '', pageSize = GROUPS_INFINITE_PAGE_SIZE } = params;
+  const {
+    includeArchived = false,
+    q = '',
+    pageSize = GROUPS_INFINITE_PAGE_SIZE,
+  } = params;
 
   const query = useInfiniteQuery({
-    queryKey: ['workspace-user-groups-infinite', wsId, { q, pageSize }],
+    queryKey: [
+      'workspace-user-groups-infinite',
+      wsId,
+      { includeArchived, q, pageSize },
+    ],
     initialPageParam: 1,
     queryFn: ({ pageParam }) =>
       fetchUserGroupsPage(wsId, {
+        includeArchived,
         q,
         page: pageParam,
         pageSize,

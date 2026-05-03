@@ -10,7 +10,9 @@ import WorkspaceWrapper from '@/components/workspace-wrapper';
 import UserGroupForm from './form';
 import { UserGroupsTable } from './user-groups-table';
 import {
+  applyAttendanceMemberCounts,
   fetchManagersForGroups,
+  getShouldCountManagersInAttendance,
   getUserGroupMemberships,
   matchesUserGroupSearch,
 } from './utils';
@@ -24,6 +26,7 @@ interface SearchParams {
   q?: string;
   page?: string;
   pageSize?: string;
+  includeArchived?: string;
   includedTags?: string | string[];
   excludedTags?: string | string[];
 }
@@ -69,6 +72,7 @@ export default async function WorkspaceUserGroupsPage({
           wsId,
           {
             q: sp.q,
+            includeArchived: sp.includeArchived,
           },
           containsPermission('manage_users')
         );
@@ -119,9 +123,15 @@ async function getInitialData(
   wsId: string,
   {
     q,
+    includeArchived,
     page = '1',
     pageSize = '50',
-  }: { q?: string; page?: string; pageSize?: string } = {},
+  }: {
+    includeArchived?: string;
+    q?: string;
+    page?: string;
+    pageSize?: string;
+  } = {},
   hasManageUsers: boolean = false
 ) {
   try {
@@ -137,6 +147,10 @@ async function getInitialData(
       )
       .eq('ws_id', wsId)
       .order('name');
+
+    if (includeArchived !== 'true') {
+      queryBuilder.eq('archived', false);
+    }
 
     const shouldUseAccentInsensitiveSearch = Boolean(q?.trim());
 
@@ -185,11 +199,16 @@ async function getInitialData(
     // Fetch managers for the fetched groups
     if (groups.length > 0) {
       const groupIds = groups.map((g) => g.id);
-      const managersByGroup = await fetchManagersForGroups(supabase, groupIds);
-      groups = groups.map((g) => ({
-        ...g,
-        managers: managersByGroup[g.id] ?? [],
-      }));
+      const [managersByGroup, countManagersInAttendance] = await Promise.all([
+        fetchManagersForGroups(supabase, groupIds),
+        getShouldCountManagersInAttendance(wsId),
+      ]);
+
+      groups = applyAttendanceMemberCounts(
+        groups,
+        managersByGroup,
+        countManagersInAttendance
+      );
     }
 
     return {

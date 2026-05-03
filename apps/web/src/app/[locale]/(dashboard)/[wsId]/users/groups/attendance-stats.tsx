@@ -4,10 +4,12 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 
 const GroupAttendanceStats = ({
+  excludedUserIds = [],
   wsId,
   groupId,
   count,
 }: {
+  excludedUserIds?: string[];
   wsId: string | undefined;
   groupId: string;
   count: number;
@@ -39,13 +41,13 @@ const GroupAttendanceStats = ({
       );
 
       return {
-        data: data as Array<{ status: string }>,
+        data: data as Array<{ status: string; user_id?: string | null }>,
         available,
       };
     } catch (e) {
       console.error(e);
       return {
-        data: [] as Array<{ status: string }>,
+        data: [] as Array<{ status: string; user_id?: string | null }>,
         available: false,
       };
     }
@@ -72,11 +74,18 @@ const GroupAttendanceStats = ({
 
   if (!wsId || !groupId) return null;
 
+  const excludedUserIdSet = new Set(excludedUserIds);
+  const attendanceRows = (res?.data ?? []).filter(
+    (entry) => !entry.user_id || !excludedUserIdSet.has(entry.user_id)
+  );
+
   const attended =
-    res?.data?.reduce((a, b) => a + (b?.status === 'PRESENT' ? 1 : 0), 0) || 0;
+    attendanceRows.reduce((a, b) => a + (b?.status === 'PRESENT' ? 1 : 0), 0) ||
+    0;
 
   const absent =
-    res?.data?.reduce((a, b) => a + (b?.status === 'ABSENT' ? 1 : 0), 0) || 0;
+    attendanceRows.reduce((a, b) => a + (b?.status === 'ABSENT' ? 1 : 0), 0) ||
+    0;
 
   if (isLoading) {
     return (

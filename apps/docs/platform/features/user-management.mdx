@@ -52,3 +52,11 @@ Workspace members can have workspace-specific display names, similar to server p
 - Keep members-page writes narrow: update the workspace profile display name only.
 - Always verify `manage_workspace_members` before writing member profiles from the members settings UI.
 - Enhanced member listing should display the workspace profile name when available and fall back to the platform user display name.
+
+## Attendance Manager Counting
+
+Workspace attendance settings include a default-on `ATTENDANCE_COUNT_MANAGERS` flag.
+
+- When enabled, group managers count toward attendance totals in user-group list summaries.
+- When disabled, attendance totals on the user-group list subtract group managers from the group member count.
+- This is separate from `ATTENDANCE_SHOW_MANAGERS`, which controls whether managers appear in detailed attendance-taking views.

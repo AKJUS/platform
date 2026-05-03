@@ -8650,8 +8650,8 @@
       "update_success": "Approval settings updated successfully"
     },
     "attendance": {
-      "display": "Display Settings",
-      "display_description": "Configure which members appear in attendance views",
+      "display": "Display & Totals",
+      "display_description": "Configure which members appear in attendance views and count toward attendance totals",
       "title": "Attendance"
     },
     "calendar": {
@@ -11724,6 +11724,7 @@
     "managers": "Managers",
     "name": "Name",
     "no_attendance_today": "No attendance today",
+    "show_archived": "Show archived groups",
     "special_users": "Special users"
   },
   "user-group-tag-data-table": {
@@ -12776,7 +12777,9 @@
     "view_usage_logs": "View Usage Logs"
   },
   "ws-attendance-settings": {
-    "display_description": "Configure how members are displayed in attendance views",
+    "count_managers_help": "When enabled, managers are included in attendance totals on group list summaries. When disabled, those totals exclude group managers.",
+    "count_managers_label": "Count managers in attendance totals",
+    "display_description": "Configure how members are displayed and counted in attendance views",
     "display_title": "Attendance Display",
     "save": "Save changes",
     "saving": "Saving...",

@@ -1,8 +1,11 @@
+import { ATTENDANCE_COUNT_MANAGERS_CONFIG_ID } from '@tuturuuu/internal-api/workspace-configs';
 import type { SupabaseClient } from '@tuturuuu/supabase';
 import { createClient } from '@tuturuuu/supabase/next/server';
+import type { UserGroup } from '@tuturuuu/types/primitives/UserGroup';
 import { removeAccents } from '@tuturuuu/utils/text-helper';
 import { getCurrentWorkspaceUser } from '@tuturuuu/utils/user-helper';
 import { notFound } from 'next/navigation';
+import { getWorkspaceConfig } from '@/lib/workspace-helper';
 import type { ManagerUser } from './hooks';
 
 export async function getUserGroupMemberships(wsId: string): Promise<string[]> {
@@ -84,6 +87,38 @@ export function matchesUserGroupSearch(
 
   const queryTerms = normalizedQuery.split(' ').filter(Boolean);
   return queryTerms.every((term) => normalizedName.includes(term));
+}
+
+export function shouldCountManagersInAttendance(value: string | null) {
+  return value?.trim().toLowerCase() !== 'false';
+}
+
+export async function getShouldCountManagersInAttendance(wsId: string) {
+  const value = await getWorkspaceConfig(
+    wsId,
+    ATTENDANCE_COUNT_MANAGERS_CONFIG_ID
+  );
+
+  return shouldCountManagersInAttendance(value);
+}
+
+export function applyAttendanceMemberCounts(
+  groups: UserGroup[],
+  managersByGroup: Record<string, ManagerUser[]>,
+  countManagersInAttendance: boolean
+) {
+  return groups.map((group) => {
+    const managers = managersByGroup[group.id] ?? [];
+    const amount = group.amount ?? 0;
+
+    return {
+      ...group,
+      attendance_amount: countManagersInAttendance
+        ? amount
+        : Math.max(amount - managers.length, 0),
+      managers,
+    };
+  });
 }
 
 export async function fetchManagersForGroups(

@@ -2,6 +2,8 @@
 
 import { MinusCircle, PlusCircle } from '@tuturuuu/icons';
 import type { UserGroup } from '@tuturuuu/types/primitives/UserGroup';
+import { Label } from '@tuturuuu/ui/label';
+import { Switch } from '@tuturuuu/ui/switch';
 import { useTranslations } from 'next-intl';
 import { parseAsArrayOf, parseAsString, useQueryState } from 'nuqs';
 import {
@@ -10,7 +12,17 @@ import {
 } from '../database/hooks';
 import { Filter } from '../filters';
 
-export default function Filters({ wsId }: { wsId: string }) {
+interface FiltersProps {
+  includeArchived: boolean;
+  onIncludeArchivedChange: (value: boolean | null) => unknown;
+  wsId: string;
+}
+
+export default function Filters({
+  includeArchived,
+  onIncludeArchivedChange,
+  wsId,
+}: FiltersProps) {
   const t = useTranslations('user-group-data-table');
 
   const [includedTags] = useQueryState(
@@ -49,6 +61,18 @@ export default function Filters({ wsId }: { wsId: string }) {
         }))}
         disabled
       />
+      <div className="flex items-center gap-2 rounded-md border px-3 py-2">
+        <Switch
+          id="include-archived-groups"
+          checked={includeArchived}
+          onCheckedChange={(checked) =>
+            onIncludeArchivedChange(checked ? true : null)
+          }
+        />
+        <Label htmlFor="include-archived-groups" className="text-sm">
+          {t('show_archived')}
+        </Label>
+      </div>
     </>
   );
 }

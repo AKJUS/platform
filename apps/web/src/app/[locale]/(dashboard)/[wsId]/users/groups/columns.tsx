@@ -177,13 +177,26 @@ export const getUserGroupColumns = ({
         title={t(`${namespace}.attendance_stats`)}
       />
     ),
-    cell: ({ row }) => (
-      <GroupAttendanceStats
-        wsId={row.original.ws_id}
-        groupId={row.original.id}
-        count={row.original.amount || 0}
-      />
-    ),
+    cell: ({ row }) => {
+      const attendanceAmount =
+        row.original.attendance_amount ?? row.original.amount ?? 0;
+      const shouldExcludeManagers =
+        row.original.attendance_amount !== undefined &&
+        row.original.attendance_amount !== row.original.amount;
+
+      return (
+        <GroupAttendanceStats
+          wsId={row.original.ws_id}
+          groupId={row.original.id}
+          count={attendanceAmount}
+          excludedUserIds={
+            shouldExcludeManagers
+              ? row.original.managers?.map((manager) => manager.id)
+              : undefined
+          }
+        />
+      );
+    },
   },
   {
     accessorKey: 'amount',

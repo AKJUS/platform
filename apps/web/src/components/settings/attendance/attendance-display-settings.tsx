@@ -3,6 +3,11 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from '@tuturuuu/icons';
+import {
+  ATTENDANCE_COUNT_MANAGERS_CONFIG_ID,
+  ATTENDANCE_SHOW_MANAGERS_CONFIG_ID,
+  updateWorkspaceConfig,
+} from '@tuturuuu/internal-api/workspace-configs';
 import { Button } from '@tuturuuu/ui/button';
 import {
   Form,
@@ -25,31 +30,50 @@ interface Props {
 }
 
 const formSchema = z.object({
+  count_managers_in_attendance_totals: z.boolean(),
   show_managers_in_attendance: z.boolean(),
 });
 
 export default function AttendanceDisplaySettings({ wsId }: Props) {
   const t = useTranslations('ws-attendance-settings');
-  const { data: configValue, isLoading } = useWorkspaceConfig<string>(
-    wsId,
-    'ATTENDANCE_SHOW_MANAGERS',
-    'true'
-  );
+  const { data: showManagersConfigValue, isLoading: isLoadingShowManagers } =
+    useWorkspaceConfig<string>(
+      wsId,
+      ATTENDANCE_SHOW_MANAGERS_CONFIG_ID,
+      'true'
+    );
+  const { data: countManagersConfigValue, isLoading: isLoadingCountManagers } =
+    useWorkspaceConfig<string>(
+      wsId,
+      ATTENDANCE_COUNT_MANAGERS_CONFIG_ID,
+      'true'
+    );
 
   const queryClient = useQueryClient();
+  const isLoading = isLoadingShowManagers || isLoadingCountManagers;
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      count_managers_in_attendance_totals: true,
       show_managers_in_attendance: true,
     },
     values: useMemo(() => {
-      if (isLoading || configValue == null) return undefined;
+      if (
+        isLoading ||
+        showManagersConfigValue == null ||
+        countManagersConfigValue == null
+      ) {
+        return undefined;
+      }
+
       return {
+        count_managers_in_attendance_totals:
+          countManagersConfigValue.trim().toLowerCase() !== 'false',
         show_managers_in_attendance:
-          configValue.trim().toLowerCase() === 'true',
+          showManagersConfigValue.trim().toLowerCase() === 'true',
       };
-    }, [isLoading, configValue]),
+    }, [isLoading, showManagersConfigValue, countManagersConfigValue]),
     resetOptions: {
       keepDirtyValues: true,
     },
@@ -57,26 +81,33 @@ export default function AttendanceDisplaySettings({ wsId }: Props) {
 
   const updateMutation = useMutation({
     mutationFn: async (values: z.infer<typeof formSchema>) => {
-      const res = await fetch(
-        `/api/v1/workspaces/${wsId}/settings/ATTENDANCE_SHOW_MANAGERS`,
-        {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            value: values.show_managers_in_attendance.toString(),
-          }),
-        }
-      );
-
-      if (!res.ok) {
-        throw new Error('Failed to update settings');
-      }
-
-      return res.json();
+      await Promise.all([
+        updateWorkspaceConfig(
+          wsId,
+          ATTENDANCE_SHOW_MANAGERS_CONFIG_ID,
+          values.show_managers_in_attendance.toString()
+        ),
+        updateWorkspaceConfig(
+          wsId,
+          ATTENDANCE_COUNT_MANAGERS_CONFIG_ID,
+          values.count_managers_in_attendance_totals.toString()
+        ),
+      ]);
     },
     onSuccess: () => {
+      for (const configId of [
+        ATTENDANCE_SHOW_MANAGERS_CONFIG_ID,
+        ATTENDANCE_COUNT_MANAGERS_CONFIG_ID,
+      ]) {
+        queryClient.invalidateQueries({
+          queryKey: ['workspace-config', wsId, configId],
+        });
+      }
       queryClient.invalidateQueries({
-        queryKey: ['workspace-config', wsId, 'ATTENDANCE_SHOW_MANAGERS'],
+        queryKey: ['workspace-user-groups', wsId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['workspace-user-groups-infinite', wsId],
       });
       toast.success(t('update_success'));
     },
@@ -110,6 +141,31 @@ export default function AttendanceDisplaySettings({ wsId }: Props) {
                     {t('show_managers_label')}
                   </FormLabel>
                   <FormDescription>{t('show_managers_help')}</FormDescription>
+                </div>
+                <FormControl>
+                  {isLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                  ) : (
+                    <Switch
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                  )}
+                </FormControl>
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="count_managers_in_attendance_totals"
+            render={({ field }) => (
+              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                <div className="space-y-0.5">
+                  <FormLabel className="text-base">
+                    {t('count_managers_label')}
+                  </FormLabel>
+                  <FormDescription>{t('count_managers_help')}</FormDescription>
                 </div>
                 <FormControl>
                   {isLoading ? (

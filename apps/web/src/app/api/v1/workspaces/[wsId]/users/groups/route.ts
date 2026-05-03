@@ -8,7 +8,9 @@ import {
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import {
+  applyAttendanceMemberCounts,
   fetchManagersForGroups,
+  getShouldCountManagersInAttendance,
   getUserGroupMemberships,
   matchesUserGroupSearch,
 } from '@/app/[locale]/(dashboard)/[wsId]/users/groups/utils';
@@ -27,6 +29,10 @@ const SearchParamsSchema = z.object({
   q: z.string().max(MAX_SEARCH_LENGTH).optional(),
   ids: z.string().optional(),
   userId: z.guid().optional(),
+  includeArchived: z.preprocess(
+    (value) => value === true || value === 'true',
+    z.boolean()
+  ),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(200).default(10),
 });
@@ -88,6 +94,10 @@ export async function GET(request: Request, { params }: Params) {
       )
       .eq('ws_id', wsId)
       .order('name');
+
+    if (!sp.includeArchived) {
+      queryBuilder.eq('archived', false);
+    }
 
     const shouldUseAccentInsensitiveSearch = Boolean(sp.q?.trim());
 
@@ -154,11 +164,16 @@ export async function GET(request: Request, { params }: Params) {
     // Fetch managers for the fetched groups
     if (data.length > 0) {
       const groupIds = data.map((g) => g.id);
-      const managersByGroup = await fetchManagersForGroups(supabase, groupIds);
-      data = data.map((g) => ({
-        ...g,
-        managers: managersByGroup[g.id] ?? [],
-      }));
+      const [managersByGroup, countManagersInAttendance] = await Promise.all([
+        fetchManagersForGroups(supabase, groupIds),
+        getShouldCountManagersInAttendance(wsId),
+      ]);
+
+      data = applyAttendanceMemberCounts(
+        data,
+        managersByGroup,
+        countManagersInAttendance
+      );
     }
 
     return NextResponse.json({
