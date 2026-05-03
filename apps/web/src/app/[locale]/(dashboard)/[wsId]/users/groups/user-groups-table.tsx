@@ -5,7 +5,7 @@ import { Loader2, RefreshCw } from '@tuturuuu/icons';
 import { Button } from '@tuturuuu/ui/button';
 import { useTranslations } from 'next-intl';
 import { parseAsString, useQueryState } from 'nuqs';
-import { useCallback, useEffect, useRef } from 'react';
+import { useCallback } from 'react';
 import { CustomDataTable } from '@/components/custom-data-table';
 import { getUserGroupColumns } from './columns';
 import Filters from './filters';
@@ -28,7 +28,6 @@ interface Props {
 export function UserGroupsTable({ wsId, initialData, permissions }: Props) {
   const t = useTranslations();
   const queryClient = useQueryClient();
-  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const [q, setQ] = useQueryState(
     'q',
@@ -83,31 +82,6 @@ export function UserGroupsTable({ wsId, initialData, permissions }: Props) {
       initialData: !q && statusFilter === 'active' ? initialData : undefined,
     }
   );
-
-  useEffect(() => {
-    const node = loadMoreRef.current;
-
-    if (!node || !hasNextPage || isFetchingNextPage) {
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (!entry?.isIntersecting || isFetchingNextPage || !hasNextPage) {
-          return;
-        }
-
-        void fetchNextPage();
-      },
-      {
-        rootMargin: '200px 0px',
-      }
-    );
-
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
   const groups = fetchedGroups.length
     ? fetchedGroups.map((g) => ({
@@ -212,9 +186,6 @@ export function UserGroupsTable({ wsId, initialData, permissions }: Props) {
           created_at: false,
         }}
       />
-
-      <div ref={loadMoreRef} className="h-1" />
-
       {(hasNextPage || isFetchingNextPage) && (
         <div className="mt-4 flex justify-center">
           <Button
