@@ -22,6 +22,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     return NextResponse.json(
       readCronExecutionArchive({
+        jobId: searchParams.get('jobId')?.trim() || null,
         page: parseOptionalPositiveInt(searchParams.get('page'), 1),
         pageSize: parseOptionalPositiveInt(searchParams.get('pageSize'), 25),
       })

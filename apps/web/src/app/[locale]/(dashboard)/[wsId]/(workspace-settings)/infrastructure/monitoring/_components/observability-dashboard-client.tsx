@@ -1,6 +1,6 @@
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Activity,
   BarChart3,
@@ -8,13 +8,21 @@ import {
   CalendarClock,
   DatabaseZap,
   FileText,
+  Gauge,
   Logs,
+  Play,
+  Power,
   Radio,
   RefreshCw,
   Search,
+  Terminal,
 } from '@tuturuuu/icons';
 import {
+  type CronExecutionRecord,
   type GetObservabilityParams,
+  getBlueGreenMonitoringSnapshot,
+  getCronMonitoringExecutionArchive,
+  getCronMonitoringSnapshot,
   getObservabilityAnalytics,
   getObservabilityCronRuns,
   getObservabilityDeployments,
@@ -23,10 +31,22 @@ import {
   getObservabilityRequests,
   type ObservabilityLogEvent,
   type ObservabilityRequest,
+  queueCronRun,
+  updateCronMonitoringControl,
 } from '@tuturuuu/internal-api/infrastructure';
+import { Badge } from '@tuturuuu/ui/badge';
+import { Button } from '@tuturuuu/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@tuturuuu/ui/dialog';
+import { Switch } from '@tuturuuu/ui/switch';
 import { cn } from '@tuturuuu/utils/format';
 import { useTranslations } from 'next-intl';
 import { parseAsInteger, parseAsString, useQueryState } from 'nuqs';
+import { useState } from 'react';
 
 export type ObservabilityDashboardMode =
   | 'analytics'
@@ -35,7 +55,8 @@ export type ObservabilityDashboardMode =
   | 'logs'
   | 'observability'
   | 'overview'
-  | 'requests';
+  | 'requests'
+  | 'resources';
 
 const modeIcons = {
   analytics: BarChart3,
@@ -45,6 +66,7 @@ const modeIcons = {
   observability: DatabaseZap,
   overview: Activity,
   requests: Radio,
+  resources: Gauge,
 };
 
 function formatNumber(value: number | null | undefined) {
@@ -165,12 +187,41 @@ function RequestRow({ request }: { request: ObservabilityRequest }) {
   );
 }
 
+function ResultsFooter({
+  hasMore,
+  loaded,
+  onLoadMore,
+  loadMoreLabel,
+  total,
+}: {
+  hasMore: boolean;
+  loaded: number;
+  loadMoreLabel: string;
+  onLoadMore: () => void;
+  total: number;
+}) {
+  return (
+    <div className="flex flex-col gap-2 border-border/60 border-t px-4 py-3 text-muted-foreground text-xs sm:flex-row sm:items-center sm:justify-between">
+      <span>
+        {loaded} / {total}
+      </span>
+      {hasMore ? (
+        <Button onClick={onLoadMore} size="sm" type="button" variant="outline">
+          {loadMoreLabel}
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
 export function ObservabilityDashboardClient({
   mode,
 }: {
   mode: ObservabilityDashboardMode;
 }) {
   const t = useTranslations('blue-green-monitoring.observability');
+  const cronT = useTranslations('blue-green-monitoring.cron');
+  const queryClient = useQueryClient();
   const Icon = modeIcons[mode];
   const [timeframeHours, setTimeframeHours] = useQueryState(
     'hours',
@@ -188,9 +239,15 @@ export function ObservabilityDashboardClient({
     'source',
     parseAsString.withDefault('all').withOptions({ shallow: true })
   );
+  const [pageSize, setPageSize] = useQueryState(
+    'limit',
+    parseAsInteger.withDefault(100).withOptions({ shallow: true })
+  );
+  const [selectedExecution, setSelectedExecution] =
+    useState<CronExecutionRecord | null>(null);
   const filters: GetObservabilityParams = {
     level: level as GetObservabilityParams['level'],
-    pageSize: 100,
+    pageSize,
     q: query || undefined,
     source: source as GetObservabilityParams['source'],
     timeframeHours,
@@ -226,8 +283,51 @@ export function ObservabilityDashboardClient({
     queryFn: () => getObservabilityCronRuns(filters),
     queryKey: ['infrastructure', 'observability', 'cron-runs', filters],
   });
+  const cronSnapshotQuery = useQuery({
+    enabled: mode === 'cron',
+    queryFn: () => getCronMonitoringSnapshot(),
+    queryKey: ['infrastructure', 'monitoring', 'cron', 'snapshot'],
+    refetchInterval: 5_000,
+  });
+  const cronExecutionsQuery = useQuery({
+    enabled: mode === 'cron',
+    queryFn: () =>
+      getCronMonitoringExecutionArchive({
+        page: 1,
+        pageSize,
+      }),
+    queryKey: ['infrastructure', 'monitoring', 'cron', 'executions', pageSize],
+    refetchInterval: 5_000,
+  });
+  const resourcesQuery = useQuery({
+    enabled: mode === 'resources',
+    queryFn: () =>
+      getBlueGreenMonitoringSnapshot({
+        requestPreviewLimit: 0,
+        watcherLogLimit: 0,
+      }),
+    queryKey: ['infrastructure', 'monitoring', 'resources'],
+    refetchInterval: 5_000,
+  });
+  const runCronMutation = useMutation({
+    mutationFn: (jobId: string) => queueCronRun({ jobId }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: ['infrastructure', 'monitoring', 'cron'],
+      }),
+  });
+  const cronControlMutation = useMutation({
+    mutationFn: (payload: { enabled: boolean; jobId?: string }) =>
+      updateCronMonitoringControl(payload),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: ['infrastructure', 'monitoring', 'cron'],
+      }),
+  });
   const overview = overviewQuery.data;
   const analytics = analyticsQuery.data;
+  const cronSnapshot = cronSnapshotQuery.data;
+  const resources = resourcesQuery.data?.dockerResources;
 
   return (
     <div className="space-y-4">
@@ -294,6 +394,9 @@ export function ObservabilityDashboardClient({
               void deploymentsQuery.refetch();
               void cronQuery.refetch();
               void analyticsQuery.refetch();
+              void cronSnapshotQuery.refetch();
+              void cronExecutionsQuery.refetch();
+              void resourcesQuery.refetch();
             }}
             type="button"
           >
@@ -370,6 +473,13 @@ export function ObservabilityDashboardClient({
           {(logsQuery.data?.items ?? []).map((log) => (
             <LogRow key={log.id} log={log} />
           ))}
+          <ResultsFooter
+            hasMore={Boolean(logsQuery.data?.hasNextPage)}
+            loaded={logsQuery.data?.items.length ?? 0}
+            loadMoreLabel={t('load_older')}
+            onLoadMore={() => void setPageSize(pageSize + 100)}
+            total={logsQuery.data?.total ?? 0}
+          />
         </section>
       )}
 
@@ -378,51 +488,197 @@ export function ObservabilityDashboardClient({
           {(requestsQuery.data?.items ?? []).map((request) => (
             <RequestRow key={request.id} request={request} />
           ))}
+          <ResultsFooter
+            hasMore={Boolean(requestsQuery.data?.hasNextPage)}
+            loaded={requestsQuery.data?.items.length ?? 0}
+            loadMoreLabel={t('load_older')}
+            onLoadMore={() => void setPageSize(pageSize + 100)}
+            total={requestsQuery.data?.total ?? 0}
+          />
         </section>
       )}
 
       {mode === 'deployments' && (
         <section className="rounded-lg border border-border bg-background">
+          <div className="grid grid-cols-[150px_90px_minmax(0,1fr)_120px_90px_90px] gap-4 border-border border-b px-4 py-3 text-muted-foreground text-xs">
+            <span>{t('columns.deployment')}</span>
+            <span>{t('columns.state')}</span>
+            <span>{t('columns.commit')}</span>
+            <span>{t('columns.hash')}</span>
+            <span>{t('columns.requests')}</span>
+            <span>{t('columns.errors')}</span>
+          </div>
           {(deploymentsQuery.data?.items ?? []).map((deployment) => (
             <div
-              className="grid grid-cols-[160px_100px_minmax(0,1fr)_100px_100px] gap-4 border-border/50 border-b px-4 py-3 text-sm"
+              className="grid grid-cols-[150px_90px_minmax(0,1fr)_120px_90px_90px] items-center gap-4 border-border/50 border-b px-4 py-3 text-sm"
               key={deployment.deploymentStamp ?? deployment.color ?? 'unknown'}
             >
-              <span className="font-mono">
+              <span className="truncate font-mono">
                 {deployment.deploymentStamp ?? deployment.color ?? 'unknown'}
               </span>
-              <span className="text-dynamic-green">{deployment.status}</span>
+              <span
+                className={cn(
+                  deployment.status === 'failed'
+                    ? 'text-dynamic-red'
+                    : 'text-dynamic-green'
+                )}
+              >
+                {deployment.runtimeState ?? deployment.status}
+              </span>
               <span className="truncate">
-                {deployment.commitSubject ?? deployment.commitHash ?? '-'}
+                {deployment.commitSubject ?? '-'}
+              </span>
+              <span className="truncate font-mono text-muted-foreground">
+                {deployment.commitShortHash ??
+                  deployment.commitHash?.slice(0, 12) ??
+                  '-'}
               </span>
               <span>{deployment.requestCount}</span>
               <span className="text-dynamic-red">{deployment.errorCount}</span>
             </div>
           ))}
+          <ResultsFooter
+            hasMore={Boolean(deploymentsQuery.data?.hasNextPage)}
+            loaded={deploymentsQuery.data?.items.length ?? 0}
+            loadMoreLabel={t('load_older')}
+            onLoadMore={() => void setPageSize(pageSize + 100)}
+            total={deploymentsQuery.data?.total ?? 0}
+          />
         </section>
       )}
 
       {mode === 'cron' && (
-        <section className="rounded-lg border border-border bg-background">
-          {(cronQuery.data?.items ?? []).map((run) => (
-            <div
-              className="grid grid-cols-[160px_220px_minmax(0,1fr)_90px_90px] gap-4 border-border/50 border-b px-4 py-3 text-sm"
-              key={run.id}
-            >
-              <span className="font-mono text-muted-foreground">
-                {formatTime(run.startedAt)}
-              </span>
-              <span className="truncate font-mono">{run.jobId}</span>
-              <span className="truncate">{run.path}</span>
-              <span
-                className={run.status === 'failed' ? 'text-dynamic-red' : ''}
-              >
-                {run.status}
-              </span>
-              <span>{formatDuration(run.durationMs)}</span>
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.6fr)]">
+          <section className="rounded-lg border border-border bg-background">
+            <div className="flex items-center justify-between gap-3 border-border border-b px-4 py-3">
+              <div>
+                <p className="font-medium text-sm">{cronT('jobs_title')}</p>
+                <p className="text-muted-foreground text-xs">
+                  {cronT('jobs_description')}
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Power className="h-4 w-4 text-muted-foreground" />
+                <Switch
+                  checked={cronSnapshot?.enabled ?? false}
+                  disabled={cronControlMutation.isPending || !cronSnapshot}
+                  onCheckedChange={(enabled) =>
+                    cronControlMutation.mutate({ enabled })
+                  }
+                />
+              </div>
             </div>
-          ))}
-        </section>
+            {(cronSnapshot?.jobs ?? []).map((job) => (
+              <div
+                className="grid gap-3 border-border/50 border-b px-4 py-3 text-sm lg:grid-cols-[minmax(0,1fr)_auto]"
+                key={job.id}
+              >
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="truncate font-mono">{job.id}</span>
+                    <Badge
+                      className={cn(
+                        'rounded-full',
+                        job.enabled
+                          ? 'border-dynamic-green/35 text-dynamic-green'
+                          : 'border-border text-muted-foreground'
+                      )}
+                      variant="outline"
+                    >
+                      {job.enabled
+                        ? cronT('states.enabled')
+                        : cronT('states.disabled')}
+                    </Badge>
+                    {job.controlEnabled != null ? (
+                      <Badge className="rounded-full" variant="outline">
+                        {t('cron.runtime_override')}
+                      </Badge>
+                    ) : null}
+                  </div>
+                  <p className="mt-1 text-muted-foreground text-xs">
+                    {job.description}
+                  </p>
+                  <p className="mt-2 truncate font-mono text-muted-foreground text-xs">
+                    {job.schedule} · {job.path}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 lg:justify-end">
+                  <Switch
+                    checked={job.enabled}
+                    disabled={
+                      cronControlMutation.isPending ||
+                      cronSnapshot?.enabled === false
+                    }
+                    onCheckedChange={(enabled) =>
+                      cronControlMutation.mutate({ enabled, jobId: job.id })
+                    }
+                  />
+                  <Button
+                    disabled={
+                      runCronMutation.isPending ||
+                      !job.enabled ||
+                      cronSnapshot?.enabled === false
+                    }
+                    onClick={() => runCronMutation.mutate(job.id)}
+                    size="sm"
+                    type="button"
+                    variant="outline"
+                  >
+                    <Play className="mr-2 h-4 w-4" />
+                    {cronT('actions.run_now')}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </section>
+
+          <section className="rounded-lg border border-border bg-background">
+            <div className="border-border border-b px-4 py-3">
+              <p className="font-medium text-sm">{cronT('executions_title')}</p>
+              <p className="text-muted-foreground text-xs">
+                {cronT('executions_description')}
+              </p>
+            </div>
+            {(cronExecutionsQuery.data?.items ?? []).map((run) => (
+              <button
+                className="grid gap-2 border-border/50 border-b px-4 py-3 text-sm"
+                key={run.id}
+                onClick={() => setSelectedExecution(run)}
+                type="button"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="truncate font-mono">{run.jobId}</span>
+                  <span
+                    className={
+                      run.status === 'failed' ? 'text-dynamic-red' : ''
+                    }
+                  >
+                    {run.status}
+                  </span>
+                </div>
+                <span className="truncate text-muted-foreground text-xs">
+                  {run.path}
+                </span>
+                <div className="flex items-center justify-between gap-3 font-mono text-muted-foreground text-xs">
+                  <span>{formatTime(run.startedAt)}</span>
+                  <span>{formatDuration(run.durationMs)}</span>
+                </div>
+                {run.error ? (
+                  <pre className="max-h-28 overflow-auto rounded-md border border-border/60 bg-muted/30 p-2 text-xs">
+                    {run.error}
+                  </pre>
+                ) : null}
+              </button>
+            ))}
+            <ResultsFooter
+              hasMore={Boolean(cronExecutionsQuery.data?.hasNextPage)}
+              loaded={cronExecutionsQuery.data?.items.length ?? 0}
+              loadMoreLabel={t('load_older')}
+              onLoadMore={() => void setPageSize(pageSize + 100)}
+              total={cronExecutionsQuery.data?.total ?? 0}
+            />
+          </section>
+        </div>
       )}
 
       {mode === 'analytics' && (
@@ -486,6 +742,153 @@ export function ObservabilityDashboardClient({
           ))}
         </section>
       )}
+
+      {mode === 'resources' && (
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+          <section className="rounded-lg border border-border bg-background">
+            <div className="grid grid-cols-[minmax(0,1fr)_90px_120px_120px_120px] gap-4 border-border border-b px-4 py-3 text-muted-foreground text-xs">
+              <span>{t('resources.container')}</span>
+              <span>{t('resources.health')}</span>
+              <span>{t('resources.cpu')}</span>
+              <span>{t('resources.memory')}</span>
+              <span>{t('resources.network')}</span>
+            </div>
+            {(resources?.allContainers ?? []).map((container) => (
+              <div
+                className="grid grid-cols-[minmax(0,1fr)_90px_120px_120px_120px] items-center gap-4 border-border/50 border-b px-4 py-3 text-sm"
+                key={container.containerId}
+              >
+                <div className="min-w-0">
+                  <p className="truncate font-medium">{container.name}</p>
+                  <p className="truncate font-mono text-muted-foreground text-xs">
+                    {container.image ?? container.serviceName ?? '-'}
+                  </p>
+                </div>
+                <span
+                  className={cn(
+                    container.health === 'healthy'
+                      ? 'text-dynamic-green'
+                      : container.health === 'unhealthy'
+                        ? 'text-dynamic-red'
+                        : 'text-muted-foreground'
+                  )}
+                >
+                  {container.health}
+                </span>
+                <span>{formatNumber(container.cpuPercent)}%</span>
+                <span>
+                  {formatNumber((container.memoryBytes ?? 0) / 1024 / 1024)}MB
+                </span>
+                <span className="font-mono text-muted-foreground text-xs">
+                  {formatNumber((container.rxBytes ?? 0) / 1024)}K /{' '}
+                  {formatNumber((container.txBytes ?? 0) / 1024)}K
+                </span>
+              </div>
+            ))}
+          </section>
+          <section className="rounded-lg border border-border bg-background p-4">
+            <Terminal className="mb-3 h-4 w-4 text-muted-foreground" />
+            <p className="font-medium text-sm">{t('resources.summary')}</p>
+            <div className="mt-4 grid gap-3">
+              <MetricCard
+                label={t('resources.total_cpu')}
+                value={`${formatNumber(resources?.totalCpuPercent)}%`}
+              />
+              <MetricCard
+                label={t('resources.total_memory')}
+                value={`${formatNumber((resources?.totalMemoryBytes ?? 0) / 1024 / 1024)}MB`}
+              />
+              <MetricCard
+                label={t('resources.services')}
+                value={formatNumber(resources?.serviceHealth.length)}
+              />
+            </div>
+          </section>
+        </div>
+      )}
+
+      <Dialog
+        onOpenChange={(open) => {
+          if (!open) setSelectedExecution(null);
+        }}
+        open={Boolean(selectedExecution)}
+      >
+        <DialogContent className="max-w-4xl">
+          {selectedExecution ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>{selectedExecution.jobId}</DialogTitle>
+              </DialogHeader>
+              <div className="grid gap-3 md:grid-cols-4">
+                {[
+                  [cronT('detail.status'), selectedExecution.status],
+                  [
+                    cronT('detail.started'),
+                    formatTime(selectedExecution.startedAt),
+                  ],
+                  [
+                    cronT('detail.duration'),
+                    formatDuration(selectedExecution.durationMs),
+                  ],
+                  [
+                    cronT('detail.http_status'),
+                    selectedExecution.httpStatus?.toString() ?? '-',
+                  ],
+                ].map(([label, value]) => (
+                  <div
+                    className="rounded-lg border border-border/60 bg-muted/20 p-3"
+                    key={label}
+                  >
+                    <p className="text-muted-foreground text-xs uppercase">
+                      {label}
+                    </p>
+                    <p className="mt-2 font-medium text-sm">{value}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="grid gap-4 lg:grid-cols-2">
+                <div>
+                  <p className="mb-2 font-medium text-sm">
+                    {cronT('detail.response')}
+                  </p>
+                  <pre className="max-h-80 overflow-auto rounded-lg border border-border/60 bg-muted/30 p-3 text-xs">
+                    {selectedExecution.error ||
+                      selectedExecution.response ||
+                      cronT('detail.empty_response')}
+                  </pre>
+                </div>
+                <div>
+                  <p className="mb-2 font-medium text-sm">
+                    {cronT('detail.console_logs')}
+                  </p>
+                  <div className="max-h-80 overflow-auto rounded-lg border border-border/60 bg-muted/30 p-3">
+                    {selectedExecution.consoleLogs.length > 0 ? (
+                      selectedExecution.consoleLogs.map((log) => (
+                        <div
+                          className="border-border/50 border-b py-2 last:border-b-0"
+                          key={`${log.time}-${log.message}`}
+                        >
+                          <div className="flex items-center justify-between gap-3 text-muted-foreground text-xs">
+                            <span>{formatTime(log.time)}</span>
+                            <span>{log.level}</span>
+                          </div>
+                          <p className="mt-1 whitespace-pre-wrap font-mono text-xs">
+                            {log.message}
+                          </p>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-muted-foreground text-sm">
+                        {cronT('detail.empty_console_logs')}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

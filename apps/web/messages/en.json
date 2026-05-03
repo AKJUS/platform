@@ -1795,13 +1795,20 @@
         "title": "Analytics"
       },
       "columns": {
+        "commit": "Commit",
+        "deployment": "Deployment",
+        "errors": "Errors",
+        "hash": "Hash",
         "level": "Level",
         "message": "Message",
+        "requests": "Requests",
+        "state": "State",
         "status": "Status",
         "time": "Time"
       },
       "cron": {
         "description": "Recent cron executions, duration, status, and captured errors.",
+        "runtime_override": "Runtime override",
         "title": "Cron"
       },
       "deployments": {
@@ -1811,6 +1818,7 @@
       "last_24_hours": "Last 24 Hours",
       "last_7_days": "Last 7 Days",
       "last_hour": "Last Hour",
+      "load_older": "Load Older",
       "logs": {
         "description": "Live-search request, cron, and server log events from the internal drain.",
         "title": "Logs"
@@ -1836,6 +1844,19 @@
       "requests": {
         "description": "Request timeline with status, path, source, and duration.",
         "title": "Requests"
+      },
+      "resources": {
+        "container": "Container",
+        "cpu": "CPU",
+        "description": "Docker container health, resource usage, network flow, and compose service state.",
+        "health": "Health",
+        "memory": "Memory",
+        "network": "Network",
+        "services": "Services",
+        "summary": "Runtime Summary",
+        "title": "Resources",
+        "total_cpu": "Total CPU",
+        "total_memory": "Total Memory"
       },
       "search_placeholder": "Search logs, routes, requests",
       "signals": {
@@ -1992,6 +2013,10 @@
       "requests": {
         "description": "Page through retained proxy traffic without overloading the main dashboard.",
         "title": "Requests"
+      },
+      "resources": {
+        "description": "Docker health, memory, CPU, network, and service inventory.",
+        "title": "Resources"
       },
       "rollouts": {
         "description": "Deployments, traffic charts, event streams, and sync controls.",
@@ -6038,6 +6063,7 @@
     "monitoring_observability": "Observability",
     "monitoring_overview": "Overview",
     "monitoring_requests": "Requests",
+    "monitoring_resources": "Resources",
     "monitoring_rollouts": "Deployments",
     "monitoring_watcher_logs": "Watcher Logs",
     "operations": "Operations",

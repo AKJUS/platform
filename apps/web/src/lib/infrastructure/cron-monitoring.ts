@@ -86,6 +86,8 @@ function readCronConfig(paths = getCronMonitoringPaths(), fsImpl = fs) {
   return {
     jobs: Array.isArray(parsed.jobs)
       ? parsed.jobs.map((job) => ({
+          configuredEnabled: job.enabled !== false,
+          controlEnabled: null,
           description: String(job.description ?? ''),
           enabled: job.enabled !== false,
           failureStreak: 0,
@@ -131,6 +133,7 @@ function readExecutionRecords(
 function getDefaultControl(): CronMonitoringControl {
   return {
     enabled: true,
+    jobs: {},
     updatedAt: null,
     updatedBy: null,
     updatedByEmail: null,
@@ -141,7 +144,7 @@ function readControl(
   paths = getCronMonitoringPaths(),
   fsImpl = fs
 ): CronMonitoringControl {
-  return {
+  const control = {
     ...getDefaultControl(),
     ...readJsonFile<Partial<CronMonitoringControl>>(
       paths.controlFile,
@@ -149,6 +152,27 @@ function readControl(
       fsImpl
     ),
   };
+
+  return {
+    ...control,
+    jobs: control.jobs && typeof control.jobs === 'object' ? control.jobs : {},
+  };
+}
+
+function getJobControlEnabled(control: CronMonitoringControl, jobId: string) {
+  const override = control.jobs[jobId];
+  return typeof override?.enabled === 'boolean' ? override.enabled : null;
+}
+
+function getEffectiveJobEnabled(
+  job: Pick<CronMonitoringJob, 'enabled' | 'id'>,
+  control: CronMonitoringControl
+) {
+  if (control.enabled === false) {
+    return false;
+  }
+
+  return getJobControlEnabled(control, job.id) ?? job.enabled;
 }
 
 function readQueuedRunRequests(
@@ -264,20 +288,28 @@ export function readCronMonitoringSnapshot({
     ...job,
     ...(persistedJobs.find((candidate) => candidate.id === job.id) ?? {}),
   }));
+  const effectiveJobs = jobs.map((job) => ({
+    ...job,
+    configuredEnabled: job.configuredEnabled ?? job.enabled,
+    controlEnabled: getJobControlEnabled(control, job.id),
+    enabled: getEffectiveJobEnabled(job, control),
+  }));
   const persistedRuns = Array.isArray(persistedStatus.runs)
     ? (persistedStatus.runs as CronRunRecord[])
     : [];
   const runs = mergeCronRunRecords([
-    ...readQueuedRunRequests(jobs, paths, fsImpl),
+    ...readQueuedRunRequests(effectiveJobs, paths, fsImpl),
     ...persistedRuns,
   ]);
   const lastExecution = executions[0] ?? persistedStatus.lastExecution ?? null;
   const failedExecutions = executions.filter(
     (execution) => execution.status !== 'success'
   );
-  const failedJobs = jobs.filter((job) => (job.failureStreak ?? 0) > 0).length;
+  const failedJobs = effectiveJobs.filter(
+    (job) => (job.failureStreak ?? 0) > 0
+  ).length;
   const nextRunAt =
-    jobs
+    effectiveJobs
       .map((job) => job.nextRunAt)
       .filter((value): value is number => typeof value === 'number')
       .sort((left, right) => left - right)[0] ?? null;
@@ -289,17 +321,17 @@ export function readCronMonitoringSnapshot({
   return {
     control,
     enabled: control.enabled,
-    jobs,
+    jobs: effectiveJobs,
     lastExecution,
     nextRunAt,
     overview: {
-      enabledJobs: jobs.filter((job) => job.enabled).length,
+      enabledJobs: effectiveJobs.filter((job) => job.enabled).length,
       failedExecutions: failedExecutions.length,
       failedJobs,
       processingRuns: runs.filter((run) => run.status === 'processing').length,
       queuedRuns: runs.filter((run) => run.status === 'queued').length,
       retainedExecutions: executions.length,
-      totalJobs: jobs.length,
+      totalJobs: effectiveJobs.length,
     },
     retainedExecutionCount: executions.length,
     runs,
@@ -316,11 +348,13 @@ export function readCronMonitoringSnapshot({
 
 export function readCronExecutionArchive({
   fsImpl = fs,
+  jobId = null,
   page = 1,
   pageSize = 25,
   paths = getCronMonitoringPaths(),
 }: {
   fsImpl?: typeof fs;
+  jobId?: string | null;
   page?: number;
   pageSize?: number;
   paths?: ReturnType<typeof getCronMonitoringPaths>;
@@ -328,7 +362,9 @@ export function readCronExecutionArchive({
   const boundedPage = Number.isInteger(page) && page > 0 ? page : 1;
   const boundedPageSize =
     Number.isInteger(pageSize) && pageSize > 0 ? Math.min(pageSize, 100) : 25;
-  const executions = readExecutionRecords(paths, fsImpl);
+  const executions = readExecutionRecords(paths, fsImpl).filter(
+    (execution) => !jobId || execution.jobId === jobId
+  );
   const offset = (boundedPage - 1) * boundedPageSize;
   const items = executions.slice(offset, offset + boundedPageSize);
   const pageCount = Math.max(1, Math.ceil(executions.length / boundedPageSize));
@@ -352,25 +388,50 @@ export function readCronExecutionArchive({
 export function updateCronMonitoringControl({
   enabled,
   fsImpl = fs,
+  jobId = null,
   paths = getCronMonitoringPaths(),
   updatedBy,
   updatedByEmail,
 }: {
   enabled: boolean;
   fsImpl?: typeof fs;
+  jobId?: string | null;
   paths?: ReturnType<typeof getCronMonitoringPaths>;
   updatedBy: string;
   updatedByEmail: string | null;
 }) {
-  const control: CronMonitoringControl = {
-    enabled,
+  const previous = readControl(paths, fsImpl);
+  const control: CronMonitoringControl = jobId
+    ? {
+        ...previous,
+        jobs: {
+          ...previous.jobs,
+          [jobId]: {
+            enabled,
+            updatedAt: Date.now(),
+            updatedBy,
+            updatedByEmail,
+          },
+        },
+      }
+    : {
+        ...previous,
+        enabled,
+      };
+
+  control.updatedAt = Date.now();
+  control.updatedBy = updatedBy;
+  control.updatedByEmail = updatedByEmail;
+
+  const nextControl: CronMonitoringControl = {
+    ...control,
     updatedAt: Date.now(),
     updatedBy,
     updatedByEmail,
   };
 
-  writeJsonFile(paths.controlFile, control, fsImpl);
-  return control;
+  writeJsonFile(paths.controlFile, nextControl, fsImpl);
+  return nextControl;
 }
 
 export function queueCronRunRequest({

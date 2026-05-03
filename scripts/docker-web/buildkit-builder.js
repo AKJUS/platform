@@ -16,7 +16,7 @@ const BUILDKIT_STATE_FILE = path.join(
   BUILDKIT_RUNTIME_DIR,
   'builder-config.json'
 );
-const DEFAULT_BUILDER_NAME = 'platform-web-capped-builder';
+const DEFAULT_BUILDER_NAME = 'platform';
 const DEFAULT_CPU_PERIOD = 100_000;
 
 function parsePositiveNumber(value) {

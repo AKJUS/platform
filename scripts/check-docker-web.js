@@ -418,6 +418,10 @@ function validateDockerProdCompose(composeContent) {
     '    - ./tmp/docker-web/watch/control:/app/runtime/docker-web-control',
     '    - ./tmp/docker-web:/app/runtime/docker-web:ro',
     '  log-drain-postgres:',
+    '    container_name: ' +
+      '${' +
+      'COMPOSE_PROJECT_NAME:-platform' +
+      '}-log-drain-postgres-1',
     '    image: postgres:16-alpine',
     '      POSTGRES_DB: platform_log_drain',
     '      POSTGRES_USER: platform_log_drain',

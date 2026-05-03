@@ -1,4 +1,7 @@
 import type {
+  BlueGreenMonitoringRequestConsoleLog,
+  BlueGreenMonitoringRequestLog,
+  BlueGreenMonitoringWatcherLog,
   ObservabilityAnalytics,
   ObservabilityCronRun,
   ObservabilityDeployment,
@@ -7,6 +10,11 @@ import type {
   ObservabilityPaginatedResult,
   ObservabilityRequest,
 } from '@tuturuuu/internal-api/infrastructure';
+import {
+  readBlueGreenMonitoringRequestArchive,
+  readBlueGreenMonitoringSnapshot,
+  readBlueGreenMonitoringWatcherLogArchive,
+} from './blue-green-monitoring';
 import { readCronExecutionArchive } from './cron-monitoring';
 import { ensureLogDrainSchema, getLogDrainSqlClient } from './log-drain';
 
@@ -135,13 +143,165 @@ function filterText(value: string | null | undefined, q: string) {
   return value?.toLowerCase().includes(q.toLowerCase()) ?? false;
 }
 
+function shouldIncludeText(
+  q: string | null | undefined,
+  values: Array<string | null | undefined>
+) {
+  const normalized = q?.trim();
+  return !normalized || values.some((value) => filterText(value, normalized));
+}
+
+function mapLegacyRequest(request: BlueGreenMonitoringRequestLog) {
+  const startedAt = request.time;
+  const id = `legacy-request-${request.time}-${request.method ?? 'GET'}-${request.path}`;
+
+  return {
+    cronJobId: null,
+    deploymentColor: request.deploymentColor,
+    deploymentStamp: request.deploymentStamp,
+    durationMs: request.requestTimeMs,
+    endedAt: startedAt + (request.requestTimeMs ?? 0),
+    errorMessage: null,
+    id,
+    logCount: request.consoleLogs?.length ?? 0,
+    method: request.method,
+    path: request.path,
+    source: 'api' as const,
+    startedAt,
+    status: request.status,
+  };
+}
+
+function mapLegacyWatcherLog(
+  log: BlueGreenMonitoringWatcherLog
+): ObservabilityLogEvent {
+  return {
+    createdAt: log.time,
+    deploymentColor: log.activeColor,
+    deploymentStamp: log.deploymentStamp,
+    durationMs: null,
+    errorName: null,
+    errorStack: null,
+    id: `legacy-watcher-${log.time}-${log.message}`,
+    level:
+      log.level === 'error' || log.level === 'warn' || log.level === 'debug'
+        ? log.level
+        : 'info',
+    message: log.message,
+    metadata: {
+      commitHash: log.commitHash,
+      deploymentKey: log.deploymentKey,
+      deploymentKind: log.deploymentKind,
+      deploymentStatus: log.deploymentStatus,
+      legacySource: 'blue-green-watcher',
+    },
+    requestId: null,
+    route: null,
+    source: 'server',
+    status: null,
+  };
+}
+
+function mapLegacyConsoleLog(
+  log: BlueGreenMonitoringRequestConsoleLog,
+  request: BlueGreenMonitoringRequestLog
+): ObservabilityLogEvent {
+  return {
+    createdAt: log.time,
+    deploymentColor: log.deploymentColor ?? request.deploymentColor,
+    deploymentStamp: request.deploymentStamp,
+    durationMs: request.requestTimeMs,
+    errorName: null,
+    errorStack: null,
+    id: `legacy-console-${log.time}-${request.path}-${log.message}`,
+    level:
+      log.level === 'error' || log.level === 'warn' || log.level === 'debug'
+        ? log.level
+        : 'info',
+    message: log.message,
+    metadata: {
+      containerId: log.containerId,
+      legacySource: 'blue-green-request-console',
+    },
+    requestId: `legacy-request-${request.time}-${request.method ?? 'GET'}-${request.path}`,
+    route: request.path,
+    source: 'api',
+    status: request.status,
+  };
+}
+
+function getLegacyTimeframeDays(timeframeHours: number) {
+  return Math.max(1, Math.ceil(timeframeHours / 24));
+}
+
+function loadLegacyRequests(
+  filters: Required<Pick<ObservabilityFilters, 'timeframeHours'>> &
+    Omit<ObservabilityFilters, 'timeframeHours'>
+) {
+  const archive = readBlueGreenMonitoringRequestArchive({
+    page: 1,
+    pageSize: 100,
+    q: filters.q ?? undefined,
+    status: filters.status ?? undefined,
+    timeframeDays: getLegacyTimeframeDays(filters.timeframeHours),
+  });
+  const cutoff = Date.now() - filters.timeframeHours * 60 * 60 * 1000;
+
+  return archive.items
+    .filter((request) => request.time >= cutoff)
+    .filter((request) => statusMatches(request.status, filters.status))
+    .filter((request) =>
+      shouldIncludeText(filters.q, [
+        request.path,
+        request.host,
+        request.method,
+        request.deploymentStamp,
+      ])
+    )
+    .map(mapLegacyRequest);
+}
+
+function loadLegacyLogs(
+  filters: Required<Pick<ObservabilityFilters, 'timeframeHours'>> &
+    Omit<ObservabilityFilters, 'timeframeHours'>
+) {
+  const cutoff = Date.now() - filters.timeframeHours * 60 * 60 * 1000;
+  const watcherLogs = readBlueGreenMonitoringWatcherLogArchive({
+    page: 1,
+    pageSize: 100,
+  }).items.map(mapLegacyWatcherLog);
+  const requestConsoleLogs = readBlueGreenMonitoringRequestArchive({
+    page: 1,
+    pageSize: 100,
+    q: filters.q ?? undefined,
+    status: filters.status ?? undefined,
+    timeframeDays: getLegacyTimeframeDays(filters.timeframeHours),
+  }).items.flatMap((request) =>
+    (request.consoleLogs ?? []).map((log) => mapLegacyConsoleLog(log, request))
+  );
+
+  return [...watcherLogs, ...requestConsoleLogs]
+    .filter((log) => log.createdAt >= cutoff)
+    .filter((log) => !filters.level || log.level === filters.level)
+    .filter((log) => !filters.source || log.source === filters.source)
+    .filter((log) => statusMatches(log.status, filters.status))
+    .filter((log) =>
+      shouldIncludeText(filters.q, [
+        log.message,
+        log.route,
+        log.requestId,
+        log.deploymentStamp,
+      ])
+    );
+}
+
 async function loadRecentLogs(
   filters: Required<Pick<ObservabilityFilters, 'timeframeHours'>> &
     Omit<ObservabilityFilters, 'timeframeHours'>
 ) {
   const sql = await getSql();
   if (!sql) {
-    return [];
+    return loadLegacyLogs(filters);
   }
 
   const rows = await sql<
@@ -185,7 +345,7 @@ async function loadRecentLogs(
 
   const q = filters.q?.trim();
 
-  return rows
+  const postgresLogs = rows
     .filter((row) => !filters.level || row.level === filters.level)
     .filter((row) => !filters.source || row.source === filters.source)
     .filter((row) => statusMatches(row.status, filters.status))
@@ -212,6 +372,10 @@ async function loadRecentLogs(
       source: row.source,
       status: row.status,
     }));
+
+  return [...postgresLogs, ...loadLegacyLogs(filters)].sort(
+    (left, right) => right.createdAt - left.createdAt
+  );
 }
 
 async function loadRecentRequests(
@@ -220,7 +384,7 @@ async function loadRecentRequests(
 ) {
   const sql = await getSql();
   if (!sql) {
-    return [];
+    return loadLegacyRequests(filters);
   }
 
   const rows = await sql<
@@ -264,7 +428,7 @@ async function loadRecentRequests(
 
   const q = filters.q?.trim();
 
-  return rows
+  const postgresRequests = rows
     .filter((row) => !filters.source || row.source === filters.source)
     .filter((row) => statusMatches(row.status, filters.status))
     .filter(
@@ -290,6 +454,10 @@ async function loadRecentRequests(
       startedAt: toMs(row.started_at) ?? Date.now(),
       status: row.status,
     }));
+
+  return [...postgresRequests, ...loadLegacyRequests(filters)].sort(
+    (left, right) => right.startedAt - left.startedAt
+  );
 }
 
 export async function readObservabilityLogs(
@@ -398,6 +566,32 @@ export async function readObservabilityDeployments(
 ) {
   const requests = await loadRecentRequests(parseFilterDefaults(filters));
   const byStamp = new Map<string, ObservabilityDeployment>();
+  const snapshot = readBlueGreenMonitoringSnapshot({
+    requestPreviewLimit: 0,
+    watcherLogLimit: 0,
+  });
+
+  for (const deployment of snapshot.deployments) {
+    const key =
+      deployment.deploymentStamp ??
+      deployment.commitHash ??
+      deployment.activeColor ??
+      'unknown';
+    byStamp.set(key, {
+      color: deployment.activeColor ?? null,
+      commitHash: deployment.commitHash ?? null,
+      commitShortHash: deployment.commitShortHash ?? null,
+      commitSubject: deployment.commitSubject ?? null,
+      deploymentStamp: deployment.deploymentStamp ?? null,
+      durationMs: deployment.buildDurationMs ?? deployment.lifetimeMs ?? null,
+      errorCount: deployment.errorCount ?? 0,
+      lastRequestAt: deployment.lastRequestAt ?? null,
+      requestCount: deployment.requestCount ?? 0,
+      runtimeState: deployment.runtimeState ?? null,
+      startedAt: deployment.startedAt ?? deployment.activatedAt ?? null,
+      status: deployment.status ?? 'unknown',
+    });
+  }
 
   for (const request of requests) {
     const key =
@@ -408,11 +602,13 @@ export async function readObservabilityDeployments(
     const current = byStamp.get(key) ?? {
       color: request.deploymentColor,
       commitHash: null,
+      commitShortHash: null,
       commitSubject: null,
       deploymentStamp: request.deploymentStamp,
       durationMs: null,
       errorCount: 0,
       lastRequestAt: null,
+      runtimeState: null,
       requestCount: 0,
       startedAt: null,
       status: 'ready',

@@ -16,10 +16,11 @@ The monitoring navigation uses compact labels:
 - Observability
 - Cron
 - Requests
+- Resources
 
 ## Runtime
 
-Docker web runs a dedicated `log-drain-postgres` service. It is separate from Supabase and is owned by the Docker web runtime.
+Docker web runs a dedicated `log-drain-postgres` service. It is separate from Supabase and is owned by the Docker web runtime. Compose pins the visible container name to `${COMPOSE_PROJECT_NAME:-platform}-log-drain-postgres-1` so it stays grouped with the rest of the platform stack in Docker Desktop.
 
 Default connection inside Docker:
 
@@ -49,6 +50,18 @@ For route or cron handlers, wrap execution with `withRequestLogDrain(...)` or `w
 
 The drain is fail-open: if Postgres is unavailable, requests and cron jobs continue normally and logs still go to stdout/stderr.
 
+## Legacy Compatibility
+
+The revamped monitoring UI reads both the Postgres drain and the pre-drain blue/green files under `tmp/docker-web`. Requests and Logs include retained proxy traffic, watcher logs, and request console lines while deployments are enriched from the watcher snapshot so commit subject, full hash, short hash, stamp, active color, and runtime lane remain visible even before the Postgres drain has a complete history.
+
+## Cron Control
+
+Infrastructure → Monitoring → Cron exposes the native Docker cron runner state, a global enable/disable switch, per-job enable/disable switches, manual run buttons, retained execution rows, and captured response/console output. Runtime overrides are stored in `tmp/docker-web/watch/control/cron-control.json`; they do not edit `apps/web/cron.config.json`, so Vercel cron config remains source-controlled while local Docker operations can pause individual jobs safely.
+
+## Resources
+
+Infrastructure → Monitoring → Resources reads the blue/green Docker snapshot and displays container health, image/service identity, CPU, memory, network ingress/egress, and aggregate service counts. This is the operator view for Docker Desktop resource pressure without opening Docker Desktop directly.
+
 ## Troubleshooting
 
 If the UI is empty:
@@ -59,4 +72,3 @@ If the UI is empty:
 4. Use Infrastructure → Monitoring → Logs to search by message, route, request id, level, or source.
 
 If logs are missing only for cron jobs, verify the cron route is wrapped with `withCronLogDrain(...)` and the cron runner is calling the expected web origin.
-

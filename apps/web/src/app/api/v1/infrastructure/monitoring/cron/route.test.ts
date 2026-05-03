@@ -82,6 +82,7 @@ describe('cron monitoring routes', () => {
 
     expect(response.status).toBe(200);
     expect(readCronExecutionArchiveMock).toHaveBeenCalledWith({
+      jobId: null,
       page: 2,
       pageSize: 5,
     });
@@ -121,6 +122,7 @@ describe('cron monitoring routes', () => {
   it('updates native cron execution control', async () => {
     updateCronMonitoringControlMock.mockReturnValue({
       enabled: false,
+      jobs: {},
       updatedAt: 1000,
       updatedBy: 'user-1',
       updatedByEmail: 'ops@tuturuuu.com',
@@ -139,6 +141,7 @@ describe('cron monitoring routes', () => {
     expect(response.status).toBe(200);
     expect(updateCronMonitoringControlMock).toHaveBeenCalledWith({
       enabled: false,
+      jobId: null,
       updatedBy: 'user-1',
       updatedByEmail: 'ops@tuturuuu.com',
     });

@@ -107,6 +107,7 @@ services:
     init: true
 
   log-drain-postgres:
+    container_name: ${COMPOSE_PROJECT_NAME:-platform}-log-drain-postgres-1
     image: postgres:16-alpine
     environment:
       POSTGRES_DB: platform_log_drain

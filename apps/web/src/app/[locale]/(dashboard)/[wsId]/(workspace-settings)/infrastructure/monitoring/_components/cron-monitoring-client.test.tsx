@@ -153,6 +153,7 @@ function createSnapshot(
   return {
     control: {
       enabled: true,
+      jobs: {},
       updatedAt: null,
       updatedBy: null,
       updatedByEmail: null,
@@ -160,6 +161,8 @@ function createSnapshot(
     enabled: true,
     jobs: [
       {
+        configuredEnabled: true,
+        controlEnabled: null,
         description: 'Sync payment product metadata.',
         enabled: true,
         failureStreak: 0,

@@ -6,6 +6,7 @@ import { authorizeInfrastructureViewer } from '../../blue-green/authorization';
 
 const payloadSchema = z.object({
   enabled: z.boolean(),
+  jobId: z.string().trim().min(1).optional(),
 });
 
 export async function PUT(request: Request) {
@@ -20,13 +21,18 @@ export async function PUT(request: Request) {
       enabled: payload.enabled,
       updatedBy: authorization.user.id,
       updatedByEmail: authorization.user.email ?? null,
+      jobId: payload.jobId ?? null,
     });
 
     return NextResponse.json({
       control,
-      message: payload.enabled
-        ? 'Enabled native cron execution.'
-        : 'Disabled native cron execution.',
+      message: payload.jobId
+        ? payload.enabled
+          ? 'Enabled native cron job.'
+          : 'Disabled native cron job.'
+        : payload.enabled
+          ? 'Enabled native cron execution.'
+          : 'Disabled native cron execution.',
     });
   } catch (error) {
     serverLogger.error('Failed to update cron monitoring control:', error);

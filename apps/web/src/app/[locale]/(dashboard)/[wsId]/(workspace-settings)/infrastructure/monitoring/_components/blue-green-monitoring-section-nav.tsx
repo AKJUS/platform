@@ -6,6 +6,7 @@ import {
   Box,
   CalendarClock,
   DatabaseZap,
+  Gauge,
   Logs,
   Radio,
 } from '@tuturuuu/icons';
@@ -65,10 +66,16 @@ export function BlueGreenMonitoringSectionNav({
       icon: Radio,
       title: t('routes.requests.title'),
     },
+    {
+      description: t('routes.resources.description'),
+      href: `${baseHref}/resources`,
+      icon: Gauge,
+      title: t('routes.resources.title'),
+    },
   ];
 
   return (
-    <div className="grid grid-flow-dense gap-2 md:grid-cols-2 xl:grid-cols-7">
+    <div className="grid grid-flow-dense gap-2 md:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-8">
       {items.map((item) => {
         const Icon = item.icon;
         const isActive =

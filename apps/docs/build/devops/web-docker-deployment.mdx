@@ -47,7 +47,7 @@ This is the operational guide for the Docker-based `apps/web` runtime.
 | `--build-memory 4g` | Run builds through a capped Buildx builder with a memory ceiling |
 | `--build-cpus 2` | Run builds through a capped Buildx builder with an approximate CPU limit |
 | `--build-max-parallelism 2` | Limit concurrent BuildKit solve steps for lower build pressure |
-| `--build-builder-name platform-web-capped-builder` | Override the throttled Buildx builder name |
+| `--build-builder-name platform` | Override the throttled Buildx builder name |
 | `--resume-if-running` | If another watcher PID already holds the lock, mirror its live dashboard instead of failing |
 | `--replace-existing` | If another watcher PID already holds the lock, stop it and take over |
 | `--if-locked &lt;fail|resume|replace&gt;` | Explicit lock-conflict policy for the watcher |
@@ -410,7 +410,7 @@ Equivalent environment variables:
 - `DOCKER_WEB_BUILD_MEMORY=4g`
 - `DOCKER_WEB_BUILD_CPUS=2`
 - `DOCKER_WEB_BUILD_MAX_PARALLELISM=2`
-- `DOCKER_WEB_BUILD_BUILDER_NAME=platform-web-capped-builder`
+- `DOCKER_WEB_BUILD_BUILDER_NAME=platform`
 
 How it works:
 

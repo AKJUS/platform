@@ -270,6 +270,8 @@ export interface CronRunRecord {
 }
 
 export interface CronMonitoringJob {
+  configuredEnabled: boolean;
+  controlEnabled: boolean | null;
   description: string;
   enabled: boolean;
   failureStreak: number;
@@ -283,6 +285,15 @@ export interface CronMonitoringJob {
 
 export interface CronMonitoringControl {
   enabled: boolean;
+  jobs: Record<
+    string,
+    {
+      enabled: boolean;
+      updatedAt: number;
+      updatedBy: string | null;
+      updatedByEmail: string | null;
+    }
+  >;
   updatedAt: number | null;
   updatedBy: string | null;
   updatedByEmail: string | null;
@@ -507,6 +518,7 @@ export interface GetBlueGreenMonitoringArchiveParams {
 }
 
 export interface GetCronMonitoringExecutionArchiveParams {
+  jobId?: string;
   page?: number;
   pageSize?: number;
 }
@@ -528,6 +540,7 @@ export interface QueueCronRunResponse {
 
 export interface UpdateCronMonitoringControlPayload {
   enabled: boolean;
+  jobId?: string;
 }
 
 export interface UpdateCronMonitoringControlResponse {
@@ -537,15 +550,26 @@ export interface UpdateCronMonitoringControlResponse {
 
 export type ObservabilityLogLevel = 'debug' | 'error' | 'info' | 'warn';
 export type ObservabilitySource = 'api' | 'cron' | 'server';
+export type ObservabilityDashboardMode =
+  | 'analytics'
+  | 'cron'
+  | 'deployments'
+  | 'logs'
+  | 'observability'
+  | 'overview'
+  | 'requests'
+  | 'resources';
 
 export interface ObservabilityDeployment {
   color: string | null;
   commitHash: string | null;
+  commitShortHash: string | null;
   commitSubject: string | null;
   deploymentStamp: string | null;
   durationMs: number | null;
   errorCount: number;
   lastRequestAt: number | null;
+  runtimeState: 'active' | 'standby' | null;
   requestCount: number;
   startedAt: number | null;
   status: string;
@@ -829,6 +853,10 @@ export async function getCronMonitoringExecutionArchive(
 
   if (params?.pageSize != null) {
     searchParams.set('pageSize', String(params.pageSize));
+  }
+
+  if (params?.jobId) {
+    searchParams.set('jobId', params.jobId);
   }
 
   return client.json<BlueGreenMonitoringPaginatedResult<CronExecutionRecord>>(

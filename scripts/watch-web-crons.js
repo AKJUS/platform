@@ -158,10 +158,29 @@ function initializeScheduleState({ config, now, rootDir = ROOT_DIR, state }) {
 }
 
 function readControl(paths, fsImpl = fs) {
-  return {
+  const control = {
     enabled: true,
+    jobs: {},
     ...readJsonFile(paths.controlFile, {}, fsImpl),
   };
+
+  return {
+    ...control,
+    jobs: control.jobs && typeof control.jobs === 'object' ? control.jobs : {},
+  };
+}
+
+function getJobControlEnabled(control, jobId) {
+  const override = control.jobs[jobId];
+  return typeof override?.enabled === 'boolean' ? override.enabled : null;
+}
+
+function getEffectiveJobEnabled(job, control) {
+  if (control.enabled === false) {
+    return false;
+  }
+
+  return getJobControlEnabled(control, job.id) ?? job.enabled;
 }
 
 function normalizeRunRequest(request) {
@@ -677,13 +696,16 @@ function buildStatus({
   const lastByJobId = getLastExecutionByJobId(executions);
   const jobs = config.jobs.map((job) => {
     const lastExecution = lastByJobId.get(job.id) ?? null;
-    const nextRunAt =
-      job.enabled && control.enabled
-        ? getNextScheduledAt(job.schedule, now, rootDir)
-        : null;
+    const enabled = getEffectiveJobEnabled(job, control);
+    const nextRunAt = enabled
+      ? getNextScheduledAt(job.schedule, now, rootDir)
+      : null;
 
     return {
       ...job,
+      configuredEnabled: job.enabled,
+      controlEnabled: getJobControlEnabled(control, job.id),
+      enabled,
       failureStreak: getFailureStreak(job.id, executions),
       lastExecution,
       lastScheduledAt: state.lastScheduledAtByJobId?.[job.id] ?? null,
@@ -766,7 +788,7 @@ async function runCronCycle({
       continue;
     }
 
-    if (!job.enabled) {
+    if (!getEffectiveJobEnabled(job, control)) {
       upsertRunStatus(
         paths,
         buildRunRecordFromRequest({
@@ -807,7 +829,18 @@ async function runCronCycle({
   }
 
   if (control.enabled !== false) {
-    const dueJobs = getDueScheduledJobs({ config, now, rootDir, state });
+    const dueJobs = getDueScheduledJobs({
+      config: {
+        ...config,
+        jobs: config.jobs.map((job) => ({
+          ...job,
+          enabled: getEffectiveJobEnabled(job, control),
+        })),
+      },
+      now,
+      rootDir,
+      state,
+    });
 
     for (const due of dueJobs) {
       executions.push(

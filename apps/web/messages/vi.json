@@ -1795,13 +1795,20 @@
         "title": "Analytics"
       },
       "columns": {
+        "commit": "Commit",
+        "deployment": "Triển khai",
+        "errors": "Lỗi",
+        "hash": "Hash",
         "level": "Cấp độ",
         "message": "Thông điệp",
+        "requests": "Requests",
+        "state": "Trạng thái",
         "status": "Trạng thái",
         "time": "Thời gian"
       },
       "cron": {
         "description": "Các lượt chạy cron gần đây, thời lượng, trạng thái và lỗi đã ghi.",
+        "runtime_override": "Ghi đè runtime",
         "title": "Cron"
       },
       "deployments": {
@@ -1811,6 +1818,7 @@
       "last_24_hours": "24 giờ qua",
       "last_7_days": "7 ngày qua",
       "last_hour": "1 giờ qua",
+      "load_older": "Tải cũ hơn",
       "logs": {
         "description": "Tìm kiếm trực tiếp log request, cron và server từ internal drain.",
         "title": "Logs"
@@ -1836,6 +1844,19 @@
       "requests": {
         "description": "Dòng thời gian request với trạng thái, đường dẫn, nguồn và thời lượng.",
         "title": "Requests"
+      },
+      "resources": {
+        "container": "Container",
+        "cpu": "CPU",
+        "description": "Sức khỏe container Docker, mức dùng tài nguyên, lưu lượng mạng và trạng thái dịch vụ compose.",
+        "health": "Sức khỏe",
+        "memory": "Bộ nhớ",
+        "network": "Mạng",
+        "services": "Dịch vụ",
+        "summary": "Tóm tắt runtime",
+        "title": "Resources",
+        "total_cpu": "Tổng CPU",
+        "total_memory": "Tổng bộ nhớ"
       },
       "search_placeholder": "Tìm log, route, request",
       "signals": {
@@ -1992,6 +2013,10 @@
       "requests": {
         "description": "Phân trang qua lưu lượng proxy đã lưu mà không làm nặng dashboard chính.",
         "title": "Request"
+      },
+      "resources": {
+        "description": "Sức khỏe Docker, bộ nhớ, CPU, mạng và danh mục dịch vụ.",
+        "title": "Resources"
       },
       "rollouts": {
         "description": "Triển khai, biểu đồ lưu lượng, luồng sự kiện và các nút đồng bộ.",
@@ -6038,6 +6063,7 @@
     "monitoring_observability": "Observability",
     "monitoring_overview": "Tổng quan",
     "monitoring_requests": "Requests",
+    "monitoring_resources": "Resources",
     "monitoring_rollouts": "Deployments",
     "monitoring_watcher_logs": "Log Watcher",
     "operations": "Vận Hành",
