@@ -7,11 +7,14 @@ import {
 } from '@tanstack/react-query';
 import type { UserGroup } from '@tuturuuu/types/primitives/UserGroup';
 
+export type UserGroupStatusFilter = 'all' | 'active' | 'archived';
+
 export interface UserGroupsParams {
   includeArchived?: boolean;
   q?: string;
   page?: number;
   pageSize?: number;
+  status?: UserGroupStatusFilter;
 }
 
 export interface UserGroupsResponse {
@@ -50,10 +53,11 @@ async function fetchUserGroupsPage(
     q = '',
     page = 1,
     pageSize = GROUPS_INFINITE_PAGE_SIZE,
+    status = includeArchived ? 'all' : 'active',
   } = params;
   const searchParams = new URLSearchParams();
 
-  if (includeArchived) searchParams.set('includeArchived', 'true');
+  if (status !== 'active') searchParams.set('status', status);
   if (q) searchParams.set('q', q);
   searchParams.set('page', String(page));
   searchParams.set('pageSize', String(pageSize));
@@ -89,14 +93,16 @@ export function useUserGroups(
     initialData?: UserGroupsResponse;
   }
 ) {
-  const { includeArchived = false, q = '', page = 1, pageSize = 10 } = params;
+  const {
+    includeArchived = false,
+    q = '',
+    page = 1,
+    pageSize = 10,
+    status = includeArchived ? 'all' : 'active',
+  } = params;
 
   return useQuery({
-    queryKey: [
-      'workspace-user-groups',
-      wsId,
-      { includeArchived, q, page, pageSize },
-    ],
+    queryKey: ['workspace-user-groups', wsId, { q, page, pageSize, status }],
     queryFn: async (): Promise<UserGroupsResponse> => {
       const { data, count, error, errorMessage } = await fetchUserGroupsPage(
         wsId,
@@ -105,6 +111,7 @@ export function useUserGroups(
           q,
           page,
           pageSize,
+          status,
         }
       );
 
@@ -120,7 +127,10 @@ export function useUserGroups(
 
 export function useInfiniteUserGroups(
   wsId: string,
-  params: Pick<UserGroupsParams, 'includeArchived' | 'q' | 'pageSize'> = {},
+  params: Pick<
+    UserGroupsParams,
+    'includeArchived' | 'q' | 'pageSize' | 'status'
+  > = {},
   options?: {
     enabled?: boolean;
     initialData?: UserGroupsResponse;
@@ -130,14 +140,11 @@ export function useInfiniteUserGroups(
     includeArchived = false,
     q = '',
     pageSize = GROUPS_INFINITE_PAGE_SIZE,
+    status = includeArchived ? 'all' : 'active',
   } = params;
 
   const query = useInfiniteQuery({
-    queryKey: [
-      'workspace-user-groups-infinite',
-      wsId,
-      { includeArchived, q, pageSize },
-    ],
+    queryKey: ['workspace-user-groups-infinite', wsId, { q, pageSize, status }],
     initialPageParam: 1,
     queryFn: ({ pageParam }) =>
       fetchUserGroupsPage(wsId, {
@@ -145,6 +152,7 @@ export function useInfiniteUserGroups(
         q,
         page: pageParam,
         pageSize,
+        status,
       }),
     getNextPageParam: (lastPage, allPages) => {
       const loadedCount = allPages.reduce(

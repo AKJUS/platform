@@ -27,8 +27,20 @@ interface SearchParams {
   q?: string;
   page?: string;
   pageSize?: string;
+  status?: string;
   includedTags?: string | string[];
   excludedTags?: string | string[];
+}
+
+type UserGroupStatusFilter = 'all' | 'active' | 'archived';
+
+function parseUserGroupStatusFilter(
+  status: string | undefined,
+  includeArchived: string | undefined
+): UserGroupStatusFilter {
+  if (status === 'all' || status === 'archived') return status;
+  if (includeArchived === 'true') return 'all';
+  return 'active';
 }
 
 interface Props {
@@ -71,8 +83,8 @@ export default async function WorkspaceUserGroupsPage({
         const initialData = await getInitialData(
           wsId,
           {
-            includeArchived: sp.includeArchived === 'true',
             q: sp.q,
+            status: parseUserGroupStatusFilter(sp.status, sp.includeArchived),
           },
           containsPermission('manage_users')
         );
@@ -123,14 +135,14 @@ async function getInitialData(
   wsId: string,
   {
     q,
-    includeArchived = false,
     page = '1',
     pageSize = '50',
+    status = 'active',
   }: {
-    includeArchived?: boolean;
     q?: string;
     page?: string;
     pageSize?: string;
+    status?: UserGroupStatusFilter;
   } = {},
   hasManageUsers: boolean = false
 ) {
@@ -148,8 +160,10 @@ async function getInitialData(
       .eq('ws_id', wsId)
       .order('name');
 
-    if (!includeArchived) {
+    if (status === 'active') {
       queryBuilder.eq('archived', false);
+    } else if (status === 'archived') {
+      queryBuilder.eq('archived', true);
     }
 
     const shouldUseAccentInsensitiveSearch = Boolean(q?.trim());

@@ -4,12 +4,16 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Loader2, RefreshCw } from '@tuturuuu/icons';
 import { Button } from '@tuturuuu/ui/button';
 import { useTranslations } from 'next-intl';
-import { parseAsBoolean, parseAsString, useQueryState } from 'nuqs';
+import { parseAsString, useQueryState } from 'nuqs';
 import { useCallback, useEffect, useRef } from 'react';
 import { CustomDataTable } from '@/components/custom-data-table';
 import { getUserGroupColumns } from './columns';
 import Filters from './filters';
-import { type UserGroupsResponse, useInfiniteUserGroups } from './hooks';
+import {
+  type UserGroupStatusFilter,
+  type UserGroupsResponse,
+  useInfiniteUserGroups,
+} from './hooks';
 
 interface Props {
   wsId: string;
@@ -33,11 +37,30 @@ export function UserGroupsTable({ wsId, initialData, permissions }: Props) {
       throttleMs: 300,
     })
   );
-  const [includeArchived, setIncludeArchived] = useQueryState(
-    'includeArchived',
-    parseAsBoolean.withDefault(false).withOptions({
+  const [status, setStatus] = useQueryState(
+    'status',
+    parseAsString.withDefault('active').withOptions({
+      clearOnDefault: true,
       shallow: true,
     })
+  );
+
+  const statusFilter: UserGroupStatusFilter =
+    status === 'all' || status === 'archived' ? status : 'active';
+
+  const [, setIncludeArchived] = useQueryState(
+    'includeArchived',
+    parseAsString.withOptions({
+      shallow: true,
+    })
+  );
+
+  const setStatusFilter = useCallback(
+    (value: UserGroupStatusFilter) => {
+      setStatus(value === 'active' ? null : value);
+      setIncludeArchived(null);
+    },
+    [setIncludeArchived, setStatus]
   );
 
   const {
@@ -53,11 +76,11 @@ export function UserGroupsTable({ wsId, initialData, permissions }: Props) {
   } = useInfiniteUserGroups(
     wsId,
     {
-      includeArchived,
       q,
+      status: statusFilter,
     },
     {
-      initialData: !q && !includeArchived ? initialData : undefined,
+      initialData: !q && statusFilter === 'active' ? initialData : undefined,
     }
   );
 
@@ -105,8 +128,9 @@ export function UserGroupsTable({ wsId, initialData, permissions }: Props) {
 
   const handleResetParams = useCallback(() => {
     setQ(null);
+    setStatus(null);
     setIncludeArchived(null);
-  }, [setIncludeArchived, setQ]);
+  }, [setIncludeArchived, setQ, setStatus]);
 
   const hasError = Boolean(error);
   const errorMessage = error instanceof Error ? error.message : undefined;
@@ -161,13 +185,13 @@ export function UserGroupsTable({ wsId, initialData, permissions }: Props) {
         filters={
           <Filters
             wsId={wsId}
-            includeArchived={includeArchived}
-            onIncludeArchivedChange={setIncludeArchived}
+            status={statusFilter}
+            onStatusChange={setStatusFilter}
           />
         }
         onSearch={handleSearch}
         resetParams={handleResetParams}
-        isFiltered={!!q || includeArchived}
+        isFiltered={!!q || statusFilter !== 'active'}
         hidePagination
         extraData={{
           canCreateUserGroups: permissions.canCreate,

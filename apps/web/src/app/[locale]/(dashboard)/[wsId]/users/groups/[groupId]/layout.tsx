@@ -146,9 +146,9 @@ export default async function Layout({ children, params }: LayoutProps) {
 }
 
 async function getData(wsId: string, groupId: string) {
-  const supabase = await createAdminClient();
+  const sbAdmin = await createAdminClient();
 
-  const { data, error } = await supabase
+  const { data, error } = await sbAdmin
     .from('workspace_user_groups')
     .select('*')
     .eq('ws_id', wsId)
@@ -168,11 +168,11 @@ async function getRejectedCount(
   canApproveReports: boolean,
   canApprovePosts: boolean
 ): Promise<number> {
-  const supabase = await createAdminClient();
+  const sbAdmin = await createAdminClient();
   let count = 0;
 
   if (canApproveReports) {
-    const { count: reportCount } = await supabase
+    const { count: reportCount } = await sbAdmin
       .from('external_user_monthly_reports')
       .select('id, user:workspace_users!user_id!inner(ws_id)', {
         count: 'exact',
@@ -185,7 +185,7 @@ async function getRejectedCount(
   }
 
   if (canApprovePosts) {
-    const { count: postCount } = await supabase
+    const { count: postCount } = await sbAdmin
       .from('user_group_posts')
       .select('id, workspace_user_groups!inner(ws_id)', {
         count: 'exact',

@@ -11711,8 +11711,11 @@
     "type": "Type"
   },
   "user-group-data-table": {
+    "active_groups": "Active groups",
+    "all_groups": "All groups",
     "amount": "Amount",
     "archived": "Archived",
+    "archived_groups": "Archived groups",
     "attendance_stats": "Attendance Stats",
     "completed": "Completed",
     "created_at": "Created At",
@@ -11727,7 +11730,8 @@
     "name": "Name",
     "no_attendance_today": "No attendance today",
     "show_archived": "Show archived groups",
-    "special_users": "Special users"
+    "special_users": "Special users",
+    "status": "Status"
   },
   "user-group-tag-data-table": {
     "color": "Color",

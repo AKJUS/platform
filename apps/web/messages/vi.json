@@ -11711,8 +11711,11 @@
     "type": "Loại dữ liệu"
   },
   "user-group-data-table": {
+    "active_groups": "Nhóm đang hoạt động",
+    "all_groups": "Tất cả nhóm",
     "amount": "Số thành viên",
     "archived": "Đã lưu trữ",
+    "archived_groups": "Nhóm đã lưu trữ",
     "attendance_stats": "Thống kê điểm danh",
     "completed": "Đã hoàn thành",
     "created_at": "Tạo lúc",
@@ -11727,7 +11730,8 @@
     "name": "Tên",
     "no_attendance_today": "Không cần điểm danh hôm nay",
     "show_archived": "Hiển thị nhóm đã lưu trữ",
-    "special_users": "Người dùng đặc biệt"
+    "special_users": "Người dùng đặc biệt",
+    "status": "Trạng thái"
   },
   "user-group-tag-data-table": {
     "color": "Màu",

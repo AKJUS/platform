@@ -1,8 +1,20 @@
 'use client';
 
-import { Archive, MinusCircle, PlusCircle } from '@tuturuuu/icons';
+import {
+  Archive,
+  CircleCheck,
+  ListFilter,
+  MinusCircle,
+  PlusCircle,
+} from '@tuturuuu/icons';
 import type { UserGroup } from '@tuturuuu/types/primitives/UserGroup';
-import { Button } from '@tuturuuu/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@tuturuuu/ui/select';
 import { useTranslations } from 'next-intl';
 import { parseAsArrayOf, parseAsString, useQueryState } from 'nuqs';
 import {
@@ -10,15 +22,16 @@ import {
   useWorkspaceUserGroups,
 } from '../database/hooks';
 import { Filter } from '../filters';
+import type { UserGroupStatusFilter } from './hooks';
 
 export default function Filters({
   wsId,
-  includeArchived,
-  onIncludeArchivedChange,
+  status,
+  onStatusChange,
 }: {
   wsId: string;
-  includeArchived: boolean;
-  onIncludeArchivedChange: (value: boolean | null) => void;
+  status: UserGroupStatusFilter;
+  onStatusChange: (value: UserGroupStatusFilter) => void;
 }) {
   const t = useTranslations('user-group-data-table');
 
@@ -58,15 +71,36 @@ export default function Filters({
         }))}
         disabled
       />
-      <Button
-        type="button"
-        variant={includeArchived ? 'default' : 'outline'}
-        size="sm"
-        onClick={() => onIncludeArchivedChange(includeArchived ? null : true)}
+      <Select
+        value={status}
+        onValueChange={(value) =>
+          onStatusChange(value as UserGroupStatusFilter)
+        }
       >
-        <Archive className="mr-2 h-4 w-4" />
-        {t('include_archived')}
-      </Button>
+        <SelectTrigger className="h-8 w-44">
+          <SelectValue aria-label={t('status')} />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="active">
+            <span className="flex items-center gap-2">
+              <CircleCheck className="h-4 w-4" />
+              {t('active_groups')}
+            </span>
+          </SelectItem>
+          <SelectItem value="all">
+            <span className="flex items-center gap-2">
+              <ListFilter className="h-4 w-4" />
+              {t('all_groups')}
+            </span>
+          </SelectItem>
+          <SelectItem value="archived">
+            <span className="flex items-center gap-2">
+              <Archive className="h-4 w-4" />
+              {t('archived_groups')}
+            </span>
+          </SelectItem>
+        </SelectContent>
+      </Select>
     </>
   );
 }

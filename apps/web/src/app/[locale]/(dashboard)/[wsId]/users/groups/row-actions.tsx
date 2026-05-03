@@ -2,7 +2,15 @@
 
 import { useQueryClient } from '@tanstack/react-query';
 import type { Row } from '@tanstack/react-table';
-import { Archive, Ellipsis, Eye, Loader2, RotateCcw } from '@tuturuuu/icons';
+import {
+  Archive,
+  Ellipsis,
+  Eye,
+  Loader2,
+  Pencil,
+  RotateCcw,
+  Trash2,
+} from '@tuturuuu/icons';
 import type { UserGroup } from '@tuturuuu/types/primitives/UserGroup';
 import {
   AlertDialog,
@@ -149,6 +157,7 @@ export function UserGroupRowActions({
         <DropdownMenuContent align="end" className="w-40">
           {canUpdate && (
             <DropdownMenuItem onClick={() => setShowEditDialog(true)}>
+              <Pencil className="mr-2 h-4 w-4" />
               {t('common.edit')}
             </DropdownMenuItem>
           )}
@@ -170,6 +179,7 @@ export function UserGroupRowActions({
           {(canUpdate || canDelete) && <DropdownMenuSeparator />}
           {canDelete && (
             <DropdownMenuItem onClick={() => setShowDeleteDialog(true)}>
+              <Trash2 className="mr-2 h-4 w-4" />
               {t('common.delete')}
             </DropdownMenuItem>
           )}

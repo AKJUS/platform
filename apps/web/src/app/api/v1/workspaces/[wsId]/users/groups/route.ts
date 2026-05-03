@@ -32,6 +32,7 @@ const SearchParamsSchema = z.object({
     .transform((value) => value === 'true'),
   q: z.string().max(MAX_SEARCH_LENGTH).optional(),
   ids: z.string().optional(),
+  status: z.enum(['all', 'active', 'archived']).optional(),
   userId: z.guid().optional(),
   page: z.coerce.number().int().min(1).default(1),
   pageSize: z.coerce.number().int().min(1).max(200).default(10),
@@ -46,7 +47,7 @@ interface Params {
 export async function GET(request: Request, { params }: Params) {
   try {
     const { wsId: id } = await params;
-    const supabase = await createAdminClient();
+    const sbAdmin = await createAdminClient();
 
     const wsId = await normalizeWorkspaceId(id);
 
@@ -84,7 +85,9 @@ export async function GET(request: Request, { params }: Params) {
     let data: UserGroup[] = [];
     let count = 0;
 
-    const queryBuilder = supabase
+    const status = sp.status ?? (sp.includeArchived ? 'all' : 'active');
+
+    const queryBuilder = sbAdmin
       .from('workspace_user_groups_with_guest')
       .select(
         'id, ws_id, name, starting_date, ending_date, archived, notes, is_guest, amount, created_at',
@@ -95,8 +98,10 @@ export async function GET(request: Request, { params }: Params) {
       .eq('ws_id', wsId)
       .order('name');
 
-    if (!sp.includeArchived) {
+    if (status === 'active') {
       queryBuilder.eq('archived', false);
+    } else if (status === 'archived') {
+      queryBuilder.eq('archived', true);
     }
 
     const shouldUseAccentInsensitiveSearch = Boolean(sp.q?.trim());
@@ -106,7 +111,7 @@ export async function GET(request: Request, { params }: Params) {
     if (requestedGroupIds.length > 0) {
       queryBuilder.in('id', requestedGroupIds);
     } else if (sp.userId) {
-      const { data: userGroups } = await supabase
+      const { data: userGroups } = await sbAdmin
         .from('workspace_user_groups_users')
         .select('group_id')
         .eq('user_id', sp.userId);
@@ -165,7 +170,7 @@ export async function GET(request: Request, { params }: Params) {
     if (data.length > 0) {
       const groupIds = data.map((g) => g.id);
       const [managersByGroup, countManagersInAttendance] = await Promise.all([
-        fetchManagersForGroups(supabase, groupIds),
+        fetchManagersForGroups(sbAdmin, groupIds),
         getShouldCountManagersInAttendance(wsId),
       ]);
 
