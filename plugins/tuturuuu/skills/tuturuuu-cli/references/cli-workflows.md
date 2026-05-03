@@ -130,6 +130,11 @@ globally installed CLI.
 
 ## Mutation Examples
 
+When the user asks to add, create, track, or split a Tuturuuu task, use the CLI
+as the source of truth. Prefer `ttr` for globally installed workflows and
+`bun ttr` inside the monorepo checkout. Do not create markdown TODOs, local
+notes, or GitHub issues as substitutes unless the user explicitly asks.
+
 Create a task with the current selected board/list, or prompt for one when a TTY
 is available:
 
@@ -141,6 +146,24 @@ Create directly into a known task list:
 
 ```bash
 ttr tasks create --list <list-id> --name "Write release notes"
+```
+
+Create with explicit board, list, and labels after discovery:
+
+```bash
+ttr boards --no-update-check
+ttr lists --no-update-check
+ttr labels --no-update-check
+ttr tasks create "Fix calendar sync cron job" --board <board-id> --list <list-id> --labels <label-id>,<label-id>
+```
+
+Split a combined task by creating the replacements first, then closing the
+superseded original:
+
+```bash
+ttr tasks create "Integrate Valsea demo into Tuturuuu web app" --board <board-id> --list <list-id> --labels <label-ids>
+ttr tasks create "Integrate Valsea demo into Tuturuuu mobile app" --board <board-id> --list <list-id> --labels <label-ids>
+ttr tasks close <combined-task-key>
 ```
 
 Mark completed and let Tuturuuu choose the first `done` list:

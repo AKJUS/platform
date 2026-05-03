@@ -44,6 +44,11 @@ For `plugins/tuturuuu` changes:
 - update `apps/docs/build/development-tools/codex-plugin.mdx`
 - run `python3 plugins/tuturuuu/scripts/validate_plugin.py`
 
+When improving agent task-capture behavior, make `ttr` the default path for new
+Tuturuuu tasks. Update `AGENTS.md`, `$tuturuuu-cli`, and plugin docs together so
+future assistants create, label, split, and verify tasks through the CLI instead
+of drifting into local notes or issue trackers.
+
 ## Documentation Follow-Through
 
 If a workflow, install step, debugging path, release process, or validation

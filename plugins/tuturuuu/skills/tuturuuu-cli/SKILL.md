@@ -99,6 +99,37 @@ clear error instead of mixed prompt output.
 Persist selected workspace, board, list, task, label, and project IDs in the CLI
 config so repeated commands can use the current context.
 
+## Task Capture Requests
+
+When a user asks to add, create, track, or split a Tuturuuu task, prioritize the
+`ttr` CLI immediately. Do not substitute markdown TODOs, local notes, or GitHub
+issues unless the user explicitly asks for those artifacts.
+
+Discover current destinations before creating tasks:
+
+```bash
+ttr whoami --no-update-check
+ttr boards --no-update-check
+ttr lists --no-update-check
+ttr labels --no-update-check
+```
+
+Inside the Tuturuuu monorepo, use the local script form:
+
+```bash
+bun ttr tasks create "Fix calendar sync cron job" --board <board-id> --list <list-id> --labels <label-id>,<label-id> --no-update-check
+```
+
+For a combined task that should be split, create each replacement task with
+relevant labels first, verify the new task keys, then close or otherwise mark
+the original task as superseded:
+
+```bash
+ttr tasks create "Integrate Valsea demo into Tuturuuu web app" --board <board-id> --list <list-id> --labels <label-ids>
+ttr tasks create "Integrate Valsea demo into Tuturuuu mobile app" --board <board-id> --list <list-id> --labels <label-ids>
+ttr tasks close <combined-task-key>
+```
+
 ## Task Defaults
 
 Read-oriented groups list by default:

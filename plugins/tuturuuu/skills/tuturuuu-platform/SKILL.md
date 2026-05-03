@@ -42,6 +42,11 @@ Use the more focused plugin skills when they match the task:
 - `$tuturuuu-mobile-task-board` for Flutter task-board date, routing, assignee, detail, or version bump work.
 - `$tuturuuu-review-comments` for fetching, fixing, resolving, and reporting unresolved GitHub PR review threads.
 
+If the user asks to add, create, track, or split a Tuturuuu task while working in
+this repo, route to `$tuturuuu-cli` and use `ttr` as the source of truth instead
+of local notes or GitHub issues, unless the user explicitly asks for those
+artifacts.
+
 For web dashboard surfaces, default to thin server gates plus client shells backed by TanStack Query, `@tuturuuu/internal-api`, and `nuqs` when the UI needs search, sorting, pagination, explorer navigation, or frequent mutation.
 
 For protected or authenticated app CRUD from client/shared UI code, add or extend API routes and internal-api helpers instead of reading Supabase directly from client components.
