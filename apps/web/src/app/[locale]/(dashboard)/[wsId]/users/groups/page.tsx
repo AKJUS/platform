@@ -21,6 +21,7 @@ export const metadata: Metadata = {
 };
 
 interface SearchParams {
+  includeArchived?: string;
   q?: string;
   page?: string;
   pageSize?: string;
@@ -68,6 +69,7 @@ export default async function WorkspaceUserGroupsPage({
         const initialData = await getInitialData(
           wsId,
           {
+            includeArchived: sp.includeArchived === 'true',
             q: sp.q,
           },
           containsPermission('manage_users')
@@ -119,9 +121,15 @@ async function getInitialData(
   wsId: string,
   {
     q,
+    includeArchived = false,
     page = '1',
     pageSize = '50',
-  }: { q?: string; page?: string; pageSize?: string } = {},
+  }: {
+    includeArchived?: boolean;
+    q?: string;
+    page?: string;
+    pageSize?: string;
+  } = {},
   hasManageUsers: boolean = false
 ) {
   try {
@@ -137,6 +145,10 @@ async function getInitialData(
       )
       .eq('ws_id', wsId)
       .order('name');
+
+    if (!includeArchived) {
+      queryBuilder.eq('archived', false);
+    }
 
     const shouldUseAccentInsensitiveSearch = Boolean(q?.trim());
 

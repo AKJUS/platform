@@ -24,6 +24,10 @@ function normalizeListParam(value: string | undefined) {
 }
 
 const SearchParamsSchema = z.object({
+  includeArchived: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((value) => value === 'true'),
   q: z.string().max(MAX_SEARCH_LENGTH).optional(),
   ids: z.string().optional(),
   userId: z.guid().optional(),
@@ -88,6 +92,10 @@ export async function GET(request: Request, { params }: Params) {
       )
       .eq('ws_id', wsId)
       .order('name');
+
+    if (!sp.includeArchived) {
+      queryBuilder.eq('archived', false);
+    }
 
     const shouldUseAccentInsensitiveSearch = Boolean(sp.q?.trim());
 

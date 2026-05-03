@@ -69,16 +69,26 @@ export async function PUT(req: Request, { params }: Params) {
 
   const sbAdmin = await createAdminClient();
 
-  const { error } = await sbAdmin
+  const { data: updatedGroup, error } = await sbAdmin
     .from('workspace_user_groups')
     .update(data)
-    .eq('id', groupId);
+    .eq('ws_id', wsId)
+    .eq('id', groupId)
+    .select('id')
+    .maybeSingle();
 
   if (error) {
     console.log(error);
     return NextResponse.json(
       { message: 'Error updating workspace user group' },
       { status: 500 }
+    );
+  }
+
+  if (!updatedGroup) {
+    return NextResponse.json(
+      { message: 'Workspace user group not found' },
+      { status: 404 }
     );
   }
 

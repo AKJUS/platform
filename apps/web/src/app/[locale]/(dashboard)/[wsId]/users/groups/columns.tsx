@@ -4,6 +4,7 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { Check, Link2, Link2Off, Users, X } from '@tuturuuu/icons';
 import type { UserGroup } from '@tuturuuu/types/primitives/UserGroup';
 import { Avatar, AvatarFallback, AvatarImage } from '@tuturuuu/ui/avatar';
+import { Badge } from '@tuturuuu/ui/badge';
 import { Button } from '@tuturuuu/ui/button';
 import type { ColumnGeneratorOptions } from '@tuturuuu/ui/custom/tables/data-table';
 import { DataTableColumnHeader } from '@tuturuuu/ui/custom/tables/data-table-column-header';
@@ -66,12 +67,22 @@ export const getUserGroupColumns = ({
       />
     ),
     cell: ({ row }) => (
-      <Link
-        href={row.original.href || '#'}
-        className="min-w-32 font-semibold hover:underline"
-      >
-        {row.getValue('name') || '-'}
-      </Link>
+      <div className="flex min-w-32 items-center gap-2">
+        <Link
+          href={row.original.href || '#'}
+          className="font-semibold hover:underline"
+        >
+          {row.getValue('name') || '-'}
+        </Link>
+        {row.original.archived && (
+          <Badge
+            variant="outline"
+            className="border-dynamic-orange/30 text-dynamic-orange"
+          >
+            {t(`${namespace}.archived`)}
+          </Badge>
+        )}
+      </div>
     ),
   },
   {

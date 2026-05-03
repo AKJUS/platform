@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Loader2, RefreshCw } from '@tuturuuu/icons';
 import { Button } from '@tuturuuu/ui/button';
 import { useTranslations } from 'next-intl';
-import { parseAsString, useQueryState } from 'nuqs';
+import { parseAsBoolean, parseAsString, useQueryState } from 'nuqs';
 import { useCallback, useEffect, useRef } from 'react';
 import { CustomDataTable } from '@/components/custom-data-table';
 import { getUserGroupColumns } from './columns';
@@ -33,6 +33,12 @@ export function UserGroupsTable({ wsId, initialData, permissions }: Props) {
       throttleMs: 300,
     })
   );
+  const [includeArchived, setIncludeArchived] = useQueryState(
+    'includeArchived',
+    parseAsBoolean.withDefault(false).withOptions({
+      shallow: true,
+    })
+  );
 
   const {
     groups: fetchedGroups,
@@ -47,10 +53,11 @@ export function UserGroupsTable({ wsId, initialData, permissions }: Props) {
   } = useInfiniteUserGroups(
     wsId,
     {
+      includeArchived,
       q,
     },
     {
-      initialData: !q ? initialData : undefined,
+      initialData: !q && !includeArchived ? initialData : undefined,
     }
   );
 
@@ -98,7 +105,8 @@ export function UserGroupsTable({ wsId, initialData, permissions }: Props) {
 
   const handleResetParams = useCallback(() => {
     setQ(null);
-  }, [setQ]);
+    setIncludeArchived(null);
+  }, [setIncludeArchived, setQ]);
 
   const hasError = Boolean(error);
   const errorMessage = error instanceof Error ? error.message : undefined;
@@ -150,10 +158,16 @@ export function UserGroupsTable({ wsId, initialData, permissions }: Props) {
         columnGenerator={getUserGroupColumns}
         namespace="user-group-data-table"
         count={count}
-        filters={<Filters wsId={wsId} />}
+        filters={
+          <Filters
+            wsId={wsId}
+            includeArchived={includeArchived}
+            onIncludeArchivedChange={setIncludeArchived}
+          />
+        }
         onSearch={handleSearch}
         resetParams={handleResetParams}
-        isFiltered={!!q}
+        isFiltered={!!q || includeArchived}
         hidePagination
         extraData={{
           canCreateUserGroups: permissions.canCreate,

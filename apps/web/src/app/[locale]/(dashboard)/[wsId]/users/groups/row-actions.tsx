@@ -2,7 +2,7 @@
 
 import { useQueryClient } from '@tanstack/react-query';
 import type { Row } from '@tanstack/react-table';
-import { Ellipsis, Eye, Loader2 } from '@tuturuuu/icons';
+import { Archive, Ellipsis, Eye, Loader2, RotateCcw } from '@tuturuuu/icons';
 import type { UserGroup } from '@tuturuuu/types/primitives/UserGroup';
 import {
   AlertDialog,
@@ -48,6 +48,48 @@ export function UserGroupRowActions({
 
   const data = row.original;
 
+  const invalidateGroupQueries = () => {
+    queryClient.invalidateQueries({
+      queryKey: ['workspace-user-groups', data.ws_id],
+    });
+    queryClient.invalidateQueries({
+      queryKey: ['workspace-user-groups-infinite', data.ws_id],
+    });
+  };
+
+  const toggleArchiveUserGroup = async () => {
+    setIsArchiving(true);
+
+    try {
+      const res = await fetch(
+        `/api/v1/workspaces/${data.ws_id}/user-groups/${data.id}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ archived: !data.archived }),
+        }
+      );
+
+      if (res.ok) {
+        toast.success(
+          data.archived
+            ? t('ws-user-groups.unarchive_success')
+            : t('ws-user-groups.archive_success')
+        );
+        invalidateGroupQueries();
+        router.refresh();
+      } else {
+        const responseData = await res.json();
+        toast.error(responseData.message);
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error(t('common.error'));
+    } finally {
+      setIsArchiving(false);
+    }
+  };
+
   const deleteUserGroup = async () => {
     setIsDeleting(true);
 
@@ -62,12 +104,7 @@ export function UserGroupRowActions({
       if (res.ok) {
         toast.success(t('ws-user-groups.delete_success'));
         setShowDeleteDialog(false);
-        queryClient.invalidateQueries({
-          queryKey: ['workspace-user-groups', data.ws_id],
-        });
-        queryClient.invalidateQueries({
-          queryKey: ['workspace-user-groups-infinite', data.ws_id],
-        });
+        invalidateGroupQueries();
         router.refresh();
       } else {
         const data = await res.json();
@@ -83,6 +120,7 @@ export function UserGroupRowActions({
 
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isArchiving, setIsArchiving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   if (!data.id || !data.ws_id) return null;
@@ -112,6 +150,21 @@ export function UserGroupRowActions({
           {canUpdate && (
             <DropdownMenuItem onClick={() => setShowEditDialog(true)}>
               {t('common.edit')}
+            </DropdownMenuItem>
+          )}
+          {canUpdate && (
+            <DropdownMenuItem
+              onClick={toggleArchiveUserGroup}
+              disabled={isArchiving}
+            >
+              {data.archived ? (
+                <RotateCcw className="mr-2 h-4 w-4" />
+              ) : (
+                <Archive className="mr-2 h-4 w-4" />
+              )}
+              {data.archived
+                ? t('ws-user-groups.unarchive')
+                : t('ws-user-groups.archive')}
             </DropdownMenuItem>
           )}
           {(canUpdate || canDelete) && <DropdownMenuSeparator />}
