@@ -34,3 +34,29 @@ The workspace attendance page now supports exporting attendance for everyone acr
 - Keep range filtering on the persisted `user_group_attendance.date` string values with `gte(startDate)` and `lte(endDate)` to avoid timezone drift.
 - Page the API response for large exports instead of assuming a single Supabase page will return every matching row.
 - Excel and CSV generation should stay in the client so the page can reuse localized column labels and progress feedback.
+
+## Workspace Member Profiles
+
+Workspace members can have workspace-specific display names, similar to server profiles.
+
+### Behavior
+
+- Member profile display names are stored on `workspace_users.display_name`, not on the global `users.display_name`.
+- The workspace members settings page can edit display names for joined members and pending invites.
+- Pending email invites may create a `workspace_users` row before the invited platform user joins.
+- When the invited user later joins, `workspace_user_linked_users` should reuse exactly one unlinked `workspace_users` row with a matching email in the same workspace.
+- If multiple matching workspace profiles exist for an email, runtime linking must not guess. Admin edit APIs should report the ambiguity so duplicate profiles can be resolved explicitly.
+
+### Implementation Notes
+
+- Keep members-page writes narrow: update the workspace profile display name only.
+- Always verify `manage_workspace_members` before writing member profiles from the members settings UI.
+- Enhanced member listing should display the workspace profile name when available and fall back to the platform user display name.
+
+## Attendance Manager Counting
+
+Workspace attendance settings include a default-on `ATTENDANCE_COUNT_MANAGERS` flag.
+
+- When enabled, group managers count toward attendance totals in user-group list summaries.
+- When disabled, attendance totals on the user-group list subtract group managers from the group member count.
+- This is separate from `ATTENDANCE_SHOW_MANAGERS`, which controls whether managers appear in detailed attendance-taking views.

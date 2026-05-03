@@ -8,7 +8,9 @@ import {
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import {
+  applyAttendanceMemberCounts,
   fetchManagersForGroups,
+  getShouldCountManagersInAttendance,
   getUserGroupMemberships,
   matchesUserGroupSearch,
 } from '@/app/[locale]/(dashboard)/[wsId]/users/groups/utils';
@@ -162,11 +164,16 @@ export async function GET(request: Request, { params }: Params) {
     // Fetch managers for the fetched groups
     if (data.length > 0) {
       const groupIds = data.map((g) => g.id);
-      const managersByGroup = await fetchManagersForGroups(supabase, groupIds);
-      data = data.map((g) => ({
-        ...g,
-        managers: managersByGroup[g.id] ?? [],
-      }));
+      const [managersByGroup, countManagersInAttendance] = await Promise.all([
+        fetchManagersForGroups(supabase, groupIds),
+        getShouldCountManagersInAttendance(wsId),
+      ]);
+
+      data = applyAttendanceMemberCounts(
+        data,
+        managersByGroup,
+        countManagersInAttendance
+      );
     }
 
     return NextResponse.json({

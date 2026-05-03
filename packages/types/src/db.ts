@@ -108,6 +108,8 @@ export type InternalApiEnhancedWorkspaceMember = PrimitiveUser & {
   is_creator: boolean;
   roles: InternalApiWorkspaceMemberRole[];
   default_permissions: InternalApiWorkspaceDefaultPermission[];
+  workspace_user_id?: string | null;
+  workspace_profile_display_name?: string | null;
 };
 export type WorkspacePromotion = Tables<'workspace_promotions'>;
 export type WorkspaceFlashcard = Tables<'workspace_flashcards'>;

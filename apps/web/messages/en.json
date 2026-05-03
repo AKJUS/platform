@@ -8650,8 +8650,8 @@
       "update_success": "Approval settings updated successfully"
     },
     "attendance": {
-      "display": "Display Settings",
-      "display_description": "Configure which members appear in attendance views",
+      "display": "Display & Totals",
+      "display_description": "Configure which members appear in attendance views and count toward attendance totals",
       "title": "Attendance"
     },
     "calendar": {
@@ -11726,6 +11726,7 @@
     "managers": "Managers",
     "name": "Name",
     "no_attendance_today": "No attendance today",
+    "show_archived": "Show archived groups",
     "special_users": "Special users"
   },
   "user-group-tag-data-table": {
@@ -12778,7 +12779,9 @@
     "view_usage_logs": "View Usage Logs"
   },
   "ws-attendance-settings": {
-    "display_description": "Configure how members are displayed in attendance views",
+    "count_managers_help": "When enabled, managers are included in attendance totals on group list summaries. When disabled, those totals exclude group managers.",
+    "count_managers_label": "Count managers in attendance totals",
+    "display_description": "Configure how members are displayed and counted in attendance views",
     "display_title": "Attendance Display",
     "save": "Save changes",
     "saving": "Saving...",
@@ -13862,6 +13865,7 @@
     "joined": "Joined",
     "lacks_permission": "Lacks permission",
     "leave": "Leave",
+    "leave_workspace": "Leave Workspace",
     "manage-billing": "Manage Billing",
     "member": "Member",
     "member_removed": "Member removed",
@@ -13891,6 +13895,11 @@
     "permission_coverage": "Permission Coverage",
     "permission_sources": "Permission Sources",
     "permissions": "Permissions",
+    "profile_display_name": "Workspace display name",
+    "profile_display_name_description": "This name is only used in this workspace.",
+    "profile_display_name_placeholder": "Name shown in this workspace",
+    "profile_display_name_update_error": "Failed to update workspace display name.",
+    "profile_display_name_updated": "Workspace display name updated.",
     "redundancy_description": "{count, plural, =1 {1 permission is} other {# permissions are}} granted by multiple sources. Consider optimizing role assignments.",
     "redundancy_detected": "Permission Redundancy Detected",
     "remove_error": "An error occurred while removing the member",
@@ -13904,6 +13913,7 @@
     "role-title": "Title",
     "role-title-placeholder": "Designer, Project Manager, etc.",
     "roles": "Roles",
+    "save_profile_display_name": "Save display name",
     "search_members": "Search members...",
     "search_permissions": "Search permissions...",
     "search_roles": "Search roles...",
@@ -13913,6 +13923,7 @@
     "total": "Total",
     "total_permissions": "Total Permissions",
     "unique": "unique",
+    "unknown_member": "Unknown member",
     "update-error": "An error occurred while updating the member",
     "you": "You"
   },

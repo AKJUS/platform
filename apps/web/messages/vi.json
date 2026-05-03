@@ -8650,8 +8650,8 @@
       "update_success": "Cập nhật cài đặt phê duyệt thành công"
     },
     "attendance": {
-      "display": "Cài đặt hiển thị",
-      "display_description": "Cấu hình thành viên nào hiển thị trong giao diện điểm danh",
+      "display": "Hiển thị & tổng số",
+      "display_description": "Cấu hình thành viên nào hiển thị trong điểm danh và được tính vào tổng điểm danh",
       "title": "Điểm danh"
     },
     "calendar": {
@@ -11726,6 +11726,7 @@
     "managers": "Quản lý nhóm",
     "name": "Tên",
     "no_attendance_today": "Không cần điểm danh hôm nay",
+    "show_archived": "Hiển thị nhóm đã lưu trữ",
     "special_users": "Người dùng đặc biệt"
   },
   "user-group-tag-data-table": {
@@ -12778,7 +12779,9 @@
     "view_usage_logs": "Xem nhật ký sử dụng"
   },
   "ws-attendance-settings": {
-    "display_description": "Cấu hình cách hiển thị thành viên trong giao diện điểm danh",
+    "count_managers_help": "Khi bật, quản lý được tính vào tổng điểm danh trong tóm tắt danh sách nhóm. Khi tắt, các tổng này không tính quản lý nhóm.",
+    "count_managers_label": "Tính quản lý vào tổng điểm danh",
+    "display_description": "Cấu hình cách hiển thị và tính thành viên trong giao diện điểm danh",
     "display_title": "Hiển thị điểm danh",
     "save": "Lưu thay đổi",
     "saving": "Đang lưu...",
@@ -13862,6 +13865,7 @@
     "joined": "Đã tham gia",
     "lacks_permission": "Thiếu quyền",
     "leave": "Rời khỏi",
+    "leave_workspace": "Rời khỏi không gian làm việc",
     "manage-billing": "Quản lý thanh toán",
     "member": "Thành viên",
     "member_removed": "Thành viên đã bị xóa",
@@ -13891,6 +13895,11 @@
     "permission_coverage": "Phạm vi Quyền",
     "permission_sources": "Nguồn Quyền",
     "permissions": "Quyền",
+    "profile_display_name": "Tên hiển thị trong không gian làm việc",
+    "profile_display_name_description": "Tên này chỉ được dùng trong không gian làm việc này.",
+    "profile_display_name_placeholder": "Tên hiển thị trong không gian này",
+    "profile_display_name_update_error": "Không thể cập nhật tên hiển thị trong không gian làm việc.",
+    "profile_display_name_updated": "Đã cập nhật tên hiển thị trong không gian làm việc.",
     "redundancy_description": "{count, plural, =1 {1 quyền được} other {# quyền được}} cấp bởi nhiều nguồn. Hãy xem xét tối ưu hóa phân quyền vai trò.",
     "redundancy_detected": "Phát hiện Quyền Trùng lặp",
     "remove_error": "Đã xảy ra lỗi khi xóa thành viên",
@@ -13904,6 +13913,7 @@
     "role-title": "Vị trí",
     "role-title-placeholder": "Thiết kế, Quản lý dự án, v.v.",
     "roles": "Vai trò",
+    "save_profile_display_name": "Lưu tên hiển thị",
     "search_members": "Tìm kiếm thành viên...",
     "search_permissions": "Tìm kiếm quyền...",
     "search_roles": "Tìm kiếm vai trò...",
@@ -13913,6 +13923,7 @@
     "total": "Tổng",
     "total_permissions": "Tổng Quyền",
     "unique": "riêng",
+    "unknown_member": "Thành viên không xác định",
     "update-error": "Đã xảy ra lỗi khi cập nhật thành viên",
     "you": "Bạn"
   },

@@ -7,6 +7,7 @@ export interface UserGroup extends Entity {
   archived?: boolean;
   is_guest: boolean;
   amount?: number;
+  attendance_amount?: number;
   sessions?: string[];
   href?: string;
   description?: string;

@@ -16,6 +16,8 @@ export type EnhancedWorkspaceMember = User & {
   is_creator: boolean;
   roles: WorkspaceMemberRole[];
   default_permissions: WorkspaceDefaultPermission[];
+  workspace_user_id?: string | null;
+  workspace_profile_display_name?: string | null;
 };
 
 interface GetWorkspaceMembersOptions {
@@ -33,6 +35,25 @@ interface WorkspaceRoleMembershipRow {
     workspace_role_permissions: WorkspaceDefaultPermission[] | null;
   };
 }
+
+interface WorkspaceUserLinkRow {
+  platform_user_id: string;
+  virtual_user_id: string;
+  workspace_users: {
+    id: string;
+    display_name: string | null;
+    email: string | null;
+  } | null;
+}
+
+interface WorkspaceProfileRow {
+  id: string;
+  display_name: string | null;
+  email: string | null;
+}
+
+const normalizeEmail = (email: string | null | undefined) =>
+  email?.trim().toLowerCase() || null;
 
 export async function getWorkspaceMembers({
   supabase,
@@ -74,6 +95,12 @@ export async function getWorkspaceMembers({
 
   if (workspaceError) throw workspaceError;
 
+  const memberUserIds = [
+    ...new Set(
+      data.filter((member) => member.id).map((member) => member.id as string)
+    ),
+  ];
+
   const userIds = [
     ...new Set(
       data
@@ -114,6 +141,85 @@ export async function getWorkspaceMembers({
 
   if (defaultPermissionsError) throw defaultPermissionsError;
 
+  const privateEmailByUserId = new Map<string, string | null>();
+  if (memberUserIds.length > 0) {
+    const { data: privateEmailData, error: privateEmailError } = await sbAdmin
+      .from('user_private_details')
+      .select('user_id, email')
+      .in('user_id', memberUserIds);
+
+    if (privateEmailError) throw privateEmailError;
+
+    for (const row of privateEmailData ?? []) {
+      privateEmailByUserId.set(row.user_id, normalizeEmail(row.email));
+    }
+  }
+
+  const profileByUserId = new Map<string, WorkspaceProfileRow>();
+  if (memberUserIds.length > 0) {
+    const { data: linkData, error: linkError } = await sbAdmin
+      .from('workspace_user_linked_users')
+      .select(
+        'platform_user_id, virtual_user_id, workspace_users!virtual_user_id(id, display_name, email)'
+      )
+      .eq('ws_id', wsId)
+      .in('platform_user_id', memberUserIds);
+
+    if (linkError) throw linkError;
+
+    for (const row of (linkData ?? []) as WorkspaceUserLinkRow[]) {
+      if (row.workspace_users) {
+        profileByUserId.set(row.platform_user_id, row.workspace_users);
+      }
+    }
+  }
+
+  const profileLookupEmails = [
+    ...new Set(
+      data
+        .map((member) =>
+          normalizeEmail(
+            member.email ??
+              (member.id ? privateEmailByUserId.get(member.id) : null)
+          )
+        )
+        .filter((email): email is string => !!email)
+    ),
+  ];
+  const profileByEmail = new Map<string, WorkspaceProfileRow>();
+
+  if (profileLookupEmails.length > 0) {
+    const profileLookupEmailVariants = [
+      ...new Set(
+        profileLookupEmails.flatMap((email) => [email, email.toLowerCase()])
+      ),
+    ];
+    const { data: profileData, error: profileError } = await sbAdmin
+      .from('workspace_users')
+      .select('id, display_name, email')
+      .eq('ws_id', wsId)
+      .in('email', profileLookupEmailVariants);
+
+    if (profileError) throw profileError;
+
+    const profilesByNormalizedEmail = new Map<string, WorkspaceProfileRow[]>();
+
+    for (const profile of (profileData ?? []) as WorkspaceProfileRow[]) {
+      const normalizedEmail = normalizeEmail(profile.email);
+      if (!normalizedEmail) continue;
+
+      const profiles = profilesByNormalizedEmail.get(normalizedEmail) ?? [];
+      profiles.push(profile);
+      profilesByNormalizedEmail.set(normalizedEmail, profiles);
+    }
+
+    for (const [email, profiles] of profilesByNormalizedEmail.entries()) {
+      if (profiles.length === 1 && profiles[0]) {
+        profileByEmail.set(email, profiles[0]);
+      }
+    }
+  }
+
   const roleMap = new Map<string, WorkspaceMemberRole[]>();
   for (const membership of roleMembershipsData) {
     const roles = roleMap.get(membership.user_id) ?? [];
@@ -130,16 +236,31 @@ export async function getWorkspaceMembers({
   );
   const defaultPermissions = defaultPermissionsData ?? [];
 
-  return data.map(({ email, type, ...rest }) => ({
-    ...rest,
-    pending: rest.pending ?? undefined,
-    workspace_member_type: type,
-    display_name: hiddenSecrets.has('HIDE_MEMBER_NAME')
-      ? null
-      : rest.display_name,
-    email: hiddenSecrets.has('HIDE_MEMBER_EMAIL') ? null : email,
-    is_creator: workspaceData.creator_id === rest.id,
-    roles: rest.id ? (roleMap.get(rest.id) ?? []) : [],
-    default_permissions: defaultPermissions,
-  }));
+  return data.map(({ email, type, ...rest }) => {
+    const normalizedEmail = normalizeEmail(
+      email ?? (rest.id ? privateEmailByUserId.get(rest.id) : null)
+    );
+    const workspaceProfile =
+      (rest.id ? profileByUserId.get(rest.id) : null) ??
+      (normalizedEmail ? profileByEmail.get(normalizedEmail) : null) ??
+      null;
+    const workspaceProfileDisplayName = workspaceProfile?.display_name ?? null;
+
+    return {
+      ...rest,
+      pending: rest.pending ?? undefined,
+      workspace_member_type: type,
+      display_name: hiddenSecrets.has('HIDE_MEMBER_NAME')
+        ? null
+        : (workspaceProfileDisplayName ?? rest.display_name),
+      email: hiddenSecrets.has('HIDE_MEMBER_EMAIL') ? null : email,
+      is_creator: workspaceData.creator_id === rest.id,
+      roles: rest.id ? (roleMap.get(rest.id) ?? []) : [],
+      default_permissions: defaultPermissions,
+      workspace_user_id: workspaceProfile?.id ?? null,
+      workspace_profile_display_name: hiddenSecrets.has('HIDE_MEMBER_NAME')
+        ? null
+        : workspaceProfileDisplayName,
+    };
+  });
 }
