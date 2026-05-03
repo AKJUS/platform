@@ -20,7 +20,12 @@ import {
 } from '@tuturuuu/ui/select';
 import { toast } from '@tuturuuu/ui/sonner';
 import { useTranslations } from 'next-intl';
-import { parseAsArrayOf, parseAsString, useQueryState } from 'nuqs';
+import {
+  parseAsArrayOf,
+  parseAsString,
+  parseAsStringLiteral,
+  useQueryState,
+} from 'nuqs';
 import { useId, useState } from 'react';
 import { jsonToCSV } from 'react-papaparse';
 import { XLSX } from '../../../../xlsx';
@@ -29,6 +34,8 @@ import {
   getData,
   type TransactionExportRow,
 } from './export-utils';
+
+const TRANSACTION_TYPES = ['income', 'expense'] as const;
 
 export default function ExportDialogContent({
   wsId,
@@ -70,6 +77,13 @@ export default function ExportDialogContent({
   const [tagIds] = useQueryState(
     'tagIds',
     parseAsArrayOf(parseAsString).withDefault([]).withOptions({
+      shallow: true,
+    })
+  );
+
+  const [transactionType] = useQueryState(
+    'transactionType',
+    parseAsStringLiteral(TRANSACTION_TYPES).withOptions({
       shallow: true,
     })
   );
@@ -253,6 +267,7 @@ export default function ExportDialogContent({
           categoryIds,
           walletIds,
           tagIds,
+          transactionType: transactionType || undefined,
           start: start || undefined,
           end: end || undefined,
         });

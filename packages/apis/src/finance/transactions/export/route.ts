@@ -188,6 +188,7 @@ export async function GET(req: Request, { params }: Params) {
   const categoryIds = getStringArray(searchParams, 'categoryIds');
   const userIds = getStringArray(searchParams, 'userIds');
   const tagIds = getStringArray(searchParams, 'tagIds');
+  const transactionType = searchParams.get('transactionType')?.trim();
   const q = searchParams.get('q')?.trim();
   const start = searchParams.get('start')?.trim();
   const end = searchParams.get('end')?.trim();
@@ -201,6 +202,10 @@ export async function GET(req: Request, { params }: Params) {
       p_category_ids: categoryIds.length > 0 ? categoryIds : undefined,
       p_creator_ids: userIds.length > 0 ? userIds : undefined,
       p_tag_ids: tagIds.length > 0 ? tagIds : undefined,
+      p_transaction_type:
+        transactionType === 'income' || transactionType === 'expense'
+          ? transactionType
+          : undefined,
       p_search_query: q || undefined,
       p_start_date: start || undefined,
       p_end_date: end || undefined,

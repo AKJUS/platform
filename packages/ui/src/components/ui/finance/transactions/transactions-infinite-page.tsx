@@ -10,6 +10,7 @@ import { CategoryFilterWrapper } from '@tuturuuu/ui/finance/transactions/categor
 import { InfiniteTransactionsList } from '@tuturuuu/ui/finance/transactions/infinite-transactions-list';
 import MoneyLoverImportDialog from '@tuturuuu/ui/finance/transactions/money-lover-import-dialog';
 import { TagFilterWrapper } from '@tuturuuu/ui/finance/transactions/tag-filter-wrapper';
+import { TransactionTypeFilterWrapper } from '@tuturuuu/ui/finance/transactions/transaction-type-filter-wrapper';
 import { UserFilterWrapper } from '@tuturuuu/ui/finance/transactions/user-filter-wrapper';
 import { ViewModeToggle } from '@tuturuuu/ui/finance/transactions/view-mode-toggle';
 import { WalletFilterWrapper } from '@tuturuuu/ui/finance/transactions/wallet-filter-wrapper';
@@ -120,6 +121,11 @@ export function TransactionsInfinitePage({
             fallback={<Skeleton className="h-9 w-full md:h-8 md:w-32" />}
           >
             <TagFilterWrapper wsId={wsId} />
+          </Suspense>
+          <Suspense
+            fallback={<Skeleton className="h-9 w-full md:h-8 md:w-32" />}
+          >
+            <TransactionTypeFilterWrapper />
           </Suspense>
           <Suspense
             fallback={<Skeleton className="h-9 w-full md:h-8 md:w-32" />}

@@ -24,6 +24,7 @@ export async function GET(req: Request, { params }: Params) {
     const walletIds = searchParams.getAll('walletIds');
     const tagIds = searchParams.getAll('tagIds');
     const walletId = searchParams.get('walletId'); // For single wallet view
+    const transactionType = searchParams.get('transactionType');
     const startDate = searchParams.get('start');
     const endDate = searchParams.get('end');
 
@@ -76,6 +77,10 @@ export async function GET(req: Request, { params }: Params) {
         p_category_ids: categoryIds.length > 0 ? categoryIds : undefined,
         p_creator_ids: userIds.length > 0 ? userIds : undefined,
         p_tag_ids: tagIds.length > 0 ? tagIds : undefined,
+        p_transaction_type:
+          transactionType === 'income' || transactionType === 'expense'
+            ? transactionType
+            : undefined,
         p_search_query: q || undefined,
         p_start_date: startDate || undefined,
         p_end_date: endDate || undefined,

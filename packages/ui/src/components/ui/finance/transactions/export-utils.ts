@@ -68,6 +68,7 @@ export async function getData(
     categoryIds,
     walletIds,
     tagIds,
+    transactionType,
     start,
     end,
   }: {
@@ -78,6 +79,7 @@ export async function getData(
     categoryIds?: string | string[];
     walletIds?: string | string[];
     tagIds?: string | string[];
+    transactionType?: 'income' | 'expense';
     start?: string;
     end?: string;
   }
@@ -90,6 +92,7 @@ export async function getData(
     categoryIds,
     walletIds,
     tagIds,
+    transactionType,
     start,
     end,
   });

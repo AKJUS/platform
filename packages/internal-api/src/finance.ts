@@ -118,6 +118,7 @@ export type TransactionExportQuery = {
   categoryIds?: string | string[];
   walletIds?: string | string[];
   tagIds?: string | string[];
+  transactionType?: 'income' | 'expense';
   start?: string;
   end?: string;
 };
@@ -146,6 +147,9 @@ function buildTransactionExportSearchParams(query: TransactionExportQuery) {
   if (query.q) searchParams.set('q', query.q);
   if (query.page) searchParams.set('page', query.page);
   if (query.pageSize) searchParams.set('pageSize', query.pageSize);
+  if (query.transactionType) {
+    searchParams.set('transactionType', query.transactionType);
+  }
   if (query.start) searchParams.set('start', query.start);
   if (query.end) searchParams.set('end', query.end);
 

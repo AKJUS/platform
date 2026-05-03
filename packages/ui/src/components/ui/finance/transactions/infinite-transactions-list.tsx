@@ -250,6 +250,13 @@ export function InfiniteTransactionsList({
     })
   );
 
+  const [transactionType] = useQueryState(
+    'transactionType',
+    parseAsString.withOptions({
+      shallow: true,
+    })
+  );
+
   const [start] = useQueryState(
     'start',
     parseAsString.withOptions({
@@ -270,6 +277,7 @@ export function InfiniteTransactionsList({
       if (cursor) params.set('cursor', cursor);
       if (q) params.set('q', q);
       if (walletId) params.set('walletId', walletId);
+      if (transactionType) params.set('transactionType', transactionType);
       if (start) params.set('start', start);
       if (end) params.set('end', end);
       userIds.forEach((id) => {
@@ -297,6 +305,7 @@ export function InfiniteTransactionsList({
     [
       q,
       walletId,
+      transactionType,
       start,
       end,
       userIds,
@@ -369,6 +378,7 @@ export function InfiniteTransactionsList({
       categoryIds,
       walletIds,
       tagIds,
+      transactionType,
       walletId,
       start,
       end,
@@ -416,6 +426,7 @@ export function InfiniteTransactionsList({
       categoryIds,
       walletIds,
       tagIds,
+      transactionType,
       walletId,
       start,
       end,
@@ -466,6 +477,7 @@ export function InfiniteTransactionsList({
     categoryIds.length > 0 ||
     walletIds.length > 0 ||
     tagIds.length > 0 ||
+    !!transactionType ||
     !!start ||
     !!end ||
     !!walletId;
@@ -478,6 +490,7 @@ export function InfiniteTransactionsList({
       categoryIds,
       walletIds,
       tagIds,
+      transactionType,
       walletId,
       start,
       end,

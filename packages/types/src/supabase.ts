@@ -27092,6 +27092,7 @@ export type Database = {
           p_search_query?: string;
           p_start_date?: string;
           p_tag_ids?: string[];
+          p_transaction_type?: string;
           p_user_id?: string;
           p_wallet_ids?: string[];
           p_ws_id: string;
@@ -27116,6 +27117,7 @@ export type Database = {
           p_start_date?: string;
           p_tag_ids?: string[];
           p_timezone?: string;
+          p_transaction_type?: string;
           p_user_id?: string;
           p_wallet_ids?: string[];
           p_ws_id: string;
@@ -27454,6 +27456,7 @@ export type Database = {
           p_start_date?: string;
           p_tag_ids?: string[];
           p_transaction_ids?: string[];
+          p_transaction_type?: string;
           p_user_id?: string;
           p_wallet_ids?: string[];
           p_ws_id: string;
