@@ -1831,9 +1831,11 @@
       "cron": {
         "description": "Các lượt chạy cron gần đây, thời lượng, trạng thái và lỗi đã ghi.",
         "failure_streak": "Chuỗi lỗi",
+        "global_paused": "Đang tạm dừng toàn cục",
         "last_duration": "Thời lượng cuối",
         "last_status": "Trạng thái cuối",
         "runtime_override": "Ghi đè runtime",
+        "schedule": "Lịch chạy",
         "summary": {
           "enabled_jobs": "Job đang bật",
           "next_run": "Lượt chạy kế",

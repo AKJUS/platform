@@ -48,6 +48,13 @@
       "id": "tasks-deadline-reminders",
       "path": "/api/cron/tasks/deadline-reminders",
       "schedule": "0 */4 * * *"
+    },
+    {
+      "description": "Sample Docker resource usage for infrastructure observability.",
+      "enabled": true,
+      "id": "infrastructure-sample-resources",
+      "path": "/api/cron/infrastructure/sample-resources",
+      "schedule": "* * * * *"
     }
   ]
 }

@@ -1831,9 +1831,11 @@
       "cron": {
         "description": "Recent cron executions, duration, status, and captured errors.",
         "failure_streak": "Failure streak",
+        "global_paused": "Global paused",
         "last_duration": "Last duration",
         "last_status": "Last status",
         "runtime_override": "Runtime override",
+        "schedule": "Schedule",
         "summary": {
           "enabled_jobs": "Enabled Jobs",
           "next_run": "Next Run",

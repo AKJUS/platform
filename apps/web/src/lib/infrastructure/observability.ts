@@ -18,7 +18,11 @@ import {
   readBlueGreenMonitoringWatcherLogArchive,
 } from './blue-green-monitoring';
 import { readCronExecutionArchive } from './cron-monitoring';
-import { ensureLogDrainSchema, getLogDrainSqlClient } from './log-drain';
+import {
+  ensureLogDrainSchema,
+  getLogDrainSqlClient,
+  pruneOldLogDrainRecords,
+} from './log-drain';
 
 interface ObservabilityFilters {
   level?: string | null;
@@ -950,6 +954,24 @@ function getTopRoutes(requests: ObservabilityRequest[]) {
     .slice(0, 10);
 }
 
+export async function sampleObservabilityResources() {
+  const snapshot = readBlueGreenMonitoringSnapshot({
+    requestPreviewLimit: 0,
+    watcherLogLimit: 0,
+  });
+  await persistResourceSample(snapshot.dockerResources);
+
+  return {
+    containers: snapshot.dockerResources.allContainers.length,
+    cpuPercent: snapshot.dockerResources.totalCpuPercent,
+    memoryBytes: snapshot.dockerResources.totalMemoryBytes,
+    rxBytes: snapshot.dockerResources.totalRxBytes,
+    services: snapshot.dockerResources.serviceHealth.length,
+    state: snapshot.dockerResources.state,
+    txBytes: snapshot.dockerResources.totalTxBytes,
+  };
+}
+
 async function persistResourceSample(
   dockerResources: ObservabilityResources['dockerResources']
 ) {
@@ -987,6 +1009,7 @@ async function persistResourceSample(
       ('server', ${RESOURCE_METRICS.rx}, ${dockerResources.totalRxBytes}, 'bytes', ${metadata}::jsonb),
       ('server', ${RESOURCE_METRICS.tx}, ${dockerResources.totalTxBytes}, 'bytes', ${metadata}::jsonb)
   `;
+  await pruneOldLogDrainRecords();
 }
 
 function getResourceBucketCount(timeframeHours: number) {
@@ -1084,12 +1107,6 @@ export async function readObservabilityResources(
     requestPreviewLimit: 0,
     watcherLogLimit: 0,
   });
-
-  try {
-    await persistResourceSample(snapshot.dockerResources);
-  } catch {
-    // Resource history persistence must not block the live Docker snapshot.
-  }
 
   return {
     buckets: await readResourceBuckets(

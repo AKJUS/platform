@@ -44,6 +44,11 @@ import {
 import { Badge } from '@tuturuuu/ui/badge';
 import { Button } from '@tuturuuu/ui/button';
 import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from '@tuturuuu/ui/chart';
+import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -54,6 +59,15 @@ import { cn } from '@tuturuuu/utils/format';
 import { useTranslations } from 'next-intl';
 import { parseAsInteger, parseAsString, useQueryState } from 'nuqs';
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
+import {
+  Area,
+  AreaChart,
+  Bar,
+  CartesianGrid,
+  ComposedChart,
+  XAxis,
+  YAxis,
+} from 'recharts';
 import {
   formatBytes,
   formatCompactNumber,
@@ -323,6 +337,30 @@ function getStatusFamilyTone(label: string): Tone {
   return 'muted';
 }
 
+function getCronRunTone(status: string | null | undefined): Tone {
+  if (status === 'success') return 'green';
+  if (status === 'processing') return 'blue';
+  if (status === 'queued') return 'amber';
+  if (status === 'timeout') return 'orange';
+  if (status === 'failed') return 'red';
+  return 'muted';
+}
+
+function ToneBadge({ children, tone }: { children: ReactNode; tone: Tone }) {
+  return (
+    <Badge
+      className={cn(
+        'rounded-full border px-2 py-0.5 font-medium',
+        toneClasses[tone].soft,
+        toneClasses[tone].text
+      )}
+      variant="outline"
+    >
+      {children}
+    </Badge>
+  );
+}
+
 function getDeploymentStateView(
   deployment: ObservabilityDeployment,
   labels: Record<
@@ -506,10 +544,28 @@ function ResourceTrendChart({
   }>;
   title: string;
 }) {
-  const values = buckets.flatMap((bucket) =>
-    series.map((item) => item.getValue(bucket))
+  const chartData = buckets.map((bucket) => {
+    const point: Record<string, number | string | null> = {
+      time: formatTime(bucket.bucketStart),
+      timestamp: bucket.bucketStart,
+    };
+
+    series.forEach((item, index) => {
+      point[`series${index}`] = item.getValue(bucket);
+    });
+
+    return point;
+  });
+  const chartConfig = Object.fromEntries(
+    series.map((item, index) => [
+      `series${index}`,
+      {
+        color: `var(--chart-${(index % 5) + 1})`,
+        label: item.label,
+      },
+    ])
   );
-  const max = getMaxValue(values);
+  const gradientId = `resource-${title.replace(/\W+/gu, '-').toLowerCase()}`;
 
   return (
     <section className="rounded-lg border border-border bg-background">
@@ -540,28 +596,92 @@ function ResourceTrendChart({
         </div>
       </div>
       {buckets.length > 0 ? (
-        <div className="flex h-44 items-end gap-1 px-4 pt-8 pb-4">
-          {buckets.map((bucket) => (
-            <div
-              className="flex min-w-0 flex-1 items-end gap-px"
-              key={bucket.bucketStart}
-              title={formatTime(bucket.bucketStart)}
-            >
-              {series.map((item) => (
-                <div
-                  className={cn(
-                    'min-h-1 flex-1 rounded-t',
-                    toneClasses[item.tone].bar
-                  )}
+        <ChartContainer className="h-64 w-full px-3 py-4" config={chartConfig}>
+          {series.length > 1 ? (
+            <ComposedChart data={chartData}>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis
+                axisLine={false}
+                dataKey="time"
+                minTickGap={24}
+                tickLine={false}
+              />
+              <YAxis
+                axisLine={false}
+                tickFormatter={(value) => formatter(Number(value))}
+                tickLine={false}
+                width={58}
+              />
+              <ChartTooltip
+                content={
+                  <ChartTooltipContent
+                    formatter={(value, name) => [
+                      formatter(Number(value)),
+                      name,
+                    ]}
+                  />
+                }
+              />
+              {series.map((item, index) => (
+                <Bar
+                  dataKey={`series${index}`}
+                  fill={`var(--color-series${index})`}
                   key={item.label}
-                  style={{
-                    height: `${getPercent(item.getValue(bucket), max)}%`,
-                  }}
+                  name={item.label}
+                  radius={[2, 2, 0, 0]}
                 />
               ))}
-            </div>
-          ))}
-        </div>
+            </ComposedChart>
+          ) : (
+            <AreaChart data={chartData}>
+              <defs>
+                <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
+                  <stop
+                    offset="5%"
+                    stopColor="var(--color-series0)"
+                    stopOpacity={0.35}
+                  />
+                  <stop
+                    offset="95%"
+                    stopColor="var(--color-series0)"
+                    stopOpacity={0}
+                  />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} />
+              <XAxis
+                axisLine={false}
+                dataKey="time"
+                minTickGap={24}
+                tickLine={false}
+              />
+              <YAxis
+                axisLine={false}
+                tickFormatter={(value) => formatter(Number(value))}
+                tickLine={false}
+                width={58}
+              />
+              <ChartTooltip
+                content={
+                  <ChartTooltipContent
+                    formatter={(value, name) => [
+                      formatter(Number(value)),
+                      name,
+                    ]}
+                  />
+                }
+              />
+              <Area
+                dataKey="series0"
+                fill={`url(#${gradientId})`}
+                name={series[0]?.label}
+                stroke="var(--color-series0)"
+                strokeWidth={2}
+                type="monotone"
+              />
+            </AreaChart>
+          )}
+        </ChartContainer>
       ) : (
         <EmptyChart label={emptyLabel} />
       )}
@@ -1524,66 +1644,59 @@ export function ObservabilityDashboardClient({
                   <div className="min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className="truncate font-mono">{job.id}</span>
-                      <Badge
-                        className={cn(
-                          'rounded-full',
-                          job.enabled
-                            ? 'border-dynamic-green/35 text-dynamic-green'
-                            : 'border-border text-muted-foreground'
-                        )}
-                        variant="outline"
-                      >
+                      <ToneBadge tone={job.enabled ? 'green' : 'muted'}>
                         {job.enabled
                           ? cronT('states.enabled')
                           : cronT('states.disabled')}
-                      </Badge>
+                      </ToneBadge>
                       {job.controlEnabled != null ? (
-                        <Badge className="rounded-full" variant="outline">
+                        <ToneBadge tone="blue">
                           {t('cron.runtime_override')}
-                        </Badge>
+                        </ToneBadge>
+                      ) : null}
+                      {cronSnapshot?.enabled === false ? (
+                        <ToneBadge tone="orange">
+                          {t('cron.global_paused')}
+                        </ToneBadge>
                       ) : null}
                     </div>
                     <p className="mt-1 text-muted-foreground text-xs">
                       {job.description}
                     </p>
-                    <p className="mt-2 truncate font-mono text-muted-foreground text-xs">
-                      {job.schedule} · {job.path}
-                    </p>
-                    <div className="mt-2 grid gap-1 text-muted-foreground text-xs sm:grid-cols-3">
-                      <span>
+                    <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                      <ToneBadge tone="blue">
+                        {t('cron.schedule')}:{' '}
                         {describeCronSchedule(job.schedule, cronScheduleLabels)}
-                      </span>
-                      <span>
+                      </ToneBadge>
+                      <ToneBadge tone="muted">{job.schedule}</ToneBadge>
+                      <ToneBadge tone="muted">{job.path}</ToneBadge>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-2 text-xs">
+                      <ToneBadge tone="amber">
                         {cronT('last_run')}:{' '}
                         {formatTime(
                           job.lastExecution?.startedAt ?? job.lastScheduledAt
                         )}
-                      </span>
-                      <span>
+                      </ToneBadge>
+                      <ToneBadge tone="green">
                         {cronT('next_run')}: {formatTime(job.nextRunAt)}
-                      </span>
+                      </ToneBadge>
                     </div>
                     <div className="mt-3 flex flex-wrap gap-2 text-xs">
-                      <Badge className="rounded-full" variant="outline">
+                      <ToneBadge
+                        tone={getCronRunTone(job.lastExecution?.status)}
+                      >
                         {t('cron.last_status')}:{' '}
                         {job.lastExecution?.status ?? '-'}
-                      </Badge>
-                      <Badge className="rounded-full" variant="outline">
+                      </ToneBadge>
+                      <ToneBadge tone="blue">
                         {t('cron.last_duration')}:{' '}
                         {formatDuration(job.lastExecution?.durationMs)}
-                      </Badge>
-                      <Badge
-                        className={cn(
-                          'rounded-full',
-                          job.failureStreak > 0
-                            ? 'border-dynamic-red/35 text-dynamic-red'
-                            : 'border-dynamic-green/35 text-dynamic-green'
-                        )}
-                        variant="outline"
-                      >
+                      </ToneBadge>
+                      <ToneBadge tone={job.failureStreak > 0 ? 'red' : 'green'}>
                         {t('cron.failure_streak')}:{' '}
                         {formatNumber(job.failureStreak)}
-                      </Badge>
+                      </ToneBadge>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 lg:justify-end">
@@ -1643,20 +1756,25 @@ export function ObservabilityDashboardClient({
                   >
                     <div className="flex items-center justify-between gap-3">
                       <span className="truncate font-mono">{run.jobId}</span>
-                      <span
-                        className={
-                          run.status === 'failed' ? 'text-dynamic-red' : ''
-                        }
-                      >
+                      <ToneBadge tone={getCronRunTone(run.status)}>
                         {run.status}
-                      </span>
+                      </ToneBadge>
                     </div>
                     <span className="truncate text-muted-foreground text-xs">
                       {run.path}
                     </span>
-                    <div className="flex items-center justify-between gap-3 font-mono text-muted-foreground text-xs">
-                      <span>{formatTime(run.startedAt)}</span>
-                      <span>{formatDuration(run.durationMs)}</span>
+                    <div className="flex flex-wrap items-center gap-2 font-mono text-xs">
+                      <ToneBadge
+                        tone={run.source === 'manual' ? 'blue' : 'amber'}
+                      >
+                        {run.source}
+                      </ToneBadge>
+                      <span className="text-muted-foreground">
+                        {formatTime(run.startedAt)}
+                      </span>
+                      <span className="text-muted-foreground">
+                        {formatDuration(run.durationMs)}
+                      </span>
                     </div>
                   </button>
                 )}

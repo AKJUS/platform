@@ -536,7 +536,7 @@ async function persistContext({
   }
 }
 
-async function pruneOldLogDrainRecords() {
+export async function pruneOldLogDrainRecords() {
   const sql = getLogDrainSqlClient();
   if (!sql) {
     return;
