@@ -94,6 +94,70 @@ export interface RecurringTransactionRecord
   is_active: boolean;
 }
 
+export type TransactionExportRow = {
+  amount: number | null;
+  description: string | null;
+  category: string | null;
+  transaction_type: 'expense' | 'income' | null;
+  wallet: string | null;
+  tags: string | null;
+  taken_at: string | null;
+  created_at: string | null;
+  report_opt_in: boolean | null;
+  creator_name: string | null;
+  creator_email: string | null;
+  invoice_for_name: string | null;
+  invoice_for_email: string | null;
+};
+
+export type TransactionExportQuery = {
+  q?: string;
+  page?: string;
+  pageSize?: string;
+  userIds?: string | string[];
+  categoryIds?: string | string[];
+  walletIds?: string | string[];
+  tagIds?: string | string[];
+  start?: string;
+  end?: string;
+};
+
+function appendFinanceArrayParam(
+  searchParams: URLSearchParams,
+  key: string,
+  value?: string | string[]
+) {
+  if (!value) {
+    return;
+  }
+
+  const values = Array.isArray(value) ? value : [value];
+
+  for (const entry of values) {
+    if (entry) {
+      searchParams.append(key, entry);
+    }
+  }
+}
+
+function buildTransactionExportSearchParams(query: TransactionExportQuery) {
+  const searchParams = new URLSearchParams();
+
+  if (query.q) searchParams.set('q', query.q);
+  if (query.page) searchParams.set('page', query.page);
+  if (query.pageSize) searchParams.set('pageSize', query.pageSize);
+  if (query.start) searchParams.set('start', query.start);
+  if (query.end) searchParams.set('end', query.end);
+
+  appendFinanceArrayParam(searchParams, 'userIds', query.userIds);
+  appendFinanceArrayParam(searchParams, 'categoryIds', query.categoryIds);
+  appendFinanceArrayParam(searchParams, 'walletIds', query.walletIds);
+  appendFinanceArrayParam(searchParams, 'tagIds', query.tagIds);
+
+  const queryString = searchParams.toString();
+  return queryString ? `?${queryString}` : '';
+}
+
 export async function createBudget(
   workspaceId: string,
   payload: FinanceBudgetUpsertPayload,
@@ -155,6 +219,22 @@ export async function listTransactionCategories(
   const client = getInternalApiClient(options);
   return client.json<TransactionCategoryWithStats[]>(
     `/api/workspaces/${encodePathSegment(workspaceId)}/transactions/categories`,
+    {
+      cache: 'no-store',
+    }
+  );
+}
+
+export async function listTransactionExportRows(
+  workspaceId: string,
+  query: TransactionExportQuery = {},
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  const queryString = buildTransactionExportSearchParams(query);
+
+  return client.json<{ data: TransactionExportRow[]; count: number }>(
+    `/api/workspaces/${encodePathSegment(workspaceId)}/transactions/export${queryString}`,
     {
       cache: 'no-store',
     }
