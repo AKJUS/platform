@@ -53,6 +53,7 @@ const {
 } = require('./watch-blue-green/history.js');
 const {
   enrichDeploymentsWithTelemetry,
+  parseContainerConsoleLogEntries,
   parseProxyLogEntries,
   readTelemetrySummary,
   summarizeRequestRate,
@@ -3473,8 +3474,29 @@ async function collectDeploymentTraffic(
         runCommand: run,
       }
     );
+    const appContainers = containerId
+      ? (
+          await Promise.all(
+            ['blue', 'green'].map(async (deploymentColor) => ({
+              containerId: await getProdComposeServiceContainerId(
+                `web-${deploymentColor}`,
+                {
+                  env,
+                  envFilePath,
+                  fsImpl,
+                  rootDir,
+                  runCommand: run,
+                }
+              ),
+              deploymentColor,
+            }))
+          )
+        ).filter((container) => container.containerId)
+      : [];
+
     if (successfulDeployments.length > 0 || containerId) {
       await syncProxyTrafficStore(deployments, {
+        appContainers,
         containerId,
         env,
         fsImpl,
@@ -5205,6 +5227,7 @@ module.exports = {
   main,
   mirrorExistingWatchSession,
   parseArgs,
+  parseContainerConsoleLogEntries,
   parseProxyLogEntries,
   parseUpstreamRef,
   prependPendingDeployment,

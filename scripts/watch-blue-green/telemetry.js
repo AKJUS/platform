@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const MAX_RECENT_REQUESTS = 120;
+const MAX_REQUEST_CONSOLE_LOGS = 20;
 const MAX_REQUEST_LOG_RECORDS = 100_000_000;
 const PERIOD_RETENTION = {
   daily: 35,
@@ -9,6 +10,8 @@ const PERIOD_RETENTION = {
   weekly: 26,
   yearly: 10,
 };
+const REQUEST_CONSOLE_CAPTURE_PADDING_MS = 250;
+const REQUEST_CONSOLE_LOG_LOOKBACK_MS = 2 * 60 * 1000;
 const REQUEST_LOG_CHUNK_SIZE = 50_000;
 const INTERNAL_PROXY_METRIC_EXCLUDE_PATHS = new Set([
   '/__platform/drain-status',
@@ -280,6 +283,73 @@ function parseProxyLogEntries(output) {
     .filter(Boolean);
 }
 
+function getConsoleLogLevel(message) {
+  try {
+    const parsed = JSON.parse(message);
+    if (typeof parsed.level === 'string' && parsed.level.length > 0) {
+      return parsed.level;
+    }
+  } catch {}
+
+  if (/^\s*(error|fatal|uncaught|unhandled)\b/i.test(message)) {
+    return 'error';
+  }
+
+  if (/^\s*warn(?:ing)?\b/i.test(message)) {
+    return 'warn';
+  }
+
+  return 'info';
+}
+
+function getConsoleLogMessage(message) {
+  try {
+    const parsed = JSON.parse(message);
+    if (typeof parsed.message === 'string' && parsed.message.length > 0) {
+      return parsed.message;
+    }
+  } catch {}
+
+  return message;
+}
+
+function parseContainerConsoleLogEntries(
+  output,
+  { containerId = null, deploymentColor = null, source = 'route' } = {}
+) {
+  return output
+    .split('\n')
+    .map((line) => line.trimEnd())
+    .filter(Boolean)
+    .map((line) => {
+      const timestampMatch = line.match(/^(\d{4}-\d{2}-\d{2}T\S+)\s+(.*)$/);
+
+      if (!timestampMatch) {
+        return null;
+      }
+
+      const [, isoTime, rawMessage] = timestampMatch;
+      const time = Date.parse(isoTime);
+
+      if (!Number.isFinite(time)) {
+        return null;
+      }
+
+      const message = getConsoleLogMessage(rawMessage);
+
+      return {
+        containerId,
+        deploymentColor,
+        level: getConsoleLogLevel(rawMessage),
+        message,
+        rawLine: line,
+        source,
+        time,
+      };
+    })
+    .filter(Boolean);
+}
+
 function summarizeRequestRate(entries, startTime, endTime) {
   if (
     !Number.isFinite(startTime) ||
@@ -398,7 +468,19 @@ function matchDeploymentForEntry(entry, deployments, now = Date.now()) {
 }
 
 function toCompactRequestEntry(entry, deploymentKey = null) {
+  const consoleLogs = Array.isArray(entry.consoleLogs)
+    ? entry.consoleLogs.slice(0, MAX_REQUEST_CONSOLE_LOGS).map((log) => ({
+        containerId: log.containerId ?? null,
+        deploymentColor: log.deploymentColor ?? null,
+        level: log.level ?? 'info',
+        message: log.message,
+        source: log.source ?? 'route',
+        time: log.time,
+      }))
+    : [];
+
   return {
+    ...(consoleLogs.length > 0 ? { consoleLogs } : {}),
     deploymentColor: entry.deploymentColor ?? null,
     deploymentKey,
     deploymentStamp: entry.deploymentStamp ?? null,
@@ -410,6 +492,42 @@ function toCompactRequestEntry(entry, deploymentKey = null) {
     status: entry.status ?? null,
     time: entry.time,
   };
+}
+
+function getRequestConsoleWindow(entry) {
+  const durationMs =
+    typeof entry.requestTimeMs === 'number' &&
+    Number.isFinite(entry.requestTimeMs)
+      ? Math.max(0, entry.requestTimeMs)
+      : 0;
+
+  return {
+    endAt: entry.time + REQUEST_CONSOLE_CAPTURE_PADDING_MS,
+    startAt: entry.time - durationMs - REQUEST_CONSOLE_CAPTURE_PADDING_MS,
+  };
+}
+
+function getConsoleLogsForRequest(entry, consoleLogs) {
+  const { endAt, startAt } = getRequestConsoleWindow(entry);
+
+  return consoleLogs
+    .filter((log) => {
+      if (log.time < startAt || log.time > endAt) {
+        return false;
+      }
+
+      if (
+        entry.deploymentColor &&
+        log.deploymentColor &&
+        entry.deploymentColor !== log.deploymentColor
+      ) {
+        return false;
+      }
+
+      return true;
+    })
+    .sort((left, right) => left.time - right.time)
+    .slice(0, MAX_REQUEST_CONSOLE_LOGS);
 }
 
 function getPeriodStart(kind, time) {
@@ -828,6 +946,7 @@ function applyEntriesToTelemetrySummary(summary, entries, deployments, now) {
 async function syncProxyTrafficStore(
   deployments,
   {
+    appContainers = [],
     containerId,
     env,
     fsImpl = fs,
@@ -878,10 +997,19 @@ async function syncProxyTrafficStore(
     return { ingestedEntries: [], state, summary };
   }
 
+  const consoleLogs = await readRouteConsoleLogs({
+    appContainers,
+    env,
+    runChecked,
+    runCommand,
+    sinceTime: Math.max(0, sinceTime - REQUEST_CONSOLE_LOG_LOOKBACK_MS),
+  });
+
   const enrichedEntries = freshEntries.map((entry) => {
     const deployment = matchDeploymentForEntry(entry, deployments, now);
     return {
       ...entry,
+      consoleLogs: getConsoleLogsForRequest(entry, consoleLogs),
       deploymentKey: deployment ? getDeploymentStorageKey(deployment) : null,
     };
   });
@@ -906,6 +1034,50 @@ async function syncProxyTrafficStore(
     state,
     summary,
   };
+}
+
+async function readRouteConsoleLogs({
+  appContainers,
+  env,
+  runChecked,
+  runCommand,
+  sinceTime,
+}) {
+  const logs = [];
+
+  for (const container of appContainers) {
+    if (!container?.containerId) {
+      continue;
+    }
+
+    try {
+      const result = await runChecked(
+        'docker',
+        [
+          'logs',
+          '--timestamps',
+          '--since',
+          new Date(sinceTime).toISOString(),
+          container.containerId,
+        ],
+        {
+          env,
+          runCommand,
+          stdio: 'pipe',
+        }
+      );
+
+      logs.push(
+        ...parseContainerConsoleLogEntries(result.stdout, {
+          containerId: container.containerId,
+          deploymentColor: container.deploymentColor ?? null,
+          source: 'route',
+        })
+      );
+    } catch {}
+  }
+
+  return logs.sort((left, right) => left.time - right.time);
 }
 
 function enrichDeploymentsWithTelemetry(
@@ -969,11 +1141,13 @@ function enrichDeploymentsWithTelemetry(
 
 module.exports = {
   INTERNAL_PROXY_METRIC_EXCLUDE_PATHS,
+  MAX_REQUEST_CONSOLE_LOGS,
   MAX_REQUEST_LOG_RECORDS,
   PERIOD_RETENTION,
   createEmptyTelemetrySummary,
   enrichDeploymentsWithTelemetry,
   getDeploymentStorageKey,
+  parseContainerConsoleLogEntries,
   parseProxyLogEntries,
   readTelemetryState,
   readTelemetrySummary,

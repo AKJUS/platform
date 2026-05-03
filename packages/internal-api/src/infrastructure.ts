@@ -146,6 +146,7 @@ export interface BlueGreenMonitoringPeriodMetric {
 }
 
 export interface BlueGreenMonitoringRequestLog {
+  consoleLogs?: BlueGreenMonitoringRequestConsoleLog[];
   deploymentColor: string | null;
   deploymentKey: string | null;
   deploymentStamp: string | null;
@@ -156,6 +157,15 @@ export interface BlueGreenMonitoringRequestLog {
   requestTimeMs: number | null;
   relatedLogs?: BlueGreenMonitoringWatcherLog[];
   status: number | null;
+  time: number;
+}
+
+export interface BlueGreenMonitoringRequestConsoleLog {
+  containerId: string | null;
+  deploymentColor: string | null;
+  level: string;
+  message: string;
+  source: string;
   time: number;
 }
 

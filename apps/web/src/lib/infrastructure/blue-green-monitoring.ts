@@ -8,6 +8,7 @@ import type {
   BlueGreenMonitoringPaginatedResult,
   BlueGreenMonitoringPeriodMetric,
   BlueGreenMonitoringRequestArchive,
+  BlueGreenMonitoringRequestConsoleLog,
   BlueGreenMonitoringRequestLog,
   BlueGreenMonitoringRouteSummary,
   BlueGreenMonitoringServiceHealth,
@@ -340,6 +341,7 @@ function matchesRequestArchiveFilters(
     request.method,
     request.path,
     request.host,
+    ...(request.consoleLogs ?? []).map((log) => log.message),
     request.deploymentStamp,
     request.deploymentColor,
     request.deploymentKey,
@@ -806,8 +808,11 @@ function normalizeRecentRequests(
       return [];
     }
 
+    const consoleLogs = normalizeRequestConsoleLogs(record?.consoleLogs);
+
     return [
       {
+        ...(consoleLogs.length > 0 ? { consoleLogs } : {}),
         deploymentColor:
           typeof record?.deploymentColor === 'string'
             ? record.deploymentColor
@@ -826,6 +831,40 @@ function normalizeRecentRequests(
         path,
         requestTimeMs: toFiniteNumber(record?.requestTimeMs),
         status: toFiniteNumber(record?.status),
+        time,
+      },
+    ];
+  });
+}
+
+function normalizeRequestConsoleLogs(
+  entries: unknown
+): BlueGreenMonitoringRequestConsoleLog[] {
+  if (!Array.isArray(entries)) {
+    return [];
+  }
+
+  return entries.flatMap((entry) => {
+    const record = toRecord(entry);
+    const time = toFiniteNumber(record?.time);
+    const message = typeof record?.message === 'string' ? record.message : null;
+    const level = typeof record?.level === 'string' ? record.level : null;
+
+    if (time == null || !message || !level) {
+      return [];
+    }
+
+    return [
+      {
+        containerId:
+          typeof record?.containerId === 'string' ? record.containerId : null,
+        deploymentColor:
+          typeof record?.deploymentColor === 'string'
+            ? record.deploymentColor
+            : null,
+        level,
+        message,
+        source: typeof record?.source === 'string' ? record.source : 'route',
         time,
       },
     ];

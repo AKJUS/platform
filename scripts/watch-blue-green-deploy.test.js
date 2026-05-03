@@ -41,6 +41,7 @@ const {
   isProcessAlive,
   listDirtyWorktreePaths,
   parseArgs,
+  parseContainerConsoleLogEntries,
   parseProxyLogEntries,
   parseUpstreamRef,
   readDeploymentHistory,
@@ -1172,6 +1173,112 @@ test('parseProxyLogEntries understands structured nginx JSON access logs', () =>
       upstreamAddress: '172.18.0.4:7803',
     },
   ]);
+});
+
+test('collectDeploymentTraffic stores request-scoped route console logs', async () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'watch-traffic-logs-'));
+  const paths = getWatchPaths(tempDir);
+  const deployments = [
+    {
+      activatedAt: Date.parse('2026-04-18T10:30:00.000Z'),
+      activeColor: 'green',
+      commitShortHash: 'bbb222',
+      deploymentStamp: 'deploy-2026-04-18T10-30-00Z',
+      finishedAt: Date.parse('2026-04-18T10:30:00.000Z'),
+      startedAt: Date.parse('2026-04-18T10:29:30.000Z'),
+      status: 'successful',
+    },
+  ];
+
+  try {
+    await collectDeploymentTraffic(deployments, {
+      now: Date.parse('2026-04-18T11:30:00.000Z'),
+      paths,
+      runCommand: createRunCommandMock(
+        new Map([
+          [
+            prodComposePsKey(BLUE_GREEN_PROXY_SERVICE),
+            createResult('proxy-123\n'),
+          ],
+          [prodComposePsKey('web-green'), createResult('green-123\n')],
+          [prodComposePsKey('web-blue'), createResult('')],
+          [
+            'docker logs --timestamps --since 2026-04-18T10:30:00.000Z proxy-123',
+            createResult(
+              '2026-04-18T11:05:00.500000000Z {"host":"platform.test","method":"GET","path":"/api/v1/finance/export","status":500,"requestTime":0.5,"deploymentStamp":"deploy-2026-04-18T10-30-00Z","deploymentColor":"green"}'
+            ),
+          ],
+          [
+            'docker logs --timestamps --since 2026-04-18T10:28:00.000Z green-123',
+            createResult(
+              [
+                '2026-04-18T11:05:00.200000000Z Error fetching transaction export tags',
+                '2026-04-18T11:06:00.000000000Z unrelated later log',
+              ].join('\n')
+            ),
+          ],
+        ])
+      ),
+    });
+
+    const state = JSON.parse(fs.readFileSync(paths.requestStateFile, 'utf8'));
+    const chunkPath = path.join(paths.requestLogDir, state.currentChunkFile);
+    const [entry] = fs
+      .readFileSync(chunkPath, 'utf8')
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line));
+
+    assert.equal(entry.path, '/api/v1/finance/export');
+    assert.deepEqual(entry.consoleLogs, [
+      {
+        containerId: 'green-123',
+        deploymentColor: 'green',
+        level: 'error',
+        message: 'Error fetching transaction export tags',
+        source: 'route',
+        time: Date.parse('2026-04-18T11:05:00.200000000Z'),
+      },
+    ]);
+  } finally {
+    fs.rmSync(tempDir, { force: true, recursive: true });
+  }
+});
+
+test('parseContainerConsoleLogEntries normalizes JSON and plain route logs', () => {
+  assert.deepEqual(
+    parseContainerConsoleLogEntries(
+      [
+        '2026-04-18T11:05:00.200000000Z {"level":"warn","message":"Slow route"}',
+        '2026-04-18T11:05:00.250000000Z Error loading route',
+      ].join('\n'),
+      {
+        containerId: 'green-123',
+        deploymentColor: 'green',
+      }
+    ),
+    [
+      {
+        containerId: 'green-123',
+        deploymentColor: 'green',
+        level: 'warn',
+        message: 'Slow route',
+        rawLine:
+          '2026-04-18T11:05:00.200000000Z {"level":"warn","message":"Slow route"}',
+        source: 'route',
+        time: Date.parse('2026-04-18T11:05:00.200000000Z'),
+      },
+      {
+        containerId: 'green-123',
+        deploymentColor: 'green',
+        level: 'error',
+        message: 'Error loading route',
+        rawLine: '2026-04-18T11:05:00.250000000Z Error loading route',
+        source: 'route',
+        time: Date.parse('2026-04-18T11:05:00.250000000Z'),
+      },
+    ]
+  );
 });
 
 test('summarizeRequestRate computes total, per-minute, and per-day traffic stats', () => {

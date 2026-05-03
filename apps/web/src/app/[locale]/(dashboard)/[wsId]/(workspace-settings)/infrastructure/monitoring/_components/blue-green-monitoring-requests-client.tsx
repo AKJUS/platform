@@ -16,6 +16,7 @@ import {
   TriangleAlert,
 } from '@tuturuuu/icons';
 import type {
+  BlueGreenMonitoringRequestConsoleLog,
   BlueGreenMonitoringRequestLog,
   BlueGreenMonitoringWatcherLog,
 } from '@tuturuuu/internal-api/infrastructure';
@@ -1108,7 +1109,9 @@ function RequestTracePanel({
   t,
 }: {
   onOpenDialog: (request: EnrichedMonitoringRequest) => void;
-  relatedLogs: BlueGreenMonitoringWatcherLog[];
+  relatedLogs: Array<
+    BlueGreenMonitoringRequestConsoleLog | BlueGreenMonitoringWatcherLog
+  >;
   request: EnrichedMonitoringRequest | null;
   t: MonitoringTranslator;
 }) {
@@ -1237,8 +1240,12 @@ function getRequestKey(request: BlueGreenMonitoringRequestLog) {
 function getRelatedWatcherLogs(
   request: BlueGreenMonitoringRequestLog,
   relatedLogs: BlueGreenMonitoringWatcherLog[]
-) {
-  if (Array.isArray(request.relatedLogs)) {
+): Array<BlueGreenMonitoringRequestConsoleLog | BlueGreenMonitoringWatcherLog> {
+  if (Array.isArray(request.consoleLogs) && request.consoleLogs.length > 0) {
+    return request.consoleLogs;
+  }
+
+  if (Array.isArray(request.relatedLogs) && request.relatedLogs.length > 0) {
     return request.relatedLogs;
   }
 
@@ -1409,7 +1416,7 @@ function RequestDetailDialog({
                         <span className="text-muted-foreground">
                           {formatDateTime(log.time)}
                         </span>
-                        {log.deploymentStatus ? (
+                        {'deploymentStatus' in log && log.deploymentStatus ? (
                           <span className="text-muted-foreground">
                             {log.deploymentStatus}
                           </span>

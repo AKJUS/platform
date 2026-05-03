@@ -409,6 +409,16 @@ describe('readBlueGreenMonitoringRequestArchive', () => {
             time: now - 90_000,
           },
           {
+            consoleLogs: [
+              {
+                containerId: 'green-123',
+                deploymentColor: 'green',
+                level: 'error',
+                message: 'Error fetching transaction export tags',
+                source: 'route',
+                time: now - 9_500,
+              },
+            ],
             deploymentStamp: 'deploy-b',
             host: 'tuturuuu.com',
             isInternal: false,
@@ -448,6 +458,12 @@ describe('readBlueGreenMonitoringRequestArchive', () => {
       expect(archive.total).toBe(1);
       expect(archive.items).toHaveLength(1);
       expect(archive.items[0]).toMatchObject({
+        consoleLogs: [
+          expect.objectContaining({
+            message: 'Error fetching transaction export tags',
+            source: 'route',
+          }),
+        ],
         path: '/api/v1/invoices?_rsc=abc',
       });
       expect(archive.items[0]?.relatedLogs).toContainEqual(
