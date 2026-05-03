@@ -1577,6 +1577,64 @@
       "title": "Đồng bộ cả hai màu về cùng commit",
       "unavailable_hint": "Tác vụ này chỉ khả dụng khi watcher đang hoạt động và có một màu active đang phục vụ lưu lượng."
     },
+    "cron": {
+      "actions": {
+        "logs": "Log",
+        "queueing": "Đang đưa vào hàng đợi",
+        "run_now": "Chạy ngay"
+      },
+      "control": {
+        "disabled_hint": "Các lượt chạy đã lên lịch và đang chờ sẽ tạm dừng.",
+        "enabled_hint": "Cron Docker native đang hoạt động."
+      },
+      "description": "Theo dõi cron runner native trong Docker, các lượt chạy thủ công đang chờ và log console của route được lưu cho từng lần chạy.",
+      "detail": {
+        "console_logs": "Log Console",
+        "duration": "Thời lượng",
+        "empty_console_logs": "Không ghi nhận log console route nào cho lần chạy này.",
+        "empty_response": "Không ghi nhận nội dung phản hồi.",
+        "http_status": "HTTP",
+        "response": "Phản hồi",
+        "started": "Bắt đầu",
+        "status": "Trạng thái"
+      },
+      "empty_executions": "Các lần chạy cron sẽ xuất hiện sau khi runner native xử lý lịch chạy hoặc lượt chạy thủ công.",
+      "empty_jobs": "Chưa có cron job nào trong cấu hình cron dùng chung.",
+      "execution_status": {
+        "failed": "Thất bại",
+        "skipped": "Đã bỏ qua",
+        "success": "Thành công",
+        "timeout": "Hết thời gian"
+      },
+      "executions_description": "Các bản ghi thực thi mới nhất được giữ trong kho runtime Docker.",
+      "executions_title": "Lần Chạy Gần Đây",
+      "failure_streak": "{count} lần lỗi",
+      "jobs_count": "{enabled}/{total} đang bật",
+      "jobs_description": "Lịch chạy lấy từ apps/web/cron.config.json và được đồng bộ sang Vercel.",
+      "jobs_title": "Job Đã Đăng Ký",
+      "last_run": "Lần Chạy Cuối",
+      "next_run": "Lần Chạy Kế Tiếp",
+      "runner_status": {
+        "live": "Đang chạy",
+        "missing": "Thiếu",
+        "stale": "Cũ"
+      },
+      "states": {
+        "disabled": "Đã tắt",
+        "enabled": "Đã bật",
+        "pending": "Đang chờ"
+      },
+      "stats": {
+        "executions": "Lần chạy",
+        "failed_jobs": "Job lỗi",
+        "failed_jobs_meta": "Job đang có chuỗi lỗi",
+        "next_run": "Lần Chạy Kế Tiếp",
+        "retained_meta": "Bản ghi runtime được giữ",
+        "runner": "Cron Runner",
+        "runner_meta": "Bộ lập lịch Docker native"
+      },
+      "title": "Cron Jobs"
+    },
     "deployment_status": {
       "active": "Đang hoạt động",
       "building": "Đang build",
@@ -1720,6 +1778,7 @@
     },
     "overview": {
       "description": "Dùng trang tổng quan như bản tóm tắt dành cho operator: trạng thái runtime hiện tại, nhịp watcher và các lối tắt tới những bề mặt nặng hơn.",
+      "focus_cron_description": "Kiểm tra lịch cron Docker native, lượt chạy thủ công đang chờ, lịch sử thực thi và log route đã ghi lại.",
       "focus_logs_description": "Đi thẳng vào log watcher đã lưu để kiểm tra lỗi rollout và phục hồi.",
       "focus_requests_description": "Duyệt lưu lượng proxy đã lưu mà không đẩy toàn bộ lịch sử request vào trang này.",
       "focus_rollouts_description": "Theo dõi tình trạng rollout, biểu đồ triển khai, luồng sự kiện và các nút đồng bộ standby trực tiếp.",
@@ -1836,6 +1895,10 @@
       "events_title": "Luồng Sự Kiện Watcher"
     },
     "routes": {
+      "cron": {
+        "description": "Cron runner Docker native, lịch chạy, lượt chạy thủ công và log thực thi.",
+        "title": "Cron Jobs"
+      },
       "logs": {
         "description": "Các dòng watcher đã lưu để gỡ lỗi rollout và phục hồi.",
         "title": "Log Watcher"
@@ -1872,7 +1935,8 @@
       "unknown": "Không xác định"
     },
     "states": {
-      "none": "Không có"
+      "none": "Không có",
+      "unknown": "Không xác định"
     },
     "stats": {
       "active_color": "Màu hoạt động",
@@ -5886,10 +5950,12 @@
     "integrations": "Dịch vụ tích hợp",
     "mobile_versions": "Phiên bản di động",
     "monitoring": "Giám sát",
+    "monitoring_cron": "Giám Sát Cron Jobs",
     "monitoring_overview": "Tổng Quan Giám Sát",
     "monitoring_requests": "Request Giám Sát",
     "monitoring_rollouts": "Rollout Giám Sát",
     "monitoring_watcher_logs": "Log Watcher Giám Sát",
+    "operations": "Vận Hành",
     "otp_limits": "Giới hạn OTP",
     "overview": "Tổng quan",
     "post_email_queue": "Hàng Đợi Email Bài Viết",

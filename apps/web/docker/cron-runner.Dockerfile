@@ -1,0 +1,12 @@
+FROM oven/bun:1.3.13-alpine
+
+WORKDIR /workspace
+
+ENV CI=1
+ENV NEXT_TELEMETRY_DISABLED=1
+
+RUN apk add --no-cache docker-cli docker-cli-compose
+
+COPY apps/web/docker/cron-runner-entrypoint.js /usr/local/bin/cron-runner-entrypoint.js
+
+CMD ["bun", "/usr/local/bin/cron-runner-entrypoint.js"]

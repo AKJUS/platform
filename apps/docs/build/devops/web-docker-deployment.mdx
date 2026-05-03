@@ -1,7 +1,7 @@
 ---
 title: 'Web Docker Deployment'
 description: 'Run the web app in Docker for development, production, and blue/green self-hosted rollout.'
-updatedAt: '2026-04-24'
+updatedAt: '2026-05-03'
 ---
 
 This is the operational guide for the Docker-based `apps/web` runtime.
@@ -10,8 +10,12 @@ This is the operational guide for the Docker-based `apps/web` runtime.
 
 - `apps/web/Dockerfile`
 - `apps/web/docker/blue-green-watcher.Dockerfile`
+- `apps/web/docker/cron-runner.Dockerfile`
+- `apps/web/cron.config.json`
 - `docker-compose.web.yml`
 - `docker-compose.web.prod.yml`
+- `scripts/sync-web-crons.js`
+- `scripts/watch-web-crons.js`
 - `scripts/docker-web.js`
 - `scripts/check-docker-web.js`
 
@@ -128,8 +132,8 @@ Blue/green deploy does this:
 2. Ignores that state if the corresponding container no longer exists.
 3. Stops and removes the old inactive-color container, then builds and starts
    its fresh replacement.
-4. Builds and starts the shared `markitdown` and `storage-unzip-proxy`
-   helper containers alongside the target color.
+4. Builds and starts the shared `markitdown`, `storage-unzip-proxy`, and
+   `web-cron-runner` helper containers alongside the target color.
 5. Injects Docker-internal helper URLs into `apps/web`:
    `MARKITDOWN_ENDPOINT_URL=http://markitdown:8000/markitdown`,
    `DISCORD_APP_DEPLOYMENT_URL=http://markitdown:8000`,
@@ -243,6 +247,44 @@ The local runtime state lives in:
 
 These files are intentionally local-only and safe to regenerate.
 
+## Native Cron Runner
+
+Self-hosted production cron jobs use `apps/web/cron.config.json` as the shared
+source of truth. `apps/web/vercel.json.crons` should stay generated from that
+file with:
+
+```bash
+node scripts/sync-web-crons.js --check
+node scripts/sync-web-crons.js
+```
+
+Use `--check` in CI and local verification when cron definitions change. The
+sync script preserves Vercel behavior by copying each enabled job's `path` and
+`schedule` from the shared config into `apps/web/vercel.json`.
+
+In Docker production, the `web-cron-runner` service runs
+`scripts/watch-web-crons.js` against `INTERNAL_WEB_API_ORIGIN`, defaulting to
+`http://web-proxy:7803`. Requests include
+`Authorization: Bearer ${CRON_SECRET || VERCEL_CRON_SECRET}` so the same route
+auth gate can protect Vercel and native Docker executions.
+
+Runtime cron telemetry is intentionally file-based and local to the host:
+
+- `tmp/docker-web/cron/status.json` for runner health and the current cycle.
+- `tmp/docker-web/cron/state.json` for restart-safe last-run markers.
+- `tmp/docker-web/cron/executions/*.jsonl` for per-run route response,
+  duration, status, and captured web-container console logs.
+- `tmp/docker-web/watch/control/cron-control.json` for the global enabled
+  switch.
+- `tmp/docker-web/watch/control/cron-run-requests/*.json` for queued manual
+  runs created by the monitoring UI.
+
+Disabling cron execution blocks scheduled jobs and leaves manual run requests
+queued until cron execution is enabled again. The runner also supports
+`--once`, which is used by script tests to verify due-run detection, queued
+manual runs, restart-safe state, and log persistence without starting the
+long-running loop.
+
 ## Auto-Deploy Watcher
 
 `bun serve:web:docker:bg:watch` locks the current branch/upstream at startup,
@@ -302,7 +344,10 @@ The infrastructure monitoring UI in `apps/web` is intentionally split into
 smaller pages instead of one oversized dashboard:
 
 - `/{wsId}/infrastructure/monitoring` for the operator overview, runtime
-  snapshot, and jump points into deeper surfaces.
+  snapshot, cron health summary, and jump points into deeper surfaces.
+- `/{wsId}/infrastructure/monitoring/cron` for cron job schedules, global
+  enable/disable control, manual run requests, recent execution status, route
+  responses, and captured web-container console logs.
 - `/{wsId}/infrastructure/monitoring/rollouts` for rollout controls, deployment
   charts, event streams, and ledger history.
 - `/{wsId}/infrastructure/monitoring/requests` for paginated proxy request

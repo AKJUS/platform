@@ -120,6 +120,30 @@ services:
       - platform-blue-green-watcher-node_modules:/workspace/node_modules
       - platform-blue-green-watcher-node_modules:${PLATFORM_HOST_WORKSPACE_DIR}/node_modules
 
+  web-cron-runner:
+    build:
+      context: .
+      dockerfile: apps/web/docker/cron-runner.Dockerfile
+    environment:
+      - CRON_SECRET
+      - INTERNAL_WEB_API_ORIGIN
+      - PLATFORM_CRON_CONTROL_DIR=${PLATFORM_HOST_WORKSPACE_DIR}/tmp/docker-web/watch/control
+      - PLATFORM_CRON_MONITORING_DIR=${PLATFORM_HOST_WORKSPACE_DIR}/tmp/docker-web/cron
+      - PLATFORM_HOST_WORKSPACE_DIR
+      - VERCEL_CRON_SECRET
+    healthcheck:
+      test: ["CMD-SHELL", "ps | grep -q '[w]atch-web-crons.js'"]
+      interval: 30s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    init: true
+    restart: unless-stopped
+    volumes:
+      - .:/workspace:ro
+      - .:${PLATFORM_HOST_WORKSPACE_DIR}
+      - /var/run/docker.sock:/var/run/docker.sock
+
   redis:
     profiles: ["redis"]
     image: redis:7-alpine

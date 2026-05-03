@@ -1,0 +1,708 @@
+#!/usr/bin/env node
+
+const fs = require('node:fs');
+const path = require('node:path');
+const { spawn } = require('node:child_process');
+const crypto = require('node:crypto');
+const {
+  parseContainerConsoleLogEntries,
+} = require('./watch-blue-green/telemetry.js');
+const {
+  ROOT_DIR,
+  WEB_CRON_CONFIG_PATH,
+  readCronConfig,
+} = require('./web-crons.js');
+
+const DEFAULT_INTERNAL_WEB_API_ORIGIN = 'http://web-proxy:7803';
+const DEFAULT_INTERVAL_MS = 30_000;
+const DEFAULT_REQUEST_TIMEOUT_MS = 10 * 60 * 1000;
+const DEFAULT_RETENTION_DAYS = 14;
+const CRON_RUNTIME_DIR = path.join(ROOT_DIR, 'tmp', 'docker-web', 'cron');
+const CRON_CONTROL_DIR = path.join(
+  ROOT_DIR,
+  'tmp',
+  'docker-web',
+  'watch',
+  'control'
+);
+const CRON_RUN_REQUESTS_DIR = path.join(CRON_CONTROL_DIR, 'cron-run-requests');
+
+function parseArgs(argv = process.argv.slice(2)) {
+  const parsed = {
+    intervalMs: DEFAULT_INTERVAL_MS,
+    once: false,
+  };
+
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+
+    if (arg === '--once') {
+      parsed.once = true;
+      continue;
+    }
+
+    if (arg === '--interval-ms') {
+      parsed.intervalMs = Number.parseInt(argv[index + 1] ?? '', 10);
+      index += 1;
+      continue;
+    }
+
+    throw new Error(`Unknown argument: ${arg}`);
+  }
+
+  if (!Number.isFinite(parsed.intervalMs) || parsed.intervalMs <= 0) {
+    throw new Error('--interval-ms must be a positive integer.');
+  }
+
+  return parsed;
+}
+
+function ensureDir(dirPath, fsImpl = fs) {
+  fsImpl.mkdirSync(dirPath, { recursive: true });
+}
+
+function readJsonFile(filePath, fallback, fsImpl = fs) {
+  if (!fsImpl.existsSync(filePath)) {
+    return fallback;
+  }
+
+  try {
+    return JSON.parse(fsImpl.readFileSync(filePath, 'utf8'));
+  } catch {
+    return fallback;
+  }
+}
+
+function writeJsonFile(filePath, value, fsImpl = fs) {
+  ensureDir(path.dirname(filePath), fsImpl);
+  fsImpl.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`);
+}
+
+function getCronPaths({
+  controlDir = process.env.PLATFORM_CRON_CONTROL_DIR || CRON_CONTROL_DIR,
+  runtimeDir = process.env.PLATFORM_CRON_MONITORING_DIR || CRON_RUNTIME_DIR,
+} = {}) {
+  return {
+    controlDir,
+    executionDir: path.join(runtimeDir, 'executions'),
+    runRequestsDir: path.join(controlDir, 'cron-run-requests'),
+    statusFile: path.join(runtimeDir, 'status.json'),
+    stateFile: path.join(runtimeDir, 'state.json'),
+    controlFile: path.join(controlDir, 'cron-control.json'),
+    runtimeDir,
+  };
+}
+
+function loadCronParser(rootDir = ROOT_DIR) {
+  return require(
+    path.join(rootDir, 'apps', 'web', 'node_modules', 'cron-parser')
+  );
+}
+
+function getPreviousScheduledAt(schedule, now, rootDir = ROOT_DIR) {
+  const { CronExpressionParser } = loadCronParser(rootDir);
+  const expression = CronExpressionParser.parse(schedule, {
+    currentDate: new Date(now),
+    tz: 'UTC',
+  });
+  return expression.prev().getTime();
+}
+
+function getNextScheduledAt(schedule, now, rootDir = ROOT_DIR) {
+  const { CronExpressionParser } = loadCronParser(rootDir);
+  const expression = CronExpressionParser.parse(schedule, {
+    currentDate: new Date(now),
+    tz: 'UTC',
+  });
+  return expression.next().getTime();
+}
+
+function getDueScheduledJobs({ config, now, rootDir = ROOT_DIR, state }) {
+  return config.jobs.flatMap((job) => {
+    if (!job.enabled) {
+      return [];
+    }
+
+    const scheduledAt = getPreviousScheduledAt(job.schedule, now, rootDir);
+    const lastScheduledAt = state.lastScheduledAtByJobId?.[job.id];
+
+    if (typeof lastScheduledAt !== 'number') {
+      return [];
+    }
+
+    return scheduledAt > lastScheduledAt ? [{ job, scheduledAt }] : [];
+  });
+}
+
+function initializeScheduleState({ config, now, rootDir = ROOT_DIR, state }) {
+  const nextState = {
+    ...state,
+    lastScheduledAtByJobId: {
+      ...(state.lastScheduledAtByJobId ?? {}),
+    },
+  };
+
+  for (const job of config.jobs) {
+    if (typeof nextState.lastScheduledAtByJobId[job.id] === 'number') {
+      continue;
+    }
+
+    nextState.lastScheduledAtByJobId[job.id] = getPreviousScheduledAt(
+      job.schedule,
+      now,
+      rootDir
+    );
+  }
+
+  return nextState;
+}
+
+function readControl(paths, fsImpl = fs) {
+  return {
+    enabled: true,
+    ...readJsonFile(paths.controlFile, {}, fsImpl),
+  };
+}
+
+function normalizeRunRequest(request) {
+  if (!request || typeof request !== 'object' || Array.isArray(request)) {
+    return null;
+  }
+
+  const jobId = typeof request.jobId === 'string' ? request.jobId : null;
+  if (!jobId) {
+    return null;
+  }
+
+  return {
+    id:
+      typeof request.id === 'string' && request.id
+        ? request.id
+        : crypto.randomUUID(),
+    jobId,
+    requestedAt:
+      typeof request.requestedAt === 'number'
+        ? request.requestedAt
+        : Date.now(),
+    requestedBy:
+      typeof request.requestedBy === 'string' ? request.requestedBy : null,
+    requestedByEmail:
+      typeof request.requestedByEmail === 'string'
+        ? request.requestedByEmail
+        : null,
+  };
+}
+
+function readRunRequests(paths, fsImpl = fs) {
+  if (!fsImpl.existsSync(paths.runRequestsDir)) {
+    return [];
+  }
+
+  return fsImpl
+    .readdirSync(paths.runRequestsDir)
+    .filter((fileName) => fileName.endsWith('.json'))
+    .sort()
+    .flatMap((fileName) => {
+      const filePath = path.join(paths.runRequestsDir, fileName);
+      const request = normalizeRunRequest(readJsonFile(filePath, null, fsImpl));
+      return request ? [{ ...request, filePath }] : [];
+    });
+}
+
+function removeRunRequest(request, fsImpl = fs) {
+  if (request.filePath && fsImpl.existsSync(request.filePath)) {
+    fsImpl.unlinkSync(request.filePath);
+  }
+}
+
+function runCommand(command, args, options = {}) {
+  return new Promise((resolve, reject) => {
+    const child = (options.spawnImpl ?? spawn)(command, args, {
+      cwd: options.cwd ?? ROOT_DIR,
+      env: options.env ?? process.env,
+      stdio: options.stdio ?? 'pipe',
+    });
+
+    let stdout = '';
+    let stderr = '';
+
+    child.stdout?.on('data', (chunk) => {
+      stdout += chunk;
+    });
+
+    child.stderr?.on('data', (chunk) => {
+      stderr += chunk;
+    });
+
+    child.on('error', reject);
+    child.on('close', (code, signal) => {
+      resolve({
+        code: code ?? 1,
+        signal: signal ?? null,
+        stderr,
+        stdout,
+      });
+    });
+  });
+}
+
+async function listWebContainers({
+  composeFile = process.env.PLATFORM_WEB_CRON_COMPOSE_FILE ||
+    path.join(ROOT_DIR, 'docker-compose.web.prod.yml'),
+  env = process.env,
+  run = runCommand,
+} = {}) {
+  const containers = [];
+
+  for (const deploymentColor of ['blue', 'green']) {
+    const serviceName = `web-${deploymentColor}`;
+    const result = await run(
+      'docker',
+      ['compose', '-f', composeFile, 'ps', '-q', serviceName],
+      {
+        env,
+        stdio: 'pipe',
+      }
+    );
+
+    if (result.code !== 0) {
+      continue;
+    }
+
+    const containerId = result.stdout.trim().split(/\s+/u).filter(Boolean)[0];
+    if (containerId) {
+      containers.push({ containerId, deploymentColor });
+    }
+  }
+
+  return containers;
+}
+
+async function readRouteConsoleLogs({
+  env = process.env,
+  endedAt,
+  run = runCommand,
+  startedAt,
+} = {}) {
+  const containers = await listWebContainers({ env, run });
+  const logs = [];
+
+  for (const container of containers) {
+    const result = await run(
+      'docker',
+      [
+        'logs',
+        '--timestamps',
+        '--since',
+        new Date(Math.max(0, startedAt - 250)).toISOString(),
+        container.containerId,
+      ],
+      {
+        env,
+        stdio: 'pipe',
+      }
+    );
+
+    if (result.code !== 0) {
+      continue;
+    }
+
+    logs.push(
+      ...parseContainerConsoleLogEntries(result.stdout, {
+        containerId: container.containerId,
+        deploymentColor: container.deploymentColor,
+        source: 'route',
+      })
+    );
+  }
+
+  return logs
+    .filter((log) => log.time >= startedAt - 250 && log.time <= endedAt + 250)
+    .sort((left, right) => left.time - right.time)
+    .slice(0, 50)
+    .map(({ rawLine: _rawLine, ...log }) => log);
+}
+
+async function fetchWithTimeout(url, init, timeoutMs, fetchImpl = fetch) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    return await fetchImpl(url, {
+      ...init,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function getExecutionFile(executionDir, time) {
+  const day = new Date(time).toISOString().slice(0, 10);
+  return path.join(executionDir, `${day}.jsonl`);
+}
+
+function appendExecution(paths, execution, fsImpl = fs) {
+  ensureDir(paths.executionDir, fsImpl);
+  fsImpl.appendFileSync(
+    getExecutionFile(paths.executionDir, execution.startedAt),
+    `${JSON.stringify(execution)}\n`
+  );
+}
+
+async function executeJob({
+  env = process.env,
+  fetchImpl = fetch,
+  fsImpl = fs,
+  job,
+  paths,
+  run = runCommand,
+  scheduledAt = null,
+  source,
+  triggerId = null,
+} = {}) {
+  const startedAt = Date.now();
+  const cronSecret = env.CRON_SECRET || env.VERCEL_CRON_SECRET;
+  const origin = env.INTERNAL_WEB_API_ORIGIN || DEFAULT_INTERNAL_WEB_API_ORIGIN;
+  const timeoutMs = Number.parseInt(
+    env.PLATFORM_CRON_REQUEST_TIMEOUT_MS || '',
+    10
+  );
+  const requestTimeoutMs =
+    Number.isFinite(timeoutMs) && timeoutMs > 0
+      ? timeoutMs
+      : DEFAULT_REQUEST_TIMEOUT_MS;
+  const execution = {
+    consoleLogs: [],
+    description: job.description,
+    durationMs: 0,
+    endedAt: startedAt,
+    error: null,
+    httpStatus: null,
+    id: crypto.randomUUID(),
+    jobId: job.id,
+    path: job.path,
+    response: null,
+    schedule: job.schedule,
+    scheduledAt,
+    source,
+    startedAt,
+    status: 'failed',
+    triggerId,
+  };
+
+  try {
+    if (!cronSecret) {
+      throw new Error('CRON_SECRET or VERCEL_CRON_SECRET is not set.');
+    }
+
+    const url = new URL(job.path, origin);
+    const response = await fetchWithTimeout(
+      url,
+      {
+        headers: {
+          Authorization: `Bearer ${cronSecret}`,
+        },
+        method: 'GET',
+      },
+      requestTimeoutMs,
+      fetchImpl
+    );
+    const text = await response.text();
+
+    execution.httpStatus = response.status;
+    execution.response = text.slice(0, 12_000);
+    execution.status = response.ok ? 'success' : 'failed';
+  } catch (error) {
+    execution.error = error instanceof Error ? error.message : String(error);
+    execution.status = error?.name === 'AbortError' ? 'timeout' : 'failed';
+  } finally {
+    execution.endedAt = Date.now();
+    execution.durationMs = Math.max(0, execution.endedAt - execution.startedAt);
+    execution.consoleLogs = await readRouteConsoleLogs({
+      env,
+      endedAt: execution.endedAt,
+      run,
+      startedAt: execution.startedAt,
+    });
+    appendExecution(paths, execution, fsImpl);
+  }
+
+  return execution;
+}
+
+function readExecutionRecords(paths, fsImpl = fs) {
+  if (!fsImpl.existsSync(paths.executionDir)) {
+    return [];
+  }
+
+  return fsImpl
+    .readdirSync(paths.executionDir)
+    .filter((fileName) => fileName.endsWith('.jsonl'))
+    .sort()
+    .flatMap((fileName) => {
+      const content = fsImpl.readFileSync(
+        path.join(paths.executionDir, fileName),
+        'utf8'
+      );
+      return content
+        .split(/\r?\n/u)
+        .filter(Boolean)
+        .flatMap((line) => {
+          try {
+            return [JSON.parse(line)];
+          } catch {
+            return [];
+          }
+        });
+    });
+}
+
+function getLastExecutionByJobId(executions) {
+  const map = new Map();
+
+  for (const execution of executions) {
+    const current = map.get(execution.jobId);
+    if (!current || execution.startedAt > current.startedAt) {
+      map.set(execution.jobId, execution);
+    }
+  }
+
+  return map;
+}
+
+function getFailureStreak(jobId, executions) {
+  let streak = 0;
+
+  for (const execution of [...executions]
+    .filter((entry) => entry.jobId === jobId)
+    .sort((left, right) => right.startedAt - left.startedAt)) {
+    if (execution.status === 'success') {
+      return streak;
+    }
+    streak += 1;
+  }
+
+  return streak;
+}
+
+function buildStatus({
+  config,
+  control,
+  executions,
+  intervalMs,
+  now,
+  rootDir = ROOT_DIR,
+  state,
+}) {
+  const lastByJobId = getLastExecutionByJobId(executions);
+  const jobs = config.jobs.map((job) => {
+    const lastExecution = lastByJobId.get(job.id) ?? null;
+    const nextRunAt =
+      job.enabled && control.enabled
+        ? getNextScheduledAt(job.schedule, now, rootDir)
+        : null;
+
+    return {
+      ...job,
+      failureStreak: getFailureStreak(job.id, executions),
+      lastExecution,
+      lastScheduledAt: state.lastScheduledAtByJobId?.[job.id] ?? null,
+      nextRunAt,
+    };
+  });
+  const nextRunAt =
+    jobs
+      .map((job) => job.nextRunAt)
+      .filter((value) => typeof value === 'number')
+      .sort((left, right) => left - right)[0] ?? null;
+
+  return {
+    control,
+    enabled: control.enabled !== false,
+    intervalMs,
+    jobs,
+    lastExecution:
+      [...executions].sort(
+        (left, right) => right.startedAt - left.startedAt
+      )[0] ?? null,
+    nextRunAt,
+    retainedExecutionCount: executions.length,
+    status: 'live',
+    updatedAt: now,
+  };
+}
+
+function pruneExecutionFiles(paths, retentionDays, fsImpl = fs) {
+  if (!fsImpl.existsSync(paths.executionDir)) {
+    return;
+  }
+
+  const cutoff = Date.now() - retentionDays * 86_400_000;
+
+  for (const fileName of fsImpl.readdirSync(paths.executionDir)) {
+    if (!fileName.endsWith('.jsonl')) {
+      continue;
+    }
+
+    const day = Date.parse(fileName.slice(0, 10));
+    if (Number.isFinite(day) && day < cutoff) {
+      fsImpl.unlinkSync(path.join(paths.executionDir, fileName));
+    }
+  }
+}
+
+async function runCronCycle({
+  configPath = WEB_CRON_CONFIG_PATH,
+  env = process.env,
+  fetchImpl = fetch,
+  fsImpl = fs,
+  intervalMs = DEFAULT_INTERVAL_MS,
+  paths = getCronPaths(),
+  rootDir = ROOT_DIR,
+  run = runCommand,
+} = {}) {
+  ensureDir(paths.runtimeDir, fsImpl);
+  ensureDir(paths.executionDir, fsImpl);
+  ensureDir(paths.runRequestsDir, fsImpl);
+
+  const now = Date.now();
+  const config = readCronConfig({ configPath, fsImpl });
+  const control = readControl(paths, fsImpl);
+  let state = initializeScheduleState({
+    config,
+    now,
+    rootDir,
+    state: readJsonFile(paths.stateFile, {}, fsImpl),
+  });
+  const executions = [];
+  const requests =
+    control.enabled === false ? [] : readRunRequests(paths, fsImpl);
+
+  for (const request of requests) {
+    const job = config.jobs.find((candidate) => candidate.id === request.jobId);
+    if (!job?.enabled) {
+      continue;
+    }
+
+    executions.push(
+      await executeJob({
+        env,
+        fetchImpl,
+        fsImpl,
+        job,
+        paths,
+        run,
+        source: 'manual',
+        triggerId: request.id,
+      })
+    );
+    removeRunRequest(request, fsImpl);
+  }
+
+  if (control.enabled !== false) {
+    const dueJobs = getDueScheduledJobs({ config, now, rootDir, state });
+
+    for (const due of dueJobs) {
+      executions.push(
+        await executeJob({
+          env,
+          fetchImpl,
+          fsImpl,
+          job: due.job,
+          paths,
+          run,
+          scheduledAt: due.scheduledAt,
+          source: 'scheduled',
+        })
+      );
+      state = {
+        ...state,
+        lastScheduledAtByJobId: {
+          ...(state.lastScheduledAtByJobId ?? {}),
+          [due.job.id]: due.scheduledAt,
+        },
+      };
+    }
+  }
+
+  state.updatedAt = Date.now();
+  writeJsonFile(paths.stateFile, state, fsImpl);
+
+  const retentionDays = Number.parseInt(
+    env.PLATFORM_CRON_RETENTION_DAYS || '',
+    10
+  );
+  pruneExecutionFiles(
+    paths,
+    Number.isFinite(retentionDays) && retentionDays > 0
+      ? retentionDays
+      : DEFAULT_RETENTION_DAYS,
+    fsImpl
+  );
+
+  const allExecutions = readExecutionRecords(paths, fsImpl);
+  const status = buildStatus({
+    config,
+    control,
+    executions: allExecutions,
+    intervalMs,
+    now: Date.now(),
+    rootDir,
+    state,
+  });
+  writeJsonFile(paths.statusFile, status, fsImpl);
+
+  return {
+    executions,
+    status,
+  };
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function main(argv = process.argv.slice(2)) {
+  const args = parseArgs(argv);
+  let shouldContinue = true;
+
+  while (shouldContinue) {
+    try {
+      await runCronCycle({ intervalMs: args.intervalMs });
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : error);
+    }
+
+    if (args.once) {
+      shouldContinue = false;
+      continue;
+    }
+
+    await sleep(args.intervalMs);
+  }
+}
+
+if (require.main === module) {
+  void main();
+}
+
+module.exports = {
+  CRON_CONTROL_DIR,
+  CRON_RUN_REQUESTS_DIR,
+  CRON_RUNTIME_DIR,
+  DEFAULT_INTERNAL_WEB_API_ORIGIN,
+  buildStatus,
+  executeJob,
+  getCronPaths,
+  getDueScheduledJobs,
+  getNextScheduledAt,
+  getPreviousScheduledAt,
+  initializeScheduleState,
+  listWebContainers,
+  parseArgs,
+  readControl,
+  readExecutionRecords,
+  readRunRequests,
+  runCronCycle,
+};

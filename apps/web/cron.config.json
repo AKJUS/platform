@@ -1,0 +1,53 @@
+{
+  "jobs": [
+    {
+      "description": "Send the daily Discord workspace report.",
+      "enabled": true,
+      "id": "discord-daily-report",
+      "path": "/api/cron/discord/daily-report",
+      "schedule": "0 16 * * *"
+    },
+    {
+      "description": "Synchronize payment products from the payment provider.",
+      "enabled": true,
+      "id": "payment-products",
+      "path": "/api/cron/payment/products",
+      "schedule": "0 */12 * * *"
+    },
+    {
+      "description": "Process notification batches waiting for delivery.",
+      "enabled": true,
+      "id": "process-notification-batches",
+      "path": "/api/cron/process-notification-batches",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "description": "Drain the post-email queue.",
+      "enabled": true,
+      "id": "process-post-email-queue",
+      "path": "/api/cron/process-post-email-queue",
+      "schedule": "*/30 * * * *"
+    },
+    {
+      "description": "Synchronize calendar provider data.",
+      "enabled": true,
+      "id": "calendar-provider-sync",
+      "path": "/api/cron/calendar/provider-sync",
+      "schedule": "0 */12 * * *"
+    },
+    {
+      "description": "Run the calendar smart scheduling worker.",
+      "enabled": true,
+      "id": "calendar-smart-schedule",
+      "path": "/api/cron/calendar/smart-schedule",
+      "schedule": "0 */6 * * *"
+    },
+    {
+      "description": "Send task deadline reminders.",
+      "enabled": true,
+      "id": "tasks-deadline-reminders",
+      "path": "/api/cron/tasks/deadline-reminders",
+      "schedule": "0 */4 * * *"
+    }
+  ]
+}

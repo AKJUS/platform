@@ -12,6 +12,13 @@ const WATCHER_DOCKERFILE_PATH = path.join(
   'docker',
   'blue-green-watcher.Dockerfile'
 );
+const CRON_RUNNER_DOCKERFILE_PATH = path.join(
+  ROOT_DIR,
+  'apps',
+  'web',
+  'docker',
+  'cron-runner.Dockerfile'
+);
 const MARKITDOWN_DOCKERFILE_PATH = path.join(
   ROOT_DIR,
   'apps',
@@ -338,12 +345,26 @@ function validateDockerProdCompose(composeContent) {
     '  web-blue:',
     '  web-green:',
     '  web-blue-green-watcher:',
+    '  web-cron-runner:',
     '  markitdown:',
     '  storage-unzip-proxy:',
     '  web-proxy:',
     '      dockerfile: Dockerfile.markitdown',
     '      dockerfile: apps/web/docker/blue-green-watcher.Dockerfile',
+    '      dockerfile: apps/web/docker/cron-runner.Dockerfile',
     '      context: apps/storage-unzip-proxy',
+    '      - CRON_SECRET',
+    '      - VERCEL_CRON_SECRET',
+    '      - PLATFORM_CRON_CONTROL_DIR=' +
+      '${' +
+      'PLATFORM_HOST_WORKSPACE_DIR' +
+      '}' +
+      '/tmp/docker-web/watch/control',
+    '      - PLATFORM_CRON_MONITORING_DIR=' +
+      '${' +
+      'PLATFORM_HOST_WORKSPACE_DIR' +
+      '}' +
+      '/tmp/docker-web/cron',
     '      - PLATFORM_HOST_WORKSPACE_DIR',
     '      - .:' + '${' + 'PLATFORM_HOST_WORKSPACE_DIR' + '}',
     '      - /var/run/docker.sock:/var/run/docker.sock',
@@ -361,6 +382,7 @@ function validateDockerProdCompose(composeContent) {
     '      - SUPABASE_URL',
     'wget -q -O - --header="Authorization: Bearer $$SRH_TOKEN" --header="Content-Type: application/json" --post-data=\'\'["PING"]\'\' http://127.0.0.1:80/ | grep -q \'\'"PONG"\'\'',
     "ps | grep -q '[w]atch-blue-green-deploy.js'",
+    "ps | grep -q '[w]atch-web-crons.js'",
     '      - ./tmp/docker-web/prod/nginx.conf:/etc/nginx/conf.d/default.conf:ro',
     '      required: true',
     '    - DISCORD_APP_DEPLOYMENT_URL',
@@ -416,6 +438,26 @@ function validateWatcherDockerfile(dockerfileContent) {
   return errors;
 }
 
+function validateCronRunnerDockerfile(dockerfileContent) {
+  const errors = [];
+  const requiredSnippets = [
+    'FROM oven/bun:1.3.13-alpine',
+    'RUN apk add --no-cache docker-cli docker-cli-compose',
+    'COPY apps/web/docker/cron-runner-entrypoint.js /usr/local/bin/cron-runner-entrypoint.js',
+    'CMD ["bun", "/usr/local/bin/cron-runner-entrypoint.js"]',
+  ];
+
+  for (const snippet of requiredSnippets) {
+    if (!dockerfileContent.includes(snippet)) {
+      errors.push(
+        `apps/web/docker/cron-runner.Dockerfile is missing the expected snippet: ${snippet}`
+      );
+    }
+  }
+
+  return errors;
+}
+
 function validateMarkitdownDockerfile(dockerfileContent) {
   const errors = [];
   const requiredSnippets = [
@@ -464,6 +506,10 @@ function checkDockerWebSetup({
     ),
     'utf8'
   ),
+  cronRunnerDockerfileContent = fsImpl.readFileSync(
+    path.join(rootDir, 'apps', 'web', 'docker', 'cron-runner.Dockerfile'),
+    'utf8'
+  ),
   markitdownDockerfileContent = fsImpl.readFileSync(
     path.join(rootDir, 'apps', 'discord', 'Dockerfile.markitdown'),
     'utf8'
@@ -480,6 +526,7 @@ function checkDockerWebSetup({
     ...validateDockerCompose(composeContent, { workspacePackageJsonPaths }),
     ...validateDockerProdCompose(prodComposeContent),
     ...validateWatcherDockerfile(watcherDockerfileContent),
+    ...validateCronRunnerDockerfile(cronRunnerDockerfileContent),
     ...validateMarkitdownDockerfile(markitdownDockerfileContent),
   ];
 }
@@ -506,6 +553,7 @@ if (require.main === module) {
 module.exports = {
   ROOT_DIR,
   MARKITDOWN_DOCKERFILE_PATH,
+  CRON_RUNNER_DOCKERFILE_PATH,
   WATCHER_DOCKERFILE_PATH,
   WEB_COMPOSE_FILE_PATH,
   WEB_DOCKERFILE_PATH,
@@ -519,6 +567,7 @@ module.exports = {
   validateDockerCompose,
   validateDockerProdCompose,
   validateDockerfile,
+  validateCronRunnerDockerfile,
   validateMarkitdownDockerfile,
   validateWatcherDockerfile,
 };

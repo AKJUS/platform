@@ -205,6 +205,84 @@ export interface BlueGreenMonitoringWatcherLog {
   time: number;
 }
 
+export type CronExecutionStatus = 'failed' | 'skipped' | 'success' | 'timeout';
+
+export type CronExecutionSource = 'manual' | 'scheduled';
+
+export type CronMonitoringStatus = 'live' | 'missing' | 'stale';
+
+export interface CronExecutionConsoleLog {
+  containerId: string | null;
+  deploymentColor: string | null;
+  level: string;
+  message: string;
+  source: string;
+  time: number;
+}
+
+export interface CronExecutionRecord {
+  consoleLogs: CronExecutionConsoleLog[];
+  description: string;
+  durationMs: number;
+  endedAt: number;
+  error: string | null;
+  httpStatus: number | null;
+  id: string;
+  jobId: string;
+  path: string;
+  response: string | null;
+  schedule: string;
+  scheduledAt: number | null;
+  source: CronExecutionSource;
+  startedAt: number;
+  status: CronExecutionStatus;
+  triggerId: string | null;
+}
+
+export interface CronMonitoringJob {
+  description: string;
+  enabled: boolean;
+  failureStreak: number;
+  id: string;
+  lastExecution: CronExecutionRecord | null;
+  lastScheduledAt: number | null;
+  nextRunAt: number | null;
+  path: string;
+  schedule: string;
+}
+
+export interface CronMonitoringControl {
+  enabled: boolean;
+  updatedAt: number | null;
+  updatedBy: string | null;
+  updatedByEmail: string | null;
+}
+
+export interface CronMonitoringSnapshot {
+  control: CronMonitoringControl;
+  enabled: boolean;
+  jobs: CronMonitoringJob[];
+  lastExecution: CronExecutionRecord | null;
+  nextRunAt: number | null;
+  overview: {
+    enabledJobs: number;
+    failedExecutions: number;
+    failedJobs: number;
+    queuedRuns: number;
+    retainedExecutions: number;
+    totalJobs: number;
+  };
+  retainedExecutionCount: number;
+  source: {
+    configAvailable: boolean;
+    controlAvailable: boolean;
+    runtimeDirAvailable: boolean;
+    statusAvailable: boolean;
+  };
+  status: CronMonitoringStatus;
+  updatedAt: number | null;
+}
+
 export interface BlueGreenMonitoringArchiveWindow {
   newestAt: number | null;
   oldestAt: number | null;
@@ -396,6 +474,35 @@ export interface GetBlueGreenMonitoringArchiveParams {
   timeframeDays?: number;
 }
 
+export interface GetCronMonitoringExecutionArchiveParams {
+  page?: number;
+  pageSize?: number;
+}
+
+export interface QueueCronRunPayload {
+  jobId: string;
+}
+
+export interface QueueCronRunResponse {
+  message: string;
+  request: {
+    id: string;
+    jobId: string;
+    requestedAt: number;
+    requestedBy: string;
+    requestedByEmail: string | null;
+  };
+}
+
+export interface UpdateCronMonitoringControlPayload {
+  enabled: boolean;
+}
+
+export interface UpdateCronMonitoringControlResponse {
+  control: CronMonitoringControl;
+  message: string;
+}
+
 export interface GetBlueGreenMonitoringRequestArchiveParams
   extends GetBlueGreenMonitoringArchiveParams {
   q?: string;
@@ -538,6 +645,79 @@ export async function getBlueGreenMonitoringWatcherLogArchive(
     }`,
     {
       cache: 'no-store',
+    }
+  );
+}
+
+export async function getCronMonitoringSnapshot(
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  return client.json<CronMonitoringSnapshot>(
+    '/api/v1/infrastructure/monitoring/cron',
+    {
+      cache: 'no-store',
+    }
+  );
+}
+
+export async function getCronMonitoringExecutionArchive(
+  params?: GetCronMonitoringExecutionArchiveParams,
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  const searchParams = new URLSearchParams();
+
+  if (params?.page != null) {
+    searchParams.set('page', String(params.page));
+  }
+
+  if (params?.pageSize != null) {
+    searchParams.set('pageSize', String(params.pageSize));
+  }
+
+  return client.json<BlueGreenMonitoringPaginatedResult<CronExecutionRecord>>(
+    `/api/v1/infrastructure/monitoring/cron/executions${
+      searchParams.size > 0 ? `?${searchParams.toString()}` : ''
+    }`,
+    {
+      cache: 'no-store',
+    }
+  );
+}
+
+export async function queueCronRun(
+  payload: QueueCronRunPayload,
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  return client.json<QueueCronRunResponse>(
+    '/api/v1/infrastructure/monitoring/cron/run',
+    {
+      body: JSON.stringify(payload),
+      cache: 'no-store',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      method: 'POST',
+    }
+  );
+}
+
+export async function updateCronMonitoringControl(
+  payload: UpdateCronMonitoringControlPayload,
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  return client.json<UpdateCronMonitoringControlResponse>(
+    '/api/v1/infrastructure/monitoring/cron/control',
+    {
+      body: JSON.stringify(payload),
+      cache: 'no-store',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      method: 'PUT',
     }
   );
 }

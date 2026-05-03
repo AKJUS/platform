@@ -1,6 +1,12 @@
 'use client';
 
-import { Activity, ChartColumnStacked, Logs, Radio } from '@tuturuuu/icons';
+import {
+  Activity,
+  CalendarClock,
+  ChartColumnStacked,
+  Logs,
+  Radio,
+} from '@tuturuuu/icons';
 import { cn } from '@tuturuuu/utils/format';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -28,6 +34,12 @@ export function BlueGreenMonitoringSectionNav({
       title: t('routes.rollouts.title'),
     },
     {
+      description: t('routes.cron.description'),
+      href: `${baseHref}/cron`,
+      icon: CalendarClock,
+      title: t('routes.cron.title'),
+    },
+    {
       description: t('routes.requests.description'),
       href: `${baseHref}/requests`,
       icon: Radio,
@@ -42,7 +54,7 @@ export function BlueGreenMonitoringSectionNav({
   ];
 
   return (
-    <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+    <div className="grid grid-flow-dense gap-2 md:grid-cols-2 xl:grid-cols-5">
       {items.map((item) => {
         const Icon = item.icon;
         const isActive =

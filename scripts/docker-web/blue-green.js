@@ -32,7 +32,11 @@ const BLUE_GREEN_DRAIN_STATUS_PATH = '/__platform/drain-status';
 const BLUE_GREEN_DRAIN_POLL_MS = 1_000;
 const BLUE_GREEN_DRAIN_TIMEOUT_MS = 5 * 60_000;
 const BLUE_GREEN_PROXY_SERVICE = 'web-proxy';
-const BLUE_GREEN_SUPPORT_SERVICES = ['markitdown', 'storage-unzip-proxy'];
+const BLUE_GREEN_SUPPORT_SERVICES = [
+  'markitdown',
+  'storage-unzip-proxy',
+  'web-cron-runner',
+];
 const BLUE_GREEN_COLORS = ['blue', 'green'];
 const BLUE_GREEN_PROXY_DRAIN_MS = 20_000;
 const BLUE_GREEN_PROXY_RESPONSE_BUFFER_SIZE = '128k';

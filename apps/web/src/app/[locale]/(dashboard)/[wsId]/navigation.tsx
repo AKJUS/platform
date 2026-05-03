@@ -14,6 +14,7 @@ import {
   Boxes,
   BriefcaseBusiness,
   Calendar,
+  CalendarClock,
   Cctv,
   ChartArea,
   ChartColumn,
@@ -1269,6 +1270,12 @@ export async function WorkspaceNavigationLinks({
               href: `/${personalOrWsId}/infrastructure/monitoring`,
               icon: <Cctv className="h-5 w-5" />,
               matchExact: true,
+              sectionLabel: t('infrastructure-tabs.operations'),
+            },
+            {
+              title: t('infrastructure-tabs.monitoring_cron'),
+              href: `/${personalOrWsId}/infrastructure/monitoring/cron`,
+              icon: <CalendarClock className="h-5 w-5" />,
             },
             {
               title: t('infrastructure-tabs.monitoring_rollouts'),

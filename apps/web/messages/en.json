@@ -1577,6 +1577,64 @@
       "title": "Sync both colors to the same commit",
       "unavailable_hint": "This control is available only while the watcher is live and an active color is serving traffic."
     },
+    "cron": {
+      "actions": {
+        "logs": "Logs",
+        "queueing": "Queueing",
+        "run_now": "Run Now"
+      },
+      "control": {
+        "disabled_hint": "Scheduled and queued runs will wait.",
+        "enabled_hint": "Native Docker cron execution is active."
+      },
+      "description": "Track the native Docker cron runner, queued manual runs, and route-level console output captured for each execution.",
+      "detail": {
+        "console_logs": "Console Logs",
+        "duration": "Duration",
+        "empty_console_logs": "No route console logs were captured for this execution.",
+        "empty_response": "No response body was captured.",
+        "http_status": "HTTP",
+        "response": "Response",
+        "started": "Started",
+        "status": "Status"
+      },
+      "empty_executions": "Cron executions will appear after the native runner processes a scheduled or manual run.",
+      "empty_jobs": "No cron jobs are registered in the shared cron config.",
+      "execution_status": {
+        "failed": "Failed",
+        "skipped": "Skipped",
+        "success": "Success",
+        "timeout": "Timeout"
+      },
+      "executions_description": "Latest retained execution records from the Docker runtime archive.",
+      "executions_title": "Recent Executions",
+      "failure_streak": "{count} failed",
+      "jobs_count": "{enabled}/{total} enabled",
+      "jobs_description": "Schedules are sourced from apps/web/cron.config.json and synced to Vercel.",
+      "jobs_title": "Registered Jobs",
+      "last_run": "Last Run",
+      "next_run": "Next Run",
+      "runner_status": {
+        "live": "Live",
+        "missing": "Missing",
+        "stale": "Stale"
+      },
+      "states": {
+        "disabled": "Disabled",
+        "enabled": "Enabled",
+        "pending": "Pending"
+      },
+      "stats": {
+        "executions": "Executions",
+        "failed_jobs": "Failed Jobs",
+        "failed_jobs_meta": "Jobs with an active failure streak",
+        "next_run": "Next Run",
+        "retained_meta": "Retained runtime records",
+        "runner": "Cron Runner",
+        "runner_meta": "Native Docker scheduler"
+      },
+      "title": "Cron Jobs"
+    },
     "deployment_status": {
       "active": "Active",
       "building": "Building",
@@ -1720,6 +1778,7 @@
     },
     "overview": {
       "description": "Use the overview as the operator briefing: current runtime state, cadence, and fast links into the heavier rollout and archive surfaces.",
+      "focus_cron_description": "Inspect native Docker cron schedules, queued manual runs, execution history, and captured route logs.",
       "focus_logs_description": "Jump straight into retained watcher logs for recovery and rollout debugging.",
       "focus_requests_description": "Browse archived proxy traffic without loading the full request history into this page.",
       "focus_rollouts_description": "Track rollout health, deployment charts, event streams, and the live standby sync controls.",
@@ -1836,6 +1895,10 @@
       "events_title": "Watcher Event Stream"
     },
     "routes": {
+      "cron": {
+        "description": "Native Docker cron runner, schedules, manual runs, and execution logs.",
+        "title": "Cron Jobs"
+      },
       "logs": {
         "description": "Retained watcher rows for debugging rollouts and recovery.",
         "title": "Watcher Logs"
@@ -1872,7 +1935,8 @@
       "unknown": "Unknown"
     },
     "states": {
-      "none": "None"
+      "none": "None",
+      "unknown": "Unknown"
     },
     "stats": {
       "active_color": "Active Color",
@@ -5886,10 +5950,12 @@
     "integrations": "Integrations",
     "mobile_versions": "Mobile Versions",
     "monitoring": "Monitoring",
+    "monitoring_cron": "Monitoring Cron Jobs",
     "monitoring_overview": "Monitoring Overview",
     "monitoring_requests": "Monitoring Requests",
     "monitoring_rollouts": "Monitoring Rollouts",
     "monitoring_watcher_logs": "Monitoring Watcher Logs",
+    "operations": "Operations",
     "otp_limits": "OTP Limits",
     "overview": "Overview",
     "post_email_queue": "Post Email Queue",

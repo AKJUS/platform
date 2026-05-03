@@ -20,7 +20,10 @@ import {
   RuntimeTopologyPanel,
   WatcherCadencePanel,
 } from './blue-green-monitoring-panels';
-import { useBlueGreenMonitoringSnapshot } from './blue-green-monitoring-query-hooks';
+import {
+  useBlueGreenMonitoringSnapshot,
+  useCronMonitoringSnapshot,
+} from './blue-green-monitoring-query-hooks';
 import { BlueGreenMonitoringRolloutControls } from './blue-green-monitoring-rollout-controls';
 import {
   BlueGreenMonitoringAlerts,
@@ -47,6 +50,7 @@ export function BlueGreenMonitoringOverviewClient({
     requestPreviewLimit: 6,
     watcherLogLimit: 6,
   });
+  const cronQuery = useCronMonitoringSnapshot();
 
   if (query.isPending) {
     return <BlueGreenMonitoringLoadingState />;
@@ -59,6 +63,7 @@ export function BlueGreenMonitoringOverviewClient({
   }
 
   const snapshot = query.data;
+  const cronSnapshot = cronQuery.data;
   const deployments = dedupeBlueGreenDeployments(snapshot.deployments);
   const successfulDeployments = deployments.filter(
     (deployment) => deployment.status === 'successful'
@@ -133,6 +138,22 @@ export function BlueGreenMonitoringOverviewClient({
       meta: formatRelativeTime(snapshot.watcher.updatedAt),
       value: t(`watcher_health.${snapshot.watcher.health}`),
     },
+    {
+      icon: <Clock className="h-4 w-4" />,
+      label: t('cron.stats.runner'),
+      meta: cronSnapshot ? t('cron.stats.runner_meta') : t('states.unknown'),
+      value: cronSnapshot
+        ? t(`cron.runner_status.${cronSnapshot.status}`)
+        : t('states.unknown'),
+    },
+    {
+      icon: <Activity className="h-4 w-4" />,
+      label: t('cron.stats.executions'),
+      meta: cronSnapshot ? t('cron.stats.retained_meta') : t('states.unknown'),
+      value: formatCompactNumber(
+        cronSnapshot?.overview.retainedExecutions ?? 0
+      ),
+    },
   ];
   const focusCards = [
     {
@@ -152,6 +173,14 @@ export function BlueGreenMonitoringOverviewClient({
       href: 'watcher-logs',
       title: t('routes.logs.title'),
       value: formatCompactNumber(snapshot.watcher.logs.length),
+    },
+    {
+      description: t('overview.focus_cron_description'),
+      href: 'cron',
+      title: t('routes.cron.title'),
+      value: cronSnapshot
+        ? `${cronSnapshot.overview.enabledJobs}/${cronSnapshot.overview.totalJobs}`
+        : '—',
     },
   ];
 
@@ -195,7 +224,7 @@ export function BlueGreenMonitoringOverviewClient({
             </p>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-3">
+          <div className="grid grid-flow-dense gap-3 md:grid-cols-2 xl:grid-cols-4">
             {focusCards.map((card) => (
               <Link
                 key={card.href}

@@ -5,6 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 
 const {
+  CRON_RUNNER_DOCKERFILE_PATH,
   MARKITDOWN_DOCKERFILE_PATH,
   ROOT_DIR,
   WATCHER_DOCKERFILE_PATH,
@@ -20,6 +21,7 @@ const {
   validateDockerCompose,
   validateDockerProdCompose,
   validateDockerfile,
+  validateCronRunnerDockerfile,
   validateMarkitdownDockerfile,
   validateWatcherDockerfile,
 } = require('./check-docker-web.js');
@@ -196,17 +198,30 @@ test('validateDockerProdCompose reports missing blue-green proxy wiring', () => 
 test('validateDockerProdCompose reports missing watcher container wiring', () => {
   const composeContent = fs
     .readFileSync(WEB_PROD_COMPOSE_FILE_PATH, 'utf8')
-    .replace('      - /var/run/docker.sock:/var/run/docker.sock\n', '');
+    .replaceAll('      - /var/run/docker.sock:/var/run/docker.sock\n', '');
 
   const errors = validateDockerProdCompose(composeContent);
 
   assert.match(errors.join('\n'), /\/var\/run\/docker\.sock/);
 });
 
+test('validateDockerProdCompose reports missing cron runner wiring', () => {
+  const composeContent = fs
+    .readFileSync(WEB_PROD_COMPOSE_FILE_PATH, 'utf8')
+    .replace('  web-cron-runner:\n', '');
+
+  const errors = validateDockerProdCompose(composeContent);
+
+  assert.match(errors.join('\n'), /web-cron-runner/);
+});
+
 test('validateDockerProdCompose reports missing watcher host workspace wiring', () => {
   const composeContent = fs
     .readFileSync(WEB_PROD_COMPOSE_FILE_PATH, 'utf8')
-    .replace('      - .:' + '${' + 'PLATFORM_HOST_WORKSPACE_DIR' + '}\n', '');
+    .replaceAll(
+      '      - .:' + '${' + 'PLATFORM_HOST_WORKSPACE_DIR' + '}\n',
+      ''
+    );
 
   const errors = validateDockerProdCompose(composeContent);
 
@@ -285,6 +300,15 @@ test('validateWatcherDockerfile accepts the current watcher Dockerfile', () => {
   assert.deepEqual(validateWatcherDockerfile(dockerfileContent), []);
 });
 
+test('validateCronRunnerDockerfile accepts the current cron runner Dockerfile', () => {
+  const dockerfileContent = fs.readFileSync(
+    CRON_RUNNER_DOCKERFILE_PATH,
+    'utf8'
+  );
+
+  assert.deepEqual(validateCronRunnerDockerfile(dockerfileContent), []);
+});
+
 test('validateMarkitdownDockerfile accepts the current MarkItDown Dockerfile', () => {
   const dockerfileContent = fs.readFileSync(MARKITDOWN_DOCKERFILE_PATH, 'utf8');
 
@@ -335,6 +359,10 @@ test('checkDockerWebSetup uses rootDir for default docker reads', () => {
         'docker',
         'blue-green-watcher.Dockerfile'
       ),
+      'FROM scratch\n'
+    );
+    fs.writeFileSync(
+      path.join(tempDir, 'apps', 'web', 'docker', 'cron-runner.Dockerfile'),
       'FROM scratch\n'
     );
     fs.writeFileSync(

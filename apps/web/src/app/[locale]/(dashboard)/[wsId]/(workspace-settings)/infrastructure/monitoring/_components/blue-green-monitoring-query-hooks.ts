@@ -5,6 +5,8 @@ import {
   getBlueGreenMonitoringRequestArchive,
   getBlueGreenMonitoringSnapshot,
   getBlueGreenMonitoringWatcherLogArchive,
+  getCronMonitoringExecutionArchive,
+  getCronMonitoringSnapshot,
 } from '@tuturuuu/internal-api/infrastructure';
 
 export function useBlueGreenMonitoringSnapshot({
@@ -102,6 +104,42 @@ export function useBlueGreenMonitoringWatcherLogArchive({
     ],
     queryFn: () =>
       getBlueGreenMonitoringWatcherLogArchive({
+        page,
+        pageSize,
+      }),
+    refetchInterval: 15000,
+    staleTime: 5000,
+  });
+}
+
+export function useCronMonitoringSnapshot() {
+  return useQuery({
+    queryKey: ['infrastructure', 'monitoring', 'cron', 'snapshot'],
+    queryFn: () => getCronMonitoringSnapshot(),
+    refetchInterval: (query) =>
+      query.state.data?.status === 'live' ? 5000 : 15000,
+    staleTime: 2000,
+  });
+}
+
+export function useCronMonitoringExecutionArchive({
+  page,
+  pageSize,
+}: {
+  page: number;
+  pageSize: number;
+}) {
+  return useQuery({
+    queryKey: [
+      'infrastructure',
+      'monitoring',
+      'cron',
+      'executions',
+      page,
+      pageSize,
+    ],
+    queryFn: () =>
+      getCronMonitoringExecutionArchive({
         page,
         pageSize,
       }),
