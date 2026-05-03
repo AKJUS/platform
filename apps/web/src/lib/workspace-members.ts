@@ -42,6 +42,7 @@ interface WorkspaceUserLinkRow {
   workspace_users: {
     id: string;
     display_name: string | null;
+    full_name: string | null;
     email: string | null;
   } | null;
 }
@@ -49,11 +50,27 @@ interface WorkspaceUserLinkRow {
 interface WorkspaceProfileRow {
   id: string;
   display_name: string | null;
+  full_name: string | null;
   email: string | null;
 }
 
 const normalizeEmail = (email: string | null | undefined) =>
   email?.trim().toLowerCase() || null;
+
+const normalizeName = (name: string | null | undefined) => name?.trim() || null;
+
+export const resolveWorkspaceMemberDisplayName = ({
+  workspaceDisplayName,
+  workspaceFullName,
+  userDisplayName,
+}: {
+  workspaceDisplayName?: string | null;
+  workspaceFullName?: string | null;
+  userDisplayName?: string | null;
+}) =>
+  normalizeName(workspaceDisplayName) ??
+  normalizeName(workspaceFullName) ??
+  normalizeName(userDisplayName);
 
 export async function getWorkspaceMembers({
   supabase,
@@ -160,7 +177,7 @@ export async function getWorkspaceMembers({
     const { data: linkData, error: linkError } = await sbAdmin
       .from('workspace_user_linked_users')
       .select(
-        'platform_user_id, virtual_user_id, workspace_users!virtual_user_id(id, display_name, email)'
+        'platform_user_id, virtual_user_id, workspace_users!virtual_user_id(id, display_name, full_name, email)'
       )
       .eq('ws_id', wsId)
       .in('platform_user_id', memberUserIds);
@@ -196,7 +213,7 @@ export async function getWorkspaceMembers({
     ];
     const { data: profileData, error: profileError } = await sbAdmin
       .from('workspace_users')
-      .select('id, display_name, email')
+      .select('id, display_name, full_name, email')
       .eq('ws_id', wsId)
       .in('email', profileLookupEmailVariants);
 
@@ -245,14 +262,17 @@ export async function getWorkspaceMembers({
       (normalizedEmail ? profileByEmail.get(normalizedEmail) : null) ??
       null;
     const workspaceProfileDisplayName = workspaceProfile?.display_name ?? null;
+    const displayName = resolveWorkspaceMemberDisplayName({
+      workspaceDisplayName: workspaceProfileDisplayName,
+      workspaceFullName: workspaceProfile?.full_name ?? null,
+      userDisplayName: rest.display_name,
+    });
 
     return {
       ...rest,
       pending: rest.pending ?? undefined,
       workspace_member_type: type,
-      display_name: hiddenSecrets.has('HIDE_MEMBER_NAME')
-        ? null
-        : (workspaceProfileDisplayName ?? rest.display_name),
+      display_name: hiddenSecrets.has('HIDE_MEMBER_NAME') ? null : displayName,
       email: hiddenSecrets.has('HIDE_MEMBER_EMAIL') ? null : email,
       is_creator: workspaceData.creator_id === rest.id,
       roles: rest.id ? (roleMap.get(rest.id) ?? []) : [],
