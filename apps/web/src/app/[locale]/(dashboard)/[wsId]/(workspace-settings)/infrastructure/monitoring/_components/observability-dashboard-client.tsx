@@ -64,7 +64,10 @@ import {
   AreaChart,
   Bar,
   CartesianGrid,
+  Cell,
   ComposedChart,
+  Line,
+  BarChart as RechartsBarChart,
   XAxis,
   YAxis,
 } from 'recharts';
@@ -293,16 +296,6 @@ function statusClass(status: number | null | undefined) {
   return 'text-dynamic-green';
 }
 
-function getFiniteValues(values: Array<number | null | undefined>) {
-  return values.filter(
-    (value): value is number => value != null && Number.isFinite(value)
-  );
-}
-
-function getMaxValue(values: Array<number | null | undefined>) {
-  return Math.max(1, ...getFiniteValues(values));
-}
-
 function getPercent(value: number | null | undefined, max: number) {
   if (value == null || !Number.isFinite(value)) {
     return 0;
@@ -457,6 +450,15 @@ function EmptyChart({ label }: { label: string }) {
   );
 }
 
+function getToneChartColor(tone: Tone) {
+  if (tone === 'green') return 'var(--chart-2)';
+  if (tone === 'red') return 'var(--chart-3)';
+  if (tone === 'amber') return 'var(--chart-4)';
+  if (tone === 'orange') return 'var(--chart-5)';
+  if (tone === 'muted') return 'var(--muted-foreground)';
+  return 'var(--chart-1)';
+}
+
 function TrendChart({
   buckets,
   emptyLabel,
@@ -483,43 +485,117 @@ function TrendChart({
   }>;
   title: string;
 }) {
-  const max = getMaxValue(
-    buckets.flatMap((bucket) => series.map((item) => item.getValue(bucket)))
+  const chartData = buckets.map((bucket) => {
+    const point: Record<string, number | string> = {
+      time: formatTime(bucket.bucketStart),
+      timestamp: bucket.bucketStart,
+    };
+
+    series.forEach((item, index) => {
+      point[`series${index}`] = item.getValue(bucket);
+    });
+
+    return point;
+  });
+  const chartConfig = Object.fromEntries(
+    series.map((item, index) => [
+      `series${index}`,
+      {
+        color: `var(--chart-${(index % 5) + 1})`,
+        label: item.label,
+      },
+    ])
   );
+  const gradientId = `trend-${title.replace(/\W+/gu, '-').toLowerCase()}`;
 
   return (
     <section className="rounded-lg border border-border bg-background">
-      <div className="flex items-center justify-between border-border border-b px-4 py-3">
+      <div className="flex items-center justify-between gap-3 border-border border-b px-4 py-3">
         <p className="font-medium text-sm">{title}</p>
-        <div className="flex items-center gap-3 text-muted-foreground text-xs">
-          {series.map((item) => (
-            <span className="inline-flex items-center gap-1" key={item.label}>
-              <span className={cn('h-2 w-2 rounded-full', item.className)} />
-              {item.label}
-            </span>
-          ))}
+        <div className="flex flex-wrap items-center justify-end gap-3 text-muted-foreground text-xs">
+          {series.map((item) => {
+            const latest = [...buckets]
+              .reverse()
+              .map((bucket) => item.getValue(bucket))
+              .find((value) => Number.isFinite(value));
+
+            return (
+              <span className="inline-flex items-center gap-1" key={item.label}>
+                <span className={cn('h-2 w-2 rounded-full', item.className)} />
+                {item.label}
+                <span className="font-mono text-foreground">
+                  {formatNumber(latest)}
+                </span>
+              </span>
+            );
+          })}
         </div>
       </div>
       {buckets.length > 0 ? (
-        <div className="flex h-56 items-end gap-1 border-border border-b px-4 pt-8 pb-4">
-          {buckets.map((bucket) => (
-            <div
-              className="flex min-w-0 flex-1 items-end gap-px"
-              key={bucket.bucketStart}
-              title={formatTime(bucket.bucketStart)}
-            >
-              {series.map((item) => (
-                <div
-                  className={cn('min-h-1 flex-1 rounded-t', item.className)}
-                  key={item.label}
-                  style={{
-                    height: `${getPercent(item.getValue(bucket), max)}%`,
-                  }}
+        <ChartContainer className="h-64 w-full px-3 py-4" config={chartConfig}>
+          <ComposedChart data={chartData}>
+            <defs>
+              <linearGradient id={gradientId} x1="0" x2="0" y1="0" y2="1">
+                <stop
+                  offset="5%"
+                  stopColor="var(--color-series0)"
+                  stopOpacity={0.3}
                 />
-              ))}
-            </div>
-          ))}
-        </div>
+                <stop
+                  offset="95%"
+                  stopColor="var(--color-series0)"
+                  stopOpacity={0}
+                />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" vertical={false} />
+            <XAxis
+              axisLine={false}
+              dataKey="time"
+              minTickGap={24}
+              tickLine={false}
+            />
+            <YAxis
+              axisLine={false}
+              tickFormatter={(value) => formatNumber(Number(value))}
+              tickLine={false}
+              width={48}
+            />
+            <ChartTooltip
+              content={
+                <ChartTooltipContent
+                  formatter={(value, name) => [
+                    formatNumber(Number(value)),
+                    name,
+                  ]}
+                />
+              }
+            />
+            {series.map((item, index) =>
+              index === 0 ? (
+                <Area
+                  dataKey="series0"
+                  fill={`url(#${gradientId})`}
+                  key={item.label}
+                  name={item.label}
+                  stroke="var(--color-series0)"
+                  strokeWidth={2}
+                  type="monotone"
+                />
+              ) : (
+                <Line
+                  dataKey={`series${index}`}
+                  dot={false}
+                  key={item.label}
+                  name={item.label}
+                  stroke={`var(--color-series${index})`}
+                  strokeWidth={2}
+                  type="monotone"
+                />
+              )
+            )}
+          </ComposedChart>
+        </ChartContainer>
       ) : (
         <EmptyChart label={emptyLabel} />
       )}
@@ -699,7 +775,17 @@ function HorizontalBars({
   title: string;
 }) {
   const visibleRows = rows.filter((row) => (row.value ?? 0) > 0);
-  const max = getMaxValue(visibleRows.map((row) => row.value));
+  const chartData = visibleRows.map((row) => ({
+    label: row.label,
+    tone: row.tone,
+    value: row.value ?? 0,
+  }));
+  const chartConfig = {
+    value: {
+      color: 'var(--chart-1)',
+      label: title,
+    },
+  };
 
   return (
     <section className="rounded-lg border border-border bg-background">
@@ -707,27 +793,45 @@ function HorizontalBars({
         {title}
       </div>
       {visibleRows.length > 0 ? (
-        <div className="grid gap-3 p-4">
-          {visibleRows.map((row) => (
-            <div className="space-y-1" key={row.label}>
-              <div className="flex items-center justify-between gap-3 text-sm">
-                <span className="truncate text-muted-foreground">
-                  {row.label}
-                </span>
-                <span className="font-mono">{formatNumber(row.value)}</span>
-              </div>
-              <div className="h-1.5 rounded-full bg-muted">
-                <div
-                  className={cn(
-                    'h-full rounded-full',
-                    toneClasses[row.tone].bar
-                  )}
-                  style={{ width: `${getPercent(row.value, max)}%` }}
+        <ChartContainer className="h-72 w-full px-3 py-4" config={chartConfig}>
+          <RechartsBarChart
+            data={chartData}
+            layout="vertical"
+            margin={{ left: 8, right: 24 }}
+          >
+            <CartesianGrid horizontal={false} strokeDasharray="3 3" />
+            <XAxis
+              axisLine={false}
+              tickFormatter={(value) => formatNumber(Number(value))}
+              tickLine={false}
+              type="number"
+            />
+            <YAxis
+              axisLine={false}
+              dataKey="label"
+              tickFormatter={(value) =>
+                String(value).length > 18
+                  ? `${String(value).slice(0, 18)}...`
+                  : String(value)
+              }
+              tickLine={false}
+              type="category"
+              width={122}
+            />
+            <ChartTooltip
+              content={
+                <ChartTooltipContent
+                  formatter={(value) => [formatNumber(Number(value)), title]}
                 />
-              </div>
-            </div>
-          ))}
-        </div>
+              }
+            />
+            <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+              {chartData.map((row) => (
+                <Cell fill={getToneChartColor(row.tone)} key={row.label} />
+              ))}
+            </Bar>
+          </RechartsBarChart>
+        </ChartContainer>
       ) : (
         <div className="px-4 py-12 text-center text-muted-foreground text-sm">
           {emptyLabel}
