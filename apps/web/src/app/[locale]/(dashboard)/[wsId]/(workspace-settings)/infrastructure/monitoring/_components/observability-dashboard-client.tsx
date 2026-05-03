@@ -91,6 +91,49 @@ type InfiniteData<TPage> = {
   pageParams: number[];
   pages: TPage[];
 };
+type Tone = 'amber' | 'blue' | 'green' | 'muted' | 'orange' | 'red';
+
+const toneClasses: Record<
+  Tone,
+  { bar: string; dot: string; soft: string; text: string }
+> = {
+  amber: {
+    bar: 'bg-dynamic-yellow',
+    dot: 'bg-dynamic-yellow',
+    soft: 'border-dynamic-yellow/30 bg-dynamic-yellow/10',
+    text: 'text-dynamic-yellow',
+  },
+  blue: {
+    bar: 'bg-dynamic-blue',
+    dot: 'bg-dynamic-blue',
+    soft: 'border-dynamic-blue/30 bg-dynamic-blue/10',
+    text: 'text-dynamic-blue',
+  },
+  green: {
+    bar: 'bg-dynamic-green',
+    dot: 'bg-dynamic-green',
+    soft: 'border-dynamic-green/30 bg-dynamic-green/10',
+    text: 'text-dynamic-green',
+  },
+  muted: {
+    bar: 'bg-muted-foreground',
+    dot: 'bg-muted-foreground',
+    soft: 'border-border bg-muted/30',
+    text: 'text-muted-foreground',
+  },
+  orange: {
+    bar: 'bg-dynamic-orange',
+    dot: 'bg-dynamic-orange',
+    soft: 'border-dynamic-orange/30 bg-dynamic-orange/10',
+    text: 'text-dynamic-orange',
+  },
+  red: {
+    bar: 'bg-dynamic-red',
+    dot: 'bg-dynamic-red',
+    soft: 'border-dynamic-red/30 bg-dynamic-red/10',
+    text: 'text-dynamic-red',
+  },
+};
 
 function formatNumber(value: number | null | undefined) {
   if (value == null || !Number.isFinite(value)) {
@@ -143,6 +186,252 @@ function statusClass(status: number | null | undefined) {
   }
 
   return 'text-dynamic-green';
+}
+
+function getFiniteValues(values: Array<number | null | undefined>) {
+  return values.filter(
+    (value): value is number => value != null && Number.isFinite(value)
+  );
+}
+
+function getMaxValue(values: Array<number | null | undefined>) {
+  return Math.max(1, ...getFiniteValues(values));
+}
+
+function getPercent(value: number | null | undefined, max: number) {
+  if (value == null || !Number.isFinite(value)) {
+    return 0;
+  }
+
+  return Math.max(2, Math.min(100, (value / max) * 100));
+}
+
+function getCpuTone(value: number | null | undefined): Tone {
+  if (value == null || !Number.isFinite(value)) return 'muted';
+  if (value < 5) return 'green';
+  if (value <= 20) return 'amber';
+  if (value <= 40) return 'orange';
+  return 'red';
+}
+
+function getMemoryTone(value: number | null | undefined): Tone {
+  if (value == null || !Number.isFinite(value)) return 'muted';
+
+  const mb = value / 1024 / 1024;
+  if (mb < 200) return 'green';
+  if (mb <= 500) return 'amber';
+  if (mb <= 1024) return 'orange';
+  return 'red';
+}
+
+function getStatusFamilyTone(label: string): Tone {
+  if (label === 'serverError') return 'red';
+  if (label === 'clientError') return 'orange';
+  if (label === 'redirect') return 'blue';
+  if (label === 'success') return 'green';
+  return 'muted';
+}
+
+function getDeploymentStateView(
+  deployment: ObservabilityDeployment,
+  labels: Record<
+    'building' | 'deploying' | 'error' | 'queued' | 'ready',
+    string
+  >
+) {
+  const raw = `${deployment.runtimeState ?? ''} ${deployment.status ?? ''}`
+    .toLowerCase()
+    .trim();
+
+  if (raw.includes('fail') || raw.includes('error')) {
+    return { label: labels.error, tone: 'red' as const };
+  }
+
+  if (raw.includes('deploy')) {
+    return { label: labels.deploying, tone: 'amber' as const };
+  }
+
+  if (raw.includes('build')) {
+    return { label: labels.building, tone: 'amber' as const };
+  }
+
+  if (
+    raw.includes('queue') ||
+    raw.includes('pending') ||
+    raw.includes('waiting')
+  ) {
+    return { label: labels.queued, tone: 'muted' as const };
+  }
+
+  return { label: labels.ready, tone: 'green' as const };
+}
+
+function getElapsedTime(deployment: ObservabilityDeployment) {
+  if (!deployment.startedAt) return null;
+
+  const elapsed = Date.now() - deployment.startedAt;
+  if (!Number.isFinite(elapsed) || elapsed < 0) return null;
+
+  return formatDuration(elapsed);
+}
+
+function LoadingSkeleton({
+  className,
+  rows = 1,
+}: {
+  className?: string;
+  rows?: number;
+}) {
+  return (
+    <div className={cn('space-y-3 p-4', className)}>
+      {Array.from({ length: rows }).map((_, index) => (
+        <div
+          className="h-12 animate-pulse rounded-md border border-border/50 bg-muted/40"
+          key={index}
+        />
+      ))}
+    </div>
+  );
+}
+
+function ChartSkeleton() {
+  return (
+    <div className="flex h-56 items-end gap-1 border-border border-b px-4 pb-4">
+      {Array.from({ length: 24 }).map((_, index) => (
+        <div
+          className="flex-1 animate-pulse rounded-t bg-muted"
+          key={index}
+          style={{ height: `${20 + ((index * 17) % 64)}%` }}
+        />
+      ))}
+    </div>
+  );
+}
+
+function EmptyChart({ label }: { label: string }) {
+  return (
+    <div className="grid h-56 place-items-center border-border border-b px-4 text-muted-foreground text-sm">
+      {label}
+    </div>
+  );
+}
+
+function TrendChart({
+  buckets,
+  emptyLabel,
+  series,
+  title,
+}: {
+  buckets: Array<{
+    bucketStart: number;
+    cronRuns: number;
+    errors: number;
+    requests: number;
+    serverErrors: number;
+  }>;
+  emptyLabel: string;
+  series: Array<{
+    className: string;
+    getValue: (bucket: {
+      cronRuns: number;
+      errors: number;
+      requests: number;
+      serverErrors: number;
+    }) => number;
+    label: string;
+  }>;
+  title: string;
+}) {
+  const max = getMaxValue(
+    buckets.flatMap((bucket) => series.map((item) => item.getValue(bucket)))
+  );
+
+  return (
+    <section className="rounded-lg border border-border bg-background">
+      <div className="flex items-center justify-between border-border border-b px-4 py-3">
+        <p className="font-medium text-sm">{title}</p>
+        <div className="flex items-center gap-3 text-muted-foreground text-xs">
+          {series.map((item) => (
+            <span className="inline-flex items-center gap-1" key={item.label}>
+              <span className={cn('h-2 w-2 rounded-full', item.className)} />
+              {item.label}
+            </span>
+          ))}
+        </div>
+      </div>
+      {buckets.length > 0 ? (
+        <div className="flex h-56 items-end gap-1 border-border border-b px-4 pt-8 pb-4">
+          {buckets.map((bucket) => (
+            <div
+              className="flex min-w-0 flex-1 items-end gap-px"
+              key={bucket.bucketStart}
+              title={formatTime(bucket.bucketStart)}
+            >
+              {series.map((item) => (
+                <div
+                  className={cn('min-h-1 flex-1 rounded-t', item.className)}
+                  key={item.label}
+                  style={{
+                    height: `${getPercent(item.getValue(bucket), max)}%`,
+                  }}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <EmptyChart label={emptyLabel} />
+      )}
+    </section>
+  );
+}
+
+function HorizontalBars({
+  emptyLabel,
+  rows,
+  title,
+}: {
+  emptyLabel: string;
+  rows: Array<{ label: string; tone: Tone; value: number | null | undefined }>;
+  title: string;
+}) {
+  const visibleRows = rows.filter((row) => (row.value ?? 0) > 0);
+  const max = getMaxValue(visibleRows.map((row) => row.value));
+
+  return (
+    <section className="rounded-lg border border-border bg-background">
+      <div className="border-border border-b px-4 py-3 font-medium text-sm">
+        {title}
+      </div>
+      {visibleRows.length > 0 ? (
+        <div className="grid gap-3 p-4">
+          {visibleRows.map((row) => (
+            <div className="space-y-1" key={row.label}>
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span className="truncate text-muted-foreground">
+                  {row.label}
+                </span>
+                <span className="font-mono">{formatNumber(row.value)}</span>
+              </div>
+              <div className="h-1.5 rounded-full bg-muted">
+                <div
+                  className={cn(
+                    'h-full rounded-full',
+                    toneClasses[row.tone].bar
+                  )}
+                  style={{ width: `${getPercent(row.value, max)}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="px-4 py-12 text-center text-muted-foreground text-sm">
+          {emptyLabel}
+        </div>
+      )}
+    </section>
+  );
 }
 
 function MetricCard({
@@ -212,10 +501,16 @@ function RequestRow({ request }: { request: ObservabilityRequest }) {
 
 function DeploymentRow({
   deployment,
+  stateLabels,
 }: {
   deployment: ObservabilityDeployment;
+  stateLabels: Record<
+    'building' | 'deploying' | 'error' | 'queued' | 'ready',
+    string
+  >;
 }) {
-  const state = deployment.runtimeState ?? deployment.status;
+  const state = getDeploymentStateView(deployment, stateLabels);
+  const elapsed = state.tone === 'amber' ? getElapsedTime(deployment) : null;
   const hash =
     deployment.commitShortHash ?? deployment.commitHash?.slice(0, 10) ?? '-';
 
@@ -237,16 +532,24 @@ function DeploymentRow({
             'unknown'}
         </p>
       </div>
-      <span
-        className={cn(
-          'font-medium',
-          deployment.status === 'failed'
-            ? 'text-dynamic-red'
-            : 'text-dynamic-green'
-        )}
-      >
-        {state}
-      </span>
+      <div className="min-w-0">
+        <span
+          className={cn(
+            'inline-flex items-center gap-2 font-medium',
+            toneClasses[state.tone].text
+          )}
+        >
+          <span
+            className={cn('h-2 w-2 rounded-full', toneClasses[state.tone].dot)}
+          />
+          {state.label}
+        </span>
+        {elapsed ? (
+          <p className="mt-1 font-mono text-muted-foreground text-xs">
+            {elapsed}
+          </p>
+        ) : null}
+      </div>
       <span className="font-mono text-muted-foreground text-xs">
         {formatDuration(deployment.durationMs)}
       </span>
@@ -423,7 +726,8 @@ export function ObservabilityDashboardClient({
     refetchInterval: mode === 'logs' ? 10_000 : 30_000,
   });
   const analyticsQuery = useQuery({
-    enabled: mode === 'analytics' || mode === 'observability',
+    enabled:
+      mode === 'analytics' || mode === 'observability' || mode === 'overview',
     queryFn: () => getObservabilityAnalytics({ timeframeHours }),
     queryKey: ['infrastructure', 'observability', 'analytics', timeframeHours],
   });
@@ -586,6 +890,57 @@ export function ObservabilityDashboardClient({
     loading: t('infinite.loading'),
     more: t('infinite.more'),
   };
+  const deploymentStateLabels = {
+    building: t('deployment_states.building'),
+    deploying: t('deployment_states.deploying'),
+    error: t('deployment_states.error'),
+    queued: t('deployment_states.queued'),
+    ready: t('deployment_states.ready'),
+  };
+  const statusFamilyLabels = {
+    clientError: t('status_families.clientError'),
+    redirect: t('status_families.redirect'),
+    serverError: t('status_families.serverError'),
+    success: t('status_families.success'),
+    unknown: t('status_families.unknown'),
+  };
+  const analyticsBuckets = analytics?.buckets ?? [];
+  const statusRows = Object.entries(analytics?.statusFamilies ?? {}).map(
+    ([label, value]) => ({
+      label:
+        statusFamilyLabels[label as keyof typeof statusFamilyLabels] ?? label,
+      tone: getStatusFamilyTone(label),
+      value,
+    })
+  );
+  const sourceRows = Object.entries(overview?.sourceCounts ?? {}).map(
+    ([label, value]) => ({
+      label: label.toUpperCase(),
+      tone: (label === 'cron'
+        ? 'amber'
+        : label === 'api'
+          ? 'blue'
+          : 'green') as Tone,
+      value,
+    })
+  );
+  const topRouteRows = (overview?.topRoutes ?? []).map((route) => ({
+    label: route.path,
+    tone: route.errorCount > 0 ? ('red' as const) : ('blue' as const),
+    value: route.requestCount,
+  }));
+  const slowRouteRows = (analytics?.topRoutes ?? overview?.topRoutes ?? []).map(
+    (route) => ({
+      label: route.path,
+      tone: route.errorCount > 0 ? ('red' as const) : ('orange' as const),
+      value: route.averageDurationMs ?? 0,
+    })
+  );
+  const cronJobRows = (analytics?.topCronJobs ?? []).map((job) => ({
+    label: job.jobId,
+    tone: job.failureCount > 0 ? ('red' as const) : ('green' as const),
+    value: job.runCount,
+  }));
 
   return (
     <div className="space-y-4">
@@ -664,61 +1019,84 @@ export function ObservabilityDashboardClient({
         </div>
       </div>
 
-      <section className="grid overflow-hidden rounded-lg border border-border md:grid-cols-4">
-        <MetricCard
-          label={t('metrics.requests')}
-          meta={t('metrics.requests_meta')}
-          value={formatNumber(overview?.requestCount)}
-        />
-        <MetricCard
-          label={t('metrics.errors')}
-          meta={`${formatNumber(overview?.errorRate)}%`}
-          value={formatNumber(overview?.serverErrorCount)}
-        />
-        <MetricCard
-          label={t('metrics.p95')}
-          meta={t('metrics.p95_meta')}
-          value={formatLatencyMs(overview?.p95DurationMs)}
-        />
-        <MetricCard
-          label={t('metrics.cron')}
-          meta={`${formatNumber(overview?.cronFailureRate)}%`}
-          value={formatNumber(cronQuery.data?.total ?? 0)}
-        />
-      </section>
-
-      {(mode === 'overview' || mode === 'observability') && (
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_420px]">
-          <section className="rounded-lg border border-border bg-background">
-            <div className="border-border border-b px-4 py-3 font-medium text-sm">
-              {t('top_routes')}
-            </div>
-            {(overview?.topRoutes ?? []).map((route) => (
-              <div
-                className="grid grid-cols-[minmax(0,1fr)_80px_80px_80px] gap-3 border-border/50 border-b px-4 py-3 text-sm"
-                key={route.path}
-              >
-                <span className="truncate font-mono">{route.path}</span>
-                <span className="text-right">{route.requestCount}</span>
-                <span className="text-right text-dynamic-red">
-                  {route.errorCount}
-                </span>
-                <span className="text-right text-muted-foreground">
-                  {formatDuration(route.averageDurationMs)}
-                </span>
-              </div>
-            ))}
-          </section>
-          <section className="rounded-lg border border-border bg-background">
-            <div className="border-border border-b px-4 py-3 font-medium text-sm">
-              {t('recent_errors')}
-            </div>
-            {(overview?.recentErrors ?? []).map((log) => (
-              <LogRow key={log.id} log={log} />
-            ))}
-          </section>
-        </div>
+      {overviewQuery.isLoading ? (
+        <section className="grid overflow-hidden rounded-lg border border-border md:grid-cols-4">
+          <LoadingSkeleton rows={1} />
+          <LoadingSkeleton rows={1} />
+          <LoadingSkeleton rows={1} />
+          <LoadingSkeleton rows={1} />
+        </section>
+      ) : (
+        <section className="grid overflow-hidden rounded-lg border border-border md:grid-cols-4">
+          <MetricCard
+            label={t('metrics.requests')}
+            meta={t('metrics.requests_meta')}
+            value={formatNumber(overview?.requestCount)}
+          />
+          <MetricCard
+            label={t('metrics.errors')}
+            meta={`${formatNumber(overview?.errorRate)}%`}
+            value={formatNumber(overview?.serverErrorCount)}
+          />
+          <MetricCard
+            label={t('metrics.p95')}
+            meta={t('metrics.p95_meta')}
+            value={formatLatencyMs(overview?.p95DurationMs)}
+          />
+          <MetricCard
+            label={t('metrics.cron')}
+            meta={`${formatNumber(overview?.cronFailureRate)}%`}
+            value={formatNumber(cronQuery.data?.total ?? 0)}
+          />
+        </section>
       )}
+
+      {mode === 'overview' &&
+        (analyticsQuery.isLoading ? (
+          <div className="grid gap-4 xl:grid-cols-2">
+            <section className="rounded-lg border border-border bg-background">
+              <ChartSkeleton />
+            </section>
+            <section className="rounded-lg border border-border bg-background">
+              <LoadingSkeleton rows={5} />
+            </section>
+          </div>
+        ) : (
+          <div className="grid gap-4 xl:grid-cols-2">
+            <TrendChart
+              buckets={analyticsBuckets}
+              emptyLabel={t('charts.no_data')}
+              series={[
+                {
+                  className: 'bg-dynamic-blue',
+                  getValue: (bucket) => bucket.requests,
+                  label: t('charts.requests'),
+                },
+                {
+                  className: 'bg-dynamic-red',
+                  getValue: (bucket) => bucket.serverErrors,
+                  label: t('charts.server_errors'),
+                },
+              ]}
+              title={t('charts.request_trend')}
+            />
+            <HorizontalBars
+              emptyLabel={t('charts.no_data')}
+              rows={statusRows}
+              title={t('charts.status_distribution')}
+            />
+            <HorizontalBars
+              emptyLabel={t('charts.no_data')}
+              rows={topRouteRows}
+              title={t('charts.route_pressure')}
+            />
+            <HorizontalBars
+              emptyLabel={t('charts.no_data')}
+              rows={sourceRows}
+              title={t('charts.source_mix')}
+            />
+          </div>
+        ))}
 
       {mode === 'logs' && (
         <section className="rounded-lg border border-border bg-background">
@@ -728,15 +1106,19 @@ export function ObservabilityDashboardClient({
             <span>{t('columns.status')}</span>
             <span>{t('columns.message')}</span>
           </div>
-          <VirtualizedList
-            empty={t('empty.logs')}
-            estimateRowHeight={66}
-            hasMore={logsQuery.hasNextPage}
-            isFetchingMore={logsQuery.isFetchingNextPage}
-            items={logs}
-            onEndReached={() => void logsQuery.fetchNextPage()}
-            renderRow={(log) => <LogRow key={log.id} log={log} />}
-          />
+          {logsQuery.isLoading ? (
+            <LoadingSkeleton rows={8} />
+          ) : (
+            <VirtualizedList
+              empty={t('empty.logs')}
+              estimateRowHeight={66}
+              hasMore={logsQuery.hasNextPage}
+              isFetchingMore={logsQuery.isFetchingNextPage}
+              items={logs}
+              onEndReached={() => void logsQuery.fetchNextPage()}
+              renderRow={(log) => <LogRow key={log.id} log={log} />}
+            />
+          )}
           <InfiniteFooter
             endLabel={infiniteLabels.end}
             hasMore={logsQuery.hasNextPage}
@@ -779,17 +1161,21 @@ export function ObservabilityDashboardClient({
               </Badge>
             )}
           </div>
-          <VirtualizedList
-            empty={t('empty.requests')}
-            estimateRowHeight={58}
-            hasMore={requestsQuery.hasNextPage}
-            isFetchingMore={requestsQuery.isFetchingNextPage}
-            items={requests}
-            onEndReached={() => void requestsQuery.fetchNextPage()}
-            renderRow={(request) => (
-              <RequestRow key={request.id} request={request} />
-            )}
-          />
+          {requestsQuery.isLoading ? (
+            <LoadingSkeleton rows={8} />
+          ) : (
+            <VirtualizedList
+              empty={t('empty.requests')}
+              estimateRowHeight={58}
+              hasMore={requestsQuery.hasNextPage}
+              isFetchingMore={requestsQuery.isFetchingNextPage}
+              items={requests}
+              onEndReached={() => void requestsQuery.fetchNextPage()}
+              renderRow={(request) => (
+                <RequestRow key={request.id} request={request} />
+              )}
+            />
+          )}
           <InfiniteFooter
             endLabel={infiniteLabels.end}
             hasMore={requestsQuery.hasNextPage}
@@ -812,25 +1198,30 @@ export function ObservabilityDashboardClient({
             <span>{t('columns.errors')}</span>
             <span>{t('columns.last_request')}</span>
           </div>
-          <VirtualizedList
-            empty={t('empty.deployments')}
-            estimateRowHeight={78}
-            hasMore={deploymentsQuery.hasNextPage}
-            isFetchingMore={deploymentsQuery.isFetchingNextPage}
-            items={deployments}
-            onEndReached={() => void deploymentsQuery.fetchNextPage()}
-            renderRow={(deployment) => (
-              <DeploymentRow
-                deployment={deployment}
-                key={
-                  deployment.commitHash ??
-                  deployment.deploymentStamp ??
-                  deployment.color ??
-                  'unknown'
-                }
-              />
-            )}
-          />
+          {deploymentsQuery.isLoading ? (
+            <LoadingSkeleton rows={8} />
+          ) : (
+            <VirtualizedList
+              empty={t('empty.deployments')}
+              estimateRowHeight={78}
+              hasMore={deploymentsQuery.hasNextPage}
+              isFetchingMore={deploymentsQuery.isFetchingNextPage}
+              items={deployments}
+              onEndReached={() => void deploymentsQuery.fetchNextPage()}
+              renderRow={(deployment) => (
+                <DeploymentRow
+                  deployment={deployment}
+                  key={
+                    deployment.commitHash ??
+                    deployment.deploymentStamp ??
+                    deployment.color ??
+                    'unknown'
+                  }
+                  stateLabels={deploymentStateLabels}
+                />
+              )}
+            />
+          )}
           <InfiniteFooter
             endLabel={infiniteLabels.end}
             hasMore={deploymentsQuery.hasNextPage}
@@ -864,68 +1255,72 @@ export function ObservabilityDashboardClient({
                 />
               </div>
             </div>
-            {(cronSnapshot?.jobs ?? []).map((job) => (
-              <div
-                className="grid gap-3 border-border/50 border-b px-4 py-3 text-sm lg:grid-cols-[minmax(0,1fr)_auto]"
-                key={job.id}
-              >
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="truncate font-mono">{job.id}</span>
-                    <Badge
-                      className={cn(
-                        'rounded-full',
-                        job.enabled
-                          ? 'border-dynamic-green/35 text-dynamic-green'
-                          : 'border-border text-muted-foreground'
-                      )}
+            {cronSnapshotQuery.isLoading ? (
+              <LoadingSkeleton rows={5} />
+            ) : (
+              (cronSnapshot?.jobs ?? []).map((job) => (
+                <div
+                  className="grid gap-3 border-border/50 border-b px-4 py-3 text-sm lg:grid-cols-[minmax(0,1fr)_auto]"
+                  key={job.id}
+                >
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="truncate font-mono">{job.id}</span>
+                      <Badge
+                        className={cn(
+                          'rounded-full',
+                          job.enabled
+                            ? 'border-dynamic-green/35 text-dynamic-green'
+                            : 'border-border text-muted-foreground'
+                        )}
+                        variant="outline"
+                      >
+                        {job.enabled
+                          ? cronT('states.enabled')
+                          : cronT('states.disabled')}
+                      </Badge>
+                      {job.controlEnabled != null ? (
+                        <Badge className="rounded-full" variant="outline">
+                          {t('cron.runtime_override')}
+                        </Badge>
+                      ) : null}
+                    </div>
+                    <p className="mt-1 text-muted-foreground text-xs">
+                      {job.description}
+                    </p>
+                    <p className="mt-2 truncate font-mono text-muted-foreground text-xs">
+                      {job.schedule} · {job.path}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 lg:justify-end">
+                    <Switch
+                      checked={job.enabled}
+                      disabled={
+                        cronControlMutation.isPending ||
+                        cronSnapshot?.enabled === false
+                      }
+                      onCheckedChange={(enabled) =>
+                        cronControlMutation.mutate({ enabled, jobId: job.id })
+                      }
+                    />
+                    <Button
+                      disabled={
+                        runCronMutation.isPending ||
+                        !job.enabled ||
+                        cronSnapshot?.enabled === false
+                      }
+                      onClick={() => runCronMutation.mutate(job.id)}
+                      size="sm"
+                      type="button"
                       variant="outline"
                     >
-                      {job.enabled
-                        ? cronT('states.enabled')
-                        : cronT('states.disabled')}
-                    </Badge>
-                    {job.controlEnabled != null ? (
-                      <Badge className="rounded-full" variant="outline">
-                        {t('cron.runtime_override')}
-                      </Badge>
-                    ) : null}
+                      <Play className="mr-2 h-4 w-4" />
+                      {cronT('actions.run_now')}
+                    </Button>
                   </div>
-                  <p className="mt-1 text-muted-foreground text-xs">
-                    {job.description}
-                  </p>
-                  <p className="mt-2 truncate font-mono text-muted-foreground text-xs">
-                    {job.schedule} · {job.path}
-                  </p>
                 </div>
-                <div className="flex items-center gap-2 lg:justify-end">
-                  <Switch
-                    checked={job.enabled}
-                    disabled={
-                      cronControlMutation.isPending ||
-                      cronSnapshot?.enabled === false
-                    }
-                    onCheckedChange={(enabled) =>
-                      cronControlMutation.mutate({ enabled, jobId: job.id })
-                    }
-                  />
-                  <Button
-                    disabled={
-                      runCronMutation.isPending ||
-                      !job.enabled ||
-                      cronSnapshot?.enabled === false
-                    }
-                    onClick={() => runCronMutation.mutate(job.id)}
-                    size="sm"
-                    type="button"
-                    variant="outline"
-                  >
-                    <Play className="mr-2 h-4 w-4" />
-                    {cronT('actions.run_now')}
-                  </Button>
-                </div>
-              </div>
-            ))}
+              ))
+            )}
           </section>
 
           <section className="rounded-lg border border-border bg-background">
@@ -935,40 +1330,44 @@ export function ObservabilityDashboardClient({
                 {cronT('executions_description')}
               </p>
             </div>
-            <VirtualizedList
-              empty={t('empty.cron_executions')}
-              estimateRowHeight={92}
-              hasMore={cronExecutionsQuery.hasNextPage}
-              isFetchingMore={cronExecutionsQuery.isFetchingNextPage}
-              items={cronExecutions}
-              onEndReached={() => void cronExecutionsQuery.fetchNextPage()}
-              renderRow={(run) => (
-                <button
-                  className="grid h-full w-full gap-2 border-border/50 border-b px-4 py-3 text-left text-sm transition-colors hover:bg-foreground/[0.025]"
-                  key={run.id}
-                  onClick={() => setSelectedExecution(run)}
-                  type="button"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="truncate font-mono">{run.jobId}</span>
-                    <span
-                      className={
-                        run.status === 'failed' ? 'text-dynamic-red' : ''
-                      }
-                    >
-                      {run.status}
+            {cronExecutionsQuery.isLoading ? (
+              <LoadingSkeleton rows={8} />
+            ) : (
+              <VirtualizedList
+                empty={t('empty.cron_executions')}
+                estimateRowHeight={92}
+                hasMore={cronExecutionsQuery.hasNextPage}
+                isFetchingMore={cronExecutionsQuery.isFetchingNextPage}
+                items={cronExecutions}
+                onEndReached={() => void cronExecutionsQuery.fetchNextPage()}
+                renderRow={(run) => (
+                  <button
+                    className="grid h-full w-full gap-2 border-border/50 border-b px-4 py-3 text-left text-sm transition-colors hover:bg-foreground/[0.025]"
+                    key={run.id}
+                    onClick={() => setSelectedExecution(run)}
+                    type="button"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="truncate font-mono">{run.jobId}</span>
+                      <span
+                        className={
+                          run.status === 'failed' ? 'text-dynamic-red' : ''
+                        }
+                      >
+                        {run.status}
+                      </span>
+                    </div>
+                    <span className="truncate text-muted-foreground text-xs">
+                      {run.path}
                     </span>
-                  </div>
-                  <span className="truncate text-muted-foreground text-xs">
-                    {run.path}
-                  </span>
-                  <div className="flex items-center justify-between gap-3 font-mono text-muted-foreground text-xs">
-                    <span>{formatTime(run.startedAt)}</span>
-                    <span>{formatDuration(run.durationMs)}</span>
-                  </div>
-                </button>
-              )}
-            />
+                    <div className="flex items-center justify-between gap-3 font-mono text-muted-foreground text-xs">
+                      <span>{formatTime(run.startedAt)}</span>
+                      <span>{formatDuration(run.durationMs)}</span>
+                    </div>
+                  </button>
+                )}
+              />
+            )}
             <InfiniteFooter
               endLabel={infiniteLabels.end}
               hasMore={cronExecutionsQuery.hasNextPage}
@@ -986,122 +1385,267 @@ export function ObservabilityDashboardClient({
         <div className="grid gap-4 xl:grid-cols-2">
           <section className="rounded-lg border border-border bg-background p-4">
             <p className="font-medium text-sm">{t('analytics.requests')}</p>
-            <div className="mt-4 flex h-56 items-end gap-1 border-border border-b">
-              {(analytics?.buckets ?? []).map((bucket) => (
-                <div
-                  className="min-h-1 flex-1 rounded-t bg-dynamic-blue"
-                  key={bucket.bucketStart}
-                  style={{
-                    height: `${Math.max(4, Math.min(100, bucket.requests * 6))}%`,
-                  }}
-                />
-              ))}
-            </div>
+            {analyticsQuery.isLoading ? (
+              <ChartSkeleton />
+            ) : (
+              <div className="mt-4 flex h-56 items-end gap-1 border-border border-b">
+                {analyticsBuckets.map((bucket) => (
+                  <div
+                    className="min-h-1 flex-1 rounded-t bg-dynamic-blue"
+                    key={bucket.bucketStart}
+                    style={{
+                      height: `${getPercent(
+                        bucket.requests,
+                        getMaxValue(
+                          analyticsBuckets.map((item) => item.requests)
+                        )
+                      )}%`,
+                    }}
+                  />
+                ))}
+              </div>
+            )}
           </section>
           <section className="rounded-lg border border-border bg-background p-4">
             <p className="font-medium text-sm">{t('analytics.status')}</p>
-            <div className="mt-4 grid gap-2">
-              {Object.entries(analytics?.statusFamilies ?? {}).map(
-                ([label, value]) => (
+            {analyticsQuery.isLoading ? (
+              <LoadingSkeleton rows={5} />
+            ) : (
+              <div className="mt-4 grid gap-2">
+                {statusRows.map((row) => (
                   <div
                     className="flex items-center justify-between"
-                    key={label}
+                    key={row.label}
                   >
                     <span className="text-muted-foreground text-sm">
-                      {label}
+                      {row.label}
                     </span>
-                    <span className="font-mono text-sm">{value}</span>
+                    <span className="font-mono text-sm">
+                      {formatNumber(row.value)}
+                    </span>
                   </div>
-                )
-              )}
-            </div>
+                ))}
+              </div>
+            )}
           </section>
         </div>
       )}
 
       {mode === 'observability' && (
-        <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {[
-            [t('signals.server_errors'), overview?.serverErrorCount],
-            [t('signals.slow_requests'), overview?.slowRequestCount],
-            [t('signals.cron_failure_rate'), overview?.cronFailureRate],
-            [
-              t('signals.active_sources'),
-              Object.keys(overview?.sourceCounts ?? {}).length,
-            ],
-          ].map(([label, value]) => (
-            <div
-              className="rounded-lg border border-border bg-background p-4"
-              key={label}
-            >
-              <FileText className="mb-4 h-4 w-4 text-muted-foreground" />
-              <p className="text-muted-foreground text-xs">{label}</p>
-              <p className="mt-2 font-semibold text-2xl">
-                {formatNumber(value as number)}
-              </p>
+        <div className="space-y-4">
+          <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {[
+              [t('signals.server_errors'), overview?.serverErrorCount, 'red'],
+              [
+                t('signals.slow_requests'),
+                overview?.slowRequestCount,
+                'orange',
+              ],
+              [
+                t('signals.cron_failure_rate'),
+                overview?.cronFailureRate,
+                'amber',
+              ],
+              [
+                t('signals.active_sources'),
+                Object.keys(overview?.sourceCounts ?? {}).length,
+                'green',
+              ],
+            ].map(([label, value, tone]) => (
+              <div
+                className={cn(
+                  'rounded-lg border bg-background p-4',
+                  toneClasses[tone as Tone].soft
+                )}
+                key={label}
+              >
+                <FileText
+                  className={cn('mb-4 h-4 w-4', toneClasses[tone as Tone].text)}
+                />
+                <p className="text-muted-foreground text-xs">{label}</p>
+                <p className="mt-2 font-semibold text-2xl">
+                  {formatNumber(value as number)}
+                </p>
+              </div>
+            ))}
+          </section>
+          {analyticsQuery.isLoading ? (
+            <div className="grid gap-4 xl:grid-cols-2">
+              <section className="rounded-lg border border-border bg-background">
+                <LoadingSkeleton rows={6} />
+              </section>
+              <section className="rounded-lg border border-border bg-background">
+                <ChartSkeleton />
+              </section>
             </div>
-          ))}
-        </section>
+          ) : (
+            <div className="grid gap-4 xl:grid-cols-2">
+              <HorizontalBars
+                emptyLabel={t('charts.no_data')}
+                rows={slowRouteRows}
+                title={t('charts.latency_pressure')}
+              />
+              <HorizontalBars
+                emptyLabel={t('charts.no_data')}
+                rows={cronJobRows}
+                title={t('charts.cron_hotspots')}
+              />
+              <TrendChart
+                buckets={analyticsBuckets}
+                emptyLabel={t('charts.no_data')}
+                series={[
+                  {
+                    className: 'bg-dynamic-red',
+                    getValue: (bucket) => bucket.errors,
+                    label: t('charts.errors'),
+                  },
+                  {
+                    className: 'bg-dynamic-orange',
+                    getValue: (bucket) => bucket.cronRuns,
+                    label: t('charts.cron_runs'),
+                  },
+                ]}
+                title={t('charts.incident_trend')}
+              />
+              <section className="rounded-lg border border-border bg-background">
+                <div className="border-border border-b px-4 py-3 font-medium text-sm">
+                  {t('recent_errors')}
+                </div>
+                {(overview?.recentErrors ?? []).length > 0 ? (
+                  (overview?.recentErrors ?? []).map((log) => (
+                    <LogRow key={log.id} log={log} />
+                  ))
+                ) : (
+                  <div className="px-4 py-12 text-center text-muted-foreground text-sm">
+                    {t('charts.no_data')}
+                  </div>
+                )}
+              </section>
+            </div>
+          )}
+        </div>
       )}
 
       {mode === 'resources' && (
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
           <section className="rounded-lg border border-border bg-background">
-            <div className="grid grid-cols-[minmax(0,1fr)_90px_120px_120px_120px] gap-4 border-border border-b px-4 py-3 text-muted-foreground text-xs">
+            <div className="grid grid-cols-[minmax(0,1fr)_90px_90px_120px_120px_120px] gap-4 border-border border-b px-4 py-3 text-muted-foreground text-xs">
               <span>{t('resources.container')}</span>
               <span>{t('resources.health')}</span>
+              <span>{t('resources.uptime')}</span>
               <span>{t('resources.cpu')}</span>
               <span>{t('resources.memory')}</span>
               <span>{t('resources.network')}</span>
             </div>
-            {(resources?.allContainers ?? []).map((container) => (
-              <div
-                className="grid grid-cols-[minmax(0,1fr)_90px_120px_120px_120px] items-center gap-4 border-border/50 border-b px-4 py-3 text-sm"
-                key={container.containerId}
-              >
-                <div className="min-w-0">
-                  <p className="truncate font-medium">{container.name}</p>
-                  <p className="truncate font-mono text-muted-foreground text-xs">
-                    {container.image ?? container.serviceName ?? '-'}
-                  </p>
-                </div>
-                <span
-                  className={cn(
-                    container.health === 'healthy'
-                      ? 'text-dynamic-green'
-                      : container.health === 'unhealthy'
-                        ? 'text-dynamic-red'
-                        : 'text-muted-foreground'
-                  )}
-                >
-                  {container.health}
-                </span>
-                <span>{formatNumber(container.cpuPercent)}%</span>
-                <span>{formatBytes(container.memoryBytes)}</span>
-                <span className="font-mono text-muted-foreground text-xs">
-                  {formatBytes(container.rxBytes)} /{' '}
-                  {formatBytes(container.txBytes)}
-                </span>
+            {resourcesQuery.isLoading ? (
+              <LoadingSkeleton rows={8} />
+            ) : (resources?.allContainers ?? []).length > 0 ? (
+              (resources?.allContainers ?? []).map((container) => {
+                const cpuTone = getCpuTone(container.cpuPercent);
+                const memoryTone = getMemoryTone(container.memoryBytes);
+                const memoryMb =
+                  container.memoryBytes == null
+                    ? null
+                    : container.memoryBytes / 1024 / 1024;
+
+                return (
+                  <div
+                    className="grid grid-cols-[minmax(0,1fr)_90px_90px_120px_120px_120px] items-center gap-4 border-border/50 border-b px-4 py-3 text-sm"
+                    key={container.containerId}
+                  >
+                    <div className="min-w-0">
+                      <p className="truncate font-medium">{container.name}</p>
+                      <p className="truncate font-mono text-muted-foreground text-xs">
+                        {container.image ?? container.serviceName ?? '-'}
+                      </p>
+                    </div>
+                    <span
+                      className={cn(
+                        container.health === 'healthy'
+                          ? 'text-dynamic-green'
+                          : container.health === 'unhealthy'
+                            ? 'text-dynamic-red'
+                            : 'text-muted-foreground'
+                      )}
+                    >
+                      {container.health}
+                    </span>
+                    <span className="font-mono text-muted-foreground text-xs">
+                      {container.runningFor ?? '-'}
+                    </span>
+                    <div>
+                      <span
+                        className={cn('font-medium', toneClasses[cpuTone].text)}
+                      >
+                        {formatNumber(container.cpuPercent)}%
+                      </span>
+                      <div className="mt-1 h-1 rounded-full bg-muted">
+                        <div
+                          className={cn(
+                            'h-full rounded-full',
+                            toneClasses[cpuTone].bar
+                          )}
+                          style={{
+                            width: `${getPercent(container.cpuPercent, 40)}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <span
+                        className={cn(
+                          'font-medium',
+                          toneClasses[memoryTone].text
+                        )}
+                      >
+                        {formatBytes(container.memoryBytes)}
+                      </span>
+                      <div className="mt-1 h-1 rounded-full bg-muted">
+                        <div
+                          className={cn(
+                            'h-full rounded-full',
+                            toneClasses[memoryTone].bar
+                          )}
+                          style={{
+                            width: `${getPercent(memoryMb, 1024)}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <span className="font-mono text-muted-foreground text-xs">
+                      {formatBytes(container.rxBytes)} /{' '}
+                      {formatBytes(container.txBytes)}
+                    </span>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="px-4 py-12 text-center text-muted-foreground text-sm">
+                {t('empty.containers')}
               </div>
-            ))}
+            )}
           </section>
           <section className="rounded-lg border border-border bg-background p-4">
             <Terminal className="mb-3 h-4 w-4 text-muted-foreground" />
             <p className="font-medium text-sm">{t('resources.summary')}</p>
-            <div className="mt-4 grid gap-3">
-              <MetricCard
-                label={t('resources.total_cpu')}
-                value={`${formatNumber(resources?.totalCpuPercent)}%`}
-              />
-              <MetricCard
-                label={t('resources.total_memory')}
-                value={formatBytes(resources?.totalMemoryBytes)}
-              />
-              <MetricCard
-                label={t('resources.services')}
-                value={formatNumber(resources?.serviceHealth.length)}
-              />
-            </div>
+            {resourcesQuery.isLoading ? (
+              <LoadingSkeleton className="px-0" rows={3} />
+            ) : (
+              <div className="mt-4 grid gap-3">
+                <MetricCard
+                  label={t('resources.total_cpu')}
+                  value={`${formatNumber(resources?.totalCpuPercent)}%`}
+                />
+                <MetricCard
+                  label={t('resources.total_memory')}
+                  value={formatBytes(resources?.totalMemoryBytes)}
+                />
+                <MetricCard
+                  label={t('resources.services')}
+                  value={formatNumber(resources?.serviceHealth.length)}
+                />
+              </div>
+            )}
           </section>
         </div>
       )}

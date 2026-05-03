@@ -1510,7 +1510,7 @@
       "retry": "Retry"
     },
     "alerts": {
-      "failed_description": "The dashboard could not refresh the latest blue/green telemetry snapshot.",
+      "failed_description": "The dashboard could not refresh the latest infrastructure telemetry snapshot.",
       "failed_title": "Monitoring is unavailable",
       "mount_missing_description": "The web container cannot see the watcher runtime directory. Mount ./tmp/docker-web into the app container to expose local rollout telemetry.",
       "mount_missing_title": "Runtime mount missing",
@@ -1653,7 +1653,7 @@
       "successful": "Successful",
       "unknown": "Unknown"
     },
-    "description": "Watch the blue/green watcher, rollout cadence, request flow, and container load from a single operator dashboard.",
+    "description": "Watch deployments, runtime health, request flow, cron activity, and container load from a single operator dashboard.",
     "docker": {
       "all_containers": "All running containers",
       "cpu": "CPU",
@@ -1752,10 +1752,10 @@
       "active_route": "{color} currently serving traffic",
       "branch": "Tracked Branch",
       "commit": "Latest Commit",
-      "description": "A visual control room for the same blue/green signals that the terminal watcher prints, with more persistent context for operators.",
-      "kicker": "Blue/Green Control Plane",
+      "description": "A compact control room for deployment, runtime, request, cron, and container signals with persistent context for operators.",
+      "kicker": "Infrastructure Control Plane",
       "last_snapshot": "Last Snapshot",
-      "title": "Blue/Green Control Room"
+      "title": "Infrastructure Control Room"
     },
     "ledger": {
       "avg_rpm": "Avg RPM",
@@ -1794,6 +1794,20 @@
         "status": "Status Families",
         "title": "Analytics"
       },
+      "charts": {
+        "cron_hotspots": "Cron Hotspots",
+        "cron_runs": "Cron Runs",
+        "errors": "Errors",
+        "incident_trend": "Incident Trend",
+        "latency_pressure": "Latency Pressure",
+        "no_data": "No telemetry in this window.",
+        "request_trend": "Request Trend",
+        "requests": "Requests",
+        "route_pressure": "Route Pressure",
+        "server_errors": "Server Errors",
+        "source_mix": "Source Mix",
+        "status_distribution": "Status Distribution"
+      },
       "columns": {
         "build_time": "Build Time",
         "commit": "Commit",
@@ -1813,11 +1827,19 @@
         "runtime_override": "Runtime override",
         "title": "Cron"
       },
+      "deployment_states": {
+        "building": "Building",
+        "deploying": "Deploying",
+        "error": "Error",
+        "queued": "Queued",
+        "ready": "Ready"
+      },
       "deployments": {
         "description": "Deployment stamps grouped by request traffic and server errors.",
         "title": "Deployments"
       },
       "empty": {
+        "containers": "No container metrics in this snapshot.",
         "cron_executions": "No cron executions in this window.",
         "deployments": "No deployments in this window.",
         "logs": "No logs in this window.",
@@ -1849,7 +1871,7 @@
         "title": "Observability"
       },
       "overview": {
-        "description": "Vercel-style operator summary backed by the internal Postgres log drain.",
+        "description": "Operator summary backed by the internal Postgres log drain.",
         "title": "Overview"
       },
       "recent_errors": "Recent Errors",
@@ -1873,7 +1895,8 @@
         "summary": "Runtime Summary",
         "title": "Resources",
         "total_cpu": "Total CPU",
-        "total_memory": "Total Memory"
+        "total_memory": "Total Memory",
+        "uptime": "Uptime"
       },
       "search_placeholder": "Search logs, routes, requests",
       "signals": {
@@ -1881,6 +1904,13 @@
         "cron_failure_rate": "Cron Failure Rate",
         "server_errors": "Server Errors",
         "slow_requests": "Slow Requests"
+      },
+      "status_families": {
+        "clientError": "4xx",
+        "redirect": "3xx",
+        "serverError": "5xx",
+        "success": "2xx",
+        "unknown": "Unknown"
       },
       "top_routes": "Top Routes"
     },
@@ -2085,7 +2115,7 @@
       "total_requests": "Total Requests",
       "watcher": "Watcher"
     },
-    "title": "Blue/Green Monitoring",
+    "title": "Infrastructure Monitoring",
     "watcher": {
       "args": "Watcher Args",
       "branch": "Branch",

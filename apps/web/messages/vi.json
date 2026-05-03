@@ -1510,7 +1510,7 @@
       "retry": "Thử lại"
     },
     "alerts": {
-      "failed_description": "Bảng điều khiển không thể tải lại ảnh chụp telemetry blue/green mới nhất.",
+      "failed_description": "Bảng điều khiển không thể tải lại ảnh chụp telemetry hạ tầng mới nhất.",
       "failed_title": "Giám sát hiện không khả dụng",
       "mount_missing_description": "Container web không nhìn thấy thư mục runtime của watcher. Hãy mount ./tmp/docker-web vào container ứng dụng để hiển thị telemetry rollout cục bộ.",
       "mount_missing_title": "Thiếu runtime mount",
@@ -1653,7 +1653,7 @@
       "successful": "Thành công",
       "unknown": "Không xác định"
     },
-    "description": "Theo dõi watcher blue/green, nhịp rollout, lưu lượng request và tải container từ một dashboard vận hành duy nhất.",
+    "description": "Theo dõi triển khai, sức khỏe runtime, lưu lượng request, cron và tải container từ một dashboard vận hành duy nhất.",
     "docker": {
       "all_containers": "Tất cả container đang chạy",
       "cpu": "CPU",
@@ -1752,10 +1752,10 @@
       "active_route": "{color} hiện đang phục vụ lưu lượng",
       "branch": "Nhánh đang theo dõi",
       "commit": "Commit mới nhất",
-      "description": "Phòng điều khiển trực quan cho cùng các tín hiệu blue/green mà watcher trên terminal hiển thị, nhưng có thêm bối cảnh bền vững hơn cho operator.",
-      "kicker": "Trung Tâm Điều Phối Blue/Green",
+      "description": "Phòng điều khiển cô đọng cho tín hiệu triển khai, runtime, request, cron và container với bối cảnh bền vững hơn cho operator.",
+      "kicker": "Trung Tâm Điều Phối Hạ Tầng",
       "last_snapshot": "Snapshot gần nhất",
-      "title": "Phòng Điều Khiển Blue/Green"
+      "title": "Phòng Điều Khiển Hạ Tầng"
     },
     "ledger": {
       "avg_rpm": "RPM TB",
@@ -1794,6 +1794,20 @@
         "status": "Nhóm trạng thái",
         "title": "Analytics"
       },
+      "charts": {
+        "cron_hotspots": "Cron nổi bật",
+        "cron_runs": "Lượt chạy cron",
+        "errors": "Lỗi",
+        "incident_trend": "Xu hướng sự cố",
+        "latency_pressure": "Áp lực độ trễ",
+        "no_data": "Không có telemetry trong khung này.",
+        "request_trend": "Xu hướng request",
+        "requests": "Requests",
+        "route_pressure": "Áp lực route",
+        "server_errors": "Lỗi server",
+        "source_mix": "Phân bố nguồn",
+        "status_distribution": "Phân bố trạng thái"
+      },
       "columns": {
         "build_time": "Thời gian build",
         "commit": "Commit",
@@ -1813,11 +1827,19 @@
         "runtime_override": "Ghi đè runtime",
         "title": "Cron"
       },
+      "deployment_states": {
+        "building": "Đang build",
+        "deploying": "Đang triển khai",
+        "error": "Lỗi",
+        "queued": "Đang chờ",
+        "ready": "Sẵn sàng"
+      },
       "deployments": {
         "description": "Dấu triển khai được nhóm theo lưu lượng request và lỗi server.",
         "title": "Deployments"
       },
       "empty": {
+        "containers": "Không có số liệu container trong snapshot này.",
         "cron_executions": "Không có lượt chạy cron trong khung này.",
         "deployments": "Không có triển khai trong khung này.",
         "logs": "Không có log trong khung này.",
@@ -1849,7 +1871,7 @@
         "title": "Observability"
       },
       "overview": {
-        "description": "Tóm tắt vận hành kiểu Vercel dựa trên internal Postgres log drain.",
+        "description": "Tóm tắt vận hành dựa trên internal Postgres log drain.",
         "title": "Tổng quan"
       },
       "recent_errors": "Lỗi gần đây",
@@ -1873,7 +1895,8 @@
         "summary": "Tóm tắt runtime",
         "title": "Resources",
         "total_cpu": "Tổng CPU",
-        "total_memory": "Tổng bộ nhớ"
+        "total_memory": "Tổng bộ nhớ",
+        "uptime": "Uptime"
       },
       "search_placeholder": "Tìm log, route, request",
       "signals": {
@@ -1881,6 +1904,13 @@
         "cron_failure_rate": "Tỷ lệ lỗi cron",
         "server_errors": "Lỗi server",
         "slow_requests": "Request chậm"
+      },
+      "status_families": {
+        "clientError": "4xx",
+        "redirect": "3xx",
+        "serverError": "5xx",
+        "success": "2xx",
+        "unknown": "Không xác định"
       },
       "top_routes": "Route hàng đầu"
     },
@@ -2085,7 +2115,7 @@
       "total_requests": "Tổng request",
       "watcher": "Watcher"
     },
-    "title": "Giám Sát Blue/Green",
+    "title": "Giám Sát Hạ Tầng",
     "watcher": {
       "args": "Tham số watcher",
       "branch": "Nhánh",

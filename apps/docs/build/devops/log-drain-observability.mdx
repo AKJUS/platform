@@ -64,7 +64,9 @@ Infrastructure → Monitoring → Cron exposes the native Docker cron runner sta
 
 ## Resources
 
-Infrastructure → Monitoring → Resources reads the blue/green Docker snapshot and displays container health, image/service identity, CPU, memory, network ingress/egress, and aggregate service counts. This is the operator view for Docker Desktop resource pressure without opening Docker Desktop directly.
+Infrastructure → Monitoring → Resources reads the Docker runtime snapshot and displays container health, image/service identity, uptime, CPU, memory, compact network ingress/egress, and aggregate service counts. This is the operator view for Docker Desktop resource pressure without opening Docker Desktop directly.
+
+Resource pressure uses the same thresholds as the dashboard: memory under 200 MB is green, 200-500 MB is amber, 500-1024 MB is orange, and anything above 1024 MB is red. CPU under 5% is green, 5-20% is amber, 20-40% is orange, and anything above 40% is red.
 
 ## Troubleshooting
 

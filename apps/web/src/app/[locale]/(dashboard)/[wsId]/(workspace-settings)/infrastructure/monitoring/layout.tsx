@@ -4,9 +4,9 @@ import { enforceInfrastructureRootWorkspace } from '../enforce-infrastructure-ro
 import { BlueGreenMonitoringSectionNav } from './_components/blue-green-monitoring-section-nav';
 
 export const metadata: Metadata = {
-  title: 'Blue Green Monitoring',
+  title: 'Infrastructure Monitoring',
   description:
-    'Observe blue/green deployment health, rollout telemetry, request traffic, and watcher logs.',
+    'Observe deployment health, runtime telemetry, request traffic, cron, logs, and container resources.',
 };
 
 export default async function InfrastructureMonitoringLayout({
