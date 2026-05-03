@@ -1614,6 +1614,13 @@
       "jobs_title": "Registered Jobs",
       "last_run": "Last Run",
       "next_run": "Next Run",
+      "run_status": {
+        "done": "Done",
+        "errored": "Errored",
+        "processing": "Processing",
+        "queued": "Queued",
+        "skipped": "Skipped"
+      },
       "runner_status": {
         "live": "Live",
         "missing": "Missing",
@@ -1625,6 +1632,8 @@
         "pending": "Pending"
       },
       "stats": {
+        "active_runs": "Active Runs",
+        "active_runs_meta": "{queued} queued, {processing} processing",
         "executions": "Executions",
         "failed_jobs": "Failed Jobs",
         "failed_jobs_meta": "Jobs with an active failure streak",

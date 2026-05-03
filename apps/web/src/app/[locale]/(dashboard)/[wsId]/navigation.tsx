@@ -1266,31 +1266,44 @@ export async function WorkspaceNavigationLinks({
               icon: <Radio className="h-5 w-5" />,
             },
             {
-              title: t('infrastructure-tabs.monitoring_overview'),
+              title: t('infrastructure-tabs.monitoring'),
               href: `/${personalOrWsId}/infrastructure/monitoring`,
               icon: <Cctv className="h-5 w-5" />,
-              matchExact: true,
               sectionLabel: t('infrastructure-tabs.operations'),
-            },
-            {
-              title: t('infrastructure-tabs.monitoring_cron'),
-              href: `/${personalOrWsId}/infrastructure/monitoring/cron`,
-              icon: <CalendarClock className="h-5 w-5" />,
-            },
-            {
-              title: t('infrastructure-tabs.monitoring_rollouts'),
-              href: `/${personalOrWsId}/infrastructure/monitoring/rollouts`,
-              icon: <ChartColumnStacked className="h-5 w-5" />,
-            },
-            {
-              title: t('infrastructure-tabs.monitoring_requests'),
-              href: `/${personalOrWsId}/infrastructure/monitoring/requests`,
-              icon: <Radio className="h-5 w-5" />,
-            },
-            {
-              title: t('infrastructure-tabs.monitoring_watcher_logs'),
-              href: `/${personalOrWsId}/infrastructure/monitoring/watcher-logs`,
-              icon: <Logs className="h-5 w-5" />,
+              aliases: [
+                `/${personalOrWsId}/infrastructure/monitoring/cron`,
+                `/${personalOrWsId}/infrastructure/monitoring/requests`,
+                `/${personalOrWsId}/infrastructure/monitoring/rollouts`,
+                `/${personalOrWsId}/infrastructure/monitoring/watcher-logs`,
+              ],
+              children: [
+                {
+                  title: t('infrastructure-tabs.monitoring_overview'),
+                  href: `/${personalOrWsId}/infrastructure/monitoring`,
+                  icon: <Cctv className="h-5 w-5" />,
+                  matchExact: true,
+                },
+                {
+                  title: t('infrastructure-tabs.monitoring_cron'),
+                  href: `/${personalOrWsId}/infrastructure/monitoring/cron`,
+                  icon: <CalendarClock className="h-5 w-5" />,
+                },
+                {
+                  title: t('infrastructure-tabs.monitoring_rollouts'),
+                  href: `/${personalOrWsId}/infrastructure/monitoring/rollouts`,
+                  icon: <ChartColumnStacked className="h-5 w-5" />,
+                },
+                {
+                  title: t('infrastructure-tabs.monitoring_requests'),
+                  href: `/${personalOrWsId}/infrastructure/monitoring/requests`,
+                  icon: <Radio className="h-5 w-5" />,
+                },
+                {
+                  title: t('infrastructure-tabs.monitoring_watcher_logs'),
+                  href: `/${personalOrWsId}/infrastructure/monitoring/watcher-logs`,
+                  icon: <Logs className="h-5 w-5" />,
+                },
+              ],
             },
             {
               title: t('infrastructure-tabs.ai_credits'),

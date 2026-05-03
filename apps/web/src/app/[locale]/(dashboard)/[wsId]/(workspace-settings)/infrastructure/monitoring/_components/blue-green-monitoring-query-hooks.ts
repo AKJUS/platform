@@ -117,8 +117,12 @@ export function useCronMonitoringSnapshot() {
     queryKey: ['infrastructure', 'monitoring', 'cron', 'snapshot'],
     queryFn: () => getCronMonitoringSnapshot(),
     refetchInterval: (query) =>
-      query.state.data?.status === 'live' ? 5000 : 15000,
-    staleTime: 2000,
+      (query.state.data?.runs ?? []).some(
+        (run) => run.status === 'queued' || run.status === 'processing'
+      )
+        ? 1000
+        : 5000,
+    staleTime: 750,
   });
 }
 
@@ -143,7 +147,7 @@ export function useCronMonitoringExecutionArchive({
         page,
         pageSize,
       }),
-    refetchInterval: 15000,
-    staleTime: 5000,
+    refetchInterval: 1000,
+    staleTime: 750,
   });
 }

@@ -442,7 +442,7 @@ export async function POST(
             wsId,
             rangeStart,
             rangeEnd,
-            userIdForFallback: access.userId ?? wsId,
+            userIdForFallback: triggeredBy,
           })
         : {
             inserted: 0,

@@ -6,6 +6,7 @@ import type {
   CronMonitoringControl,
   CronMonitoringJob,
   CronMonitoringSnapshot,
+  CronRunRecord,
 } from '@tuturuuu/internal-api/infrastructure';
 
 const DEFAULT_CRON_STATUS_STALE_MS = 120_000;
@@ -150,14 +151,83 @@ function readControl(
   };
 }
 
-function countQueuedRuns(paths = getCronMonitoringPaths(), fsImpl = fs) {
+function readQueuedRunRequests(
+  jobs: CronMonitoringJob[],
+  paths = getCronMonitoringPaths(),
+  fsImpl = fs
+): CronRunRecord[] {
   if (!fsImpl.existsSync(paths.runRequestsDir)) {
-    return 0;
+    return [];
   }
 
   return fsImpl
     .readdirSync(paths.runRequestsDir)
-    .filter((fileName) => fileName.endsWith('.json')).length;
+    .filter((fileName) => fileName.endsWith('.json'))
+    .sort()
+    .flatMap((fileName) => {
+      const request = readJsonFile<{
+        id?: string;
+        jobId?: string;
+        requestedAt?: number;
+        requestedBy?: string | null;
+        requestedByEmail?: string | null;
+      } | null>(path.join(paths.runRequestsDir, fileName), null, fsImpl);
+      const job = jobs.find((candidate) => candidate.id === request?.jobId);
+
+      if (!request?.id || !request.jobId || !job) {
+        return [];
+      }
+
+      const requestedAt =
+        typeof request.requestedAt === 'number'
+          ? request.requestedAt
+          : Date.now();
+
+      return [
+        {
+          consoleLogs: [],
+          description: job.description,
+          durationMs: null,
+          endedAt: null,
+          error: null,
+          executionId: null,
+          httpStatus: null,
+          id: request.id,
+          jobId: request.jobId,
+          path: job.path,
+          requestedAt,
+          requestedBy:
+            typeof request.requestedBy === 'string'
+              ? request.requestedBy
+              : null,
+          requestedByEmail:
+            typeof request.requestedByEmail === 'string'
+              ? request.requestedByEmail
+              : null,
+          response: null,
+          schedule: job.schedule,
+          source: 'manual' as const,
+          startedAt: null,
+          status: 'queued' as const,
+          updatedAt: requestedAt,
+        },
+      ];
+    });
+}
+
+function mergeCronRunRecords(runs: CronRunRecord[]) {
+  const byId = new Map<string, CronRunRecord>();
+
+  for (const run of runs) {
+    const current = byId.get(run.id);
+    if (!current || run.updatedAt >= current.updatedAt) {
+      byId.set(run.id, run);
+    }
+  }
+
+  return [...byId.values()]
+    .sort((left, right) => right.requestedAt - left.requestedAt)
+    .slice(0, 25);
 }
 
 function normalizeStatusHealth(updatedAt: number | null, now: number) {
@@ -194,6 +264,13 @@ export function readCronMonitoringSnapshot({
     ...job,
     ...(persistedJobs.find((candidate) => candidate.id === job.id) ?? {}),
   }));
+  const persistedRuns = Array.isArray(persistedStatus.runs)
+    ? (persistedStatus.runs as CronRunRecord[])
+    : [];
+  const runs = mergeCronRunRecords([
+    ...readQueuedRunRequests(jobs, paths, fsImpl),
+    ...persistedRuns,
+  ]);
   const lastExecution = executions[0] ?? persistedStatus.lastExecution ?? null;
   const failedExecutions = executions.filter(
     (execution) => execution.status !== 'success'
@@ -219,11 +296,13 @@ export function readCronMonitoringSnapshot({
       enabledJobs: jobs.filter((job) => job.enabled).length,
       failedExecutions: failedExecutions.length,
       failedJobs,
-      queuedRuns: countQueuedRuns(paths, fsImpl),
+      processingRuns: runs.filter((run) => run.status === 'processing').length,
+      queuedRuns: runs.filter((run) => run.status === 'queued').length,
       retainedExecutions: executions.length,
       totalJobs: jobs.length,
     },
     retainedExecutionCount: executions.length,
+    runs,
     source: {
       configAvailable: fsImpl.existsSync(paths.configFile),
       controlAvailable: fsImpl.existsSync(paths.controlFile),

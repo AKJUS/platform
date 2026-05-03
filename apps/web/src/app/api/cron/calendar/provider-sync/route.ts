@@ -1,6 +1,18 @@
 import { createAdminClient } from '@tuturuuu/supabase/next/server';
 import { type NextRequest, NextResponse } from 'next/server';
 
+function resolveCalendarSyncOrigin() {
+  if (process.env.INTERNAL_WEB_API_ORIGIN) {
+    return process.env.INTERNAL_WEB_API_ORIGIN;
+  }
+
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+
+  return process.env.NEXT_PUBLIC_URL || 'http://localhost:7803';
+}
+
 export async function GET(request: NextRequest) {
   const cronSecret =
     process.env.CRON_SECRET ?? process.env.VERCEL_CRON_SECRET ?? '';
@@ -36,13 +48,12 @@ export async function GET(request: NextRequest) {
     const workspaceIds = [
       ...new Set((tokenRows ?? []).map((row) => row.ws_id)),
     ];
-    const baseUrl = process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : process.env.NEXT_PUBLIC_URL || 'http://localhost:7803';
+    const baseUrl = resolveCalendarSyncOrigin();
 
     const results: Array<{
       ws_id: string;
       success: boolean;
+      summary?: unknown;
       error?: string;
     }> = [];
 
@@ -68,7 +79,13 @@ export async function GET(request: NextRequest) {
           throw new Error(body || `HTTP ${response.status}`);
         }
 
-        results.push({ ws_id: wsId, success: true });
+        const body = await response.json().catch(() => null);
+
+        results.push({
+          ws_id: wsId,
+          success: true,
+          summary: body?.summary ?? null,
+        });
       } catch (syncError) {
         results.push({
           ws_id: wsId,

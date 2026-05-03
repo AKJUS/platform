@@ -211,6 +211,14 @@ export type CronExecutionSource = 'manual' | 'scheduled';
 
 export type CronMonitoringStatus = 'live' | 'missing' | 'stale';
 
+export type CronRunStatus =
+  | 'failed'
+  | 'processing'
+  | 'queued'
+  | 'skipped'
+  | 'success'
+  | 'timeout';
+
 export interface CronExecutionConsoleLog {
   containerId: string | null;
   deploymentColor: string | null;
@@ -237,6 +245,28 @@ export interface CronExecutionRecord {
   startedAt: number;
   status: CronExecutionStatus;
   triggerId: string | null;
+}
+
+export interface CronRunRecord {
+  consoleLogs: CronExecutionConsoleLog[];
+  description: string;
+  durationMs: number | null;
+  endedAt: number | null;
+  error: string | null;
+  executionId: string | null;
+  httpStatus: number | null;
+  id: string;
+  jobId: string;
+  path: string;
+  requestedAt: number;
+  requestedBy: string | null;
+  requestedByEmail: string | null;
+  response: string | null;
+  schedule: string;
+  source: CronExecutionSource;
+  startedAt: number | null;
+  status: CronRunStatus;
+  updatedAt: number;
 }
 
 export interface CronMonitoringJob {
@@ -268,11 +298,13 @@ export interface CronMonitoringSnapshot {
     enabledJobs: number;
     failedExecutions: number;
     failedJobs: number;
+    processingRuns: number;
     queuedRuns: number;
     retainedExecutions: number;
     totalJobs: number;
   };
   retainedExecutionCount: number;
+  runs: CronRunRecord[];
   source: {
     configAvailable: boolean;
     controlAvailable: boolean;

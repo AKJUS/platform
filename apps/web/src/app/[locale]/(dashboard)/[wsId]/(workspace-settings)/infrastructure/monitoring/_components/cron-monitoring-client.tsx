@@ -17,6 +17,8 @@ import {
   type CronExecutionRecord,
   type CronExecutionStatus,
   type CronMonitoringJob,
+  type CronRunRecord,
+  type CronRunStatus,
   queueCronRun,
   updateCronMonitoringControl,
 } from '@tuturuuu/internal-api/infrastructure';
@@ -76,6 +78,26 @@ function getStatusIcon(status: CronExecutionStatus | null | undefined) {
   return <Radio className="h-4 w-4 text-muted-foreground" />;
 }
 
+function getRunStatusIcon(status: CronRunStatus | null | undefined) {
+  if (status === 'success') {
+    return <CheckCircle2 className="h-4 w-4 text-dynamic-green" />;
+  }
+
+  if (status === 'processing') {
+    return <Activity className="h-4 w-4 animate-pulse text-dynamic-blue" />;
+  }
+
+  if (status === 'queued') {
+    return <Clock className="h-4 w-4 text-dynamic-yellow" />;
+  }
+
+  if (status === 'timeout' || status === 'failed') {
+    return <XCircle className="h-4 w-4 text-dynamic-red" />;
+  }
+
+  return <Radio className="h-4 w-4 text-muted-foreground" />;
+}
+
 function getStatusLabel(
   t: ReturnType<typeof useTranslations>,
   status: CronExecutionStatus | null | undefined
@@ -84,21 +106,64 @@ function getStatusLabel(
   return t(`cron.execution_status.${status}`);
 }
 
+function isRunInFlight(run: CronRunRecord | null | undefined) {
+  return run?.status === 'queued' || run?.status === 'processing';
+}
+
+function getRunStatusLabel(
+  t: ReturnType<typeof useTranslations>,
+  status: CronRunStatus | null | undefined
+) {
+  if (status === 'success') return t('cron.run_status.done');
+  if (status === 'processing') return t('cron.run_status.processing');
+  if (status === 'queued') return t('cron.run_status.queued');
+  if (status === 'failed' || status === 'timeout') {
+    return t('cron.run_status.errored');
+  }
+  if (status === 'skipped') return t('cron.run_status.skipped');
+  return t('cron.states.pending');
+}
+
+function getRunStatusBadgeClass(status: CronRunStatus | null | undefined) {
+  if (status === 'success') {
+    return 'border-dynamic-green/35 bg-dynamic-green/10 text-dynamic-green';
+  }
+
+  if (status === 'processing') {
+    return 'border-dynamic-blue/35 bg-dynamic-blue/10 text-dynamic-blue';
+  }
+
+  if (status === 'queued') {
+    return 'border-dynamic-yellow/35 bg-dynamic-yellow/10 text-dynamic-yellow';
+  }
+
+  if (status === 'failed' || status === 'timeout') {
+    return 'border-dynamic-red/35 bg-dynamic-red/10 text-dynamic-red';
+  }
+
+  return 'border-border text-muted-foreground';
+}
+
 function JobRuntimeRow({
   job,
   onOpenExecution,
+  onOpenRun,
   onRun,
+  run,
   running,
   t,
 }: {
   job: CronMonitoringJob;
   onOpenExecution: (execution: CronExecutionRecord) => void;
+  onOpenRun: (run: CronRunRecord) => void;
   onRun: (jobId: string) => void;
+  run: CronRunRecord | null;
   running: boolean;
   t: ReturnType<typeof useTranslations>;
 }) {
   const lastExecution = job.lastExecution;
   const hasFailure = (job.failureStreak ?? 0) > 0;
+  const runInFlight = isRunInFlight(run);
 
   return (
     <div className="group grid gap-4 border-border/60 border-t p-4 transition-colors first:border-t-0 hover:bg-foreground/[0.025] lg:grid-cols-[minmax(0,1.4fr)_minmax(220px,0.9fr)_minmax(180px,0.55fr)_auto]">
@@ -123,6 +188,19 @@ function JobRuntimeRow({
             >
               {t('cron.failure_streak', { count: job.failureStreak })}
             </Badge>
+          ) : null}
+          {run ? (
+            <button
+              type="button"
+              onClick={() => onOpenRun(run)}
+              className={cn(
+                'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-medium text-xs',
+                getRunStatusBadgeClass(run.status)
+              )}
+            >
+              {getRunStatusIcon(run.status)}
+              {getRunStatusLabel(t, run.status)}
+            </button>
           ) : null}
         </div>
         <p className="mt-2 text-muted-foreground text-sm leading-6">
@@ -164,16 +242,24 @@ function JobRuntimeRow({
           variant="outline"
           size="sm"
           onClick={() => onRun(job.id)}
-          disabled={running || !job.enabled}
+          disabled={running || runInFlight || !job.enabled}
         >
           <ListRestart className="mr-2 h-4 w-4" />
-          {running ? t('cron.actions.queueing') : t('cron.actions.run_now')}
+          {running
+            ? t('cron.actions.queueing')
+            : runInFlight
+              ? getRunStatusLabel(t, run?.status)
+              : t('cron.actions.run_now')}
         </Button>
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => lastExecution && onOpenExecution(lastExecution)}
-          disabled={!lastExecution}
+          onClick={() =>
+            run
+              ? onOpenRun(run)
+              : lastExecution && onOpenExecution(lastExecution)
+          }
+          disabled={!run && !lastExecution}
         >
           <Terminal className="mr-2 h-4 w-4" />
           {t('cron.actions.logs')}
@@ -191,8 +277,11 @@ export function CronMonitoringClient() {
     page: 1,
     pageSize: 12,
   });
-  const [selectedExecution, setSelectedExecution] =
-    useState<CronExecutionRecord | null>(null);
+  const [selectedDetail, setSelectedDetail] = useState<
+    | { record: CronExecutionRecord; type: 'execution' }
+    | { id: string; type: 'run' }
+    | null
+  >(null);
 
   const invalidateCron = () =>
     queryClient.invalidateQueries({
@@ -210,6 +299,35 @@ export function CronMonitoringClient() {
 
   const snapshot = snapshotQuery.data;
   const executions = archiveQuery.data?.items ?? [];
+  const runByJobId = useMemo(() => {
+    const map = new Map<string, CronRunRecord>();
+
+    for (const run of snapshot?.runs ?? []) {
+      const current = map.get(run.jobId);
+      if (!current || run.requestedAt > current.requestedAt) {
+        map.set(run.jobId, run);
+      }
+    }
+
+    return map;
+  }, [snapshot?.runs]);
+  const selectedRun =
+    selectedDetail?.type === 'run'
+      ? (snapshot?.runs.find((run) => run.id === selectedDetail.id) ?? null)
+      : null;
+  const selectedExecution =
+    selectedDetail?.type === 'execution' ? selectedDetail.record : null;
+  const selectedRecord = selectedRun ?? selectedExecution;
+  const selectedStatusLabel = selectedRun
+    ? getRunStatusLabel(t, selectedRun.status)
+    : getStatusLabel(t, selectedExecution?.status);
+  const selectedStartedAt =
+    selectedRecord?.startedAt ?? selectedRun?.requestedAt ?? null;
+  const selectedDuration =
+    selectedRecord?.durationMs ??
+    (selectedRun?.status === 'processing' && selectedRun.startedAt
+      ? Math.max(0, Date.now() - selectedRun.startedAt)
+      : null);
   const statCards = useMemo(() => {
     if (!snapshot) return [];
 
@@ -231,6 +349,17 @@ export function CronMonitoringClient() {
         label: t('cron.stats.executions'),
         meta: t('cron.stats.retained_meta'),
         value: formatCompactNumber(snapshot.overview.retainedExecutions),
+      },
+      {
+        icon: <Clock className="h-4 w-4" />,
+        label: t('cron.stats.active_runs'),
+        meta: t('cron.stats.active_runs_meta', {
+          queued: snapshot.overview.queuedRuns,
+          processing: snapshot.overview.processingRuns,
+        }),
+        value: formatCompactNumber(
+          snapshot.overview.queuedRuns + snapshot.overview.processingRuns
+        ),
       },
       {
         icon: <TriangleAlert className="h-4 w-4" />,
@@ -326,9 +455,17 @@ export function CronMonitoringClient() {
             <JobRuntimeRow
               key={job.id}
               job={job}
-              onOpenExecution={setSelectedExecution}
+              onOpenExecution={(record) =>
+                setSelectedDetail({ record, type: 'execution' })
+              }
+              onOpenRun={(run) =>
+                setSelectedDetail({ id: run.id, type: 'run' })
+              }
               onRun={(jobId) => runMutation.mutate(jobId)}
-              running={runMutation.isPending}
+              run={runByJobId.get(job.id) ?? null}
+              running={
+                runMutation.isPending && runMutation.variables === job.id
+              }
               t={t}
             />
           ))
@@ -352,7 +489,9 @@ export function CronMonitoringClient() {
               <button
                 type="button"
                 key={execution.id}
-                onClick={() => setSelectedExecution(execution)}
+                onClick={() =>
+                  setSelectedDetail({ record: execution, type: 'execution' })
+                }
                 className="grid w-full gap-3 p-4 text-left transition-colors hover:bg-foreground/[0.025] md:grid-cols-[minmax(0,1fr)_140px_120px_100px]"
               >
                 <div className="min-w-0">
@@ -386,34 +525,33 @@ export function CronMonitoringClient() {
       </section>
 
       <Dialog
-        open={Boolean(selectedExecution)}
+        open={Boolean(selectedRecord)}
         onOpenChange={(open) => {
-          if (!open) setSelectedExecution(null);
+          if (!open) setSelectedDetail(null);
         }}
       >
         <DialogContent className="max-w-4xl">
-          {selectedExecution ? (
+          {selectedRecord ? (
             <>
               <DialogHeader>
-                <DialogTitle>{selectedExecution.jobId}</DialogTitle>
+                <DialogTitle>{selectedRecord.jobId}</DialogTitle>
               </DialogHeader>
               <div className="grid gap-3 md:grid-cols-4">
                 {[
-                  [
-                    t('cron.detail.status'),
-                    getStatusLabel(t, selectedExecution.status),
-                  ],
+                  [t('cron.detail.status'), selectedStatusLabel],
                   [
                     t('cron.detail.started'),
-                    formatDateTime(selectedExecution.startedAt),
+                    selectedStartedAt ? formatDateTime(selectedStartedAt) : '—',
                   ],
                   [
                     t('cron.detail.duration'),
-                    formatDuration(selectedExecution.durationMs),
+                    selectedDuration == null
+                      ? '—'
+                      : formatDuration(selectedDuration),
                   ],
                   [
                     t('cron.detail.http_status'),
-                    selectedExecution.httpStatus?.toString() ?? '—',
+                    selectedRecord.httpStatus?.toString() ?? '—',
                   ],
                 ].map(([label, value]) => (
                   <div
@@ -433,8 +571,8 @@ export function CronMonitoringClient() {
                     {t('cron.detail.response')}
                   </p>
                   <pre className="max-h-80 overflow-auto rounded-lg border border-border/60 bg-muted/30 p-3 text-xs">
-                    {selectedExecution.error ||
-                      selectedExecution.response ||
+                    {selectedRecord.error ||
+                      selectedRecord.response ||
                       t('cron.detail.empty_response')}
                   </pre>
                 </div>
@@ -443,8 +581,8 @@ export function CronMonitoringClient() {
                     {t('cron.detail.console_logs')}
                   </p>
                   <div className="max-h-80 overflow-auto rounded-lg border border-border/60 bg-muted/30 p-3">
-                    {selectedExecution.consoleLogs.length > 0 ? (
-                      selectedExecution.consoleLogs.map((log) => (
+                    {selectedRecord.consoleLogs.length > 0 ? (
+                      selectedRecord.consoleLogs.map((log) => (
                         <div
                           key={`${log.time}-${log.message}`}
                           className="border-border/50 border-b py-2 last:border-b-0"

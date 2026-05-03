@@ -210,10 +210,68 @@ test('runCronCycle consumes enabled manual run requests', async () => {
 
     assert.equal(result.executions.length, 1);
     assert.equal(result.executions[0].source, 'manual');
+    const status = JSON.parse(fs.readFileSync(paths.statusFile, 'utf8'));
+    assert.equal(status.runs[0].id, 'request-1');
+    assert.equal(status.runs[0].status, 'success');
+    assert.equal(status.runs[0].executionId, result.executions[0].id);
     assert.equal(
       fs.existsSync(path.join(paths.runRequestsDir, 'request.json')),
       false
     );
+  } finally {
+    fs.rmSync(tempDir, { force: true, recursive: true });
+  }
+});
+
+test('runCronCycle exposes manual run processing status before completion', async () => {
+  const tempDir = makeTempDir('web-crons-manual-live-');
+  const configPath = path.join(tempDir, 'cron.config.json');
+  const paths = getCronPaths({
+    controlDir: path.join(tempDir, 'control'),
+    runtimeDir: path.join(tempDir, 'runtime'),
+  });
+  let resolveFetch;
+
+  try {
+    writeJson(configPath, createCronConfig());
+    writeJson(path.join(paths.runRequestsDir, 'request.json'), {
+      id: 'request-1',
+      jobId: 'test-job',
+      requestedAt: 1000,
+    });
+
+    const pending = runCronCycle({
+      configPath,
+      env: { CRON_SECRET: 'secret', INTERNAL_WEB_API_ORIGIN: 'http://web' },
+      fetchImpl: () =>
+        new Promise((resolve) => {
+          resolveFetch = () =>
+            resolve({
+              ok: true,
+              status: 200,
+              text: async () => 'ok',
+            });
+        }),
+      paths,
+      run: async () => ({ code: 0, stderr: '', stdout: '' }),
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const statusDuringRun = JSON.parse(
+      fs.readFileSync(paths.statusFile, 'utf8')
+    );
+    assert.equal(statusDuringRun.runs[0].id, 'request-1');
+    assert.equal(statusDuringRun.runs[0].status, 'processing');
+
+    resolveFetch();
+    const result = await pending;
+
+    assert.equal(result.executions.length, 1);
+    const statusAfterRun = JSON.parse(
+      fs.readFileSync(paths.statusFile, 'utf8')
+    );
+    assert.equal(statusAfterRun.runs[0].status, 'success');
   } finally {
     fs.rmSync(tempDir, { force: true, recursive: true });
   }

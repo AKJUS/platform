@@ -1614,6 +1614,13 @@
       "jobs_title": "Job Đã Đăng Ký",
       "last_run": "Lần Chạy Cuối",
       "next_run": "Lần Chạy Kế Tiếp",
+      "run_status": {
+        "done": "Hoàn tất",
+        "errored": "Có lỗi",
+        "processing": "Đang xử lý",
+        "queued": "Đã xếp hàng",
+        "skipped": "Đã bỏ qua"
+      },
       "runner_status": {
         "live": "Đang chạy",
         "missing": "Thiếu",
@@ -1625,6 +1632,8 @@
         "pending": "Đang chờ"
       },
       "stats": {
+        "active_runs": "Lượt chạy active",
+        "active_runs_meta": "{queued} đang chờ, {processing} đang xử lý",
         "executions": "Lần chạy",
         "failed_jobs": "Job lỗi",
         "failed_jobs_meta": "Job đang có chuỗi lỗi",

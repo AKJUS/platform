@@ -276,7 +276,11 @@ self-contained while preserving explicit host-provided secrets when present.
 
 Runtime cron telemetry is intentionally file-based and local to the host:
 
-- `tmp/docker-web/cron/status.json` for runner health and the current cycle.
+- `tmp/docker-web/cron/status.json` for runner health, the current cycle, and
+  the latest manual run lifecycle records. Manual runs move through `queued`,
+  `processing`, and a final `success` / `failed` / `timeout` / `skipped` state.
+  While a run is processing, the runner refreshes captured route console logs in
+  this file so the monitoring UI can show near-realtime status and log updates.
 - `tmp/docker-web/cron/state.json` for restart-safe last-run markers.
 - `tmp/docker-web/cron/executions/*.jsonl` for per-run route response,
   duration, status, and captured web-container console logs.
@@ -290,6 +294,15 @@ queued until cron execution is enabled again. The runner also supports
 `--once`, which is used by script tests to verify due-run detection, queued
 manual runs, restart-safe state, and log persistence without starting the
 long-running loop.
+
+Calendar cron routes should call workspace calendar APIs through
+`INTERNAL_WEB_API_ORIGIN` when it is present. In Docker production this keeps
+provider sync and smart scheduling traffic on the internal `web-proxy` origin
+instead of accidentally depending on a public app URL from inside the container.
+`calendar-provider-sync` intentionally calls the same
+`/api/v1/workspaces/:wsId/calendar/sync` route that the calendar page uses, but
+with cron auth and `source: "cron"` so dashboard runs stay manual and scheduled
+runs stay auditable.
 
 ## Auto-Deploy Watcher
 

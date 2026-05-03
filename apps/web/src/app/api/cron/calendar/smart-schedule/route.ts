@@ -14,6 +14,18 @@
 import { createAdminClient } from '@tuturuuu/supabase/next/server';
 import { type NextRequest, NextResponse } from 'next/server';
 
+function resolveCalendarScheduleOrigin() {
+  if (process.env.INTERNAL_WEB_API_ORIGIN) {
+    return process.env.INTERNAL_WEB_API_ORIGIN;
+  }
+
+  if (process.env.VERCEL_URL) {
+    return `https://${process.env.VERCEL_URL}`;
+  }
+
+  return process.env.NEXT_PUBLIC_URL || 'http://localhost:7803';
+}
+
 export async function GET(req: NextRequest) {
   const cronSecret =
     process.env.CRON_SECRET ?? process.env.VERCEL_CRON_SECRET ?? '';
@@ -72,9 +84,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Get the base URL
-    const baseUrl = process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : process.env.NEXT_PUBLIC_URL || 'http://localhost:7803';
+    const baseUrl = resolveCalendarScheduleOrigin();
 
     const results: Array<{
       ws_id: string;

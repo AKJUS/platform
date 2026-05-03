@@ -350,6 +350,158 @@ function appendExecution(paths, execution, fsImpl = fs) {
   );
 }
 
+function getExecutionRunStatus(execution) {
+  return execution.status === 'success'
+    ? 'success'
+    : execution.status === 'timeout'
+      ? 'timeout'
+      : execution.status === 'skipped'
+        ? 'skipped'
+        : 'failed';
+}
+
+function buildRunRecordFromRequest({ execution = null, job, request, status }) {
+  const now = Date.now();
+  const startedAt = execution?.startedAt ?? null;
+  const endedAt =
+    status === 'processing' || status === 'queued'
+      ? null
+      : (execution?.endedAt ?? null);
+
+  return {
+    consoleLogs: execution?.consoleLogs ?? [],
+    description: job.description,
+    durationMs:
+      typeof execution?.durationMs === 'number'
+        ? execution.durationMs
+        : startedAt
+          ? Math.max(0, now - startedAt)
+          : null,
+    endedAt,
+    error: execution?.error ?? null,
+    executionId: execution?.id ?? null,
+    httpStatus: execution?.httpStatus ?? null,
+    id: request.id,
+    jobId: job.id,
+    path: job.path,
+    requestedAt: request.requestedAt,
+    requestedBy: request.requestedBy ?? null,
+    requestedByEmail: request.requestedByEmail ?? null,
+    response: execution?.response ?? null,
+    schedule: job.schedule,
+    source: 'manual',
+    startedAt,
+    status,
+    updatedAt: now,
+  };
+}
+
+function upsertRunStatus(paths, runRecord, fsImpl = fs) {
+  const current = readJsonFile(paths.statusFile, {}, fsImpl);
+  const currentRuns = Array.isArray(current.runs) ? current.runs : [];
+  const runs = [
+    runRecord,
+    ...currentRuns.filter((run) => run?.id !== runRecord.id),
+  ]
+    .sort((left, right) => {
+      const leftTime =
+        typeof left?.requestedAt === 'number' ? left.requestedAt : 0;
+      const rightTime =
+        typeof right?.requestedAt === 'number' ? right.requestedAt : 0;
+      return rightTime - leftTime;
+    })
+    .slice(0, 25);
+
+  writeJsonFile(
+    paths.statusFile,
+    {
+      ...current,
+      runs,
+      updatedAt: Date.now(),
+    },
+    fsImpl
+  );
+}
+
+function createManualRunLogRefresher({
+  env,
+  execution,
+  fsImpl,
+  job,
+  paths,
+  request,
+  run,
+}) {
+  if (!request?.id) {
+    return {
+      async flush() {},
+      stop() {},
+    };
+  }
+
+  let timer = null;
+  let refreshing = false;
+  let stopped = false;
+  const refresh = async () => {
+    if (refreshing || stopped) {
+      return;
+    }
+
+    refreshing = true;
+    try {
+      const now = Date.now();
+      const consoleLogs = await readRouteConsoleLogs({
+        env,
+        endedAt: now,
+        run,
+        startedAt: execution.startedAt,
+      });
+      execution.consoleLogs = consoleLogs;
+      execution.endedAt = now;
+      execution.durationMs = Math.max(0, now - execution.startedAt);
+      if (!stopped) {
+        upsertRunStatus(
+          paths,
+          buildRunRecordFromRequest({
+            execution,
+            job,
+            request,
+            status: 'processing',
+          }),
+          fsImpl
+        );
+      }
+    } finally {
+      refreshing = false;
+    }
+  };
+
+  upsertRunStatus(
+    paths,
+    buildRunRecordFromRequest({
+      execution,
+      job,
+      request,
+      status: 'processing',
+    }),
+    fsImpl
+  );
+
+  timer = setInterval(() => {
+    void refresh().catch(() => {});
+  }, 1500);
+
+  return {
+    flush: refresh,
+    stop() {
+      stopped = true;
+      if (timer) {
+        clearInterval(timer);
+      }
+    },
+  };
+}
+
 async function executeJob({
   env = process.env,
   fetchImpl = fetch,
@@ -360,6 +512,7 @@ async function executeJob({
   scheduledAt = null,
   source,
   triggerId = null,
+  triggerRequest = null,
 } = {}) {
   const startedAt = Date.now();
   const cronSecret = env.CRON_SECRET || env.VERCEL_CRON_SECRET;
@@ -390,6 +543,18 @@ async function executeJob({
     status: 'failed',
     triggerId,
   };
+  const manualRunRefresher =
+    source === 'manual' && triggerRequest
+      ? createManualRunLogRefresher({
+          env,
+          execution,
+          fsImpl,
+          job,
+          paths,
+          request: triggerRequest,
+          run,
+        })
+      : null;
 
   try {
     if (!cronSecret) {
@@ -419,6 +584,7 @@ async function executeJob({
   } finally {
     execution.endedAt = Date.now();
     execution.durationMs = Math.max(0, execution.endedAt - execution.startedAt);
+    manualRunRefresher?.stop();
     execution.consoleLogs = await readRouteConsoleLogs({
       env,
       endedAt: execution.endedAt,
@@ -426,6 +592,18 @@ async function executeJob({
       startedAt: execution.startedAt,
     });
     appendExecution(paths, execution, fsImpl);
+    if (source === 'manual' && triggerRequest) {
+      upsertRunStatus(
+        paths,
+        buildRunRecordFromRequest({
+          execution,
+          job,
+          request: triggerRequest,
+          status: getExecutionRunStatus(execution),
+        }),
+        fsImpl
+      );
+    }
   }
 
   return execution;
@@ -493,6 +671,7 @@ function buildStatus({
   intervalMs,
   now,
   rootDir = ROOT_DIR,
+  runs = [],
   state,
 }) {
   const lastByJobId = getLastExecutionByJobId(executions);
@@ -528,6 +707,7 @@ function buildStatus({
       )[0] ?? null,
     nextRunAt,
     retainedExecutionCount: executions.length,
+    runs,
     status: 'live',
     updatedAt: now,
   };
@@ -581,7 +761,32 @@ async function runCronCycle({
 
   for (const request of requests) {
     const job = config.jobs.find((candidate) => candidate.id === request.jobId);
-    if (!job?.enabled) {
+    if (!job) {
+      removeRunRequest(request, fsImpl);
+      continue;
+    }
+
+    if (!job.enabled) {
+      upsertRunStatus(
+        paths,
+        buildRunRecordFromRequest({
+          execution: {
+            consoleLogs: [],
+            durationMs: 0,
+            endedAt: Date.now(),
+            error: 'Cron job is disabled.',
+            httpStatus: null,
+            id: crypto.randomUUID(),
+            response: null,
+            startedAt: Date.now(),
+          },
+          job,
+          request,
+          status: 'skipped',
+        }),
+        fsImpl
+      );
+      removeRunRequest(request, fsImpl);
       continue;
     }
 
@@ -595,6 +800,7 @@ async function runCronCycle({
         run,
         source: 'manual',
         triggerId: request.id,
+        triggerRequest: request,
       })
     );
     removeRunRequest(request, fsImpl);
@@ -642,6 +848,7 @@ async function runCronCycle({
   );
 
   const allExecutions = readExecutionRecords(paths, fsImpl);
+  const previousStatus = readJsonFile(paths.statusFile, {}, fsImpl);
   const status = buildStatus({
     config,
     control,
@@ -649,6 +856,7 @@ async function runCronCycle({
     intervalMs,
     now: Date.now(),
     rootDir,
+    runs: Array.isArray(previousStatus.runs) ? previousStatus.runs : [],
     state,
   });
   writeJsonFile(paths.statusFile, status, fsImpl);

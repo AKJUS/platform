@@ -90,9 +90,16 @@ const messages: Record<string, string> = {
   'cron.runner_status.stale': 'Stale',
   'cron.runner_status.disabled': 'Disabled',
   'cron.runner_status.missing': 'Missing',
+  'cron.run_status.done': 'Done',
+  'cron.run_status.errored': 'Errored',
+  'cron.run_status.processing': 'Processing',
+  'cron.run_status.queued': 'Queued',
+  'cron.run_status.skipped': 'Skipped',
   'cron.states.disabled': 'Disabled',
   'cron.states.enabled': 'Enabled',
   'cron.states.pending': 'Pending',
+  'cron.stats.active_runs': 'Active runs',
+  'cron.stats.active_runs_meta': '{queued} queued, {processing} processing',
   'cron.stats.executions': 'Executions',
   'cron.stats.failed_jobs': 'Failed jobs',
   'cron.stats.failed_jobs_meta': 'Jobs with failures',
@@ -170,11 +177,13 @@ function createSnapshot(
       enabledJobs: 1,
       failedExecutions: 0,
       failedJobs: 0,
+      processingRuns: 0,
       queuedRuns: 0,
       retainedExecutions: 1,
       totalJobs: 1,
     },
     retainedExecutionCount: 1,
+    runs: [],
     source: {
       configAvailable: true,
       controlAvailable: true,
@@ -255,6 +264,7 @@ describe('CronMonitoringClient', () => {
           enabledJobs: 0,
           failedExecutions: 0,
           failedJobs: 0,
+          processingRuns: 0,
           queuedRuns: 0,
           retainedExecutions: 0,
           totalJobs: 0,
@@ -289,5 +299,65 @@ describe('CronMonitoringClient', () => {
     expect(screen.getAllByText('/api/cron/payment/products')).toHaveLength(2);
     expect(screen.getByRole('button', { name: /Run now/ })).toBeVisible();
     expect(screen.getByRole('button', { name: /View logs/ })).toBeVisible();
+  });
+
+  it('renders queued and processing run state from the live snapshot', () => {
+    mocks.snapshot = {
+      data: createSnapshot({
+        overview: {
+          enabledJobs: 1,
+          failedExecutions: 0,
+          failedJobs: 0,
+          processingRuns: 1,
+          queuedRuns: 0,
+          retainedExecutions: 1,
+          totalJobs: 1,
+        },
+        runs: [
+          {
+            consoleLogs: [
+              {
+                containerId: 'web-blue-1',
+                deploymentColor: 'blue',
+                level: 'info',
+                message: 'Syncing calendar provider data',
+                source: 'route',
+                time: 1_700_000_001_000,
+              },
+            ],
+            description: 'Sync payment product metadata.',
+            durationMs: 1000,
+            endedAt: null,
+            error: null,
+            executionId: null,
+            httpStatus: null,
+            id: 'request-1',
+            jobId: 'payment-products',
+            path: '/api/cron/payment/products',
+            requestedAt: 1_700_000_000_500,
+            requestedBy: 'user-1',
+            requestedByEmail: 'ops@tuturuuu.com',
+            response: null,
+            schedule: '0 */12 * * *',
+            source: 'manual',
+            startedAt: 1_700_000_001_000,
+            status: 'processing',
+            updatedAt: 1_700_000_002_000,
+          },
+        ],
+      }),
+      error: null,
+      isPending: false,
+      refetch: mocks.refetchSnapshot,
+    };
+
+    renderCronMonitoringClient();
+
+    expect(screen.getAllByText('Processing').length).toBeGreaterThan(0);
+    expect(
+      screen
+        .getAllByRole('button', { name: /Processing/ })
+        .some((button) => button.hasAttribute('disabled'))
+    ).toBe(true);
   });
 });
