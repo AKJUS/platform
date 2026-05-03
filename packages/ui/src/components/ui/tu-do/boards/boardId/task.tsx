@@ -97,6 +97,7 @@ import {
   getListTextColorClass,
   getTicketBadgeColorClasses,
 } from '../../utils/taskColorUtils';
+import { DESTINATION_TONE_COLORS } from '../../utils/taskConstants';
 import { formatSmartDate } from '../../utils/taskDateUtils';
 import { getPriorityIndicator } from '../../utils/taskPriorityUtils';
 import { sortByDisplayName } from './board-text-utils';
@@ -605,6 +606,9 @@ function TaskCardInner({
     targetClosedList && targetClosedList.id !== task.list_id;
   const canQuickArchive =
     taskList?.status === 'done' && !isOverlay && Boolean(canMoveToClose);
+  const quickArchiveToneClass = taskList?.color
+    ? DESTINATION_TONE_COLORS[taskList.color]
+    : DESTINATION_TONE_COLORS.GRAY;
 
   // Check if task is optimistically added (pending realtime confirmation)
   const isOptimistic = '_isOptimistic' in task && task._isOptimistic === true;
@@ -765,9 +769,10 @@ function TaskCardInner({
             void handleMoveToClose();
           }}
           className={cn(
-            'flex h-5 w-5 flex-none items-center justify-center rounded-sm border border-dynamic-purple/50 bg-dynamic-purple/10 text-dynamic-purple transition-all duration-200',
-            'hover:scale-110 hover:border-dynamic-purple/70 hover:bg-dynamic-purple/20',
-            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-dynamic-purple/40',
+            'flex h-5 w-5 flex-none items-center justify-center rounded-sm border border-transparent transition-all duration-200',
+            quickArchiveToneClass,
+            'hover:scale-110 hover:ring-2 hover:brightness-110',
+            'focus-visible:outline-none focus-visible:ring-2',
             'disabled:cursor-not-allowed disabled:opacity-60'
           )}
         >
