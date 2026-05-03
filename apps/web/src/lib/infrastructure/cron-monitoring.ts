@@ -42,8 +42,17 @@ function resolveDockerWebControlDir() {
 }
 
 function resolveCronConfigPath() {
+  if (process.env.PLATFORM_WEB_CRON_CONFIG_PATH) {
+    return process.env.PLATFORM_WEB_CRON_CONFIG_PATH;
+  }
+
+  const candidates = [
+    path.join(process.cwd(), 'apps', 'web', 'cron.config.json'),
+    path.join(process.cwd(), 'cron.config.json'),
+  ];
+
   return (
-    process.env.PLATFORM_WEB_CRON_CONFIG_PATH ||
+    candidates.find((candidate) => fs.existsSync(candidate)) ??
     path.join(process.cwd(), 'apps', 'web', 'cron.config.json')
   );
 }
