@@ -677,9 +677,11 @@ export interface GetObservabilityParams {
   page?: number;
   pageSize?: number;
   q?: string;
+  since?: number;
   source?: ObservabilitySource | 'all';
   status?: string;
   timeframeHours?: number;
+  until?: number;
 }
 
 export interface GetBlueGreenMonitoringRequestArchiveParams
@@ -923,6 +925,14 @@ function appendObservabilitySearchParams(
 
   if (params?.q) {
     searchParams.set('q', params.q);
+  }
+
+  if (params?.since != null) {
+    searchParams.set('since', String(params.since));
+  }
+
+  if (params?.until != null) {
+    searchParams.set('until', String(params.until));
   }
 
   if (params?.level && params.level !== 'all') {

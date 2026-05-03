@@ -1795,10 +1795,12 @@
         "title": "Analytics"
       },
       "columns": {
+        "build_time": "Build Time",
         "commit": "Commit",
         "deployment": "Deployment",
         "errors": "Errors",
         "hash": "Hash",
+        "last_request": "Last Request",
         "level": "Level",
         "message": "Message",
         "requests": "Requests",
@@ -1814,6 +1816,17 @@
       "deployments": {
         "description": "Deployment stamps grouped by request traffic and server errors.",
         "title": "Deployments"
+      },
+      "empty": {
+        "cron_executions": "No cron executions in this window.",
+        "deployments": "No deployments in this window.",
+        "logs": "No logs in this window.",
+        "requests": "No requests in this frozen view."
+      },
+      "infinite": {
+        "end": "End",
+        "loading": "Loading...",
+        "more": "Scroll for more"
       },
       "last_24_hours": "Last 24 Hours",
       "last_7_days": "Last 7 Days",
@@ -1843,6 +1856,10 @@
       "refresh": "Refresh",
       "requests": {
         "description": "Request timeline with status, path, source, and duration.",
+        "frozen_meta": "Frozen at {time}",
+        "frozen_title": "Frozen Request Timeline",
+        "no_new": "No new requests",
+        "show_new": "Show {count} new",
         "title": "Requests"
       },
       "resources": {

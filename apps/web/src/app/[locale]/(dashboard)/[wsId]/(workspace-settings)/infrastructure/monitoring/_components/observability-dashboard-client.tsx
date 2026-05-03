@@ -1,6 +1,11 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import {
   Activity,
   BarChart3,
@@ -29,6 +34,7 @@ import {
   getObservabilityLogs,
   getObservabilityOverview,
   getObservabilityRequests,
+  type ObservabilityDeployment,
   type ObservabilityLogEvent,
   type ObservabilityRequest,
   queueCronRun,
@@ -46,7 +52,13 @@ import { Switch } from '@tuturuuu/ui/switch';
 import { cn } from '@tuturuuu/utils/format';
 import { useTranslations } from 'next-intl';
 import { parseAsInteger, parseAsString, useQueryState } from 'nuqs';
-import { useState } from 'react';
+import { type ReactNode, useMemo, useState } from 'react';
+import {
+  formatBytes,
+  formatCompactNumber,
+  formatDateTime,
+  formatLatencyMs,
+} from './formatters';
 
 export type ObservabilityDashboardMode =
   | 'analytics'
@@ -69,12 +81,23 @@ const modeIcons = {
   resources: Gauge,
 };
 
+type LogsPage = Awaited<ReturnType<typeof getObservabilityLogs>>;
+type RequestsPage = Awaited<ReturnType<typeof getObservabilityRequests>>;
+type DeploymentsPage = Awaited<ReturnType<typeof getObservabilityDeployments>>;
+type CronExecutionsPage = Awaited<
+  ReturnType<typeof getCronMonitoringExecutionArchive>
+>;
+type InfiniteData<TPage> = {
+  pageParams: number[];
+  pages: TPage[];
+};
+
 function formatNumber(value: number | null | undefined) {
   if (value == null || !Number.isFinite(value)) {
     return '-';
   }
 
-  return new Intl.NumberFormat().format(Math.round(value));
+  return formatCompactNumber(value).toLowerCase();
 }
 
 function formatDuration(value: number | null | undefined) {
@@ -187,29 +210,165 @@ function RequestRow({ request }: { request: ObservabilityRequest }) {
   );
 }
 
-function ResultsFooter({
+function DeploymentRow({
+  deployment,
+}: {
+  deployment: ObservabilityDeployment;
+}) {
+  const state = deployment.runtimeState ?? deployment.status;
+  const hash =
+    deployment.commitShortHash ?? deployment.commitHash?.slice(0, 10) ?? '-';
+
+  return (
+    <div className="grid h-full grid-cols-[minmax(0,1fr)_110px_110px_100px_90px_120px] items-center gap-4 border-border/50 border-b px-4 py-3 text-sm">
+      <div className="min-w-0">
+        <div className="flex min-w-0 items-center gap-2">
+          <span className="truncate font-semibold">
+            {deployment.commitSubject ?? tFallbackDeployment(deployment)}
+          </span>
+          <span className="shrink-0 rounded border border-border/70 bg-muted/30 px-1.5 py-0.5 font-mono text-muted-foreground text-xs">
+            {hash}
+          </span>
+        </div>
+        <p className="mt-1 truncate font-mono text-muted-foreground text-xs">
+          {deployment.deploymentStamp ??
+            deployment.color ??
+            deployment.commitHash ??
+            'unknown'}
+        </p>
+      </div>
+      <span
+        className={cn(
+          'font-medium',
+          deployment.status === 'failed'
+            ? 'text-dynamic-red'
+            : 'text-dynamic-green'
+        )}
+      >
+        {state}
+      </span>
+      <span className="font-mono text-muted-foreground text-xs">
+        {formatDuration(deployment.durationMs)}
+      </span>
+      <span>{formatNumber(deployment.requestCount)}</span>
+      <span className="text-dynamic-red">
+        {formatNumber(deployment.errorCount)}
+      </span>
+      <span className="text-muted-foreground text-xs">
+        {formatTime(deployment.lastRequestAt)}
+      </span>
+    </div>
+  );
+}
+
+function tFallbackDeployment(deployment: ObservabilityDeployment) {
+  return deployment.deploymentStamp ?? deployment.color ?? 'unknown';
+}
+
+function VirtualizedList<T>({
+  empty,
+  estimateRowHeight,
   hasMore,
+  height = 560,
+  isFetchingMore,
+  items,
+  onEndReached,
+  renderRow,
+}: {
+  empty: ReactNode;
+  estimateRowHeight: number;
+  hasMore: boolean;
+  height?: number;
+  isFetchingMore: boolean;
+  items: T[];
+  onEndReached: () => void;
+  renderRow: (item: T, index: number) => ReactNode;
+}) {
+  const [scrollTop, setScrollTop] = useState(0);
+  const overscan = 8;
+  const startIndex = Math.max(
+    0,
+    Math.floor(scrollTop / estimateRowHeight) - overscan
+  );
+  const visibleCount = Math.ceil(height / estimateRowHeight) + overscan * 2;
+  const endIndex = Math.min(items.length, startIndex + visibleCount);
+  const virtualItems = items.slice(startIndex, endIndex);
+
+  if (items.length === 0) {
+    return (
+      <div className="px-4 py-12 text-center text-muted-foreground text-sm">
+        {empty}
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="overflow-auto"
+      onScroll={(event) => {
+        const target = event.currentTarget;
+        setScrollTop(target.scrollTop);
+
+        if (
+          hasMore &&
+          !isFetchingMore &&
+          target.scrollHeight - target.scrollTop - target.clientHeight <
+            estimateRowHeight * 6
+        ) {
+          onEndReached();
+        }
+      }}
+      style={{ height }}
+    >
+      <div
+        className="relative"
+        style={{ height: items.length * estimateRowHeight }}
+      >
+        {virtualItems.map((item, offset) => {
+          const index = startIndex + offset;
+          return (
+            <div
+              className="absolute inset-x-0"
+              key={index}
+              style={{
+                height: estimateRowHeight,
+                transform: `translateY(${index * estimateRowHeight}px)`,
+              }}
+            >
+              {renderRow(item, index)}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function InfiniteFooter({
+  endLabel,
+  hasMore,
+  isFetchingMore,
+  loadingLabel,
   loaded,
-  onLoadMore,
-  loadMoreLabel,
+  moreLabel,
   total,
 }: {
+  endLabel: string;
   hasMore: boolean;
+  isFetchingMore: boolean;
+  loadingLabel: string;
   loaded: number;
-  loadMoreLabel: string;
-  onLoadMore: () => void;
+  moreLabel: string;
   total: number;
 }) {
   return (
-    <div className="flex flex-col gap-2 border-border/60 border-t px-4 py-3 text-muted-foreground text-xs sm:flex-row sm:items-center sm:justify-between">
+    <div className="flex items-center justify-between border-border/60 border-t px-4 py-3 text-muted-foreground text-xs">
       <span>
-        {loaded} / {total}
+        {formatNumber(loaded)} / {formatNumber(total)}
       </span>
-      {hasMore ? (
-        <Button onClick={onLoadMore} size="sm" type="button" variant="outline">
-          {loadMoreLabel}
-        </Button>
-      ) : null}
+      <span>
+        {isFetchingMore ? loadingLabel : hasMore ? moreLabel : endLabel}
+      </span>
     </div>
   );
 }
@@ -239,19 +398,25 @@ export function ObservabilityDashboardClient({
     'source',
     parseAsString.withDefault('all').withOptions({ shallow: true })
   );
-  const [pageSize, setPageSize] = useQueryState(
+  const [pageSize] = useQueryState(
     'limit',
     parseAsInteger.withDefault(100).withOptions({ shallow: true })
   );
+  const [requestFreezeUntil, setRequestFreezeUntil] = useState(() =>
+    Date.now()
+  );
   const [selectedExecution, setSelectedExecution] =
     useState<CronExecutionRecord | null>(null);
-  const filters: GetObservabilityParams = {
-    level: level as GetObservabilityParams['level'],
-    pageSize,
-    q: query || undefined,
-    source: source as GetObservabilityParams['source'],
-    timeframeHours,
-  };
+  const filters: GetObservabilityParams = useMemo(
+    () => ({
+      level: level as GetObservabilityParams['level'],
+      pageSize,
+      q: query || undefined,
+      source: source as GetObservabilityParams['source'],
+      timeframeHours,
+    }),
+    [level, pageSize, query, source, timeframeHours]
+  );
   const overviewQuery = useQuery({
     queryFn: () => getObservabilityOverview({ timeframeHours }),
     queryKey: ['infrastructure', 'observability', 'overview', timeframeHours],
@@ -262,20 +427,78 @@ export function ObservabilityDashboardClient({
     queryFn: () => getObservabilityAnalytics({ timeframeHours }),
     queryKey: ['infrastructure', 'observability', 'analytics', timeframeHours],
   });
-  const logsQuery = useQuery({
-    enabled: mode === 'logs' || mode === 'overview' || mode === 'observability',
-    queryFn: () => getObservabilityLogs(filters),
+  const logsQuery = useInfiniteQuery<
+    LogsPage,
+    Error,
+    InfiniteData<LogsPage>,
+    readonly unknown[],
+    number
+  >({
+    enabled: mode === 'logs',
+    getNextPageParam: (lastPage) =>
+      lastPage.hasNextPage ? lastPage.page + 1 : undefined,
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) =>
+      getObservabilityLogs({ ...filters, page: pageParam }),
     queryKey: ['infrastructure', 'observability', 'logs', filters],
-    refetchInterval: mode === 'logs' ? 5_000 : 30_000,
+    refetchInterval: 5_000,
   });
-  const requestsQuery = useQuery({
-    enabled: mode === 'requests' || mode === 'overview' || mode === 'analytics',
-    queryFn: () => getObservabilityRequests(filters),
-    queryKey: ['infrastructure', 'observability', 'requests', filters],
+  const requestsQuery = useInfiniteQuery<
+    RequestsPage,
+    Error,
+    InfiniteData<RequestsPage>,
+    readonly unknown[],
+    number
+  >({
+    enabled: mode === 'requests',
+    getNextPageParam: (lastPage) =>
+      lastPage.hasNextPage ? lastPage.page + 1 : undefined,
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) =>
+      getObservabilityRequests({
+        ...filters,
+        page: pageParam,
+        until: requestFreezeUntil,
+      }),
+    queryKey: [
+      'infrastructure',
+      'observability',
+      'requests',
+      filters,
+      requestFreezeUntil,
+    ],
   });
-  const deploymentsQuery = useQuery({
+  const newRequestsQuery = useQuery({
+    enabled: mode === 'requests',
+    queryFn: () =>
+      getObservabilityRequests({
+        ...filters,
+        page: 1,
+        pageSize: 1,
+        since: requestFreezeUntil,
+      }),
+    queryKey: [
+      'infrastructure',
+      'observability',
+      'requests-new',
+      filters,
+      requestFreezeUntil,
+    ],
+    refetchInterval: 5_000,
+  });
+  const deploymentsQuery = useInfiniteQuery<
+    DeploymentsPage,
+    Error,
+    InfiniteData<DeploymentsPage>,
+    readonly unknown[],
+    number
+  >({
     enabled: mode === 'deployments',
-    queryFn: () => getObservabilityDeployments(filters),
+    getNextPageParam: (lastPage) =>
+      lastPage.hasNextPage ? lastPage.page + 1 : undefined,
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) =>
+      getObservabilityDeployments({ ...filters, page: pageParam }),
     queryKey: ['infrastructure', 'observability', 'deployments', filters],
   });
   const cronQuery = useQuery({
@@ -289,11 +512,20 @@ export function ObservabilityDashboardClient({
     queryKey: ['infrastructure', 'monitoring', 'cron', 'snapshot'],
     refetchInterval: 5_000,
   });
-  const cronExecutionsQuery = useQuery({
+  const cronExecutionsQuery = useInfiniteQuery<
+    CronExecutionsPage,
+    Error,
+    InfiniteData<CronExecutionsPage>,
+    readonly unknown[],
+    number
+  >({
     enabled: mode === 'cron',
-    queryFn: () =>
+    getNextPageParam: (lastPage) =>
+      lastPage.hasNextPage ? lastPage.page + 1 : undefined,
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) =>
       getCronMonitoringExecutionArchive({
-        page: 1,
+        page: pageParam,
         pageSize,
       }),
     queryKey: ['infrastructure', 'monitoring', 'cron', 'executions', pageSize],
@@ -328,6 +560,32 @@ export function ObservabilityDashboardClient({
   const analytics = analyticsQuery.data;
   const cronSnapshot = cronSnapshotQuery.data;
   const resources = resourcesQuery.data?.dockerResources;
+  const logs = useMemo(
+    () => logsQuery.data?.pages.flatMap((page) => page.items) ?? [],
+    [logsQuery.data]
+  );
+  const requests = useMemo(
+    () => requestsQuery.data?.pages.flatMap((page) => page.items) ?? [],
+    [requestsQuery.data]
+  );
+  const deployments = useMemo(
+    () => deploymentsQuery.data?.pages.flatMap((page) => page.items) ?? [],
+    [deploymentsQuery.data]
+  );
+  const cronExecutions = useMemo(
+    () => cronExecutionsQuery.data?.pages.flatMap((page) => page.items) ?? [],
+    [cronExecutionsQuery.data]
+  );
+  const logsTotal = logsQuery.data?.pages[0]?.total ?? 0;
+  const requestsTotal = requestsQuery.data?.pages[0]?.total ?? 0;
+  const deploymentsTotal = deploymentsQuery.data?.pages[0]?.total ?? 0;
+  const cronExecutionsTotal = cronExecutionsQuery.data?.pages[0]?.total ?? 0;
+  const newRequestCount = newRequestsQuery.data?.total ?? 0;
+  const infiniteLabels = {
+    end: t('infinite.end'),
+    loading: t('infinite.loading'),
+    more: t('infinite.more'),
+  };
 
   return (
     <div className="space-y-4">
@@ -420,7 +678,7 @@ export function ObservabilityDashboardClient({
         <MetricCard
           label={t('metrics.p95')}
           meta={t('metrics.p95_meta')}
-          value={formatDuration(overview?.p95DurationMs)}
+          value={formatLatencyMs(overview?.p95DurationMs)}
         />
         <MetricCard
           label={t('metrics.cron')}
@@ -470,85 +728,123 @@ export function ObservabilityDashboardClient({
             <span>{t('columns.status')}</span>
             <span>{t('columns.message')}</span>
           </div>
-          {(logsQuery.data?.items ?? []).map((log) => (
-            <LogRow key={log.id} log={log} />
-          ))}
-          <ResultsFooter
-            hasMore={Boolean(logsQuery.data?.hasNextPage)}
-            loaded={logsQuery.data?.items.length ?? 0}
-            loadMoreLabel={t('load_older')}
-            onLoadMore={() => void setPageSize(pageSize + 100)}
-            total={logsQuery.data?.total ?? 0}
+          <VirtualizedList
+            empty={t('empty.logs')}
+            estimateRowHeight={66}
+            hasMore={logsQuery.hasNextPage}
+            isFetchingMore={logsQuery.isFetchingNextPage}
+            items={logs}
+            onEndReached={() => void logsQuery.fetchNextPage()}
+            renderRow={(log) => <LogRow key={log.id} log={log} />}
+          />
+          <InfiniteFooter
+            endLabel={infiniteLabels.end}
+            hasMore={logsQuery.hasNextPage}
+            isFetchingMore={logsQuery.isFetchingNextPage}
+            loaded={logs.length}
+            loadingLabel={infiniteLabels.loading}
+            moreLabel={infiniteLabels.more}
+            total={logsTotal}
           />
         </section>
       )}
 
       {mode === 'requests' && (
         <section className="rounded-lg border border-border bg-background">
-          {(requestsQuery.data?.items ?? []).map((request) => (
-            <RequestRow key={request.id} request={request} />
-          ))}
-          <ResultsFooter
-            hasMore={Boolean(requestsQuery.data?.hasNextPage)}
-            loaded={requestsQuery.data?.items.length ?? 0}
-            loadMoreLabel={t('load_older')}
-            onLoadMore={() => void setPageSize(pageSize + 100)}
-            total={requestsQuery.data?.total ?? 0}
+          <div className="flex flex-col gap-3 border-border border-b px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="font-medium text-sm">
+                {t('requests.frozen_title')}
+              </p>
+              <p className="text-muted-foreground text-xs">
+                {t('requests.frozen_meta', {
+                  time: formatDateTime(requestFreezeUntil),
+                })}
+              </p>
+            </div>
+            {newRequestCount > 0 ? (
+              <Button
+                onClick={() => setRequestFreezeUntil(Date.now())}
+                size="sm"
+                type="button"
+                variant="outline"
+              >
+                {t('requests.show_new', {
+                  count: formatNumber(newRequestCount),
+                })}
+              </Button>
+            ) : (
+              <Badge className="rounded-full" variant="outline">
+                {t('requests.no_new')}
+              </Badge>
+            )}
+          </div>
+          <VirtualizedList
+            empty={t('empty.requests')}
+            estimateRowHeight={58}
+            hasMore={requestsQuery.hasNextPage}
+            isFetchingMore={requestsQuery.isFetchingNextPage}
+            items={requests}
+            onEndReached={() => void requestsQuery.fetchNextPage()}
+            renderRow={(request) => (
+              <RequestRow key={request.id} request={request} />
+            )}
+          />
+          <InfiniteFooter
+            endLabel={infiniteLabels.end}
+            hasMore={requestsQuery.hasNextPage}
+            isFetchingMore={requestsQuery.isFetchingNextPage}
+            loaded={requests.length}
+            loadingLabel={infiniteLabels.loading}
+            moreLabel={infiniteLabels.more}
+            total={requestsTotal}
           />
         </section>
       )}
 
       {mode === 'deployments' && (
         <section className="rounded-lg border border-border bg-background">
-          <div className="grid grid-cols-[150px_90px_minmax(0,1fr)_120px_90px_90px] gap-4 border-border border-b px-4 py-3 text-muted-foreground text-xs">
+          <div className="grid grid-cols-[minmax(0,1fr)_110px_110px_100px_90px_120px] gap-4 border-border border-b px-4 py-3 text-muted-foreground text-xs">
             <span>{t('columns.deployment')}</span>
             <span>{t('columns.state')}</span>
-            <span>{t('columns.commit')}</span>
-            <span>{t('columns.hash')}</span>
+            <span>{t('columns.build_time')}</span>
             <span>{t('columns.requests')}</span>
             <span>{t('columns.errors')}</span>
+            <span>{t('columns.last_request')}</span>
           </div>
-          {(deploymentsQuery.data?.items ?? []).map((deployment) => (
-            <div
-              className="grid grid-cols-[150px_90px_minmax(0,1fr)_120px_90px_90px] items-center gap-4 border-border/50 border-b px-4 py-3 text-sm"
-              key={deployment.deploymentStamp ?? deployment.color ?? 'unknown'}
-            >
-              <span className="truncate font-mono">
-                {deployment.deploymentStamp ?? deployment.color ?? 'unknown'}
-              </span>
-              <span
-                className={cn(
-                  deployment.status === 'failed'
-                    ? 'text-dynamic-red'
-                    : 'text-dynamic-green'
-                )}
-              >
-                {deployment.runtimeState ?? deployment.status}
-              </span>
-              <span className="truncate">
-                {deployment.commitSubject ?? '-'}
-              </span>
-              <span className="truncate font-mono text-muted-foreground">
-                {deployment.commitShortHash ??
-                  deployment.commitHash?.slice(0, 12) ??
-                  '-'}
-              </span>
-              <span>{deployment.requestCount}</span>
-              <span className="text-dynamic-red">{deployment.errorCount}</span>
-            </div>
-          ))}
-          <ResultsFooter
-            hasMore={Boolean(deploymentsQuery.data?.hasNextPage)}
-            loaded={deploymentsQuery.data?.items.length ?? 0}
-            loadMoreLabel={t('load_older')}
-            onLoadMore={() => void setPageSize(pageSize + 100)}
-            total={deploymentsQuery.data?.total ?? 0}
+          <VirtualizedList
+            empty={t('empty.deployments')}
+            estimateRowHeight={78}
+            hasMore={deploymentsQuery.hasNextPage}
+            isFetchingMore={deploymentsQuery.isFetchingNextPage}
+            items={deployments}
+            onEndReached={() => void deploymentsQuery.fetchNextPage()}
+            renderRow={(deployment) => (
+              <DeploymentRow
+                deployment={deployment}
+                key={
+                  deployment.commitHash ??
+                  deployment.deploymentStamp ??
+                  deployment.color ??
+                  'unknown'
+                }
+              />
+            )}
+          />
+          <InfiniteFooter
+            endLabel={infiniteLabels.end}
+            hasMore={deploymentsQuery.hasNextPage}
+            isFetchingMore={deploymentsQuery.isFetchingNextPage}
+            loaded={deployments.length}
+            loadingLabel={infiniteLabels.loading}
+            moreLabel={infiniteLabels.more}
+            total={deploymentsTotal}
           />
         </section>
       )}
 
       {mode === 'cron' && (
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.6fr)]">
+        <div className="space-y-4">
           <section className="rounded-lg border border-border bg-background">
             <div className="flex items-center justify-between gap-3 border-border border-b px-4 py-3">
               <div>
@@ -639,43 +935,48 @@ export function ObservabilityDashboardClient({
                 {cronT('executions_description')}
               </p>
             </div>
-            {(cronExecutionsQuery.data?.items ?? []).map((run) => (
-              <button
-                className="grid gap-2 border-border/50 border-b px-4 py-3 text-sm"
-                key={run.id}
-                onClick={() => setSelectedExecution(run)}
-                type="button"
-              >
-                <div className="flex items-center justify-between gap-3">
-                  <span className="truncate font-mono">{run.jobId}</span>
-                  <span
-                    className={
-                      run.status === 'failed' ? 'text-dynamic-red' : ''
-                    }
-                  >
-                    {run.status}
+            <VirtualizedList
+              empty={t('empty.cron_executions')}
+              estimateRowHeight={92}
+              hasMore={cronExecutionsQuery.hasNextPage}
+              isFetchingMore={cronExecutionsQuery.isFetchingNextPage}
+              items={cronExecutions}
+              onEndReached={() => void cronExecutionsQuery.fetchNextPage()}
+              renderRow={(run) => (
+                <button
+                  className="grid h-full w-full gap-2 border-border/50 border-b px-4 py-3 text-left text-sm transition-colors hover:bg-foreground/[0.025]"
+                  key={run.id}
+                  onClick={() => setSelectedExecution(run)}
+                  type="button"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="truncate font-mono">{run.jobId}</span>
+                    <span
+                      className={
+                        run.status === 'failed' ? 'text-dynamic-red' : ''
+                      }
+                    >
+                      {run.status}
+                    </span>
+                  </div>
+                  <span className="truncate text-muted-foreground text-xs">
+                    {run.path}
                   </span>
-                </div>
-                <span className="truncate text-muted-foreground text-xs">
-                  {run.path}
-                </span>
-                <div className="flex items-center justify-between gap-3 font-mono text-muted-foreground text-xs">
-                  <span>{formatTime(run.startedAt)}</span>
-                  <span>{formatDuration(run.durationMs)}</span>
-                </div>
-                {run.error ? (
-                  <pre className="max-h-28 overflow-auto rounded-md border border-border/60 bg-muted/30 p-2 text-xs">
-                    {run.error}
-                  </pre>
-                ) : null}
-              </button>
-            ))}
-            <ResultsFooter
-              hasMore={Boolean(cronExecutionsQuery.data?.hasNextPage)}
-              loaded={cronExecutionsQuery.data?.items.length ?? 0}
-              loadMoreLabel={t('load_older')}
-              onLoadMore={() => void setPageSize(pageSize + 100)}
-              total={cronExecutionsQuery.data?.total ?? 0}
+                  <div className="flex items-center justify-between gap-3 font-mono text-muted-foreground text-xs">
+                    <span>{formatTime(run.startedAt)}</span>
+                    <span>{formatDuration(run.durationMs)}</span>
+                  </div>
+                </button>
+              )}
+            />
+            <InfiniteFooter
+              endLabel={infiniteLabels.end}
+              hasMore={cronExecutionsQuery.hasNextPage}
+              isFetchingMore={cronExecutionsQuery.isFetchingNextPage}
+              loaded={cronExecutions.length}
+              loadingLabel={infiniteLabels.loading}
+              moreLabel={infiniteLabels.more}
+              total={cronExecutionsTotal}
             />
           </section>
         </div>
@@ -776,12 +1077,10 @@ export function ObservabilityDashboardClient({
                   {container.health}
                 </span>
                 <span>{formatNumber(container.cpuPercent)}%</span>
-                <span>
-                  {formatNumber((container.memoryBytes ?? 0) / 1024 / 1024)}MB
-                </span>
+                <span>{formatBytes(container.memoryBytes)}</span>
                 <span className="font-mono text-muted-foreground text-xs">
-                  {formatNumber((container.rxBytes ?? 0) / 1024)}K /{' '}
-                  {formatNumber((container.txBytes ?? 0) / 1024)}K
+                  {formatBytes(container.rxBytes)} /{' '}
+                  {formatBytes(container.txBytes)}
                 </span>
               </div>
             ))}
@@ -796,7 +1095,7 @@ export function ObservabilityDashboardClient({
               />
               <MetricCard
                 label={t('resources.total_memory')}
-                value={`${formatNumber((resources?.totalMemoryBytes ?? 0) / 1024 / 1024)}MB`}
+                value={formatBytes(resources?.totalMemoryBytes)}
               />
               <MetricCard
                 label={t('resources.services')}

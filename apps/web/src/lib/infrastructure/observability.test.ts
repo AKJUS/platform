@@ -29,9 +29,11 @@ describe('parseObservabilityFilters', () => {
         page: '3',
         pageSize: '25',
         q: 'cron failure',
+        since: '1710000000000',
         source: 'cron',
         status: '5xx',
         timeframeHours: '168',
+        until: '2026-05-04T01:02:03.000Z',
       })
     );
 
@@ -40,9 +42,11 @@ describe('parseObservabilityFilters', () => {
       page: 3,
       pageSize: 25,
       q: 'cron failure',
+      since: 1710000000000,
       source: 'cron',
       status: '5xx',
       timeframeHours: 168,
+      until: Date.parse('2026-05-04T01:02:03.000Z'),
     });
   });
 });

@@ -23,9 +23,11 @@ interface ObservabilityFilters {
   page?: number;
   pageSize?: number;
   q?: string | null;
+  since?: number | null;
   source?: string | null;
   status?: string | null;
   timeframeHours?: number;
+  until?: number | null;
 }
 
 const DEFAULT_PAGE_SIZE = 50;
@@ -53,6 +55,25 @@ function clampTimeframeHours(value: unknown) {
     : DEFAULT_TIMEFRAME_HOURS;
 }
 
+function parseTimestampFilter(value: unknown) {
+  if (value == null) {
+    return null;
+  }
+
+  const normalized = String(value).trim();
+  if (!normalized) {
+    return null;
+  }
+
+  const numeric = Number(normalized);
+  if (Number.isFinite(numeric) && numeric > 0) {
+    return numeric;
+  }
+
+  const parsed = Date.parse(normalized);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 export function parseObservabilityFilters(
   searchParams: URLSearchParams
 ): Required<
@@ -69,9 +90,11 @@ export function parseObservabilityFilters(
     page: clampPage(searchParams.get('page')),
     pageSize: clampPageSize(searchParams.get('pageSize')),
     q: normalize(searchParams.get('q')),
+    since: parseTimestampFilter(searchParams.get('since')),
     source: normalize(searchParams.get('source')),
     status: normalize(searchParams.get('status')),
     timeframeHours: clampTimeframeHours(searchParams.get('timeframeHours')),
+    until: parseTimestampFilter(searchParams.get('until')),
   };
 }
 
@@ -149,6 +172,21 @@ function shouldIncludeText(
 ) {
   const normalized = q?.trim();
   return !normalized || values.some((value) => filterText(value, normalized));
+}
+
+function shouldIncludeTime(
+  time: number,
+  filters: Pick<ObservabilityFilters, 'since' | 'until'>
+) {
+  if (filters.since != null && time <= filters.since) {
+    return false;
+  }
+
+  if (filters.until != null && time > filters.until) {
+    return false;
+  }
+
+  return true;
 }
 
 function mapLegacyRequest(request: BlueGreenMonitoringRequestLog) {
@@ -249,6 +287,7 @@ function loadLegacyRequests(
 
   return archive.items
     .filter((request) => request.time >= cutoff)
+    .filter((request) => shouldIncludeTime(request.time, filters))
     .filter((request) => statusMatches(request.status, filters.status))
     .filter((request) =>
       shouldIncludeText(filters.q, [
@@ -431,6 +470,9 @@ async function loadRecentRequests(
   const postgresRequests = rows
     .filter((row) => !filters.source || row.source === filters.source)
     .filter((row) => statusMatches(row.status, filters.status))
+    .filter((row) =>
+      shouldIncludeTime(toMs(row.started_at) ?? Date.now(), filters)
+    )
     .filter(
       (row) =>
         !q ||
@@ -565,19 +607,102 @@ export async function readObservabilityDeployments(
   filters: ObservabilityFilters = {}
 ) {
   const requests = await loadRecentRequests(parseFilterDefaults(filters));
-  const byStamp = new Map<string, ObservabilityDeployment>();
+  const deployments = new Map<string, ObservabilityDeployment>();
+  const aliases = new Map<string, string>();
   const snapshot = readBlueGreenMonitoringSnapshot({
     requestPreviewLimit: 0,
     watcherLogLimit: 0,
   });
+  const resolveDeploymentKey = (deployment: {
+    activeColor?: string | null;
+    commitHash?: string | null;
+    deploymentStamp?: string | null;
+  }) => {
+    if (deployment.commitHash) {
+      return `commit:${deployment.commitHash}`;
+    }
+
+    if (deployment.deploymentStamp) {
+      return `stamp:${deployment.deploymentStamp}`;
+    }
+
+    if (deployment.activeColor) {
+      return `color:${deployment.activeColor}`;
+    }
+
+    return 'unknown';
+  };
+  const registerAlias = (alias: string | null | undefined, key: string) => {
+    if (alias) {
+      aliases.set(alias, key);
+    }
+  };
+  const mergeText = (
+    left: string | null,
+    right: string | null | undefined,
+    separator = ' / '
+  ) => {
+    if (!right) return left;
+    if (!left) return right;
+    return left.split(separator).includes(right)
+      ? left
+      : `${left}${separator}${right}`;
+  };
+  const mergeDeployment = (
+    left: ObservabilityDeployment,
+    right: ObservabilityDeployment
+  ): ObservabilityDeployment => {
+    const runtimeState =
+      left.runtimeState === 'active' || right.runtimeState === 'active'
+        ? 'active'
+        : left.runtimeState === 'standby' || right.runtimeState === 'standby'
+          ? 'standby'
+          : null;
+
+    return {
+      ...left,
+      color: mergeText(left.color, right.color),
+      commitHash: left.commitHash ?? right.commitHash,
+      commitShortHash: left.commitShortHash ?? right.commitShortHash,
+      commitSubject: left.commitSubject ?? right.commitSubject,
+      deploymentStamp: mergeText(left.deploymentStamp, right.deploymentStamp),
+      durationMs: Math.max(left.durationMs ?? 0, right.durationMs ?? 0) || null,
+      errorCount: left.errorCount + right.errorCount,
+      lastRequestAt:
+        Math.max(left.lastRequestAt ?? 0, right.lastRequestAt ?? 0) || null,
+      requestCount: left.requestCount + right.requestCount,
+      runtimeState,
+      startedAt:
+        left.startedAt == null
+          ? right.startedAt
+          : right.startedAt == null
+            ? left.startedAt
+            : Math.min(left.startedAt, right.startedAt),
+      status:
+        runtimeState ??
+        (left.status === 'failed' || right.status === 'failed'
+          ? 'failed'
+          : left.status || right.status),
+    };
+  };
+  const upsertDeployment = (deployment: ObservabilityDeployment) => {
+    const key = resolveDeploymentKey({
+      activeColor: deployment.color,
+      commitHash: deployment.commitHash,
+      deploymentStamp: deployment.deploymentStamp,
+    });
+    const current = deployments.get(key);
+    deployments.set(
+      key,
+      current ? mergeDeployment(current, deployment) : deployment
+    );
+    registerAlias(deployment.color, key);
+    registerAlias(deployment.deploymentStamp, key);
+    registerAlias(deployment.commitHash, key);
+  };
 
   for (const deployment of snapshot.deployments) {
-    const key =
-      deployment.deploymentStamp ??
-      deployment.commitHash ??
-      deployment.activeColor ??
-      'unknown';
-    byStamp.set(key, {
+    upsertDeployment({
       color: deployment.activeColor ?? null,
       commitHash: deployment.commitHash ?? null,
       commitShortHash: deployment.commitShortHash ?? null,
@@ -595,11 +720,14 @@ export async function readObservabilityDeployments(
 
   for (const request of requests) {
     const key =
-      request.deploymentStamp ??
-      request.deploymentColor ??
-      request.source ??
-      'unknown';
-    const current = byStamp.get(key) ?? {
+      (request.deploymentStamp && aliases.get(request.deploymentStamp)) ??
+      (request.deploymentColor && aliases.get(request.deploymentColor)) ??
+      (request.deploymentStamp
+        ? `stamp:${request.deploymentStamp}`
+        : request.deploymentColor
+          ? `color:${request.deploymentColor}`
+          : request.source);
+    const current = deployments.get(key) ?? {
       color: request.deploymentColor,
       commitHash: null,
       commitShortHash: null,
@@ -625,13 +753,20 @@ export async function readObservabilityDeployments(
       current.startedAt == null
         ? request.startedAt
         : Math.min(current.startedAt, request.startedAt);
-    byStamp.set(key, current);
+    deployments.set(key, current);
   }
 
-  return paginate([...byStamp.values()], {
-    page: clampPage(filters.page),
-    pageSize: clampPageSize(filters.pageSize),
-  });
+  return paginate(
+    [...deployments.values()].sort(
+      (left, right) =>
+        (right.startedAt ?? right.lastRequestAt ?? 0) -
+        (left.startedAt ?? left.lastRequestAt ?? 0)
+    ),
+    {
+      page: clampPage(filters.page),
+      pageSize: clampPageSize(filters.pageSize),
+    }
+  );
 }
 
 function parseFilterDefaults(filters: ObservabilityFilters) {

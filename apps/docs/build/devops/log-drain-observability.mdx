@@ -54,6 +54,10 @@ The drain is fail-open: if Postgres is unavailable, requests and cron jobs conti
 
 The revamped monitoring UI reads both the Postgres drain and the pre-drain blue/green files under `tmp/docker-web`. Requests and Logs include retained proxy traffic, watcher logs, and request console lines while deployments are enriched from the watcher snapshot so commit subject, full hash, short hash, stamp, active color, and runtime lane remain visible even before the Postgres drain has a complete history.
 
+Deployment rows are grouped around the git commit identity first, then enriched with deployment stamps, runtime state, build duration, request volume, and errors. This keeps active and standby lanes for the same commit together instead of showing duplicate rows for the same build.
+
+The Requests tab intentionally freezes its result window when opened. New traffic is counted in the background and offered as an explicit "show new" action, while older pages are appended automatically as the operator scrolls. This prevents live traffic from shifting the visible rows during investigation.
+
 ## Cron Control
 
 Infrastructure → Monitoring → Cron exposes the native Docker cron runner state, a global enable/disable switch, per-job enable/disable switches, manual run buttons, retained execution rows, and captured response/console output. Runtime overrides are stored in `tmp/docker-web/watch/control/cron-control.json`; they do not edit `apps/web/cron.config.json`, so Vercel cron config remains source-controlled while local Docker operations can pause individual jobs safely.

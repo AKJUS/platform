@@ -1795,10 +1795,12 @@
         "title": "Analytics"
       },
       "columns": {
+        "build_time": "Thời gian build",
         "commit": "Commit",
         "deployment": "Triển khai",
         "errors": "Lỗi",
         "hash": "Hash",
+        "last_request": "Request cuối",
         "level": "Cấp độ",
         "message": "Thông điệp",
         "requests": "Requests",
@@ -1814,6 +1816,17 @@
       "deployments": {
         "description": "Dấu triển khai được nhóm theo lưu lượng request và lỗi server.",
         "title": "Deployments"
+      },
+      "empty": {
+        "cron_executions": "Không có lượt chạy cron trong khung này.",
+        "deployments": "Không có triển khai trong khung này.",
+        "logs": "Không có log trong khung này.",
+        "requests": "Không có request trong chế độ đóng băng này."
+      },
+      "infinite": {
+        "end": "Hết",
+        "loading": "Đang tải...",
+        "more": "Cuộn để tải thêm"
       },
       "last_24_hours": "24 giờ qua",
       "last_7_days": "7 ngày qua",
@@ -1843,6 +1856,10 @@
       "refresh": "Làm mới",
       "requests": {
         "description": "Dòng thời gian request với trạng thái, đường dẫn, nguồn và thời lượng.",
+        "frozen_meta": "Đóng băng lúc {time}",
+        "frozen_title": "Dòng thời gian request đã đóng băng",
+        "no_new": "Không có request mới",
+        "show_new": "Hiển thị {count} mới",
         "title": "Requests"
       },
       "resources": {
