@@ -129,7 +129,7 @@ describe('CLI rendering', () => {
           {
             id: 'task-2',
             name: 'Due later',
-            end_date: '2026-05-10T00:00:00.000+07:00',
+            end_date: '2026-05-10T23:59:59.000+07:00',
           },
         ],
       },
