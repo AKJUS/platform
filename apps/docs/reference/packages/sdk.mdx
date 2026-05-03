@@ -184,7 +184,9 @@ parse stdout.
 The v1 task surface covers workspaces, boards, lists, tasks, labels, projects,
 relationships, moves, and bulk task updates. Read-oriented groups list by
 default, so `ttr tasks` and `ttr workspaces` are equivalent to their explicit
-`list` forms. `ttr tasks` shows open tasks by default by excluding rows with
+`list` forms. `ttr boards` shows active, unarchived boards by default; use
+`ttr boards --archived`, `ttr boards --deleted`, or `ttr boards --all` when an
+agent needs archived or deleted board inventory. `ttr tasks` shows open tasks by default by excluding rows with
 `completed_at` or `closed_at`; use `--all`, `--done`, `--closed`,
 `--include-done`, or `--include-closed` to adjust that filter. Add `--compact`
 to task lists when an agent only needs the task title, task list name, and
@@ -209,6 +211,9 @@ Common task workflows:
 ```bash
 # List open tasks in the selected workspace.
 ttr tasks
+
+# List active boards only; pass --archived, --deleted, or --all for other states.
+ttr boards
 
 # Compact human output: task title, task list, and workspace.
 ttr tasks --compact

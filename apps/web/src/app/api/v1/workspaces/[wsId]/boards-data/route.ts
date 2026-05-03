@@ -8,6 +8,7 @@ import { verifyWorkspaceMembershipType } from '@tuturuuu/utils/workspace-helper'
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { withSessionAuth } from '@/lib/api-auth';
+import { ensureDefaultPersonalTaskBoard } from '@/lib/tasks/default-personal-task-board';
 
 const paramsSchema = z.object({
   wsId: z.guid(),
@@ -49,6 +50,16 @@ export const GET = withSessionAuth<{ wsId: string }>(
       }
 
       const sbAdmin = await createAdminClient();
+
+      try {
+        await ensureDefaultPersonalTaskBoard({
+          sbAdmin,
+          userId: user.id,
+          wsId,
+        });
+      } catch (error) {
+        console.error('Failed to ensure default personal task board:', error);
+      }
 
       // Build the main query for boards
       const queryBuilder = sbAdmin

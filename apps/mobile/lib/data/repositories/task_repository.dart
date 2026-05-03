@@ -335,12 +335,18 @@ class TaskRepository {
     String wsId, {
     int page = 1,
     int pageSize = 20,
+    String status = 'all',
   }) async {
     final normalizedPage = page < 1 ? 1 : page;
     final normalizedPageSize = pageSize.clamp(1, 200);
+    final query = _encodeQueryParameters({
+      'page': normalizedPage.toString(),
+      'pageSize': normalizedPageSize.toString(),
+      'status': status,
+    });
 
     final response = await _apiClient.getJson(
-      '/api/v1/workspaces/$wsId/task-boards?page=$normalizedPage&pageSize=$normalizedPageSize',
+      '/api/v1/workspaces/$wsId/task-boards?$query',
     );
     final boardsData = response['boards'] as List<dynamic>? ?? const [];
     final pageBoards = boardsData

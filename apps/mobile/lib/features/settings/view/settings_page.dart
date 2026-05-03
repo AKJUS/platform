@@ -8,6 +8,7 @@ import 'package:mobile/core/responsive/responsive_values.dart';
 import 'package:mobile/core/responsive/responsive_wrapper.dart';
 import 'package:mobile/core/router/routes.dart';
 import 'package:mobile/data/repositories/profile_repository.dart';
+import 'package:mobile/data/repositories/settings_repository.dart';
 import 'package:mobile/data/repositories/workspace_permissions_repository.dart';
 import 'package:mobile/features/auth/cubit/auth_cubit.dart';
 import 'package:mobile/features/profile/cubit/profile_cubit.dart';
@@ -57,8 +58,10 @@ class _SettingsView extends StatefulWidget {
 
 class _SettingsViewState extends State<_SettingsView> {
   late final Future<PackageInfo> _packageInfoFuture;
+  late final SettingsRepository _settingsRepository;
   late final WorkspacePermissionsRepository _workspacePermissionsRepository;
   String? _loadedWorkspaceId;
+  bool _disableDefaultTaskBoardNavigation = false;
   bool _canManageMobileVersions = false;
   String? _mobileVersionsAccessWorkspaceId;
   int _mobileVersionsAccessLoadToken = 0;
@@ -66,6 +69,7 @@ class _SettingsViewState extends State<_SettingsView> {
   @override
   void initState() {
     super.initState();
+    _settingsRepository = SettingsRepository();
     _workspacePermissionsRepository = WorkspacePermissionsRepository();
     _packageInfoFuture = PackageInfo.fromPlatform();
     final workspaceId = context
@@ -76,6 +80,7 @@ class _SettingsViewState extends State<_SettingsView> {
     if (workspaceId != null) {
       unawaited(_loadWorkspaceCalendarPreference(workspaceId));
     }
+    unawaited(_loadDefaultTaskBoardNavigationPreference());
     unawaited(_loadMobileVersionsAccess(workspaceId, forceReload: true));
   }
 
@@ -182,6 +187,10 @@ class _SettingsViewState extends State<_SettingsView> {
                             financePreferencesCubit.toggleShowAmounts(),
                           );
                         },
+                        disableDefaultTaskBoardNavigation:
+                            _disableDefaultTaskBoardNavigation,
+                        onToggleDefaultTaskBoardNavigation:
+                            _toggleDefaultTaskBoardNavigation,
                         onChangeTheme: () => unawaited(_showThemeDialog()),
                         onChangeFirstDayOfWeek: () =>
                             unawaited(_showCalendarDialog()),
@@ -300,6 +309,21 @@ class _SettingsViewState extends State<_SettingsView> {
     _loadedWorkspaceId = workspaceId;
     await context.read<CalendarSettingsCubit>().loadWorkspacePreference(
       workspaceId,
+    );
+  }
+
+  Future<void> _loadDefaultTaskBoardNavigationPreference() async {
+    final value = await _settingsRepository
+        .getDisableDefaultTaskBoardNavigation();
+    if (!mounted) return;
+    setState(() => _disableDefaultTaskBoardNavigation = value);
+  }
+
+  Future<void> _toggleDefaultTaskBoardNavigation() async {
+    final nextValue = !_disableDefaultTaskBoardNavigation;
+    setState(() => _disableDefaultTaskBoardNavigation = nextValue);
+    await _settingsRepository.setDisableDefaultTaskBoardNavigation(
+      value: nextValue,
     );
   }
 
@@ -525,8 +549,10 @@ class _PreferencesSection extends StatelessWidget {
     required this.showFinanceAmounts,
     required this.languageLabel,
     required this.calendarLabel,
+    required this.disableDefaultTaskBoardNavigation,
     required this.onChangeLanguage,
     required this.onToggleFinanceAmounts,
+    required this.onToggleDefaultTaskBoardNavigation,
     required this.onChangeTheme,
     required this.onChangeFirstDayOfWeek,
   });
@@ -535,8 +561,10 @@ class _PreferencesSection extends StatelessWidget {
   final bool showFinanceAmounts;
   final String languageLabel;
   final String calendarLabel;
+  final bool disableDefaultTaskBoardNavigation;
   final VoidCallback onChangeLanguage;
   final VoidCallback onToggleFinanceAmounts;
+  final VoidCallback onToggleDefaultTaskBoardNavigation;
   final VoidCallback onChangeTheme;
   final VoidCallback onChangeFirstDayOfWeek;
 
@@ -584,6 +612,22 @@ class _PreferencesSection extends StatelessWidget {
           subtitle: l10n.settingsFirstDayOfWeekDescription,
           value: calendarLabel,
           onTap: onChangeFirstDayOfWeek,
+        ),
+        SettingsTile(
+          icon: Icons.view_kanban_outlined,
+          title: l10n.settingsDefaultTaskBoardNavigation,
+          subtitle: l10n.settingsDefaultTaskBoardNavigationDescription,
+          value: disableDefaultTaskBoardNavigation
+              ? l10n.settingsDefaultTaskBoardNavigationBoardPicker
+              : l10n.settingsDefaultTaskBoardNavigationDefaultBoard,
+          onTap: onToggleDefaultTaskBoardNavigation,
+          showChevron: false,
+          trailing: IgnorePointer(
+            child: shad.Switch(
+              value: !disableDefaultTaskBoardNavigation,
+              onChanged: (_) {},
+            ),
+          ),
         ),
       ],
     );

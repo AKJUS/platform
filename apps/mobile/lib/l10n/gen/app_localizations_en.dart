@@ -4889,6 +4889,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsCurrentWorkspaceDescription => 'Choose the workspace you are using right now.';
 
   @override
+  String get settingsDefaultTaskBoardNavigation => 'Open Tasks board by default';
+
+  @override
+  String get settingsDefaultTaskBoardNavigationBoardPicker => 'Board picker';
+
+  @override
+  String get settingsDefaultTaskBoardNavigationDefaultBoard => 'Tasks board';
+
+  @override
+  String get settingsDefaultTaskBoardNavigationDescription => 'Open your personal Tasks board directly from Tasks and Boards. Turn this off to keep the board picker.';
+
+  @override
   String get settingsDefaultWorkspace => 'Default workspace';
 
   @override

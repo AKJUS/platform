@@ -80,6 +80,17 @@ function getWorkspaceId(config: CliConfig, flags: Record<string, FlagValue>) {
   return workspaceId;
 }
 
+function getBoardListStatus(
+  flags: Record<string, FlagValue>
+): 'active' | 'archived' | 'deleted' | 'all' {
+  if (flags.all === true || flags['include-archived'] === true) return 'all';
+  if (flags.archived === true) return 'archived';
+  if (flags.deleted === true || flags['recently-deleted'] === true) {
+    return 'deleted';
+  }
+  return 'active';
+}
+
 function getClient(config: CliConfig) {
   if (!config.session?.accessToken || !config.session.refreshToken) {
     throw new Error('Not logged in. Run `ttr login` first.');
@@ -508,7 +519,19 @@ export async function runCli(argv = process.argv.slice(2)) {
 
   if (group === 'boards') {
     if (action === 'list') {
-      render(await client.tasks.listBoards(workspaceId), { group, json });
+      render(
+        await client.tasks.listBoards(workspaceId, {
+          page: getFlag(flags, 'page')
+            ? Number(getFlag(flags, 'page'))
+            : undefined,
+          pageSize: getFlag(flags, 'page-size')
+            ? Number(getFlag(flags, 'page-size'))
+            : undefined,
+          q: getFlag(flags, 'q'),
+          status: getBoardListStatus(flags),
+        }),
+        { group, json }
+      );
       return;
     }
     if (action === 'use' || action === 'select') {

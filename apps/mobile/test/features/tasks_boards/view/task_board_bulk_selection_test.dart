@@ -106,6 +106,7 @@ class _BulkSelectionRepository extends TaskRepository {
     String wsId, {
     int page = 1,
     int pageSize = 20,
+    String status = 'all',
   }) async {
     return const TaskBoardsPage(
       boards: [],

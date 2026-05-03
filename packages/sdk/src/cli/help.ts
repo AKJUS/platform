@@ -16,9 +16,20 @@ const helpTopics: Record<string, HelpTopic> = {
       'delete [id]                  delete a board',
     ],
     description:
-      'Boards are resolved in the selected workspace. Omit an id in a TTY to pick with the keyboard.',
-    examples: ['ttr boards', 'ttr boards use', 'ttr boards create "Roadmap"'],
+      'Boards are resolved in the selected workspace. List shows active boards by default. Omit an id in a TTY to pick with the keyboard.',
+    examples: [
+      'ttr boards',
+      'ttr boards --archived',
+      'ttr boards use',
+      'ttr boards create "Roadmap"',
+    ],
     options: [
+      '--archived                  list archived boards',
+      '--all, --include-archived    list active, archived, and deleted boards',
+      '--deleted, --recently-deleted list deleted boards',
+      '--q <query>                  filter boards by name',
+      '--page <n>                   page number',
+      '--page-size <n>              boards per page',
       '--workspace, --ws <id>        override the selected workspace',
       '--json                       print machine-readable JSON',
     ],

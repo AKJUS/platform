@@ -9319,6 +9319,30 @@ abstract class AppLocalizations {
   /// **'Choose the workspace you are using right now.'**
   String get settingsCurrentWorkspaceDescription;
 
+  /// No description provided for @settingsDefaultTaskBoardNavigation.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Tasks board by default'**
+  String get settingsDefaultTaskBoardNavigation;
+
+  /// No description provided for @settingsDefaultTaskBoardNavigationBoardPicker.
+  ///
+  /// In en, this message translates to:
+  /// **'Board picker'**
+  String get settingsDefaultTaskBoardNavigationBoardPicker;
+
+  /// No description provided for @settingsDefaultTaskBoardNavigationDefaultBoard.
+  ///
+  /// In en, this message translates to:
+  /// **'Tasks board'**
+  String get settingsDefaultTaskBoardNavigationDefaultBoard;
+
+  /// No description provided for @settingsDefaultTaskBoardNavigationDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Open your personal Tasks board directly from Tasks and Boards. Turn this off to keep the board picker.'**
+  String get settingsDefaultTaskBoardNavigationDescription;
+
   /// No description provided for @settingsDefaultWorkspace.
   ///
   /// In en, this message translates to:

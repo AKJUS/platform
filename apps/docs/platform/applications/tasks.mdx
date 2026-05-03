@@ -211,6 +211,15 @@ export async function addTaskToProject(projectId: string, taskId: string) {
 
 Kanban-style task boards.
 
+Personal workspaces should always have a default active task board named
+`Tasks`. Web and mobile task-board listing APIs ensure that board exists before
+returning board data, so users should not see a prompt just to bootstrap their
+personal task workflow. Mobile opens that default board directly from both the
+Tasks and Boards surfaces unless the user disables default task-board navigation
+in mobile Settings. The web settings dialog exposes the same preference for the
+Boards page, keeping the board picker available for users who prefer the
+previous flow.
+
 #### Mobile board caching
 
 The mobile task-board flow restores workspace boards, board metadata, and per-list

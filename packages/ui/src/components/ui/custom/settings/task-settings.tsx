@@ -61,6 +61,12 @@ export function TaskSettings({ workspace }: TaskSettingsProps) {
     isLoading: forceDefaultWsRedirectLoading,
     isPending: forceDefaultWsRedirectPending,
   } = useUserBooleanConfig('TASKS_FORCE_DEFAULT_WORKSPACE_REDIRECT', false);
+  const {
+    value: openDefaultBoard,
+    setValue: setOpenDefaultBoard,
+    isLoading: openDefaultBoardLoading,
+    isPending: openDefaultBoardPending,
+  } = useUserBooleanConfig('TASKS_OPEN_DEFAULT_BOARD', true);
 
   const { data: submitShortcut, isLoading: submitShortcutLoading } =
     useUserConfig('TASK_SUBMIT_SHORTCUT', 'enter');
@@ -182,6 +188,17 @@ export function TaskSettings({ workspace }: TaskSettingsProps) {
             disabled={
               forceDefaultWsRedirectLoading || forceDefaultWsRedirectPending
             }
+          />
+        </SettingItemTab>
+        <Separator />
+        <SettingItemTab
+          title={t('open_default_board')}
+          description={t('open_default_board_description')}
+        >
+          <Switch
+            checked={openDefaultBoard}
+            onCheckedChange={setOpenDefaultBoard}
+            disabled={openDefaultBoardLoading || openDefaultBoardPending}
           />
         </SettingItemTab>
         <Separator />

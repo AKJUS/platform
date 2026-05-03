@@ -10,6 +10,7 @@ import 'package:mobile/core/responsive/responsive_values.dart';
 import 'package:mobile/core/responsive/responsive_wrapper.dart';
 import 'package:mobile/core/router/routes.dart';
 import 'package:mobile/data/models/task_board_summary.dart';
+import 'package:mobile/data/repositories/settings_repository.dart';
 import 'package:mobile/data/repositories/workspace_permissions_repository.dart';
 import 'package:mobile/data/sources/api_client.dart';
 import 'package:mobile/features/shell/cubit/shell_chrome_actions_cubit.dart';
@@ -45,8 +46,12 @@ class _TaskBoardsViewState extends State<TaskBoardsView> {
   static const double _fabContentBottomPadding = 96;
 
   late final WorkspacePermissionsRepository _permissionsRepository;
+  late final SettingsRepository _settingsRepository;
   final ScrollController _scrollController = ScrollController();
+  final Set<String> _defaultNavigationAttemptedWorkspaceIds = <String>{};
   String? _permissionsWorkspaceId;
+  bool _disableDefaultTaskBoardNavigation = false;
+  bool _defaultNavigationPreferenceLoaded = false;
   bool _canManageProjects = false;
   bool _isCheckingPermissions = false;
   bool _permissionsLoadFailed = false;
@@ -57,7 +62,9 @@ class _TaskBoardsViewState extends State<TaskBoardsView> {
     super.initState();
     _permissionsRepository =
         widget.permissionsRepository ?? WorkspacePermissionsRepository();
+    _settingsRepository = SettingsRepository();
     _scrollController.addListener(_onScroll);
+    unawaited(_loadDefaultNavigationPreference());
   }
 
   @override
@@ -96,23 +103,29 @@ class _TaskBoardsViewState extends State<TaskBoardsView> {
         _hasResolvedPermissions = false;
         unawaited(_loadPermissions());
       },
-      child: Stack(
-        children: [
-          _buildContent(context),
-          if (_canManageProjects)
-            SpeedDialFab(
-              label: l10n.taskBoardsTitle,
-              icon: Icons.add,
-              includeBottomSafeArea: false,
-              actions: [
-                FabAction(
-                  icon: Icons.add_box_outlined,
-                  label: l10n.taskBoardsCreate,
-                  onPressed: _openCreateBoard,
-                ),
-              ],
-            ),
-        ],
+      child: BlocListener<TaskBoardsCubit, TaskBoardsState>(
+        listenWhen: (previous, current) =>
+            previous.status != current.status ||
+            previous.boards != current.boards,
+        listener: (context, state) => _maybeOpenDefaultBoard(state),
+        child: Stack(
+          children: [
+            _buildContent(context),
+            if (_canManageProjects)
+              SpeedDialFab(
+                label: l10n.taskBoardsTitle,
+                icon: Icons.add,
+                includeBottomSafeArea: false,
+                actions: [
+                  FabAction(
+                    icon: Icons.add_box_outlined,
+                    label: l10n.taskBoardsCreate,
+                    onPressed: _openCreateBoard,
+                  ),
+                ],
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -304,6 +317,47 @@ class _TaskBoardsViewState extends State<TaskBoardsView> {
         _hasResolvedPermissions = true;
       });
     }
+  }
+
+  Future<void> _loadDefaultNavigationPreference() async {
+    final disabled = await _settingsRepository
+        .getDisableDefaultTaskBoardNavigation();
+    if (!mounted) return;
+    setState(() {
+      _disableDefaultTaskBoardNavigation = disabled;
+      _defaultNavigationPreferenceLoaded = true;
+    });
+    _maybeOpenDefaultBoard(context.read<TaskBoardsCubit>().state);
+  }
+
+  void _maybeOpenDefaultBoard(TaskBoardsState state) {
+    if (!_defaultNavigationPreferenceLoaded ||
+        _disableDefaultTaskBoardNavigation ||
+        state.status == TaskBoardsStatus.loading) {
+      return;
+    }
+
+    final workspace = context.read<WorkspaceCubit>().state.currentWorkspace;
+    if (workspace == null || !workspace.personal) return;
+    if (_defaultNavigationAttemptedWorkspaceIds.contains(workspace.id)) return;
+
+    TaskBoardSummary? defaultBoard;
+    for (final board in state.boards) {
+      if (_isDefaultActiveBoard(board)) {
+        defaultBoard = board;
+        break;
+      }
+    }
+    if (defaultBoard == null) return;
+
+    _defaultNavigationAttemptedWorkspaceIds.add(workspace.id);
+    context.go(Routes.taskBoardDetailPath(defaultBoard.id));
+  }
+
+  bool _isDefaultActiveBoard(TaskBoardSummary board) {
+    return board.name?.trim().toLowerCase() == 'tasks' &&
+        !board.isArchived &&
+        !board.isRecentlyDeleted;
   }
 
   bool _canUpdatePermissionsState(String? capturedWsId) {

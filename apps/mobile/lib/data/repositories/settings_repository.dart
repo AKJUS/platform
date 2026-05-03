@@ -7,6 +7,8 @@ class SettingsRepository {
   static const _themeModeKey = 'theme-mode';
   static const _calendarViewKey = 'calendar-view';
   static const _taskViewModeKey = 'task-view-mode';
+  static const _disableDefaultTaskBoardNavigationKey =
+      'disable-default-task-board-navigation';
   static const _financeAmountsVisibleKey = 'finance-amounts-visible';
   static const _localeKey = 'locale';
   static const _lastTabRouteKey = 'last-tab-route';
@@ -52,6 +54,18 @@ class SettingsRepository {
   Future<void> setTaskViewMode(String mode) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_taskViewModeKey, mode);
+  }
+
+  Future<bool> getDisableDefaultTaskBoardNavigation() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_disableDefaultTaskBoardNavigationKey) ?? false;
+  }
+
+  Future<void> setDisableDefaultTaskBoardNavigation({
+    required bool value,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_disableDefaultTaskBoardNavigationKey, value);
   }
 
   Future<bool> getFinanceAmountsVisible() async {

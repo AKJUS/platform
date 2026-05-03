@@ -159,21 +159,22 @@ class _TaskPortfolioViewState extends State<TaskPortfolioView> {
                 ),
               ],
             ),
-            if (_permissionsController.canManageProjects) ...[
+            if (_permissionsController.canManageProjects &&
+                _activeTab != _tabProjects)
               ExtendedFab(
                 label: context.l10n.taskPortfolioCreateInitiative,
                 icon: Icons.account_tree_outlined,
                 onPressed: _openCreateInitiative,
-                bottom: 84,
                 includeBottomSafeArea: false,
               ),
+            if (_permissionsController.canManageProjects &&
+                _activeTab == _tabProjects)
               ExtendedFab(
                 label: context.l10n.taskPortfolioCreateProject,
                 icon: Icons.folder_open_outlined,
                 onPressed: _openCreateProject,
                 includeBottomSafeArea: false,
               ),
-            ],
           ],
         ),
       ),

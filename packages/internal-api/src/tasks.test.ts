@@ -28,7 +28,7 @@ describe('workspace board internal-api helpers', () => {
 
     await listWorkspaceTaskBoards(
       'ws-1',
-      { q: 'alpha', page: 2, pageSize: 25 },
+      { q: 'alpha', page: 2, pageSize: 25, status: 'archived' },
       {
         baseUrl: 'https://internal.example.com',
         fetch: fetchMock as unknown as typeof fetch,
@@ -36,7 +36,7 @@ describe('workspace board internal-api helpers', () => {
     );
 
     expect(fetchMock).toHaveBeenCalledWith(
-      'https://internal.example.com/api/v1/workspaces/ws-1/task-boards?q=alpha&page=2&pageSize=25',
+      'https://internal.example.com/api/v1/workspaces/ws-1/task-boards?q=alpha&page=2&pageSize=25&status=archived',
       expect.objectContaining({
         cache: 'no-store',
       })

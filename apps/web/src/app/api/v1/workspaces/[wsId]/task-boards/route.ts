@@ -11,6 +11,7 @@ import {
 } from '@tuturuuu/utils/workspace-helper';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import { ensureDefaultPersonalTaskBoard } from '@/lib/tasks/default-personal-task-board';
 
 const createBoardSchema = z.object({
   name: z.string().trim().min(1).max(255).optional(),
@@ -19,8 +20,13 @@ const createBoardSchema = z.object({
 });
 
 const listBoardsSearchSchema = z.object({
+  q: z.string().trim().max(100).optional(),
   page: z.coerce.number().int().min(1).optional(),
   pageSize: z.coerce.number().int().min(1).max(200).optional(),
+  status: z
+    .enum(['active', 'archived', 'deleted', 'all'])
+    .optional()
+    .default('active'),
 });
 
 const BOARD_IDS_BATCH_SIZE = 500;
@@ -75,6 +81,13 @@ export async function GET(req: Request, { params }: Params) {
 
     const page = searchParams.page;
     const pageSize = searchParams.pageSize;
+    const status = searchParams.status;
+
+    try {
+      await ensureDefaultPersonalTaskBoard({ sbAdmin, userId: user.id, wsId });
+    } catch (error) {
+      console.error('Failed to ensure default personal task board:', error);
+    }
 
     const boardsQuery = sbAdmin
       .from('workspace_boards')
@@ -82,6 +95,18 @@ export async function GET(req: Request, { params }: Params) {
       .eq('ws_id', wsId)
       .order('name', { ascending: true })
       .order('created_at', { ascending: false });
+
+    if (searchParams.q) {
+      boardsQuery.ilike('name', `%${searchParams.q}%`);
+    }
+
+    if (status === 'active') {
+      boardsQuery.is('archived_at', null).is('deleted_at', null);
+    } else if (status === 'archived') {
+      boardsQuery.not('archived_at', 'is', null).is('deleted_at', null);
+    } else if (status === 'deleted') {
+      boardsQuery.not('deleted_at', 'is', null);
+    }
 
     if (page !== undefined && pageSize !== undefined) {
       const start = (page - 1) * pageSize;

@@ -138,6 +138,7 @@ export interface ListWorkspaceTaskBoardsOptions {
   q?: string;
   page?: number;
   pageSize?: number;
+  status?: 'active' | 'archived' | 'deleted' | 'all';
 }
 
 export interface ListWorkspaceTaskBoardsResponse {
@@ -390,6 +391,7 @@ export async function listWorkspaceTaskBoards(
         q: options?.q,
         page: options?.page,
         pageSize: options?.pageSize,
+        status: options?.status,
       },
       cache: 'no-store',
     }

@@ -6152,6 +6152,8 @@
       "force_default_workspace_redirect_description": "When enabled, visiting the tasks app will redirect to your default workspace instead of your personal workspace",
       "general": "General",
       "general_description": "Task creation and management preferences",
+      "open_default_board": "Open personal Tasks board by default",
+      "open_default_board_description": "When enabled, personal workspaces open the default Tasks board directly instead of stopping at the board picker",
       "settings_update_failed": "Failed to update task settings",
       "settings_updated": "Task settings updated",
       "submit_shortcut": "Submit shortcut",

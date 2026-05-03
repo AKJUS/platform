@@ -19,6 +19,7 @@ const createClientMock = vi.fn();
 const createAdminClientMock = vi.fn();
 const normalizeWorkspaceIdMock = vi.fn();
 const getPermissionsMock = vi.fn();
+const ensureDefaultPersonalTaskBoardMock = vi.fn();
 
 vi.mock('@tuturuuu/supabase/next/server', () => ({
   createClient: (...args: Parameters<typeof createClientMock>) =>
@@ -40,6 +41,12 @@ vi.mock('@tuturuuu/utils/workspace-helper', async (importOriginal) => {
   };
 });
 
+vi.mock('@/lib/tasks/default-personal-task-board', () => ({
+  ensureDefaultPersonalTaskBoard: (
+    ...args: Parameters<typeof ensureDefaultPersonalTaskBoardMock>
+  ) => ensureDefaultPersonalTaskBoardMock(...args),
+}));
+
 import { GET } from './route';
 
 describe('task boards route GET', () => {
@@ -52,6 +59,7 @@ describe('task boards route GET', () => {
     getPermissionsMock.mockResolvedValue({
       containsPermission: vi.fn().mockReturnValue(false),
     });
+    ensureDefaultPersonalTaskBoardMock.mockResolvedValue(null);
 
     authGetUserMock.mockResolvedValue({
       data: {
@@ -153,7 +161,7 @@ describe('task boards route GET', () => {
   it('allows board listing for workspace members without manage_projects', async () => {
     const response = await GET(
       new NextRequest(
-        'http://localhost/api/v1/workspaces/personal/task-boards'
+        'http://localhost/api/v1/workspaces/personal/task-boards?status=all'
       ),
       {
         params: Promise.resolve({
