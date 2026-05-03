@@ -25,7 +25,6 @@ import {
 import {
   type CronExecutionRecord,
   type GetObservabilityParams,
-  getBlueGreenMonitoringSnapshot,
   getCronMonitoringExecutionArchive,
   getCronMonitoringSnapshot,
   getObservabilityAnalytics,
@@ -34,9 +33,11 @@ import {
   getObservabilityLogs,
   getObservabilityOverview,
   getObservabilityRequests,
+  getObservabilityResources,
   type ObservabilityDeployment,
   type ObservabilityLogEvent,
   type ObservabilityRequest,
+  type ObservabilityResourceBucket,
   queueCronRun,
   updateCronMonitoringControl,
 } from '@tuturuuu/internal-api/infrastructure';
@@ -52,7 +53,7 @@ import { Switch } from '@tuturuuu/ui/switch';
 import { cn } from '@tuturuuu/utils/format';
 import { useTranslations } from 'next-intl';
 import { parseAsInteger, parseAsString, useQueryState } from 'nuqs';
-import { type ReactNode, useMemo, useState } from 'react';
+import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import {
   formatBytes,
   formatCompactNumber,
@@ -168,6 +169,39 @@ function formatTime(value: number | null | undefined) {
   }).format(value);
 }
 
+function formatCronUtcTimeInUserTimezone(hour: string, minute: string) {
+  const hourNumber = Number.parseInt(hour, 10);
+  const minuteNumber = Number.parseInt(minute, 10);
+
+  if (
+    !Number.isInteger(hourNumber) ||
+    !Number.isInteger(minuteNumber) ||
+    hourNumber < 0 ||
+    hourNumber > 23 ||
+    minuteNumber < 0 ||
+    minuteNumber > 59
+  ) {
+    return `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`;
+  }
+
+  const now = new Date();
+  const utcDate = new Date(
+    Date.UTC(
+      now.getUTCFullYear(),
+      now.getUTCMonth(),
+      now.getUTCDate(),
+      hourNumber,
+      minuteNumber
+    )
+  );
+
+  return new Intl.DateTimeFormat(undefined, {
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  }).format(utcDate);
+}
+
 function formatClientContext({
   ipAddress,
   userAgent,
@@ -213,13 +247,13 @@ function describeCronSchedule(
   }
 
   if (
-    minute === '0' &&
+    /^\d+$/u.test(minute) &&
     /^\d+$/u.test(hour) &&
     dayOfMonth === '*' &&
     month === '*' &&
     dayOfWeek === '*'
   ) {
-    return labels.dailyAt(`${hour.padStart(2, '0')}:00 UTC`);
+    return labels.dailyAt(formatCronUtcTimeInUserTimezone(hour, minute));
   }
 
   return labels.raw(schedule);
@@ -323,10 +357,22 @@ function getDeploymentStateView(
   return { label: labels.ready, tone: 'green' as const };
 }
 
-function getElapsedTime(deployment: ObservabilityDeployment) {
+function isDeploymentInProgress(deployment: ObservabilityDeployment) {
+  return (
+    getDeploymentStateView(deployment, {
+      building: 'building',
+      deploying: 'deploying',
+      error: 'error',
+      queued: 'queued',
+      ready: 'ready',
+    }).tone === 'amber'
+  );
+}
+
+function getElapsedTime(deployment: ObservabilityDeployment, now = Date.now()) {
   if (!deployment.startedAt) return null;
 
-  const elapsed = Date.now() - deployment.startedAt;
+  const elapsed = now - deployment.startedAt;
   if (!Number.isFinite(elapsed) || elapsed < 0) return null;
 
   return formatDuration(elapsed);
@@ -427,6 +473,86 @@ function TrendChart({
               {series.map((item) => (
                 <div
                   className={cn('min-h-1 flex-1 rounded-t', item.className)}
+                  key={item.label}
+                  style={{
+                    height: `${getPercent(item.getValue(bucket), max)}%`,
+                  }}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <EmptyChart label={emptyLabel} />
+      )}
+    </section>
+  );
+}
+
+function ResourceTrendChart({
+  buckets,
+  emptyLabel,
+  formatter,
+  series,
+  title,
+}: {
+  buckets: ObservabilityResourceBucket[];
+  emptyLabel: string;
+  formatter: (value: number | null | undefined) => string;
+  series: Array<{
+    getValue: (bucket: ObservabilityResourceBucket) => number | null;
+    label: string;
+    tone: Tone;
+  }>;
+  title: string;
+}) {
+  const values = buckets.flatMap((bucket) =>
+    series.map((item) => item.getValue(bucket))
+  );
+  const max = getMaxValue(values);
+
+  return (
+    <section className="rounded-lg border border-border bg-background">
+      <div className="flex items-center justify-between gap-3 border-border border-b px-4 py-3">
+        <p className="font-medium text-sm">{title}</p>
+        <div className="flex flex-wrap items-center justify-end gap-3 text-muted-foreground text-xs">
+          {series.map((item) => {
+            const latest = [...buckets]
+              .reverse()
+              .map((bucket) => item.getValue(bucket))
+              .find((value) => value != null);
+
+            return (
+              <span className="inline-flex items-center gap-1" key={item.label}>
+                <span
+                  className={cn(
+                    'h-2 w-2 rounded-full',
+                    toneClasses[item.tone].dot
+                  )}
+                />
+                {item.label}
+                <span className="font-mono text-foreground">
+                  {formatter(latest)}
+                </span>
+              </span>
+            );
+          })}
+        </div>
+      </div>
+      {buckets.length > 0 ? (
+        <div className="flex h-44 items-end gap-1 px-4 pt-8 pb-4">
+          {buckets.map((bucket) => (
+            <div
+              className="flex min-w-0 flex-1 items-end gap-px"
+              key={bucket.bucketStart}
+              title={formatTime(bucket.bucketStart)}
+            >
+              {series.map((item) => (
+                <div
+                  className={cn(
+                    'min-h-1 flex-1 rounded-t',
+                    toneClasses[item.tone].bar
+                  )}
                   key={item.label}
                   style={{
                     height: `${getPercent(item.getValue(bucket), max)}%`,
@@ -583,16 +709,19 @@ function RequestRow({ request }: { request: ObservabilityRequest }) {
 
 function DeploymentRow({
   deployment,
+  now,
   stateLabels,
 }: {
   deployment: ObservabilityDeployment;
+  now: number;
   stateLabels: Record<
     'building' | 'deploying' | 'error' | 'queued' | 'ready',
     string
   >;
 }) {
   const state = getDeploymentStateView(deployment, stateLabels);
-  const elapsed = state.tone === 'amber' ? getElapsedTime(deployment) : null;
+  const elapsed =
+    state.tone === 'amber' ? getElapsedTime(deployment, now) : null;
   const hash =
     deployment.commitShortHash ?? deployment.commitHash?.slice(0, 10) ?? '-';
 
@@ -626,14 +755,9 @@ function DeploymentRow({
           />
           {state.label}
         </span>
-        {elapsed ? (
-          <p className="mt-1 font-mono text-muted-foreground text-xs">
-            {elapsed}
-          </p>
-        ) : null}
       </div>
       <span className="font-mono text-muted-foreground text-xs">
-        {formatDuration(deployment.durationMs)}
+        {elapsed ?? formatDuration(deployment.durationMs)}
       </span>
       <span>{formatNumber(deployment.requestCount)}</span>
       <span className="text-dynamic-red">
@@ -790,6 +914,7 @@ export function ObservabilityDashboardClient({
   const [requestFreezeUntil, setRequestFreezeUntil] = useState(() =>
     Date.now()
   );
+  const [now, setNow] = useState(() => Date.now());
   const [selectedExecution, setSelectedExecution] =
     useState<CronExecutionRecord | null>(null);
   const filters: GetObservabilityParams = useMemo(
@@ -886,6 +1011,13 @@ export function ObservabilityDashboardClient({
     queryFn: ({ pageParam }) =>
       getObservabilityDeployments({ ...filters, page: pageParam }),
     queryKey: ['infrastructure', 'observability', 'deployments', filters],
+    refetchInterval: (query) => {
+      const data = query.state.data as
+        | InfiniteData<DeploymentsPage>
+        | undefined;
+      const items = data?.pages.flatMap((page) => page.items) ?? [];
+      return items.some(isDeploymentInProgress) ? 2_000 : false;
+    },
   });
   const cronQuery = useQuery({
     enabled: mode === 'cron' || mode === 'observability',
@@ -919,12 +1051,8 @@ export function ObservabilityDashboardClient({
   });
   const resourcesQuery = useQuery({
     enabled: mode === 'resources',
-    queryFn: () =>
-      getBlueGreenMonitoringSnapshot({
-        requestPreviewLimit: 0,
-        watcherLogLimit: 0,
-      }),
-    queryKey: ['infrastructure', 'monitoring', 'resources'],
+    queryFn: () => getObservabilityResources({ timeframeHours }),
+    queryKey: ['infrastructure', 'observability', 'resources', timeframeHours],
     refetchInterval: 5_000,
   });
   const runCronMutation = useMutation({
@@ -958,6 +1086,7 @@ export function ObservabilityDashboardClient({
     () => deploymentsQuery.data?.pages.flatMap((page) => page.items) ?? [],
     [deploymentsQuery.data]
   );
+  const hasDeploymentInProgress = deployments.some(isDeploymentInProgress);
   const cronExecutions = useMemo(
     () => cronExecutionsQuery.data?.pages.flatMap((page) => page.items) ?? [],
     [cronExecutionsQuery.data]
@@ -967,6 +1096,16 @@ export function ObservabilityDashboardClient({
   const deploymentsTotal = deploymentsQuery.data?.pages[0]?.total ?? 0;
   const cronExecutionsTotal = cronExecutionsQuery.data?.pages[0]?.total ?? 0;
   const newRequestCount = newRequestsQuery.data?.total ?? 0;
+  const resourceBuckets = resourcesQuery.data?.buckets ?? [];
+
+  useEffect(() => {
+    if (mode !== 'deployments' || !hasDeploymentInProgress) {
+      return;
+    }
+
+    const interval = window.setInterval(() => setNow(Date.now()), 1_000);
+    return () => window.clearInterval(interval);
+  }, [hasDeploymentInProgress, mode]);
   const infiniteLabels = {
     end: t('infinite.end'),
     loading: t('infinite.loading'),
@@ -1083,7 +1222,10 @@ export function ObservabilityDashboardClient({
             value={timeframeHours}
           >
             <option value={1}>{t('last_hour')}</option>
+            <option value={6}>{t('last_6_hours')}</option>
+            <option value={12}>{t('last_12_hours')}</option>
             <option value={24}>{t('last_24_hours')}</option>
+            <option value={72}>{t('last_3_days')}</option>
             <option value={168}>{t('last_7_days')}</option>
           </select>
           <button
@@ -1305,6 +1447,7 @@ export function ObservabilityDashboardClient({
                     deployment.color ??
                     'unknown'
                   }
+                  now={now}
                   stateLabels={deploymentStateLabels}
                 />
               )}
@@ -1324,6 +1467,33 @@ export function ObservabilityDashboardClient({
 
       {mode === 'cron' && (
         <div className="space-y-4">
+          <section className="grid overflow-hidden rounded-lg border border-border md:grid-cols-4">
+            <MetricCard
+              label={t('cron.summary.runner')}
+              meta={t('cron.summary.runner_meta')}
+              value={cronSnapshot?.status ?? '-'}
+            />
+            <MetricCard
+              label={t('cron.summary.enabled_jobs')}
+              meta={`${formatNumber(
+                cronSnapshot?.overview.enabledJobs
+              )} / ${formatNumber(cronSnapshot?.overview.totalJobs)}`}
+              value={formatNumber(cronSnapshot?.overview.enabledJobs)}
+            />
+            <MetricCard
+              label={t('cron.summary.queue')}
+              meta={`${t('cron.summary.processing')}: ${formatNumber(
+                cronSnapshot?.overview.processingRuns
+              )}`}
+              value={formatNumber(cronSnapshot?.overview.queuedRuns)}
+            />
+            <MetricCard
+              label={t('cron.summary.next_run')}
+              meta={t('cron.summary.next_run_meta')}
+              value={formatTime(cronSnapshot?.nextRunAt)}
+            />
+          </section>
+
           <section className="rounded-lg border border-border bg-background">
             <div className="flex items-center justify-between gap-3 border-border border-b px-4 py-3">
               <div>
@@ -1392,6 +1562,28 @@ export function ObservabilityDashboardClient({
                       <span>
                         {cronT('next_run')}: {formatTime(job.nextRunAt)}
                       </span>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                      <Badge className="rounded-full" variant="outline">
+                        {t('cron.last_status')}:{' '}
+                        {job.lastExecution?.status ?? '-'}
+                      </Badge>
+                      <Badge className="rounded-full" variant="outline">
+                        {t('cron.last_duration')}:{' '}
+                        {formatDuration(job.lastExecution?.durationMs)}
+                      </Badge>
+                      <Badge
+                        className={cn(
+                          'rounded-full',
+                          job.failureStreak > 0
+                            ? 'border-dynamic-red/35 text-dynamic-red'
+                            : 'border-dynamic-green/35 text-dynamic-green'
+                        )}
+                        variant="outline"
+                      >
+                        {t('cron.failure_streak')}:{' '}
+                        {formatNumber(job.failureStreak)}
+                      </Badge>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 lg:justify-end">
@@ -1484,52 +1676,59 @@ export function ObservabilityDashboardClient({
       )}
 
       {mode === 'analytics' && (
-        <div className="grid gap-4 xl:grid-cols-2">
-          <section className="rounded-lg border border-border bg-background p-4">
-            <p className="font-medium text-sm">{t('analytics.requests')}</p>
-            {analyticsQuery.isLoading ? (
-              <ChartSkeleton />
-            ) : (
-              <div className="mt-4 flex h-56 items-end gap-1 border-border border-b">
-                {analyticsBuckets.map((bucket) => (
-                  <div
-                    className="min-h-1 flex-1 rounded-t bg-dynamic-blue"
-                    key={bucket.bucketStart}
-                    style={{
-                      height: `${getPercent(
-                        bucket.requests,
-                        getMaxValue(
-                          analyticsBuckets.map((item) => item.requests)
-                        )
-                      )}%`,
-                    }}
-                  />
-                ))}
+        <div className="space-y-4">
+          {analyticsQuery.isLoading ? (
+            <div className="grid gap-4 xl:grid-cols-2">
+              <section className="rounded-lg border border-border bg-background">
+                <ChartSkeleton />
+              </section>
+              <section className="rounded-lg border border-border bg-background">
+                <LoadingSkeleton rows={5} />
+              </section>
+            </div>
+          ) : (
+            <>
+              <TrendChart
+                buckets={analyticsBuckets}
+                emptyLabel={t('charts.no_data')}
+                series={[
+                  {
+                    className: 'bg-dynamic-blue',
+                    getValue: (bucket) => bucket.requests,
+                    label: t('charts.requests'),
+                  },
+                  {
+                    className: 'bg-dynamic-red',
+                    getValue: (bucket) => bucket.serverErrors,
+                    label: t('charts.server_errors'),
+                  },
+                  {
+                    className: 'bg-dynamic-orange',
+                    getValue: (bucket) => bucket.cronRuns,
+                    label: t('charts.cron_runs'),
+                  },
+                ]}
+                title={t('charts.request_trend')}
+              />
+              <div className="grid gap-4 xl:grid-cols-3">
+                <HorizontalBars
+                  emptyLabel={t('charts.no_data')}
+                  rows={statusRows}
+                  title={t('charts.status_distribution')}
+                />
+                <HorizontalBars
+                  emptyLabel={t('charts.no_data')}
+                  rows={topRouteRows}
+                  title={t('charts.route_pressure')}
+                />
+                <HorizontalBars
+                  emptyLabel={t('charts.no_data')}
+                  rows={cronJobRows}
+                  title={t('charts.cron_hotspots')}
+                />
               </div>
-            )}
-          </section>
-          <section className="rounded-lg border border-border bg-background p-4">
-            <p className="font-medium text-sm">{t('analytics.status')}</p>
-            {analyticsQuery.isLoading ? (
-              <LoadingSkeleton rows={5} />
-            ) : (
-              <div className="mt-4 grid gap-2">
-                {statusRows.map((row) => (
-                  <div
-                    className="flex items-center justify-between"
-                    key={row.label}
-                  >
-                    <span className="text-muted-foreground text-sm">
-                      {row.label}
-                    </span>
-                    <span className="font-mono text-sm">
-                      {formatNumber(row.value)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
+            </>
+          )}
         </div>
       )}
 
@@ -1571,6 +1770,28 @@ export function ObservabilityDashboardClient({
               </div>
             ))}
           </section>
+          <section className="grid overflow-hidden rounded-lg border border-border md:grid-cols-4">
+            <MetricCard
+              label={t('signals.error_rate')}
+              meta={t('signals.error_rate_meta')}
+              value={`${formatNumber(overview?.errorRate)}%`}
+            />
+            <MetricCard
+              label={t('signals.p95_latency')}
+              meta={t('signals.p95_latency_meta')}
+              value={formatLatencyMs(overview?.p95DurationMs)}
+            />
+            <MetricCard
+              label={t('signals.last_event')}
+              meta={t('signals.last_event_meta')}
+              value={formatTime(overview?.lastEventAt)}
+            />
+            <MetricCard
+              label={t('signals.routes')}
+              meta={t('signals.routes_meta')}
+              value={formatNumber(overview?.topRoutes.length)}
+            />
+          </section>
           {analyticsQuery.isLoading ? (
             <div className="grid gap-4 xl:grid-cols-2">
               <section className="rounded-lg border border-border bg-background">
@@ -1591,6 +1812,16 @@ export function ObservabilityDashboardClient({
                 emptyLabel={t('charts.no_data')}
                 rows={cronJobRows}
                 title={t('charts.cron_hotspots')}
+              />
+              <HorizontalBars
+                emptyLabel={t('charts.no_data')}
+                rows={sourceRows}
+                title={t('charts.source_mix')}
+              />
+              <HorizontalBars
+                emptyLabel={t('charts.no_data')}
+                rows={topRouteRows}
+                title={t('charts.route_pressure')}
               />
               <TrendChart
                 buckets={analyticsBuckets}
@@ -1629,126 +1860,233 @@ export function ObservabilityDashboardClient({
       )}
 
       {mode === 'resources' && (
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <section className="rounded-lg border border-border bg-background">
-            <div className="grid grid-cols-[minmax(0,1fr)_90px_90px_120px_120px_120px] gap-4 border-border border-b px-4 py-3 text-muted-foreground text-xs">
-              <span>{t('resources.container')}</span>
-              <span>{t('resources.health')}</span>
-              <span>{t('resources.uptime')}</span>
-              <span>{t('resources.cpu')}</span>
-              <span>{t('resources.memory')}</span>
-              <span>{t('resources.network')}</span>
+        <div className="space-y-4">
+          <section className="flex flex-col gap-3 rounded-lg border border-border bg-background p-3 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="font-medium text-sm">
+                {t('resources.resource_history')}
+              </p>
+              <p className="text-muted-foreground text-xs">
+                {t('resources.resource_history_meta')}
+              </p>
             </div>
-            {resourcesQuery.isLoading ? (
-              <LoadingSkeleton rows={8} />
-            ) : (resources?.allContainers ?? []).length > 0 ? (
-              (resources?.allContainers ?? []).map((container) => {
-                const cpuTone = getCpuTone(container.cpuPercent);
-                const memoryTone = getMemoryTone(container.memoryBytes);
-                const memoryMb =
-                  container.memoryBytes == null
-                    ? null
-                    : container.memoryBytes / 1024 / 1024;
+            <div className="flex flex-wrap gap-1">
+              {(
+                [
+                  [1, t('last_hour')],
+                  [6, t('last_6_hours')],
+                  [12, t('last_12_hours')],
+                  [24, t('last_24_hours')],
+                  [72, t('last_3_days')],
+                  [168, t('last_7_days')],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  className={cn(
+                    'rounded-md border px-2.5 py-1.5 text-xs',
+                    timeframeHours === value
+                      ? 'border-dynamic-blue/60 bg-dynamic-blue/10 text-dynamic-blue'
+                      : 'border-border text-muted-foreground hover:text-foreground'
+                  )}
+                  key={value}
+                  onClick={() => void setTimeframeHours(value)}
+                  type="button"
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </section>
 
-                return (
-                  <div
-                    className="grid grid-cols-[minmax(0,1fr)_90px_90px_120px_120px_120px] items-center gap-4 border-border/50 border-b px-4 py-3 text-sm"
-                    key={container.containerId}
-                  >
-                    <div className="min-w-0">
-                      <p className="truncate font-medium">{container.name}</p>
-                      <p className="truncate font-mono text-muted-foreground text-xs">
-                        {container.image ?? container.serviceName ?? '-'}
-                      </p>
-                    </div>
-                    <span
-                      className={cn(
-                        container.health === 'healthy'
-                          ? 'text-dynamic-green'
-                          : container.health === 'unhealthy'
-                            ? 'text-dynamic-red'
-                            : 'text-muted-foreground'
-                      )}
+          {resourcesQuery.isLoading ? (
+            <div className="grid gap-4 xl:grid-cols-3">
+              <section className="rounded-lg border border-border bg-background">
+                <ChartSkeleton />
+              </section>
+              <section className="rounded-lg border border-border bg-background">
+                <ChartSkeleton />
+              </section>
+              <section className="rounded-lg border border-border bg-background">
+                <ChartSkeleton />
+              </section>
+            </div>
+          ) : (
+            <div className="grid gap-4 xl:grid-cols-3">
+              <ResourceTrendChart
+                buckets={resourceBuckets}
+                emptyLabel={t('charts.no_data')}
+                formatter={(value) => `${formatNumber(value)}%`}
+                series={[
+                  {
+                    getValue: (bucket) => bucket.cpuPercent,
+                    label: t('resources.cpu'),
+                    tone: getCpuTone(resources?.totalCpuPercent),
+                  },
+                ]}
+                title={t('resources.cpu_trend')}
+              />
+              <ResourceTrendChart
+                buckets={resourceBuckets}
+                emptyLabel={t('charts.no_data')}
+                formatter={formatBytes}
+                series={[
+                  {
+                    getValue: (bucket) => bucket.memoryBytes,
+                    label: t('resources.memory'),
+                    tone: getMemoryTone(resources?.totalMemoryBytes),
+                  },
+                ]}
+                title={t('resources.memory_trend')}
+              />
+              <ResourceTrendChart
+                buckets={resourceBuckets}
+                emptyLabel={t('charts.no_data')}
+                formatter={formatBytes}
+                series={[
+                  {
+                    getValue: (bucket) => bucket.rxBytes,
+                    label: t('resources.rx'),
+                    tone: 'blue',
+                  },
+                  {
+                    getValue: (bucket) => bucket.txBytes,
+                    label: t('resources.tx'),
+                    tone: 'amber',
+                  },
+                ]}
+                title={t('resources.network_trend')}
+              />
+            </div>
+          )}
+
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
+            <section className="rounded-lg border border-border bg-background">
+              <div className="grid grid-cols-[minmax(0,1fr)_90px_90px_120px_120px_120px] gap-4 border-border border-b px-4 py-3 text-muted-foreground text-xs">
+                <span>{t('resources.container')}</span>
+                <span>{t('resources.health')}</span>
+                <span>{t('resources.uptime')}</span>
+                <span>{t('resources.cpu')}</span>
+                <span>{t('resources.memory')}</span>
+                <span>{t('resources.network')}</span>
+              </div>
+              {resourcesQuery.isLoading ? (
+                <LoadingSkeleton rows={8} />
+              ) : (resources?.allContainers ?? []).length > 0 ? (
+                (resources?.allContainers ?? []).map((container) => {
+                  const cpuTone = getCpuTone(container.cpuPercent);
+                  const memoryTone = getMemoryTone(container.memoryBytes);
+                  const memoryMb =
+                    container.memoryBytes == null
+                      ? null
+                      : container.memoryBytes / 1024 / 1024;
+
+                  return (
+                    <div
+                      className="grid grid-cols-[minmax(0,1fr)_90px_90px_120px_120px_120px] items-center gap-4 border-border/50 border-b px-4 py-3 text-sm"
+                      key={container.containerId}
                     >
-                      {container.health}
-                    </span>
-                    <span className="font-mono text-muted-foreground text-xs">
-                      {container.runningFor ?? '-'}
-                    </span>
-                    <div>
-                      <span
-                        className={cn('font-medium', toneClasses[cpuTone].text)}
-                      >
-                        {formatNumber(container.cpuPercent)}%
-                      </span>
-                      <div className="mt-1 h-1 rounded-full bg-muted">
-                        <div
-                          className={cn(
-                            'h-full rounded-full',
-                            toneClasses[cpuTone].bar
-                          )}
-                          style={{
-                            width: `${getPercent(container.cpuPercent, 40)}%`,
-                          }}
-                        />
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">{container.name}</p>
+                        <p className="truncate font-mono text-muted-foreground text-xs">
+                          {container.image ?? container.serviceName ?? '-'}
+                        </p>
                       </div>
-                    </div>
-                    <div>
                       <span
                         className={cn(
-                          'font-medium',
-                          toneClasses[memoryTone].text
+                          container.health === 'healthy'
+                            ? 'text-dynamic-green'
+                            : container.health === 'unhealthy'
+                              ? 'text-dynamic-red'
+                              : 'text-muted-foreground'
                         )}
                       >
-                        {formatBytes(container.memoryBytes)}
+                        {container.health}
                       </span>
-                      <div className="mt-1 h-1 rounded-full bg-muted">
-                        <div
+                      <span className="font-mono text-muted-foreground text-xs">
+                        {container.runningFor ?? '-'}
+                      </span>
+                      <div>
+                        <span
                           className={cn(
-                            'h-full rounded-full',
-                            toneClasses[memoryTone].bar
+                            'font-medium',
+                            toneClasses[cpuTone].text
                           )}
-                          style={{
-                            width: `${getPercent(memoryMb, 1024)}%`,
-                          }}
-                        />
+                        >
+                          {formatNumber(container.cpuPercent)}%
+                        </span>
+                        <div className="mt-1 h-1 rounded-full bg-muted">
+                          <div
+                            className={cn(
+                              'h-full rounded-full',
+                              toneClasses[cpuTone].bar
+                            )}
+                            style={{
+                              width: `${getPercent(container.cpuPercent, 40)}%`,
+                            }}
+                          />
+                        </div>
                       </div>
+                      <div>
+                        <span
+                          className={cn(
+                            'font-medium',
+                            toneClasses[memoryTone].text
+                          )}
+                        >
+                          {formatBytes(container.memoryBytes)}
+                        </span>
+                        <div className="mt-1 h-1 rounded-full bg-muted">
+                          <div
+                            className={cn(
+                              'h-full rounded-full',
+                              toneClasses[memoryTone].bar
+                            )}
+                            style={{
+                              width: `${getPercent(memoryMb, 1024)}%`,
+                            }}
+                          />
+                        </div>
+                      </div>
+                      <span className="font-mono text-muted-foreground text-xs">
+                        {formatBytes(container.rxBytes)} /{' '}
+                        {formatBytes(container.txBytes)}
+                      </span>
                     </div>
-                    <span className="font-mono text-muted-foreground text-xs">
-                      {formatBytes(container.rxBytes)} /{' '}
-                      {formatBytes(container.txBytes)}
-                    </span>
-                  </div>
-                );
-              })
-            ) : (
-              <div className="px-4 py-12 text-center text-muted-foreground text-sm">
-                {t('empty.containers')}
-              </div>
-            )}
-          </section>
-          <section className="rounded-lg border border-border bg-background p-4">
-            <Terminal className="mb-3 h-4 w-4 text-muted-foreground" />
-            <p className="font-medium text-sm">{t('resources.summary')}</p>
-            {resourcesQuery.isLoading ? (
-              <LoadingSkeleton className="px-0" rows={3} />
-            ) : (
-              <div className="mt-4 grid gap-3">
-                <MetricCard
-                  label={t('resources.total_cpu')}
-                  value={`${formatNumber(resources?.totalCpuPercent)}%`}
-                />
-                <MetricCard
-                  label={t('resources.total_memory')}
-                  value={formatBytes(resources?.totalMemoryBytes)}
-                />
-                <MetricCard
-                  label={t('resources.services')}
-                  value={formatNumber(resources?.serviceHealth.length)}
-                />
-              </div>
-            )}
-          </section>
+                  );
+                })
+              ) : (
+                <div className="px-4 py-12 text-center text-muted-foreground text-sm">
+                  {t('empty.containers')}
+                </div>
+              )}
+            </section>
+            <section className="rounded-lg border border-border bg-background p-4">
+              <Terminal className="mb-3 h-4 w-4 text-muted-foreground" />
+              <p className="font-medium text-sm">{t('resources.summary')}</p>
+              {resourcesQuery.isLoading ? (
+                <LoadingSkeleton className="px-0" rows={5} />
+              ) : (
+                <div className="mt-4 grid gap-3">
+                  <MetricCard
+                    label={t('resources.total_cpu')}
+                    value={`${formatNumber(resources?.totalCpuPercent)}%`}
+                  />
+                  <MetricCard
+                    label={t('resources.total_memory')}
+                    value={formatBytes(resources?.totalMemoryBytes)}
+                  />
+                  <MetricCard
+                    label={t('resources.network')}
+                    value={`${formatBytes(resources?.totalRxBytes)} / ${formatBytes(resources?.totalTxBytes)}`}
+                  />
+                  <MetricCard
+                    label={t('resources.services')}
+                    value={formatNumber(resources?.serviceHealth.length)}
+                  />
+                </div>
+              )}
+            </section>
+          </div>
         </div>
       )}
 

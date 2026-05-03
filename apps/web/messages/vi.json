@@ -1830,7 +1830,19 @@
       },
       "cron": {
         "description": "Các lượt chạy cron gần đây, thời lượng, trạng thái và lỗi đã ghi.",
+        "failure_streak": "Chuỗi lỗi",
+        "last_duration": "Thời lượng cuối",
+        "last_status": "Trạng thái cuối",
         "runtime_override": "Ghi đè runtime",
+        "summary": {
+          "enabled_jobs": "Job đang bật",
+          "next_run": "Lượt chạy kế",
+          "next_run_meta": "Lượt chạy được lên lịch gần nhất",
+          "processing": "Đang xử lý",
+          "queue": "Lượt chờ",
+          "runner": "Runner",
+          "runner_meta": "Docker cron runner native"
+        },
         "title": "Cron"
       },
       "deployment_states": {
@@ -1856,7 +1868,10 @@
         "loading": "Đang tải...",
         "more": "Cuộn để tải thêm"
       },
+      "last_12_hours": "12 giờ qua",
       "last_24_hours": "24 giờ qua",
+      "last_3_days": "3 ngày qua",
+      "last_6_hours": "6 giờ qua",
       "last_7_days": "7 ngày qua",
       "last_hour": "1 giờ qua",
       "load_older": "Tải cũ hơn",
@@ -1893,21 +1908,36 @@
       "resources": {
         "container": "Container",
         "cpu": "CPU",
+        "cpu_trend": "Xu hướng CPU",
         "description": "Sức khỏe container Docker, mức dùng tài nguyên, lưu lượng mạng và trạng thái dịch vụ compose.",
         "health": "Sức khỏe",
         "memory": "Bộ nhớ",
+        "memory_trend": "Xu hướng bộ nhớ",
         "network": "Mạng",
+        "network_trend": "Xu hướng mạng",
+        "resource_history": "Lịch sử tài nguyên",
+        "resource_history_meta": "Mức dùng tài nguyên được lấy mẫu và lưu trong log drain.",
+        "rx": "Nhận",
         "services": "Dịch vụ",
         "summary": "Tóm tắt runtime",
         "title": "Resources",
         "total_cpu": "Tổng CPU",
         "total_memory": "Tổng bộ nhớ",
+        "tx": "Gửi",
         "uptime": "Uptime"
       },
       "search_placeholder": "Tìm log, route, request",
       "signals": {
         "active_sources": "Nguồn đang hoạt động",
         "cron_failure_rate": "Tỷ lệ lỗi cron",
+        "error_rate": "Tỷ lệ lỗi",
+        "error_rate_meta": "Tỷ lệ request đã ghi",
+        "last_event": "Sự kiện cuối",
+        "last_event_meta": "Log hoặc request gần nhất",
+        "p95_latency": "Độ trễ P95",
+        "p95_latency_meta": "Độ trễ request phần đuôi",
+        "routes": "Routes",
+        "routes_meta": "Route nổi bật trong khung này",
         "server_errors": "Lỗi server",
         "slow_requests": "Request chậm"
       },

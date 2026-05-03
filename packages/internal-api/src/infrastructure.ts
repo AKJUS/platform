@@ -669,6 +669,19 @@ export interface ObservabilityAnalytics {
   topRoutes: ObservabilityOverview['topRoutes'];
 }
 
+export interface ObservabilityResourceBucket {
+  bucketStart: number;
+  cpuPercent: number | null;
+  memoryBytes: number | null;
+  rxBytes: number | null;
+  txBytes: number | null;
+}
+
+export interface ObservabilityResources {
+  buckets: ObservabilityResourceBucket[];
+  dockerResources: BlueGreenMonitoringSnapshot['dockerResources'];
+}
+
 export interface ObservabilityPaginatedResult<T> {
   hasNextPage: boolean;
   items: T[];
@@ -1023,6 +1036,17 @@ export async function getObservabilityCronRuns(
   const client = getInternalApiClient(options);
   return client.json<ObservabilityPaginatedResult<ObservabilityCronRun>>(
     getObservabilityPath('cron-runs', params),
+    { cache: 'no-store' }
+  );
+}
+
+export async function getObservabilityResources(
+  params?: Pick<GetObservabilityParams, 'timeframeHours'>,
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  return client.json<ObservabilityResources>(
+    getObservabilityPath('resources', params),
     { cache: 'no-store' }
   );
 }

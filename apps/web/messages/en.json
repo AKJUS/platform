@@ -1830,7 +1830,19 @@
       },
       "cron": {
         "description": "Recent cron executions, duration, status, and captured errors.",
+        "failure_streak": "Failure streak",
+        "last_duration": "Last duration",
+        "last_status": "Last status",
         "runtime_override": "Runtime override",
+        "summary": {
+          "enabled_jobs": "Enabled Jobs",
+          "next_run": "Next Run",
+          "next_run_meta": "Nearest scheduled execution",
+          "processing": "Processing",
+          "queue": "Queued Runs",
+          "runner": "Runner",
+          "runner_meta": "Native Docker cron runner"
+        },
         "title": "Cron"
       },
       "deployment_states": {
@@ -1856,7 +1868,10 @@
         "loading": "Loading...",
         "more": "Scroll for more"
       },
+      "last_12_hours": "Last 12 Hours",
       "last_24_hours": "Last 24 Hours",
+      "last_3_days": "Last 3 Days",
+      "last_6_hours": "Last 6 Hours",
       "last_7_days": "Last 7 Days",
       "last_hour": "Last Hour",
       "load_older": "Load Older",
@@ -1893,21 +1908,36 @@
       "resources": {
         "container": "Container",
         "cpu": "CPU",
+        "cpu_trend": "CPU Trend",
         "description": "Docker container health, resource usage, network flow, and compose service state.",
         "health": "Health",
         "memory": "Memory",
+        "memory_trend": "Memory Trend",
         "network": "Network",
+        "network_trend": "Network Trend",
+        "resource_history": "Resource History",
+        "resource_history_meta": "Sampled resource consumption retained in the log drain.",
+        "rx": "Rx",
         "services": "Services",
         "summary": "Runtime Summary",
         "title": "Resources",
         "total_cpu": "Total CPU",
         "total_memory": "Total Memory",
+        "tx": "Tx",
         "uptime": "Uptime"
       },
       "search_placeholder": "Search logs, routes, requests",
       "signals": {
         "active_sources": "Active Sources",
         "cron_failure_rate": "Cron Failure Rate",
+        "error_rate": "Error Rate",
+        "error_rate_meta": "Share of captured requests",
+        "last_event": "Last Event",
+        "last_event_meta": "Most recent log or request",
+        "p95_latency": "P95 Latency",
+        "p95_latency_meta": "Tail request latency",
+        "routes": "Routes",
+        "routes_meta": "Hot routes in this window",
         "server_errors": "Server Errors",
         "slow_requests": "Slow Requests"
       },

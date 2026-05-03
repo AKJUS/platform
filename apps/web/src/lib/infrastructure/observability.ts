@@ -9,6 +9,8 @@ import type {
   ObservabilityOverview,
   ObservabilityPaginatedResult,
   ObservabilityRequest,
+  ObservabilityResourceBucket,
+  ObservabilityResources,
 } from '@tuturuuu/internal-api/infrastructure';
 import {
   readBlueGreenMonitoringRequestArchive,
@@ -34,6 +36,13 @@ const DEFAULT_PAGE_SIZE = 50;
 const DEFAULT_TIMEFRAME_HOURS = 24;
 const MAX_PAGE_SIZE = 200;
 const MAX_AGGREGATE_ROWS = 5_000;
+const RESOURCE_SAMPLE_MIN_INTERVAL_MS = 60_000;
+const RESOURCE_METRICS = {
+  cpu: 'docker.cpu_percent',
+  memory: 'docker.memory_bytes',
+  rx: 'docker.rx_bytes',
+  tx: 'docker.tx_bytes',
+} as const;
 
 function clampPage(value: unknown) {
   const parsed = Number.parseInt(String(value ?? ''), 10);
@@ -939,6 +948,156 @@ function getTopRoutes(requests: ObservabilityRequest[]) {
     }))
     .sort((left, right) => right.requestCount - left.requestCount)
     .slice(0, 10);
+}
+
+async function persistResourceSample(
+  dockerResources: ObservabilityResources['dockerResources']
+) {
+  const sql = await getSql();
+  if (!sql) {
+    return;
+  }
+
+  const recent = await sql<Array<{ created_at: Date }>>`
+    SELECT created_at
+    FROM usage_events
+    WHERE metric = ${RESOURCE_METRICS.cpu}
+      AND created_at >= now() - make_interval(secs => ${Math.ceil(
+        RESOURCE_SAMPLE_MIN_INTERVAL_MS / 1000
+      )})
+    ORDER BY created_at DESC
+    LIMIT 1
+  `;
+
+  if (recent.length > 0) {
+    return;
+  }
+
+  const metadata = JSON.stringify({
+    containers: dockerResources.allContainers.length,
+    services: dockerResources.serviceHealth.length,
+    state: dockerResources.state,
+  });
+
+  await sql`
+    INSERT INTO usage_events (source, metric, value, unit, metadata)
+    VALUES
+      ('server', ${RESOURCE_METRICS.cpu}, ${dockerResources.totalCpuPercent}, 'percent', ${metadata}::jsonb),
+      ('server', ${RESOURCE_METRICS.memory}, ${dockerResources.totalMemoryBytes}, 'bytes', ${metadata}::jsonb),
+      ('server', ${RESOURCE_METRICS.rx}, ${dockerResources.totalRxBytes}, 'bytes', ${metadata}::jsonb),
+      ('server', ${RESOURCE_METRICS.tx}, ${dockerResources.totalTxBytes}, 'bytes', ${metadata}::jsonb)
+  `;
+}
+
+function getResourceBucketCount(timeframeHours: number) {
+  if (timeframeHours <= 1) return 30;
+  if (timeframeHours <= 6) return 36;
+  if (timeframeHours <= 12) return 48;
+  if (timeframeHours <= 24) return 48;
+  if (timeframeHours <= 72) return 72;
+  return 84;
+}
+
+function getCurrentResourceBucket(
+  dockerResources: ObservabilityResources['dockerResources']
+): ObservabilityResourceBucket {
+  return {
+    bucketStart: Date.now(),
+    cpuPercent: dockerResources.totalCpuPercent,
+    memoryBytes: dockerResources.totalMemoryBytes,
+    rxBytes: dockerResources.totalRxBytes,
+    txBytes: dockerResources.totalTxBytes,
+  };
+}
+
+async function readResourceBuckets(
+  timeframeHours: number,
+  dockerResources: ObservabilityResources['dockerResources']
+): Promise<ObservabilityResourceBucket[]> {
+  const sql = await getSql();
+  if (!sql) {
+    return [getCurrentResourceBucket(dockerResources)];
+  }
+
+  const rows = await sql<
+    Array<{ created_at: Date; metric: string; value: number }>
+  >`
+    SELECT metric, value, created_at
+    FROM usage_events
+    WHERE metric IN ${sql(Object.values(RESOURCE_METRICS))}
+      AND created_at >= now() - make_interval(hours => ${timeframeHours})
+    ORDER BY created_at ASC
+    LIMIT ${MAX_AGGREGATE_ROWS}
+  `;
+
+  if (rows.length === 0) {
+    return [getCurrentResourceBucket(dockerResources)];
+  }
+
+  const bucketCount = getResourceBucketCount(timeframeHours);
+  const now = Date.now();
+  const start = now - timeframeHours * 60 * 60 * 1000;
+  const bucketMs = (now - start) / bucketCount;
+  const buckets = Array.from({ length: bucketCount }, (_, index) => ({
+    bucketStart: start + index * bucketMs,
+    cpu: [] as number[],
+    memory: [] as number[],
+    rx: [] as number[],
+    tx: [] as number[],
+  }));
+
+  for (const row of rows) {
+    const createdAt = toMs(row.created_at) ?? now;
+    const bucketIndex = Math.min(
+      buckets.length - 1,
+      Math.max(0, Math.floor((createdAt - start) / bucketMs))
+    );
+    const bucket = buckets[bucketIndex];
+    if (!bucket) continue;
+
+    if (row.metric === RESOURCE_METRICS.cpu) bucket.cpu.push(row.value);
+    else if (row.metric === RESOURCE_METRICS.memory) {
+      bucket.memory.push(row.value);
+    } else if (row.metric === RESOURCE_METRICS.rx) bucket.rx.push(row.value);
+    else if (row.metric === RESOURCE_METRICS.tx) bucket.tx.push(row.value);
+  }
+
+  const average = (values: number[]) =>
+    values.length > 0
+      ? values.reduce((total, value) => total + value, 0) / values.length
+      : null;
+
+  return buckets.map((bucket) => ({
+    bucketStart: bucket.bucketStart,
+    cpuPercent: average(bucket.cpu),
+    memoryBytes: average(bucket.memory),
+    rxBytes: average(bucket.rx),
+    txBytes: average(bucket.tx),
+  }));
+}
+
+export async function readObservabilityResources(
+  filters: ObservabilityFilters = {}
+): Promise<ObservabilityResources> {
+  const normalized = parseFilterDefaults(filters);
+  const snapshot = readBlueGreenMonitoringSnapshot({
+    requestPreviewLimit: 0,
+    watcherLogLimit: 0,
+  });
+
+  try {
+    await persistResourceSample(snapshot.dockerResources);
+  } catch {
+    // Resource history persistence must not block the live Docker snapshot.
+  }
+
+  return {
+    buckets: await readResourceBuckets(
+      normalized.timeframeHours,
+      snapshot.dockerResources
+    ),
+    dockerResources: snapshot.dockerResources,
+  };
 }
 
 export async function readObservabilityOverview(

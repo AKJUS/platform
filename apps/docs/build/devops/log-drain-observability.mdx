@@ -64,11 +64,13 @@ Each drained request stores the client IP address and user agent when those head
 
 Infrastructure → Monitoring → Cron exposes the native Docker cron runner state, a global enable/disable switch, per-job enable/disable switches, manual run buttons, retained execution rows, and captured response/console output. Runtime overrides are stored in `tmp/docker-web/watch/control/cron-control.json`; they do not edit `apps/web/cron.config.json`, so Vercel cron config remains source-controlled while local Docker operations can pause individual jobs safely.
 
-Cron jobs should show both the raw expression and a natural description such as "Every 15 minutes", plus the previous and next scheduled run timestamps when the runtime snapshot provides them.
+Cron jobs should show both the raw expression and a natural description such as "Every 15 minutes", plus the previous and next scheduled run timestamps when the runtime snapshot provides them. Cron expressions are stored as runtime config, while visible daily schedule descriptions and run timestamps are rendered in the viewer's browser timezone.
 
 ## Resources
 
 Infrastructure → Monitoring → Resources reads the Docker runtime snapshot and displays container health, image/service identity, uptime, CPU, memory, compact network ingress/egress, and aggregate service counts. This is the operator view for Docker Desktop resource pressure without opening Docker Desktop directly.
+
+When the Resources tab is viewed, the current Docker snapshot is sampled into the log drain `usage_events` table at most once per minute. The UI charts that history across the supported resource windows: 1 hour, 6 hours, 12 hours, 24 hours, 3 days, and 7 days. If the log drain is disabled or unavailable, the tab still shows the live Docker snapshot and falls back to a single current sample.
 
 Resource pressure uses the same thresholds as the dashboard: memory under 200 MB is green, 200-500 MB is amber, 500-1024 MB is orange, and anything above 1024 MB is red. CPU under 5% is green, 5-20% is amber, 20-40% is orange, and anything above 40% is red.
 
