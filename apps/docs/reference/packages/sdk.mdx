@@ -137,6 +137,12 @@ machine-readable for agents. Use `ttr upgrade` to run `bun i -g tuturuuu`. Use
 `--no-update-check` on a single command, or set `TUTURUUU_DISABLE_UPDATE_CHECK=1`,
 to disable the check.
 
+CLI sessions are dedicated Supabase sessions labeled `Tuturuuu CLI`, separate
+from normal browser sessions. The CLI stores both the access token and refresh
+token, refreshes shortly before token expiry, updates the saved config with the
+rotated refresh token, and retries once after a `401` response. If refresh fails,
+run `ttr login` again to create a fresh dedicated CLI session.
+
 ### Scoped Help
 
 Use scoped help when you know the area but not the exact flags. Help commands do

@@ -88,6 +88,7 @@ function getClient(config: CliConfig) {
   return new TuturuuuUserClient({
     accessToken: config.session.accessToken,
     baseUrl: config.baseUrl,
+    expiresAt: config.session.expiresAt,
     onSessionRefresh: async (session) => {
       await writeCliConfig({ ...config, session });
     },
@@ -123,6 +124,7 @@ async function saveSession(config: CliConfig, token: string) {
     (await new TuturuuuUserClient({
       accessToken: session.accessToken,
       baseUrl: nextConfig.baseUrl,
+      expiresAt: session.expiresAt,
       refreshToken: session.refreshToken,
     }).users
       .profile()

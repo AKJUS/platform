@@ -94,12 +94,17 @@ project in the OS-specific app config directory. `personal` is the default
 workspace after login and when no workspace has been selected. Set
 `TUTURUUU_CONFIG` to use a custom config file, or
 `ttr config set-base-url <url>` to target a non-production Tuturuuu instance.
-Once per day, the CLI checks the npm registry for a newer `tuturuuu` release
 Once per hour, the CLI checks the npm registry for a newer `tuturuuu` release
 and prints update instructions to stderr when one is available. Use `ttr
 upgrade` to run `bun i -g tuturuuu`. Use
 `--no-update-check` for a single command or set `TUTURUUU_DISABLE_UPDATE_CHECK=1`
 to disable this notification.
+
+CLI sessions are dedicated Supabase sessions labeled `Tuturuuu CLI`, separate
+from normal browser sessions. The CLI stores both the access token and refresh
+token, refreshes shortly before token expiry, updates the saved config with the
+rotated refresh token, and retries once after a `401` response. If refresh fails,
+run `ttr login` again to create a fresh dedicated CLI session.
 
 Scoped help is available without login, saved config reads, or update checks:
 

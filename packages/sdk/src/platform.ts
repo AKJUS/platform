@@ -54,10 +54,13 @@ import { type CliSession, normalizeBaseUrl } from './cli/config';
 export interface TuturuuuUserClientConfig {
   accessToken: string;
   baseUrl?: string;
+  expiresAt?: number | null;
   fetch?: typeof fetch;
   onSessionRefresh?: (session: CliSession) => void | Promise<void>;
   refreshToken?: string;
 }
+
+const SESSION_REFRESH_SKEW_MS = 60_000;
 
 function getAuthorizationHeader(accessToken: string) {
   return `Bearer ${accessToken}`;
@@ -372,10 +375,12 @@ export class TasksClient {
 export class TuturuuuUserClient {
   private accessToken: string;
   private readonly baseUrl: string;
+  private expiresAt?: number | null;
   private readonly fetchImpl: typeof fetch;
   private readonly onSessionRefresh?: (
     session: CliSession
   ) => void | Promise<void>;
+  private refreshPromise?: Promise<CliSession>;
   private refreshToken?: string;
 
   readonly tasks: TasksClient;
@@ -385,12 +390,39 @@ export class TuturuuuUserClient {
   constructor(config: TuturuuuUserClientConfig) {
     this.accessToken = config.accessToken;
     this.baseUrl = normalizeBaseUrl(config.baseUrl);
+    this.expiresAt = config.expiresAt;
     this.fetchImpl = config.fetch || globalThis.fetch;
     this.onSessionRefresh = config.onSessionRefresh;
     this.refreshToken = config.refreshToken;
     this.tasks = new TasksClient(this);
     this.users = new UsersClient(this);
     this.workspaces = new WorkspacesClient(this);
+  }
+
+  private shouldRefreshSession() {
+    if (!this.refreshToken || !this.expiresAt) return false;
+    return this.expiresAt * 1000 <= Date.now() + SESSION_REFRESH_SKEW_MS;
+  }
+
+  private async refreshSession() {
+    if (!this.refreshToken) {
+      throw new Error('CLI session expired. Run `ttr login` again.');
+    }
+
+    this.refreshPromise ??= refreshCliSession({
+      baseUrl: this.baseUrl,
+      fetch: this.fetchImpl,
+      refreshToken: this.refreshToken,
+    }).finally(() => {
+      this.refreshPromise = undefined;
+    });
+
+    const nextSession = await this.refreshPromise;
+    this.accessToken = nextSession.accessToken;
+    this.expiresAt = nextSession.expiresAt;
+    this.refreshToken = nextSession.refreshToken;
+    await this.onSessionRefresh?.(nextSession);
+    return nextSession;
   }
 
   getClientOptions(): InternalApiClientOptions {
@@ -401,21 +433,23 @@ export class TuturuuuUserClient {
         'X-SDK-Client': 'tuturuuu-cli',
       },
       fetch: async (input, init) => {
-        const response = await this.fetchImpl(input, init);
+        const headers = new Headers(init?.headers);
+
+        if (this.shouldRefreshSession()) {
+          await this.refreshSession();
+        }
+
+        headers.set('Authorization', getAuthorizationHeader(this.accessToken));
+
+        const response = await this.fetchImpl(input, {
+          ...init,
+          headers,
+        });
         if (response.status !== 401 || !this.refreshToken) {
           return response;
         }
 
-        const nextSession = await refreshCliSession({
-          baseUrl: this.baseUrl,
-          fetch: this.fetchImpl,
-          refreshToken: this.refreshToken,
-        });
-        this.accessToken = nextSession.accessToken;
-        this.refreshToken = nextSession.refreshToken;
-        await this.onSessionRefresh?.(nextSession);
-
-        const headers = new Headers(init?.headers);
+        await this.refreshSession();
         headers.set('Authorization', getAuthorizationHeader(this.accessToken));
 
         return this.fetchImpl(input, {
