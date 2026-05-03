@@ -811,6 +811,19 @@ test('runDockerWebWorkflow routes builds through a capped buildx builder when re
           return { code: 1, signal: null, stderr: '', stdout: '' };
         }
 
+        if (args.includes('ps') && args.includes('buildkit')) {
+          return {
+            code: 0,
+            signal: null,
+            stderr: '',
+            stdout: 'buildkit-123\n',
+          };
+        }
+
+        if (args[0] === 'inspect' && args.includes('buildkit-123')) {
+          return { code: 0, signal: null, stderr: '', stdout: 'healthy\n' };
+        }
+
         return { code: 0, signal: null, stderr: '', stdout: '' };
       },
     }
@@ -823,9 +836,22 @@ test('runDockerWebWorkflow routes builds through a capped buildx builder when re
         call.args[0] === 'buildx' &&
         call.args[1] === 'create' &&
         call.args.includes(DEFAULT_BUILDER_NAME) &&
-        call.args.includes('memory=4g') &&
-        call.args.includes('cpu-period=100000') &&
-        call.args.includes('cpu-quota=200000')
+        call.args.includes('--driver') &&
+        call.args.includes('remote') &&
+        call.args.includes('tcp://127.0.0.1:7914')
+    )
+  );
+  assert.ok(
+    calls.some(
+      (call) =>
+        call.command === 'docker' &&
+        call.args[0] === 'compose' &&
+        call.args.includes('up') &&
+        call.args.includes('--no-build') &&
+        call.args.includes('buildkit') &&
+        call.env.DOCKER_WEB_BUILD_MEMORY === '4g' &&
+        call.env.DOCKER_WEB_BUILD_CPUS === '2' &&
+        call.env.DOCKER_WEB_BUILD_MAX_PARALLELISM === '2'
     )
   );
   assert.equal(calls.at(-1).env.BUILDX_BUILDER, DEFAULT_BUILDER_NAME);

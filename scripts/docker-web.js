@@ -341,6 +341,8 @@ async function runDockerWebWorkflow(parsed, options = {}) {
       memory: parsed.buildMemory,
     },
     {
+      composeFile,
+      composeGlobalArgs: parsed.composeGlobalArgs,
       env: composeEnv,
       fsImpl,
       rootDir: options.rootDir,

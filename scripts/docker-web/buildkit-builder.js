@@ -2,7 +2,12 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const { runChecked, runCommand } = require('./compose.js');
+const {
+  getComposeCommandArgs,
+  runChecked,
+  runCommand,
+  waitForComposeServiceHealthy,
+} = require('./compose.js');
 
 const ROOT_DIR = path.resolve(__dirname, '..', '..');
 const BUILDKIT_RUNTIME_DIR = path.join(
@@ -17,7 +22,8 @@ const BUILDKIT_STATE_FILE = path.join(
   'builder-config.json'
 );
 const DEFAULT_BUILDER_NAME = 'platform';
-const DEFAULT_CPU_PERIOD = 100_000;
+const DEFAULT_BUILDKIT_HOST_PORT = 7914;
+const BUILDKIT_SERVICE_NAME = 'buildkit';
 
 function parsePositiveNumber(value) {
   if (typeof value === 'number') {
@@ -49,6 +55,10 @@ function parsePositiveInteger(value) {
 }
 
 function renderBuildkitConfig(maxParallelism) {
+  if (!maxParallelism) {
+    return '';
+  }
+
   return ['[worker.oci]', `  max-parallelism = ${maxParallelism}`, ''].join(
     '\n'
   );
@@ -79,6 +89,10 @@ function normalizeBuilderConfig(rawConfig, env = process.env) {
     typeof (rawConfig?.memory ?? env.DOCKER_WEB_BUILD_MEMORY) === 'string'
       ? (rawConfig?.memory ?? env.DOCKER_WEB_BUILD_MEMORY).trim() || null
       : null;
+  const endpoint =
+    rawConfig?.endpoint ||
+    env.DOCKER_WEB_BUILDKIT_ENDPOINT ||
+    `tcp://127.0.0.1:${env.DOCKER_WEB_BUILDKIT_PORT || DEFAULT_BUILDKIT_HOST_PORT}`;
 
   if (rawConfig?.cpus !== undefined && rawConfig?.cpus !== null && !cpus) {
     throw new Error('Build CPUs must be a positive number.');
@@ -103,26 +117,10 @@ function normalizeBuilderConfig(rawConfig, env = process.env) {
   return {
     builderName: builderName.trim(),
     cpus,
+    endpoint,
     maxParallelism,
     memory,
   };
-}
-
-function getBuilderDriverOptions(config) {
-  const options = ['default-load=true'];
-
-  if (config.memory) {
-    options.push(`memory=${config.memory}`);
-  }
-
-  if (config.cpus) {
-    options.push(`cpu-period=${DEFAULT_CPU_PERIOD}`);
-    options.push(
-      `cpu-quota=${Math.max(1, Math.floor(config.cpus * DEFAULT_CPU_PERIOD))}`
-    );
-  }
-
-  return options;
 }
 
 function getBuilderConfigFingerprint(config) {
@@ -132,6 +130,8 @@ function getBuilderConfigFingerprint(config) {
       JSON.stringify({
         builderName: config.builderName,
         cpus: config.cpus,
+        driver: 'remote',
+        endpoint: config.endpoint,
         maxParallelism: config.maxParallelism,
         memory: config.memory,
       })
@@ -156,7 +156,7 @@ function writeBuilderState(state, paths = getBuildkitPaths(), fsImpl = fs) {
   fsImpl.writeFileSync(paths.stateFile, JSON.stringify(state, null, 2), 'utf8');
 }
 
-async function hasBuildxBuilder(
+async function inspectBuildxBuilder(
   builderName,
   { env, runCommand: run = runCommand }
 ) {
@@ -165,13 +165,119 @@ async function hasBuildxBuilder(
     stdio: 'pipe',
   });
 
-  return result.code === 0;
+  if (result.code !== 0) {
+    return {
+      driver: null,
+      exists: false,
+    };
+  }
+
+  const driverMatch = result.stdout.match(/^Driver:\s*(.+)$/imu);
+
+  return {
+    driver: driverMatch?.[1]?.trim() ?? null,
+    exists: true,
+  };
+}
+
+async function removeLegacyBuildkitContainer(
+  builderName,
+  { env, runCommand: run = runCommand }
+) {
+  const legacyContainerName = `buildx_buildkit_${builderName}0`;
+  const result = await run(
+    'docker',
+    [
+      'ps',
+      '-a',
+      '--filter',
+      `name=^/${legacyContainerName}$`,
+      '--format',
+      '{{.Names}}',
+    ],
+    {
+      env,
+      stdio: 'pipe',
+    }
+  );
+
+  if (
+    result.code !== 0 ||
+    !result.stdout
+      .split('\n')
+      .map((line) => line.trim())
+      .includes(legacyContainerName)
+  ) {
+    return;
+  }
+
+  await run('docker', ['rm', '-f', legacyContainerName], {
+    env,
+    stdio: 'pipe',
+  });
+}
+
+function getBuildkitComposeEnv(config, env) {
+  return {
+    ...env,
+    DOCKER_WEB_BUILD_CPUS:
+      config.cpus == null ? env.DOCKER_WEB_BUILD_CPUS : String(config.cpus),
+    DOCKER_WEB_BUILD_MAX_PARALLELISM:
+      config.maxParallelism == null
+        ? env.DOCKER_WEB_BUILD_MAX_PARALLELISM
+        : String(config.maxParallelism),
+    DOCKER_WEB_BUILD_MEMORY: config.memory ?? env.DOCKER_WEB_BUILD_MEMORY,
+    DOCKER_WEB_BUILDKIT_PORT:
+      env.DOCKER_WEB_BUILDKIT_PORT ?? String(DEFAULT_BUILDKIT_HOST_PORT),
+  };
+}
+
+async function ensureBuildkitComposeService({
+  composeFile,
+  composeGlobalArgs = [],
+  config,
+  env,
+  fsImpl,
+  runCommand: run,
+}) {
+  if (!composeFile) {
+    return env;
+  }
+
+  const composeEnv = getBuildkitComposeEnv(config, env);
+
+  await runChecked(
+    'docker',
+    getComposeCommandArgs(
+      composeFile,
+      composeGlobalArgs,
+      'up',
+      '--detach',
+      '--no-build',
+      BUILDKIT_SERVICE_NAME
+    ),
+    {
+      env: composeEnv,
+      fsImpl,
+      runCommand: run,
+    }
+  );
+  await waitForComposeServiceHealthy(BUILDKIT_SERVICE_NAME, {
+    composeFile,
+    composeGlobalArgs,
+    env: composeEnv,
+    runCommand: run,
+  });
+
+  return composeEnv;
 }
 
 async function ensureBuildkitBuilder(
   rawConfig,
   {
     env = process.env,
+    composeFile = null,
+    composeGlobalArgs = [],
     fsImpl = fs,
     paths = null,
     rootDir = ROOT_DIR,
@@ -186,33 +292,43 @@ async function ensureBuildkitBuilder(
   }
 
   fsImpl.mkdirSync(paths.runtimeDir, { recursive: true });
+  fsImpl.writeFileSync(
+    paths.buildkitConfigFile,
+    renderBuildkitConfig(config.maxParallelism),
+    'utf8'
+  );
+  env = await ensureBuildkitComposeService({
+    composeFile,
+    composeGlobalArgs,
+    config,
+    env,
+    fsImpl,
+    runCommand: run,
+  });
   const fingerprint = getBuilderConfigFingerprint(config);
   const state = readBuilderState(paths, fsImpl);
-  const builderExists = await hasBuildxBuilder(config.builderName, {
+  const builder = await inspectBuildxBuilder(config.builderName, {
     env,
     runCommand: run,
   });
 
-  if (!builderExists || state?.fingerprint !== fingerprint) {
-    if (config.maxParallelism) {
-      fsImpl.writeFileSync(
-        paths.buildkitConfigFile,
-        renderBuildkitConfig(config.maxParallelism),
-        'utf8'
-      );
+  if (
+    !builder.exists ||
+    builder.driver !== 'remote' ||
+    state?.fingerprint !== fingerprint
+  ) {
+    if (builder.exists) {
+      await runChecked('docker', ['buildx', 'rm', config.builderName], {
+        env,
+        fsImpl,
+        runCommand: run,
+      });
     }
 
-    if (builderExists) {
-      await runChecked(
-        'docker',
-        ['buildx', 'rm', '--keep-state', config.builderName],
-        {
-          env,
-          fsImpl,
-          runCommand: run,
-        }
-      );
-    }
+    await removeLegacyBuildkitContainer(config.builderName, {
+      env,
+      runCommand: run,
+    });
 
     const args = [
       'buildx',
@@ -220,17 +336,9 @@ async function ensureBuildkitBuilder(
       '--name',
       config.builderName,
       '--driver',
-      'docker-container',
-      '--bootstrap',
+      'remote',
+      config.endpoint,
     ];
-
-    for (const option of getBuilderDriverOptions(config)) {
-      args.push('--driver-opt', option);
-    }
-
-    if (config.maxParallelism) {
-      args.push('--buildkitd-config', paths.buildkitConfigFile);
-    }
 
     await runChecked('docker', args, {
       env,
@@ -264,12 +372,13 @@ module.exports = {
   BUILDKIT_CONFIG_FILE,
   BUILDKIT_RUNTIME_DIR,
   BUILDKIT_STATE_FILE,
+  BUILDKIT_SERVICE_NAME,
+  DEFAULT_BUILDKIT_HOST_PORT,
   DEFAULT_BUILDER_NAME,
-  DEFAULT_CPU_PERIOD,
+  ensureBuildkitComposeService,
   ensureBuildkitBuilder,
   getBuildkitPaths,
   getBuilderConfigFingerprint,
-  getBuilderDriverOptions,
   normalizeBuilderConfig,
   parsePositiveInteger,
   parsePositiveNumber,

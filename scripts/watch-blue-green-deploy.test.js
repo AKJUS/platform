@@ -1723,17 +1723,19 @@ test('loadRuntimeSnapshot keeps both live colors marked active in deployment car
                 `blue-123\tplatform-web-blue-1\tplatform-web\tUp 3 minutes\t3 minutes\t\tweb-blue\t${path.basename(tempDir)}`,
                 `green-123\tplatform-web-green-1\tplatform-web\tUp 6 minutes (healthy)\t6 minutes\t\tweb-green\t${path.basename(tempDir)}`,
                 `markitdown-123\tplatform-markitdown-1\tplatform-markitdown\tUp 2 minutes (healthy)\t2 minutes\t\tmarkitdown\t${path.basename(tempDir)}`,
+                'buildkit-123\tbuildx_buildkit_platform0\tmoby/buildkit:buildx-stable-1\tUp 2 minutes\t2 minutes\t\t\t',
               ].join('\n')
             ),
           ],
           [
-            'docker stats --no-stream --format {{.ID}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}\t{{.Name}} proxy-123 blue-123 green-123 markitdown-123',
+            'docker stats --no-stream --format {{.ID}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}\t{{.Name}} proxy-123 blue-123 green-123 markitdown-123 buildkit-123',
             createResult(
               [
                 'proxy-123\t0.10%\t24.0MiB / 31.1GiB\t2.00MB / 3.00MB\tplatform-web-proxy-1',
                 'blue-123\t1.20%\t150MiB / 31.1GiB\t6.00MB / 4.00MB\tplatform-web-blue-1',
                 'green-123\t3.40%\t420MiB / 31.1GiB\t10.0MB / 8.00MB\tplatform-web-green-1',
                 'markitdown-123\t0.30%\t96MiB / 31.1GiB\t1.00MB / 1.00MB\tplatform-markitdown-1',
+                'buildkit-123\t0.20%\t29MiB / 31.1GiB\t1.00KB / 0B\tbuildx_buildkit_platform0',
               ].join('\n')
             ),
           ],
@@ -1750,8 +1752,14 @@ test('loadRuntimeSnapshot keeps both live colors marked active in deployment car
     assert.equal(snapshot.deployments[2].runtimeState, null);
     assert.equal(snapshot.dockerResources.state, 'live');
     assert.equal(snapshot.dockerResources.containers.length, 3);
-    assert.equal(snapshot.dockerResources.allContainers.length, 4);
+    assert.equal(snapshot.dockerResources.allContainers.length, 5);
     assert.equal(snapshot.dockerResources.serviceHealth.length, 4);
+    assert.equal(
+      snapshot.dockerResources.allContainers.find(
+        (container) => container.name === 'buildx_buildkit_platform0'
+      )?.health,
+      'healthy'
+    );
     assert.equal(
       snapshot.dockerResources.serviceHealth.find(
         (service) => service.serviceName === 'markitdown'

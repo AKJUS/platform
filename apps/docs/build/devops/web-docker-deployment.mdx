@@ -411,17 +411,25 @@ Equivalent environment variables:
 - `DOCKER_WEB_BUILD_CPUS=2`
 - `DOCKER_WEB_BUILD_MAX_PARALLELISM=2`
 - `DOCKER_WEB_BUILD_BUILDER_NAME=platform`
+- `DOCKER_WEB_BUILDKIT_PORT=7914`
+- `DOCKER_WEB_BUILDKIT_ENDPOINT=tcp://127.0.0.1:7914`
 
 How it works:
 
-- The helper creates or reuses a dedicated `docker-container` Buildx builder
-  instead of the default daemon-bound builder.
-- `DOCKER_WEB_BUILD_MEMORY` caps the BuildKit container's memory budget.
-- `DOCKER_WEB_BUILD_CPUS` is converted to Docker CPU quota settings for the
-  BuildKit container.
+- The helper starts the Compose-owned `buildkit` service and then creates or
+  reuses the remote Buildx builder named by `DOCKER_WEB_BUILD_BUILDER_NAME`.
+  The container is named `${COMPOSE_PROJECT_NAME:-platform}-buildkit-1`, so it
+  stays visually grouped under the `platform` Docker Desktop stack.
+- `DOCKER_WEB_BUILD_MEMORY` caps the Compose-owned BuildKit service's memory
+  budget.
+- `DOCKER_WEB_BUILD_CPUS` sets the BuildKit service CPU budget.
 - `DOCKER_WEB_BUILD_MAX_PARALLELISM` writes a BuildKit config that limits
   concurrent solve steps, which is often the most effective way to reduce
   CPU spikes on smaller machines.
+- Host-side helper runs point Buildx at
+  `DOCKER_WEB_BUILDKIT_ENDPOINT` (default
+  `tcp://127.0.0.1:${DOCKER_WEB_BUILDKIT_PORT:-7914}`). The watcher container
+  uses `tcp://buildkit:1234` on the Compose network.
 - The same max-parallelism value is also forwarded as `COMPOSE_PARALLEL_LIMIT`
   when that variable is not already set, so Compose does not build multiple
   services at once under the capped builder.
@@ -435,6 +443,10 @@ Operational notes:
   has started.
 - If no build caps are configured, the helper continues using Docker's default
   builder behavior.
+- Do not switch capped builds back to the Buildx `docker-container` driver. It
+  creates Docker-managed containers named like `buildx_buildkit_*` outside the
+  Compose project, which makes Docker Desktop grouping and health reporting
+  confusing.
 - A lower parallelism setting usually trades build speed for host stability.
 - If BuildKit fails with `ResourceExhausted` or `cannot allocate memory` while
   host memory is still available, the builder cgroup is too small; raise
@@ -739,8 +751,9 @@ Dashboard details:
 - The watcher image must also include both the Docker Compose and Buildx CLI
   plugins (`docker-cli-compose` and `docker-cli-buildx` on Alpine) because the
   rollout handoff shells into `docker compose ...`, and capped production
-  builds create/use a dedicated Buildx builder from inside the watcher
-  container.
+  builds create/use the remote `platform` Buildx builder from inside the watcher
+  container. The watcher reaches the Compose-owned BuildKit daemon at
+  `tcp://buildkit:1234`.
 - When the watcher drives Docker Desktop through `/var/run/docker.sock`, it
   must run the deploy handoff from the mirrored host-path mount, not a
   container-only path like `/workspace`. Otherwise Docker Desktop rejects bind

@@ -303,6 +303,15 @@ function validateDockerCompose(
     .sort();
   const requiredSnippets = [
     'services:',
+    '  buildkit:',
+    '    container_name: ' +
+      '${' +
+      'COMPOSE_PROJECT_NAME:-platform' +
+      '}-buildkit-1',
+    '    image: moby/buildkit:buildx-stable-1',
+    '      - platform-buildkit-state:/var/lib/buildkit',
+    '      - ./tmp/docker-web/buildkit/buildkitd.toml:/etc/buildkit/buildkitd.toml:ro',
+    '  platform-buildkit-state:',
     '  web:',
     '      target: dev',
     '      - .:/workspace',
@@ -344,6 +353,7 @@ function validateDockerProdCompose(composeContent) {
     '  web:',
     '  web-blue:',
     '  web-green:',
+    '  buildkit:',
     '  web-blue-green-watcher:',
     '  web-cron-runner:',
     '  markitdown:',
@@ -352,6 +362,14 @@ function validateDockerProdCompose(composeContent) {
     '      dockerfile: Dockerfile.markitdown',
     '      dockerfile: apps/web/docker/blue-green-watcher.Dockerfile',
     '      dockerfile: apps/web/docker/cron-runner.Dockerfile',
+    '    container_name: ' +
+      '${' +
+      'COMPOSE_PROJECT_NAME:-platform' +
+      '}-buildkit-1',
+    '    image: moby/buildkit:buildx-stable-1',
+    '      - platform-buildkit-state:/var/lib/buildkit',
+    '      - ./tmp/docker-web/buildkit/buildkitd.toml:/etc/buildkit/buildkitd.toml:ro',
+    '      - DOCKER_WEB_BUILDKIT_ENDPOINT=tcp://buildkit:1234',
     '      context: apps/storage-unzip-proxy',
     '    - CRON_SECRET',
     '      - CRON_SECRET',
@@ -427,6 +445,7 @@ function validateDockerProdCompose(composeContent) {
     '      POSTGRES_USER: platform_log_drain',
     '      - platform-log-drain-postgres:/var/lib/postgresql/data',
     '      - ./apps/web/docker/log-drain-init.sql:/docker-entrypoint-initdb.d/001-log-drain.sql:ro',
+    '  platform-buildkit-state:',
     '  platform-log-drain-postgres:',
     '      - DRIVE_UNZIP_PROXY_SHARED_TOKEN',
     '      SRH_TOKEN: ' +

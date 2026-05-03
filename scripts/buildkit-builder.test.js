@@ -6,10 +6,10 @@ const path = require('node:path');
 
 const {
   DEFAULT_BUILDER_NAME,
+  DEFAULT_BUILDKIT_HOST_PORT,
   ensureBuildkitBuilder,
   getBuildkitPaths,
   getBuilderConfigFingerprint,
-  getBuilderDriverOptions,
   normalizeBuilderConfig,
   parsePositiveInteger,
   parsePositiveNumber,
@@ -50,6 +50,7 @@ test('normalizeBuilderConfig reads throttling defaults from env', () => {
     {
       builderName: DEFAULT_BUILDER_NAME,
       cpus: 8,
+      endpoint: `tcp://127.0.0.1:${DEFAULT_BUILDKIT_HOST_PORT}`,
       maxParallelism: 2,
       memory: '16g',
     }
@@ -64,18 +65,6 @@ test('normalizeBuilderConfig rejects invalid CPU and parallelism values', () => 
   assert.throws(
     () => normalizeBuilderConfig({ maxParallelism: '1.5' }, {}),
     /Build max parallelism must be a positive integer/
-  );
-});
-
-test('getBuilderDriverOptions converts memory and CPUs into driver options', () => {
-  assert.deepEqual(
-    getBuilderDriverOptions({
-      builderName: DEFAULT_BUILDER_NAME,
-      cpus: 8,
-      maxParallelism: 2,
-      memory: '16g',
-    }),
-    ['default-load=true', 'memory=16g', 'cpu-period=100000', 'cpu-quota=800000']
   );
 });
 
@@ -149,6 +138,7 @@ test('ensureBuildkitBuilder creates a capped buildx builder and persists state',
       fingerprint: getBuilderConfigFingerprint({
         builderName: DEFAULT_BUILDER_NAME,
         cpus: 8,
+        endpoint: `tcp://127.0.0.1:${DEFAULT_BUILDKIT_HOST_PORT}`,
         maxParallelism: 2,
         memory: '16g',
       }),
@@ -159,11 +149,9 @@ test('ensureBuildkitBuilder creates a capped buildx builder and persists state',
           call.command === 'docker' &&
           call.args[0] === 'buildx' &&
           call.args[1] === 'create' &&
-          call.args.includes('memory=16g') &&
-          call.args.includes('cpu-period=100000') &&
-          call.args.includes('cpu-quota=800000') &&
-          call.args.includes('--buildkitd-config') &&
-          call.args.includes(paths.buildkitConfigFile)
+          call.args.includes('--driver') &&
+          call.args[5] === 'remote' &&
+          call.args.includes(`tcp://127.0.0.1:${DEFAULT_BUILDKIT_HOST_PORT}`)
       )
     );
   } finally {
@@ -180,6 +168,7 @@ test('ensureBuildkitBuilder reuses an existing builder when the fingerprint matc
   const config = {
     builderName: DEFAULT_BUILDER_NAME,
     cpus: 8,
+    endpoint: `tcp://127.0.0.1:${DEFAULT_BUILDKIT_HOST_PORT}`,
     maxParallelism: 2,
     memory: '16g',
   };
@@ -211,7 +200,12 @@ test('ensureBuildkitBuilder reuses an existing builder when the fingerprint matc
         });
 
         if (args[0] === 'buildx' && args[1] === 'inspect') {
-          return { code: 0, signal: null, stderr: '', stdout: 'builder ok\n' };
+          return {
+            code: 0,
+            signal: null,
+            stderr: '',
+            stdout: 'Driver: remote\n',
+          };
         }
 
         return { code: 0, signal: null, stderr: '', stdout: '' };
@@ -228,6 +222,77 @@ test('ensureBuildkitBuilder reuses an existing builder when the fingerprint matc
           call.args[1] === 'create'
       ).length,
       0
+    );
+  } finally {
+    fs.rmSync(tempDir, { force: true, recursive: true });
+  }
+});
+
+test('ensureBuildkitBuilder removes legacy docker-container BuildKit containers', async () => {
+  const tempDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'buildkit-builder-legacy-')
+  );
+  const calls = [];
+  const legacyContainerName = `buildx_buildkit_${DEFAULT_BUILDER_NAME}0`;
+
+  try {
+    await ensureBuildkitBuilder(
+      {
+        cpus: '2',
+        maxParallelism: '1',
+        memory: '4g',
+      },
+      {
+        env: { PATH: 'test-path' },
+        rootDir: tempDir,
+        runCommand: async (command, args, options = {}) => {
+          calls.push({
+            args,
+            command,
+            env: options.env,
+            stdio: options.stdio ?? 'inherit',
+          });
+
+          if (args[0] === 'buildx' && args[1] === 'inspect') {
+            return {
+              code: 0,
+              signal: null,
+              stderr: '',
+              stdout: 'Driver: docker-container\n',
+            };
+          }
+
+          if (args[0] === 'ps' && args.includes('{{.Names}}')) {
+            return {
+              code: 0,
+              signal: null,
+              stderr: '',
+              stdout: `${legacyContainerName}\n`,
+            };
+          }
+
+          return { code: 0, signal: null, stderr: '', stdout: '' };
+        },
+      }
+    );
+
+    assert.ok(
+      calls.some(
+        (call) =>
+          call.command === 'docker' &&
+          call.args[0] === 'buildx' &&
+          call.args[1] === 'rm' &&
+          call.args.includes(DEFAULT_BUILDER_NAME)
+      )
+    );
+    assert.ok(
+      calls.some(
+        (call) =>
+          call.command === 'docker' &&
+          call.args[0] === 'rm' &&
+          call.args[1] === '-f' &&
+          call.args.includes(legacyContainerName)
+      )
     );
   } finally {
     fs.rmSync(tempDir, { force: true, recursive: true });
