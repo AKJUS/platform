@@ -6,7 +6,6 @@ import {
   getRequestContentViolationForRequest,
   isTrustedEmojiBypassRequest,
   MAX_EMOJIS_PER_FIELD,
-  MAX_REPEATED_GRAPHEME_RUN,
   MAX_SHORT_TEXT_FIELD_GRAPHEMES,
   shouldValidateEmojiLimit,
 } from '../request-emoji-limit';
@@ -80,28 +79,21 @@ describe('request emoji limit', () => {
     });
   });
 
-  it('rejects abusive repeated-character runs', () => {
+  it('allows repeated-character runs in description fields', () => {
     const violation = findRequestContentViolation({
       wallet: {
-        description: `legit ${'文'.repeat(MAX_REPEATED_GRAPHEME_RUN + 1)}`,
+        description: `legit ${'文'.repeat(195)}`,
       },
     });
 
-    expect(violation).toEqual({
-      code: 'TEXT_BOMB_DETECTED',
-      path: 'body.wallet.description',
-      count: MAX_REPEATED_GRAPHEME_RUN + 1,
-      limit: MAX_REPEATED_GRAPHEME_RUN,
-      message:
-        'Field "body.wallet.description" contains an abusive repeated-character run',
-    });
+    expect(violation).toBeNull();
   });
 
   it('can skip validation for machine-generated snapshot fields', () => {
     const violation = findRequestContentViolation(
       {
-        snapshot: `{"elements":[{"text":"${'0'.repeat(
-          MAX_REPEATED_GRAPHEME_RUN + 20
+        snapshot: `{"elements":[{"text":"${'🎉'.repeat(
+          MAX_EMOJIS_PER_FIELD + 20
         )}"}]}`,
         title: 'Board',
       },
@@ -165,8 +157,8 @@ describe('request emoji limit', () => {
   it('skips whiteboard snapshot validation when configured for the request', async () => {
     const request = makeRequest(
       JSON.stringify({
-        snapshot: `{"elements":[{"text":"${'0'.repeat(
-          MAX_REPEATED_GRAPHEME_RUN + 20
+        snapshot: `{"elements":[{"text":"${'🎉'.repeat(
+          MAX_EMOJIS_PER_FIELD + 20
         )}"}]}`,
       })
     );

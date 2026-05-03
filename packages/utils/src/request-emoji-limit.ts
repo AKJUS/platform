@@ -4,7 +4,6 @@ export const MAX_EMOJIS_PER_FIELD = 10;
 export const MAX_SHORT_TEXT_FIELD_GRAPHEMES = 280;
 /** Form description, task description, etc. Allow up to 100k to match database limits. */
 export const MAX_DESCRIPTION_FIELD_GRAPHEMES = 100_000;
-export const MAX_REPEATED_GRAPHEME_RUN = 48;
 
 export type RequestContentViolation = {
   code: 'EMOJI_LIMIT_EXCEEDED' | 'TEXT_BOMB_DETECTED';
@@ -106,33 +105,6 @@ function isDescriptionFieldPath(path: string): boolean {
   return fieldName ? DESCRIPTION_FIELD_NAMES.has(fieldName) : false;
 }
 
-function getLongestRepeatedGraphemeRun(graphemes: string[]): number {
-  let longestRun = 0;
-  let currentRun = 0;
-  let previous = '';
-
-  for (const grapheme of graphemes) {
-    if (grapheme === previous) {
-      currentRun += 1;
-    } else {
-      previous = grapheme;
-      currentRun = 1;
-    }
-
-    if (!grapheme.trim()) {
-      currentRun = 0;
-      previous = '';
-      continue;
-    }
-
-    if (currentRun > longestRun) {
-      longestRun = currentRun;
-    }
-  }
-
-  return longestRun;
-}
-
 function getStringContentViolation(
   value: string,
   path: string,
@@ -165,17 +137,6 @@ function getStringContentViolation(
   }
 
   const graphemes = getGraphemeSegments(value);
-  const longestRun = getLongestRepeatedGraphemeRun(graphemes);
-  if (longestRun > MAX_REPEATED_GRAPHEME_RUN) {
-    return {
-      code: 'TEXT_BOMB_DETECTED',
-      count: longestRun,
-      limit: MAX_REPEATED_GRAPHEME_RUN,
-      message: `Field "${path}" contains an abusive repeated-character run`,
-      path,
-    };
-  }
-
   if (isDescriptionFieldPath(path)) {
     if (graphemes.length > MAX_DESCRIPTION_FIELD_GRAPHEMES) {
       return {
