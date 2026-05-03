@@ -57,9 +57,9 @@ export async function GET(req: Request, { params }: Params) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
   const { withoutPermission } = permissions;
-  if (withoutPermission('view_user_groups')) {
+  if (withoutPermission('view_user_groups_scores')) {
     return NextResponse.json(
-      { message: 'Insufficient permissions to view user groups' },
+      { message: 'Insufficient permissions to view group indicators' },
       { status: 403 }
     );
   }

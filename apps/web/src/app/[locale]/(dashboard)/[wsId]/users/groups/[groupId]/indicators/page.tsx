@@ -1,7 +1,4 @@
-import {
-  createAdminClient,
-  createClient,
-} from '@tuturuuu/supabase/next/server';
+import { createAdminClient } from '@tuturuuu/supabase/next/server';
 import type { UserGroup } from '@tuturuuu/types/primitives/UserGroup';
 import type { WorkspaceUser } from '@tuturuuu/types/primitives/WorkspaceUser';
 import { getPermissions } from '@tuturuuu/utils/workspace-helper';
@@ -80,9 +77,9 @@ export default async function UserGroupIndicatorsPage({ params }: Props) {
 }
 
 async function getData(wsId: string, groupId: string) {
-  const supabase = await createClient();
+  const sbAdmin = await createAdminClient();
 
-  const { data, error } = await supabase
+  const { data, error } = await sbAdmin
     .from('workspace_user_groups')
     .select('*')
     .eq('ws_id', wsId)
@@ -109,9 +106,9 @@ function mapMetricCategories(
 }
 
 async function getGroupIndicators(groupId: string) {
-  const supabase = await createClient();
+  const sbAdmin = await createAdminClient();
 
-  const { data, error } = await supabase
+  const { data, error } = await sbAdmin
     .from('user_group_metrics')
     .select(`
       id,
@@ -144,9 +141,9 @@ async function getGroupIndicators(groupId: string) {
 }
 
 async function getMetricCategories(wsId: string) {
-  const supabase = await createClient();
+  const sbAdmin = await createAdminClient();
 
-  const { data, error } = await supabase
+  const { data, error } = await sbAdmin
     .from('user_group_metric_categories')
     .select('id, name, description')
     .eq('ws_id', wsId)
@@ -159,9 +156,9 @@ async function getMetricCategories(wsId: string) {
 }
 
 async function getIndicators(groupId: string) {
-  const supabase = await createClient();
+  const sbAdmin = await createAdminClient();
 
-  const { data: rawData, error } = await supabase
+  const { data: rawData, error } = await sbAdmin
     .from('user_indicators')
     .select(`
     user_id,
@@ -184,9 +181,9 @@ async function getIndicators(groupId: string) {
 }
 
 async function getUserData(wsId: string, groupId: string) {
-  const supabase = await createAdminClient();
+  const sbAdmin = await createAdminClient();
 
-  const queryBuilder = supabase
+  const queryBuilder = sbAdmin
     .rpc(
       'get_workspace_users',
       {
@@ -206,7 +203,7 @@ async function getUserData(wsId: string, groupId: string) {
   if (error) throw error;
 
   const users = (data ?? []) as unknown as WorkspaceUser[];
-  const requireAttentionUserIds = await fetchRequireAttentionUserIds(supabase, {
+  const requireAttentionUserIds = await fetchRequireAttentionUserIds(sbAdmin, {
     wsId,
     userIds: users.map((user) => user.id),
     groupId,

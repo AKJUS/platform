@@ -337,6 +337,8 @@ Examples:
 
 This is intentional. It preserves the caller identity while still allowing the app to assemble permission state that would be awkward to fetch purely through RLS-limited joins.
 
+Name every `createAdminClient()` local `sbAdmin`, not `supabase`, so reviewers can immediately distinguish service-role access from request-scoped clients.
+
 ## Special Workspace Rules
 
 ### Personal workspaces

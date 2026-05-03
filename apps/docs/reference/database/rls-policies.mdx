@@ -415,9 +415,11 @@ Use `createAdminClient()` from `@tuturuuu/supabase` in server-side code:
 ```typescript
 import { createAdminClient } from '@tuturuuu/supabase/next/server';
 
-const supabase = createAdminClient();
+const sbAdmin = await createAdminClient();
 // This client bypasses RLS - use carefully!
 ```
+
+Always name `createAdminClient()` locals `sbAdmin`, not `supabase`, so service-role access is visually distinct from request-scoped clients during review.
 
 ## Migration Example
 

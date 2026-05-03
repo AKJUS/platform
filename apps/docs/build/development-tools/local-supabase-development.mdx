@@ -721,6 +721,10 @@ values
 
 `user_group_metrics.is_weighted = false` keeps a metric visible for entry and category views without counting it toward report totals or averages. Metric categories live in `user_group_metric_categories` and are linked through `user_group_metric_category_links`.
 
+When renaming or recreating these metric tables, keep authenticated CRUD grants and service-role grants in the same migration as the table change. The group indicators dashboard reads the renamed tables through protected API/server paths after workspace permission checks, and missing grants can surface as `permission denied for table user_group_metric_categories`.
+
+When code uses `createAdminClient()` for these protected reads, name the local client `sbAdmin`. Do not name a service-role client `supabase`; reserve that name for request-scoped or user-scoped clients so route authorization is easy to audit.
+
 ### Creating Seed Data
 
 Here's how to create and modify seed data:

@@ -205,7 +205,7 @@ export const googleCalendarFullSync = task({
   id: 'google-calendar-full-sync',
   maxDuration: 300, // 5 minutes
   run: async (payload: { wsId: string; userId: string }) => {
-    const supabase = createAdminClient();
+    const sbAdmin = await createAdminClient();
 
     // Acquire sync lock
     const lockAcquired = await acquireSyncLock(payload.wsId);
@@ -326,7 +326,7 @@ export const googleCalendarIncrementalSync = task({
   id: 'google-calendar-incremental-sync',
   maxDuration: 60, // 1 minute
   run: async (payload: { wsId: string; userId: string }) => {
-    const supabase = createAdminClient();
+    const sbAdmin = await createAdminClient();
 
     const lockAcquired = await acquireSyncLock(payload.wsId);
     if (!lockAcquired) return { skipped: true };
@@ -436,10 +436,10 @@ export const dailyCalendarSync = schedules.task({
   id: 'daily-calendar-sync',
   cron: '0 */6 * * *', // Every 6 hours
   run: async () => {
-    const supabase = createAdminClient();
+    const sbAdmin = await createAdminClient();
 
     // Get all workspaces with calendar enabled
-    const { data: workspaces } = await supabase
+    const { data: workspaces } = await sbAdmin
       .from('workspace_secrets')
       .select('ws_id, user_id')
       .eq('name', 'ENABLE_CALENDAR')
@@ -585,7 +585,7 @@ export const myJob = task({
    const supabase = createClient();
 
    // ✅ Good
-   const supabase = createAdminClient();
+   const sbAdmin = await createAdminClient();
    ```
 
 3. **Don't ignore sync errors**

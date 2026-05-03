@@ -149,6 +149,7 @@ Foundational mandates here take absolute precedence. **NEVER** invent ad-hoc beh
 ### 6.1 Database & Supabase
 
 - **PostgREST URL Limit**: Use .eq() or batching instead of .in() with >1000 IDs to avoid 8KB proxy limits.
+- **Supabase Admin Client Naming**: Any local variable that holds the result of `createAdminClient()` MUST be named `sbAdmin`, never `supabase`, so privileged service-role access is visually distinct from request/user-scoped clients.
 - **Service-Role Approval Writes**: If a route must write with `createAdminClient` because RLS can block the mutation, fetch the caller with `createClient(request)` first and stamp any actor-owned columns explicitly (for example `approved_by`, `rejected_by`, `updated_by`) instead of relying on triggers or policies that read `auth.uid()`. Keep read-side verification on `sbAdmin`, but always scope those reads with explicit workspace/resource checks before mutating.
 - **Large Workspace-Scoped ID Lists Need Join Tables, Not CSV Config Blobs**: Do not store growing sets such as workspace user-group selections in `workspace_configs.value` as comma-separated IDs. The strict text-limit trigger on generic config values will eventually reject long lists, and diffing/querying blobs is inefficient. Use a dedicated workspace-scoped join table and special-case the config API if the client contract must stay string-based.
 - **User Email**: Never query `public.users.email` (it doesn't exist). Use `public.user_private_details`.

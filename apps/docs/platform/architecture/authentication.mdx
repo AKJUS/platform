@@ -694,8 +694,8 @@ export async function linkIdentity(provider: 'google' | 'github') {
 4. **Don't use `createAdminClient()` for auth operations**
    ```typescript
    // ❌ Bad: Use regular client
-   const supabase = createAdminClient();
-   await supabase.auth.signUp({ ... });
+   const sbAdmin = await createAdminClient();
+   await sbAdmin.auth.signUp({ ... });
    ```
 
 ## Related Documentation
