@@ -5,7 +5,6 @@ const mocks = vi.hoisted(() => {
   const normalizeWorkspaceId = vi.fn();
   const resolveAuthenticatedSessionUser = vi.fn();
   const transactionRpc = vi.fn();
-  const tagReturns = vi.fn();
   const invoiceReturns = vi.fn();
 
   const sessionSupabase = {
@@ -14,16 +13,6 @@ const mocks = vi.hoisted(() => {
 
   const adminSupabase = {
     from: vi.fn((table: string) => {
-      if (table === 'wallet_transaction_tags') {
-        return {
-          select: vi.fn(() => ({
-            in: vi.fn(() => ({
-              returns: tagReturns,
-            })),
-          })),
-        };
-      }
-
       if (table === 'finance_invoices') {
         return {
           select: vi.fn(() => ({
@@ -47,7 +36,6 @@ const mocks = vi.hoisted(() => {
     normalizeWorkspaceId,
     resolveAuthenticatedSessionUser,
     sessionSupabase,
-    tagReturns,
     transactionRpc,
   };
 });
@@ -91,14 +79,7 @@ describe('transaction export route', () => {
         id: 'user-1',
       },
     });
-    mocks.transactionRpc.mockResolvedValue({
-      data: [],
-      error: null,
-    });
-    mocks.tagReturns.mockResolvedValue({
-      data: [],
-      error: null,
-    });
+    mocks.transactionRpc.mockResolvedValue({ data: [], error: null });
     mocks.invoiceReturns.mockResolvedValue({
       data: [],
       error: null,
@@ -108,35 +89,46 @@ describe('transaction export route', () => {
   it('exports transactions through the permission-aware RPC', async () => {
     const { GET } = await import('./route.js');
 
-    mocks.transactionRpc.mockResolvedValue({
-      data: [
-        {
-          id: 'transaction-1',
-          amount: -25,
-          description: 'Lunch',
-          category_name: 'Food',
-          created_at: '2026-05-01T09:00:00.000Z',
-          creator_email: 'creator@example.com',
-          creator_full_name: 'Creator Name',
-          invoice_id: 'invoice-1',
-          report_opt_in: true,
-          taken_at: '2026-05-01T08:00:00.000Z',
-          total_count: 1,
-          wallet_name: 'Cash',
-        },
-      ],
-      error: null,
-    });
-    mocks.tagReturns.mockResolvedValue({
-      data: [
-        {
-          transaction_id: 'transaction-1',
-          transaction_tags: {
-            name: 'Meals',
-          },
-        },
-      ],
-      error: null,
+    mocks.transactionRpc.mockImplementation((functionName: string) => {
+      if (functionName === 'get_wallet_transactions_with_permissions') {
+        return Promise.resolve({
+          data: [
+            {
+              id: 'transaction-1',
+              amount: -25,
+              description: 'Lunch',
+              category_name: 'Food',
+              created_at: '2026-05-01T09:00:00.000Z',
+              creator_email: 'creator@example.com',
+              creator_full_name: 'Creator Name',
+              invoice_id: 'invoice-1',
+              report_opt_in: true,
+              taken_at: '2026-05-01T08:00:00.000Z',
+              total_count: 1,
+              wallet_name: 'Cash',
+            },
+          ],
+          error: null,
+        });
+      }
+
+      if (functionName === 'get_transaction_list_enrichment') {
+        return Promise.resolve({
+          data: [
+            {
+              transaction_id: 'transaction-1',
+              tags: [
+                {
+                  name: 'Meals',
+                },
+              ],
+            },
+          ],
+          error: null,
+        });
+      }
+
+      throw new Error(`Unexpected RPC: ${functionName}`);
     });
     mocks.invoiceReturns.mockResolvedValue({
       data: [
@@ -178,6 +170,17 @@ describe('transaction export route', () => {
     );
     expect(mocks.adminSupabase.from).not.toHaveBeenCalledWith(
       'wallet_transactions'
+    );
+    expect(mocks.adminSupabase.from).not.toHaveBeenCalledWith(
+      'wallet_transaction_tags'
+    );
+    expect(mocks.transactionRpc).toHaveBeenCalledWith(
+      'get_transaction_list_enrichment',
+      expect.objectContaining({
+        p_transaction_ids: ['transaction-1'],
+        p_user_id: 'user-1',
+        p_ws_id: 'workspace-1',
+      })
     );
     await expect(response.json()).resolves.toEqual({
       count: 1,

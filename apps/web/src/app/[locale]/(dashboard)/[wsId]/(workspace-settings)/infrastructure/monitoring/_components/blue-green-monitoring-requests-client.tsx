@@ -2,11 +2,17 @@
 
 import {
   Activity,
+  ArrowUpRight,
   Clock,
+  Eye,
   FileText,
+  Gauge,
+  Layers,
   Network,
   Radio,
   Search,
+  Server,
+  Terminal,
   TriangleAlert,
 } from '@tuturuuu/icons';
 import type {
@@ -14,6 +20,7 @@ import type {
   BlueGreenMonitoringWatcherLog,
 } from '@tuturuuu/internal-api/infrastructure';
 import { Badge } from '@tuturuuu/ui/badge';
+import { Button } from '@tuturuuu/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -30,9 +37,17 @@ import {
   TableHeader,
   TableRow,
 } from '@tuturuuu/ui/table';
+import { cn } from '@tuturuuu/utils/format';
 import { useTranslations } from 'next-intl';
 import { parseAsInteger, parseAsStringLiteral, useQueryState } from 'nuqs';
-import { startTransition, useDeferredValue, useState } from 'react';
+import type { ReactNode, RefObject } from 'react';
+import {
+  startTransition,
+  useDeferredValue,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import {
   EmptyFilteredState,
   ExplorerPagination,
@@ -64,6 +79,11 @@ import {
 
 const requestTimeframeValues = ['1', '7', '14', '30', '0'] as const;
 type MonitoringTranslator = ReturnType<typeof useTranslations>;
+type EnrichedMonitoringRequest = BlueGreenMonitoringRequestLog & {
+  parsedPath: ReturnType<typeof parseMonitoringRequestPath>;
+  statusFamily: ReturnType<typeof getMonitoringStatusFamily>;
+  statusValue: string;
+};
 
 export function BlueGreenMonitoringRequestsClient() {
   const t = useTranslations('blue-green-monitoring');
@@ -89,7 +109,11 @@ export function BlueGreenMonitoringRequestsClient() {
   const [trafficFilter, setTrafficFilter] = useState('all');
   const [selectedRequest, setSelectedRequest] =
     useState<BlueGreenMonitoringRequestLog | null>(null);
+  const [inspectedRequest, setInspectedRequest] =
+    useState<EnrichedMonitoringRequest | null>(null);
   const timeframeDays = Number(timeframe);
+  const rootRef = useRef<HTMLElement | null>(null);
+  useMonitoringMotion(rootRef);
 
   const archiveQuery = useBlueGreenMonitoringRequestArchive({
     page,
@@ -125,17 +149,20 @@ export function BlueGreenMonitoringRequestsClient() {
   const archive = archiveQuery.data;
   const snapshot = snapshotQuery.data;
   const archiveAnalytics = archive.analytics;
-  const enrichedRequests = archive.items.map((request) => {
-    const parsedPath = parseMonitoringRequestPath(request.path);
-    const statusFamily = getMonitoringStatusFamily(request.status);
+  const enrichedRequests: EnrichedMonitoringRequest[] = archive.items.map(
+    (request) => {
+      const parsedPath = parseMonitoringRequestPath(request.path);
+      const statusFamily = getMonitoringStatusFamily(request.status);
 
-    return {
-      ...request,
-      parsedPath,
-      statusFamily,
-      statusValue: request.status != null ? String(request.status) : 'unknown',
-    };
-  });
+      return {
+        ...request,
+        parsedPath,
+        statusFamily,
+        statusValue:
+          request.status != null ? String(request.status) : 'unknown',
+      };
+    }
+  );
   const query = deferredSearchValue.trim().toLowerCase();
   const filteredRequests = enrichedRequests.filter((request) => {
     if (statusFilter !== 'all') {
@@ -246,12 +273,186 @@ export function BlueGreenMonitoringRequestsClient() {
     label: summary.pathname,
     value: summary.pathname,
   }));
+  const errorRequests = filteredRequests.filter(
+    (request) =>
+      request.statusFamily === '4xx' || request.statusFamily === '5xx'
+  );
+  const serverErrorRequests = filteredRequests.filter(
+    (request) => request.statusFamily === '5xx'
+  );
+  const slowestRequest = [...filteredRequests].sort(
+    (left, right) =>
+      (right.requestTimeMs ?? Number.NEGATIVE_INFINITY) -
+      (left.requestTimeMs ?? Number.NEGATIVE_INFINITY)
+  )[0];
+  const focusedRequest =
+    inspectedRequest ??
+    serverErrorRequests[0] ??
+    errorRequests[0] ??
+    slowestRequest ??
+    filteredRequests[0] ??
+    null;
+  const focusedRelatedLogs = focusedRequest
+    ? getRelatedWatcherLogs(focusedRequest, snapshot.watcher.logs)
+    : [];
+  const leadingRoute = globalRouteSummaries[0] ?? null;
 
   return (
-    <section className="space-y-6">
+    <main
+      className="w-full max-w-full space-y-8 overflow-x-hidden"
+      ref={rootRef}
+    >
       <BlueGreenMonitoringAlerts snapshot={snapshot} t={t} />
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <nav className="monitoring-reveal flex flex-col gap-3 rounded-full border border-border/60 bg-background/80 px-4 py-3 shadow-sm backdrop-blur md:flex-row md:items-center md:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-dynamic-blue/25 bg-dynamic-blue/10 text-dynamic-blue">
+            <Network className="h-4 w-4" />
+          </div>
+          <div className="min-w-0">
+            <p className="truncate font-semibold text-sm">
+              {t('requests_page.title')}
+            </p>
+            <p className="truncate text-muted-foreground text-xs">
+              {t('requests_page.page_refinement')}
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="secondary" className="rounded-full">
+            {timeframeDays === 0
+              ? t('requests_page.timeframe_all')
+              : t('requests_page.timeframe_days', { days: timeframeDays })}
+          </Badge>
+          <Badge variant="outline" className="rounded-full">
+            {formatCompactNumber(filteredRequests.length)} /{' '}
+            {formatCompactNumber(archiveAnalytics.requestCount)}
+          </Badge>
+          <Badge
+            className="rounded-full border-dynamic-red/30 bg-dynamic-red/10 text-dynamic-red"
+            variant="outline"
+          >
+            {formatCompactNumber(errorRequests.length)} {t('ledger.errors')}
+          </Badge>
+        </div>
+      </nav>
+
+      <section className="monitoring-scale relative overflow-hidden rounded-2xl border border-border/60 bg-background p-5 shadow-sm md:p-7">
+        <div
+          aria-hidden
+          className="absolute inset-0 opacity-20 mix-blend-luminosity contrast-125 grayscale"
+          style={{
+            backgroundImage:
+              "linear-gradient(90deg, hsl(var(--background)) 0%, transparent 42%, hsl(var(--background)) 100%), url('https://picsum.photos/seed/server-console-observability/1920/1080')",
+            backgroundPosition: 'center',
+            backgroundSize: 'cover',
+          }}
+        />
+        <div
+          aria-hidden
+          className="absolute inset-0 bg-[radial-gradient(circle_at_20%_10%,hsl(var(--dynamic-blue)/0.18),transparent_35%),radial-gradient(circle_at_85%_25%,hsl(var(--dynamic-red)/0.12),transparent_30%)]"
+        />
+        <div className="relative grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)] lg:items-end">
+          <div className="monitoring-reveal">
+            <p className="font-medium text-dynamic-blue text-xs uppercase tracking-[0.24em]">
+              {t('panels.requests')}
+            </p>
+            <h1 className="mt-4 max-w-6xl text-[clamp(2.6rem,5vw,5.4rem)] leading-[0.95] tracking-normal">
+              {t('requests_page.title')}{' '}
+              <span
+                aria-hidden
+                className="inline-block h-10 w-24 rounded-full align-middle shadow-inner md:h-12 md:w-32"
+                style={{
+                  backgroundImage:
+                    "url('https://picsum.photos/seed/request-trace-lane/320/120')",
+                  backgroundPosition: 'center',
+                  backgroundSize: 'cover',
+                }}
+              />{' '}
+              {t('requests_page.trace_lane')}
+            </h1>
+            <p className="mt-5 max-w-3xl text-muted-foreground text-sm leading-6 md:text-base">
+              {t('requests_page.description')}
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Button
+                className="rounded-full bg-foreground text-background hover:bg-foreground/90"
+                onClick={() => {
+                  startTransition(() => {
+                    setStatusFilter('5xx');
+                    setInspectedRequest(serverErrorRequests[0] ?? null);
+                  });
+                }}
+                type="button"
+              >
+                <Terminal className="mr-2 h-4 w-4" />
+                {t('requests_page.error_lens')}
+              </Button>
+              <Button
+                className="rounded-full"
+                onClick={() => {
+                  startTransition(() => {
+                    setSearchValue('');
+                    setStatusFilter('all');
+                    setRouteFilter('all');
+                    setRenderFilter('all');
+                    setTrafficFilter('all');
+                    setInspectedRequest(null);
+                  });
+                }}
+                type="button"
+                variant="outline"
+              >
+                {t('explorer.reset_filters')}
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid grid-flow-dense grid-cols-12 gap-3">
+            <SignalTile
+              className="col-span-12 row-span-2 md:col-span-6"
+              icon={<Server className="h-4 w-4" />}
+              label={t('requests_page.server_console_lens')}
+              meta={t('requests_page.server_console_description')}
+              value={
+                focusedRequest
+                  ? (focusedRequest.parsedPath?.pathname ?? focusedRequest.path)
+                  : t('states.none')
+              }
+            />
+            <SignalTile
+              className="col-span-6 md:col-span-3"
+              icon={<TriangleAlert className="h-4 w-4" />}
+              label={t('requests_page.cards.timeframe_errors')}
+              meta={t('requests_page.cards.timeframe_errors_description')}
+              value={formatCompactNumber(archiveAnalytics.errorRequestCount)}
+            />
+            <SignalTile
+              className="col-span-6 md:col-span-3"
+              icon={<Gauge className="h-4 w-4" />}
+              label={t('requests_page.slowest_request')}
+              meta={slowestRequest?.parsedPath.pathname ?? t('states.none')}
+              value={formatLatencyMs(slowestRequest?.requestTimeMs ?? null)}
+            />
+            <SignalTile
+              className="col-span-6 md:col-span-3"
+              icon={<Layers className="h-4 w-4" />}
+              label={t('explorer.top_routes')}
+              meta={leadingRoute?.pathname ?? t('states.none')}
+              value={formatCompactNumber(leadingRoute?.requestCount ?? 0)}
+            />
+            <SignalTile
+              className="col-span-6 md:col-span-3"
+              icon={<Radio className="h-4 w-4" />}
+              label={t('requests_page.related_logs')}
+              meta={t('requests_page.related_logs_description')}
+              value={formatCompactNumber(focusedRelatedLogs.length)}
+            />
+          </div>
+        </div>
+      </section>
+
+      <div className="monitoring-reveal grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <SummaryMetricCard
           icon={<Activity className="h-4 w-4" />}
           label={t('requests_page.cards.retained')}
@@ -282,7 +483,7 @@ export function BlueGreenMonitoringRequestsClient() {
         />
       </div>
 
-      <section className="rounded-lg border border-border/60 bg-background p-5">
+      <section className="monitoring-reveal rounded-2xl border border-border/60 bg-background p-5 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-[11px] text-muted-foreground uppercase tracking-[0.24em]">
@@ -409,7 +610,7 @@ export function BlueGreenMonitoringRequestsClient() {
         </div>
 
         {globalRouteSummaries.length > 0 ? (
-          <div className="mt-5 rounded-lg border border-border/60 bg-muted/20 p-4">
+          <div className="monitoring-scale mt-5 rounded-xl border border-border/60 bg-muted/20 p-4">
             <div className="mb-4">
               <p className="font-medium text-sm">{t('explorer.top_routes')}</p>
               <p className="text-muted-foreground text-xs">
@@ -427,7 +628,7 @@ export function BlueGreenMonitoringRequestsClient() {
                 return (
                   <button
                     key={summary.pathname}
-                    className="rounded-lg border border-border/60 bg-muted/20 p-4 text-left transition-colors hover:border-dynamic-blue/60 hover:bg-dynamic-blue/5"
+                    className="group overflow-hidden rounded-lg border border-border/60 bg-muted/20 p-4 text-left transition-colors hover:border-dynamic-blue/60 hover:bg-dynamic-blue/5"
                     onClick={() => {
                       startTransition(() => {
                         setRouteFilter(summary.pathname);
@@ -449,6 +650,15 @@ export function BlueGreenMonitoringRequestsClient() {
                       <Badge variant="outline" className="rounded-full">
                         {formatCompactNumber(summary.requestCount)}
                       </Badge>
+                    </div>
+
+                    <div className="mt-4 h-1 overflow-hidden rounded-full bg-border/60">
+                      <div
+                        className="h-full rounded-full bg-dynamic-blue transition-transform duration-700 ease-out group-hover:scale-x-105"
+                        style={{
+                          width: `${Math.min(100, Math.max(4, (summary.requestCount / Math.max(leadingRoute?.requestCount ?? 1, 1)) * 100))}%`,
+                        }}
+                      />
                     </div>
 
                     <div className="mt-4 flex flex-wrap gap-2">
@@ -520,160 +730,184 @@ export function BlueGreenMonitoringRequestsClient() {
             />
           </div>
         ) : (
-          <div className="mt-5 overflow-hidden rounded-lg border border-border/60 bg-muted/20">
-            <div className="border-border/60 border-b px-4 py-3">
-              <p className="font-medium text-sm">
-                {t('requests_page.archive_range', {
-                  end: Math.min(archive.offset + archive.limit, archive.total),
-                  start: archive.total === 0 ? 0 : archive.offset + 1,
-                  total: archive.total,
-                })}
-              </p>
-              <p className="text-muted-foreground text-xs">
-                {t('requests_page.archive_window', {
-                  visible: filteredRequests.length,
-                })}
-              </p>
-            </div>
+          <div className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,1.45fr)_minmax(360px,0.55fr)]">
+            <div className="overflow-hidden rounded-xl border border-border/60 bg-muted/20">
+              <div className="border-border/60 border-b px-4 py-3">
+                <p className="font-medium text-sm">
+                  {t('requests_page.archive_range', {
+                    end: Math.min(
+                      archive.offset + archive.limit,
+                      archive.total
+                    ),
+                    start: archive.total === 0 ? 0 : archive.offset + 1,
+                    total: archive.total,
+                  })}
+                </p>
+                <p className="text-muted-foreground text-xs">
+                  {t('requests_page.archive_window', {
+                    visible: filteredRequests.length,
+                  })}
+                </p>
+              </div>
 
-            <Table className="[&_td]:align-top">
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead>{t('explorer.table_route')}</TableHead>
-                  <TableHead>{t('explorer.table_status')}</TableHead>
-                  <TableHead>{t('explorer.table_render')}</TableHead>
-                  <TableHead>{t('explorer.table_deployment')}</TableHead>
-                  <TableHead>{t('explorer.table_latency')}</TableHead>
-                  <TableHead>{t('explorer.table_time')}</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredRequests.map((request) => (
-                  <TableRow
-                    key={`${request.time}-${request.path}-${request.deploymentKey ?? 'none'}-${request.statusValue}`}
-                    className="cursor-pointer"
-                    onClick={() => setSelectedRequest(request)}
-                  >
-                    <TableCell className="min-w-[300px]">
-                      <div className="space-y-2">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge
-                            variant={
-                              request.statusFamily === '4xx' ||
-                              request.statusFamily === '5xx'
-                                ? 'destructive'
-                                : 'outline'
-                            }
-                            className="rounded-full"
-                          >
-                            {request.method ?? 'REQ'}
-                          </Badge>
-                          <span className="font-medium text-sm">
-                            {request.parsedPath.pathname}
-                          </span>
-                          {request.isInternal ? (
-                            <Badge variant="secondary" className="rounded-full">
-                              {t('requests.internal')}
-                            </Badge>
-                          ) : null}
-                          {request.parsedPath.isServerComponentRequest ? (
-                            <Badge variant="outline" className="rounded-full">
-                              {t('explorer.render_rsc')}
-                            </Badge>
-                          ) : null}
-                        </div>
-                        <div className="text-muted-foreground text-xs">
-                          {request.path}
-                        </div>
-                        <div className="flex flex-wrap gap-2 text-muted-foreground text-xs">
-                          <span>{request.host ?? t('states.none')}</span>
-                          <span>{formatDateTime(request.time)}</span>
-                          <span>
-                            {request.parsedPath.querySignature ||
-                              t('explorer.no_query_signature')}
-                          </span>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge
-                        tone={
-                          request.statusFamily === '5xx'
-                            ? 'destructive'
-                            : request.statusFamily === '4xx'
-                              ? 'warning'
-                              : 'neutral'
-                        }
-                      >
-                        {request.status ?? '—'}
-                      </StatusBadge>
-                    </TableCell>
-                    <TableCell>
-                      <div className="space-y-1 text-sm">
-                        <div className="font-medium">
-                          {request.parsedPath.isServerComponentRequest
-                            ? t('explorer.render_rsc')
-                            : t('explorer.render_document')}
-                        </div>
-                        <div className="text-muted-foreground text-xs">
-                          {request.isInternal
-                            ? t('explorer.traffic_internal')
-                            : t('explorer.traffic_external')}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="space-y-1 text-sm">
-                        <div className="font-medium">
-                          {request.deploymentStamp ??
-                            request.deploymentColor ??
-                            t('states.none')}
-                        </div>
-                        <div className="text-muted-foreground text-xs">
-                          {request.deploymentKey ?? t('states.none')}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell className="font-medium">
-                      {formatLatencyMs(request.requestTimeMs)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="space-y-1 text-sm">
-                        <div className="font-medium">
-                          {formatClockTime(request.time)}
-                        </div>
-                        <div className="text-muted-foreground text-xs">
-                          {formatRelativeTime(request.time)}
-                        </div>
-                      </div>
-                    </TableCell>
+              <Table className="[&_td]:align-top">
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead>{t('explorer.table_route')}</TableHead>
+                    <TableHead>{t('explorer.table_status')}</TableHead>
+                    <TableHead>{t('explorer.table_render')}</TableHead>
+                    <TableHead>{t('explorer.table_deployment')}</TableHead>
+                    <TableHead>{t('explorer.table_latency')}</TableHead>
+                    <TableHead>{t('explorer.table_time')}</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {filteredRequests.map((request) => (
+                    <TableRow
+                      key={getRequestKey(request)}
+                      className={cn(
+                        'cursor-pointer',
+                        inspectedRequest &&
+                          getRequestKey(inspectedRequest) ===
+                            getRequestKey(request) &&
+                          'bg-dynamic-blue/5'
+                      )}
+                      onClick={() => {
+                        setInspectedRequest(request);
+                        setSelectedRequest(request);
+                      }}
+                    >
+                      <TableCell className="min-w-[300px]">
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Badge
+                              variant={
+                                request.statusFamily === '4xx' ||
+                                request.statusFamily === '5xx'
+                                  ? 'destructive'
+                                  : 'outline'
+                              }
+                              className="rounded-full"
+                            >
+                              {request.method ?? 'REQ'}
+                            </Badge>
+                            <span className="font-medium text-sm">
+                              {request.parsedPath.pathname}
+                            </span>
+                            {request.isInternal ? (
+                              <Badge
+                                variant="secondary"
+                                className="rounded-full"
+                              >
+                                {t('requests.internal')}
+                              </Badge>
+                            ) : null}
+                            {request.parsedPath.isServerComponentRequest ? (
+                              <Badge variant="outline" className="rounded-full">
+                                {t('explorer.render_rsc')}
+                              </Badge>
+                            ) : null}
+                          </div>
+                          <div className="text-muted-foreground text-xs">
+                            {request.path}
+                          </div>
+                          <div className="flex flex-wrap gap-2 text-muted-foreground text-xs">
+                            <span>{request.host ?? t('states.none')}</span>
+                            <span>{formatDateTime(request.time)}</span>
+                            <span>
+                              {request.parsedPath.querySignature ||
+                                t('explorer.no_query_signature')}
+                            </span>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge
+                          tone={
+                            request.statusFamily === '5xx'
+                              ? 'destructive'
+                              : request.statusFamily === '4xx'
+                                ? 'warning'
+                                : 'neutral'
+                          }
+                        >
+                          {request.status ?? '—'}
+                        </StatusBadge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1 text-sm">
+                          <div className="font-medium">
+                            {request.parsedPath.isServerComponentRequest
+                              ? t('explorer.render_rsc')
+                              : t('explorer.render_document')}
+                          </div>
+                          <div className="text-muted-foreground text-xs">
+                            {request.isInternal
+                              ? t('explorer.traffic_internal')
+                              : t('explorer.traffic_external')}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1 text-sm">
+                          <div className="font-medium">
+                            {request.deploymentStamp ??
+                              request.deploymentColor ??
+                              t('states.none')}
+                          </div>
+                          <div className="text-muted-foreground text-xs">
+                            {request.deploymentKey ?? t('states.none')}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        {formatLatencyMs(request.requestTimeMs)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="space-y-1 text-sm">
+                          <div className="font-medium">
+                            {formatClockTime(request.time)}
+                          </div>
+                          <div className="text-muted-foreground text-xs">
+                            {formatRelativeTime(request.time)}
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
 
-            <div className="border-border/60 border-t px-4 py-3">
-              <ExplorerPagination
-                currentPage={archive.page}
-                onNextPage={() => {
-                  startTransition(() => {
-                    if (archive.hasNextPage) {
-                      void setPage(archive.page + 1);
-                    }
-                  });
-                }}
-                onPreviousPage={() => {
-                  startTransition(() => {
-                    if (archive.hasPreviousPage) {
-                      void setPage(Math.max(1, archive.page - 1));
-                    }
-                  });
-                }}
-                t={t}
-                totalItems={archive.total}
-                totalPages={archive.pageCount}
-              />
+              <div className="border-border/60 border-t px-4 py-3">
+                <ExplorerPagination
+                  currentPage={archive.page}
+                  onNextPage={() => {
+                    startTransition(() => {
+                      if (archive.hasNextPage) {
+                        void setPage(archive.page + 1);
+                      }
+                    });
+                  }}
+                  onPreviousPage={() => {
+                    startTransition(() => {
+                      if (archive.hasPreviousPage) {
+                        void setPage(Math.max(1, archive.page - 1));
+                      }
+                    });
+                  }}
+                  t={t}
+                  totalItems={archive.total}
+                  totalPages={archive.pageCount}
+                />
+              </div>
             </div>
+
+            <RequestTracePanel
+              onOpenDialog={(request) => setSelectedRequest(request)}
+              relatedLogs={focusedRelatedLogs}
+              request={focusedRequest}
+              t={t}
+            />
           </div>
         )}
       </section>
@@ -688,8 +922,270 @@ export function BlueGreenMonitoringRequestsClient() {
         request={selectedRequest}
         t={t}
       />
-    </section>
+    </main>
   );
+}
+
+function useMonitoringMotion(rootRef: RefObject<HTMLElement | null>) {
+  useEffect(() => {
+    const root = rootRef.current;
+    if (
+      !root ||
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    ) {
+      return;
+    }
+
+    let mounted = true;
+    let context: { revert: () => void } | null = null;
+
+    void import('@tuturuuu/ui/gsap').then(({ ScrollTrigger, gsap }) => {
+      if (!mounted || !rootRef.current) {
+        return;
+      }
+
+      gsap.registerPlugin(ScrollTrigger);
+      context = gsap.context(() => {
+        gsap.fromTo(
+          '.monitoring-reveal',
+          { opacity: 0, y: 24 },
+          {
+            duration: 0.7,
+            ease: 'power3.out',
+            opacity: 1,
+            stagger: 0.05,
+            y: 0,
+          }
+        );
+
+        gsap.utils.toArray<HTMLElement>('.monitoring-scale').forEach((item) => {
+          gsap.fromTo(
+            item,
+            { opacity: 0.72, scale: 0.96 },
+            {
+              ease: 'none',
+              opacity: 1,
+              scale: 1,
+              scrollTrigger: {
+                end: 'bottom 20%',
+                scrub: true,
+                start: 'top 88%',
+                trigger: item,
+              },
+            }
+          );
+        });
+
+        gsap.utils
+          .toArray<HTMLElement>('.monitoring-stack-card')
+          .forEach((item, index) => {
+            gsap.fromTo(
+              item,
+              { opacity: 0.82, y: 28 + index * 8 },
+              {
+                ease: 'power2.out',
+                opacity: 1,
+                scrollTrigger: {
+                  end: 'bottom 70%',
+                  scrub: true,
+                  start: 'top 95%',
+                  trigger: item,
+                },
+                y: 0,
+              }
+            );
+          });
+      }, root);
+    });
+
+    return () => {
+      mounted = false;
+      context?.revert();
+    };
+  }, [rootRef]);
+}
+
+function SignalTile({
+  className,
+  icon,
+  label,
+  meta,
+  value,
+}: {
+  className?: string;
+  icon: ReactNode;
+  label: string;
+  meta: string;
+  value: string;
+}) {
+  return (
+    <div
+      className={cn(
+        'monitoring-stack-card group overflow-hidden rounded-xl border border-border/60 bg-background/85 p-4 shadow-sm backdrop-blur transition-colors hover:border-dynamic-blue/50',
+        className
+      )}
+    >
+      <div className="flex items-center gap-2 text-muted-foreground text-xs uppercase tracking-[0.16em]">
+        <span className="text-dynamic-blue">{icon}</span>
+        <span>{label}</span>
+      </div>
+      <p className="mt-3 line-clamp-2 font-semibold text-xl transition-transform duration-700 ease-out group-hover:translate-x-1">
+        {value}
+      </p>
+      <p className="mt-2 line-clamp-3 text-muted-foreground text-xs leading-5">
+        {meta}
+      </p>
+    </div>
+  );
+}
+
+function RequestTracePanel({
+  onOpenDialog,
+  relatedLogs,
+  request,
+  t,
+}: {
+  onOpenDialog: (request: EnrichedMonitoringRequest) => void;
+  relatedLogs: BlueGreenMonitoringWatcherLog[];
+  request: EnrichedMonitoringRequest | null;
+  t: MonitoringTranslator;
+}) {
+  if (!request) {
+    return (
+      <aside className="monitoring-stack-card rounded-xl border border-border/60 border-dashed bg-muted/20 p-5">
+        <p className="font-semibold text-sm">
+          {t('requests_page.server_console_lens')}
+        </p>
+        <p className="mt-2 text-muted-foreground text-sm">
+          {t('requests_page.server_console_empty')}
+        </p>
+      </aside>
+    );
+  }
+
+  return (
+    <aside className="monitoring-stack-card h-fit rounded-xl border border-border/60 bg-background p-5 shadow-sm xl:sticky xl:top-4">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-muted-foreground text-xs uppercase tracking-[0.18em]">
+            {t('requests_page.focus_request')}
+          </p>
+          <h3 className="mt-2 break-words font-semibold text-lg">
+            {request.parsedPath.pathname}
+          </h3>
+        </div>
+        <StatusBadge
+          tone={
+            request.statusFamily === '5xx'
+              ? 'destructive'
+              : request.statusFamily === '4xx'
+                ? 'warning'
+                : 'neutral'
+          }
+        >
+          {request.status ?? '—'}
+        </StatusBadge>
+      </div>
+
+      <div className="mt-5 grid grid-cols-2 gap-3">
+        <MicroPill
+          label={t('explorer.table_latency')}
+          value={formatLatencyMs(request.requestTimeMs)}
+        />
+        <MicroPill
+          label={t('explorer.table_render')}
+          value={
+            request.parsedPath.isServerComponentRequest
+              ? t('explorer.render_rsc')
+              : t('explorer.render_document')
+          }
+        />
+        <MicroPill
+          label={t('requests_page.method')}
+          value={request.method ?? t('states.none')}
+        />
+        <MicroPill
+          label={t('requests_page.query_signature')}
+          value={
+            request.parsedPath.querySignature ||
+            t('explorer.no_query_signature')
+          }
+        />
+      </div>
+
+      <div className="mt-5 rounded-lg border border-border/60 bg-muted/20 p-4">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="font-medium text-sm">
+              {t('requests_page.server_console_lens')}
+            </p>
+            <p className="mt-1 text-muted-foreground text-xs">
+              {t('requests_page.console_related_count', {
+                count: relatedLogs.length,
+              })}
+            </p>
+          </div>
+          <Terminal className="h-4 w-4 text-dynamic-blue" />
+        </div>
+
+        <div className="mt-3 max-h-72 space-y-2 overflow-auto pr-1">
+          {relatedLogs.length > 0 ? (
+            relatedLogs.slice(0, 8).map((log) => (
+              <div
+                className="rounded-md border border-border/60 bg-background p-3"
+                key={`${log.time}-${log.level}-${log.message}`}
+              >
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <Badge variant="outline" className="rounded-full">
+                    {log.level}
+                  </Badge>
+                  <span className="text-muted-foreground">
+                    {formatDateTime(log.time)}
+                  </span>
+                </div>
+                <p className="mt-2 break-words text-sm">{log.message}</p>
+              </div>
+            ))
+          ) : (
+            <p className="rounded-md border border-border/60 bg-background p-3 text-muted-foreground text-sm">
+              {t('requests_page.server_console_empty')}
+            </p>
+          )}
+        </div>
+      </div>
+
+      <Button
+        className="mt-4 w-full rounded-full"
+        onClick={() => onOpenDialog(request)}
+        type="button"
+        variant="outline"
+      >
+        <Eye className="mr-2 h-4 w-4" />
+        {t('requests_page.inspect_request')}
+        <ArrowUpRight className="ml-2 h-4 w-4" />
+      </Button>
+    </aside>
+  );
+}
+
+function getRequestKey(request: BlueGreenMonitoringRequestLog) {
+  return `${request.time}-${request.path}-${request.deploymentKey ?? 'none'}-${request.status ?? 'unknown'}`;
+}
+
+function getRelatedWatcherLogs(
+  request: BlueGreenMonitoringRequestLog,
+  relatedLogs: BlueGreenMonitoringWatcherLog[]
+) {
+  return relatedLogs.filter((log) => {
+    const sameDeployment =
+      (request.deploymentKey && log.deploymentKey === request.deploymentKey) ||
+      (request.deploymentStamp &&
+        log.deploymentStamp === request.deploymentStamp) ||
+      (request.deploymentColor && log.activeColor === request.deploymentColor);
+    const nearRequest = Math.abs(log.time - request.time) <= 10 * 60 * 1000;
+
+    return sameDeployment || nearRequest;
+  });
 }
 
 function RequestDetailDialog({
@@ -705,18 +1201,7 @@ function RequestDetailDialog({
 }) {
   const parsedPath = request ? parseMonitoringRequestPath(request.path) : null;
   const requestRelatedLogs = request
-    ? relatedLogs.filter((log) => {
-        const sameDeployment =
-          (request.deploymentKey &&
-            log.deploymentKey === request.deploymentKey) ||
-          (request.deploymentStamp &&
-            log.deploymentStamp === request.deploymentStamp) ||
-          (request.deploymentColor &&
-            log.activeColor === request.deploymentColor);
-        const nearRequest = Math.abs(log.time - request.time) <= 10 * 60 * 1000;
-
-        return sameDeployment || nearRequest;
-      })
+    ? getRelatedWatcherLogs(request, relatedLogs)
     : [];
   const details = request
     ? [

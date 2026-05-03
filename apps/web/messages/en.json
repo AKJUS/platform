@@ -1772,13 +1772,17 @@
         "timeframe_errors_description": "4xx and 5xx responses across the selected timeframe.",
         "visible_rows": "Visible rows after refining this archive window."
       },
+      "console_related_count": "{count} related log lines",
       "deployment_color": "Deployment Color",
       "deployment_key": "Deployment Key",
       "deployment_stamp": "Deployment Stamp",
       "description": "Browse retained proxy requests page by page, then refine the visible archive window by route, render mode, traffic type, or status.",
       "empty_filtered": "No request rows matched the current filters in this archive window.",
+      "error_lens": "Open Error Lens",
+      "focus_request": "Focused Request",
       "global_refinement": "Aggregates and route filters are computed across {count} retained rows in the selected timeframe. The table below is paginated for browsing.",
       "host": "Host",
+      "inspect_request": "Inspect Request",
       "internal_short": "Internal",
       "method": "Method",
       "no_related_logs": "No related watcher logs were retained near this request yet.",
@@ -1791,6 +1795,10 @@
       "related_logs_description": "Recent watcher lines are matched by deployment key, deployment stamp, active color, or a ten-minute window around the request.",
       "request_details": "Request Details",
       "request_metadata": "Request Metadata",
+      "server_console_description": "Click any request to keep its deployment context and nearby watcher lines visible without terminal access.",
+      "server_console_empty": "No watcher or server-side console lines were retained for this request window yet.",
+      "server_console_lens": "Server Console Lens",
+      "slowest_request": "Slowest Request",
       "status_family": "Status Family",
       "timeframe_14d": "14 days",
       "timeframe_1d": "24 hours",
@@ -1800,7 +1808,8 @@
       "timeframe_days": "{days} days",
       "timeframe_filter": "Timeframe",
       "title": "Request Archive",
-      "top_routes_description": "Route summaries are calculated globally across the selected timeframe, not just the visible page."
+      "top_routes_description": "Route summaries are calculated globally across the selected timeframe, not just the visible page.",
+      "trace_lane": "Trace Lane"
     },
     "rollout": {
       "avg_latency": "Avg Latency",

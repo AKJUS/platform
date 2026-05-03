@@ -30,9 +30,9 @@ type ExportTransactionRow = {
   wallet_name: string | null;
 };
 
-type ExportTransactionTagRow = {
+type ExportTransactionEnrichmentRow = {
+  tags: unknown;
   transaction_id: string;
-  transaction_tags: { name: string | null } | { name: string | null }[] | null;
 };
 
 type ExportInvoiceCustomerRow = {
@@ -51,6 +51,8 @@ type ExportInvoiceCustomerRow = {
       }[]
     | null;
 };
+
+const EXPORT_LOOKUP_CHUNK_SIZE = 100;
 
 function getStringArray(searchParams: URLSearchParams, key: string) {
   return searchParams
@@ -75,6 +77,71 @@ function getTransactionType(amount: number | null) {
   }
 
   return amount < 0 ? 'expense' : 'income';
+}
+
+function getTagNames(tags: unknown) {
+  if (!Array.isArray(tags)) {
+    return [];
+  }
+
+  return tags
+    .map((tag) => {
+      if (!tag || typeof tag !== 'object' || !('name' in tag)) {
+        return null;
+      }
+
+      const name = tag.name;
+      return typeof name === 'string' && name ? name : null;
+    })
+    .filter((name): name is string => Boolean(name));
+}
+
+async function getInvoiceCustomers({
+  invoiceIds,
+  normalizedWsId,
+}: {
+  invoiceIds: string[];
+  normalizedWsId: string;
+}) {
+  if (invoiceIds.length === 0) {
+    return {
+      data: [] as ExportInvoiceCustomerRow[],
+      error: null,
+    };
+  }
+
+  const sbAdmin = await createAdminClient();
+  const data: ExportInvoiceCustomerRow[] = [];
+
+  for (
+    let index = 0;
+    index < invoiceIds.length;
+    index += EXPORT_LOOKUP_CHUNK_SIZE
+  ) {
+    const chunk = invoiceIds.slice(index, index + EXPORT_LOOKUP_CHUNK_SIZE);
+    const result = await sbAdmin
+      .from('finance_invoices')
+      .select(
+        'id, transaction_id, workspace_users!finance_invoices_customer_id_fkey(display_name, full_name, email)'
+      )
+      .eq('ws_id', normalizedWsId)
+      .in('id', chunk)
+      .returns<ExportInvoiceCustomerRow[]>();
+
+    if (result.error) {
+      return {
+        data: null,
+        error: result.error,
+      };
+    }
+
+    data.push(...(result.data ?? []));
+  }
+
+  return {
+    data,
+    error: null,
+  };
 }
 
 export async function GET(req: Request, { params }: Params) {
@@ -163,31 +230,24 @@ export async function GET(req: Request, { params }: Params) {
     ),
   ];
 
-  const sbAdmin = await createAdminClient();
-  const [tagResult, invoiceResult] = await Promise.all([
+  const [enrichmentResult, invoiceResult] = await Promise.all([
     transactionIds.length > 0
-      ? sbAdmin
-          .from('wallet_transaction_tags')
-          .select('transaction_id, transaction_tags(name)')
-          .in('transaction_id', transactionIds)
-          .returns<ExportTransactionTagRow[]>()
+      ? supabase.rpc('get_transaction_list_enrichment', {
+          p_transaction_ids: transactionIds,
+          p_user_id: user.id,
+          p_ws_id: normalizedWsId,
+        })
       : Promise.resolve({ data: [], error: null }),
-    invoiceIds.length > 0
-      ? sbAdmin
-          .from('finance_invoices')
-          .select(
-            'id, transaction_id, workspace_users!finance_invoices_customer_id_fkey(display_name, full_name, email)'
-          )
-          .eq('ws_id', normalizedWsId)
-          .in('id', invoiceIds)
-          .returns<ExportInvoiceCustomerRow[]>()
-      : Promise.resolve({ data: [], error: null }),
+    getInvoiceCustomers({ invoiceIds, normalizedWsId }),
   ]);
 
-  if (tagResult.error) {
-    console.error('Error fetching transaction export tags:', tagResult.error);
+  if (enrichmentResult.error) {
+    console.error(
+      'Error fetching transaction export enrichment:',
+      enrichmentResult.error
+    );
     return NextResponse.json(
-      { message: 'Error fetching transaction export tags' },
+      { message: 'Error fetching transaction export enrichment' },
       { status: 500 }
     );
   }
@@ -205,13 +265,9 @@ export async function GET(req: Request, { params }: Params) {
 
   const tagNamesByTransactionId = new Map<string, string[]>();
 
-  for (const row of tagResult.data ?? []) {
-    const relatedTags = Array.isArray(row.transaction_tags)
-      ? row.transaction_tags
-      : [row.transaction_tags];
-    const tagNames = relatedTags
-      .map((tag) => tag?.name)
-      .filter((name): name is string => Boolean(name));
+  for (const row of (enrichmentResult.data ??
+    []) as ExportTransactionEnrichmentRow[]) {
+    const tagNames = getTagNames(row.tags);
 
     if (tagNames.length === 0) {
       continue;
