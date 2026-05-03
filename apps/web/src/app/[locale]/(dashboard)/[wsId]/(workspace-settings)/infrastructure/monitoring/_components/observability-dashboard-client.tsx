@@ -1223,7 +1223,7 @@ export function ObservabilityDashboardClient({
       return;
     }
 
-    const interval = window.setInterval(() => setNow(Date.now()), 1_000);
+    const interval = window.setInterval(() => setNow(Date.now()), 100);
     return () => window.clearInterval(interval);
   }, [hasDeploymentInProgress, mode]);
   const infiniteLabels = {
