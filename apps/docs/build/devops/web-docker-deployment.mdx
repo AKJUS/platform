@@ -302,7 +302,10 @@ instead of accidentally depending on a public app URL from inside the container.
 `calendar-provider-sync` intentionally calls the same
 `/api/v1/workspaces/:wsId/calendar/sync` route that the calendar page uses, but
 with cron auth and `source: "cron"` so dashboard runs stay manual and scheduled
-runs stay auditable.
+runs stay auditable. The workspace sync route is responsible for provider
+fan-out: Google connections are selected from active Google auth-token rows, and
+Microsoft connections are selected from active Microsoft auth-token rows. Do not
+reimplement provider-specific calendar fetching inside the cron wrapper.
 
 ## Auto-Deploy Watcher
 

@@ -261,6 +261,7 @@ export async function GET(request: Request): Promise<NextResponse> {
               is_enabled: true,
               color: cal.hexColor || '#0078D4',
               auth_token_id: tokenRecord.id,
+              provider: 'microsoft',
             }));
 
           // Batch upsert into calendar_connections

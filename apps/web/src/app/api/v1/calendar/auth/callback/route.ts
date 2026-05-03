@@ -302,6 +302,7 @@ export async function GET(request: Request) {
               is_enabled: true,
               color: cal.backgroundColor || '#4285F4',
               auth_token_id: tokenRecord.id,
+              provider: 'google',
             }));
 
           // Batch upsert into calendar_connections

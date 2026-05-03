@@ -114,6 +114,27 @@ export async function POST(request: Request) {
 
     const { wsId, calendarId, calendarName, color, isEnabled, authTokenId } =
       validation.data;
+    let provider: 'google' | 'microsoft' = 'google';
+
+    if (authTokenId) {
+      const { data: authToken, error: authTokenError } = await supabase
+        .from('calendar_auth_tokens')
+        .select('provider')
+        .eq('id', authTokenId)
+        .eq('ws_id', wsId)
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .single();
+
+      if (authTokenError || !authToken) {
+        return NextResponse.json(
+          { error: 'Calendar account not found' },
+          { status: 404 }
+        );
+      }
+
+      provider = authToken.provider as 'google' | 'microsoft';
+    }
 
     // Insert the calendar connection
     const { data: connection, error: insertError } = await supabase
@@ -125,6 +146,7 @@ export async function POST(request: Request) {
         color: color || null,
         is_enabled: isEnabled,
         auth_token_id: authTokenId || null,
+        provider,
       })
       .select()
       .single();

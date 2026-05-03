@@ -33,7 +33,7 @@ BEGIN
   END IF;
 
   IF user_email IS NOT NULL THEN
-    SELECT COUNT(*), MIN(wu.id)
+    SELECT COUNT(*), (ARRAY_AGG(wu.id ORDER BY wu.id::text))[1]
     INTO matching_workspace_user_count, matching_workspace_user_id
     FROM public.workspace_users wu
     WHERE wu.ws_id = NEW.ws_id
@@ -102,7 +102,7 @@ BEGIN
     END IF;
 
     IF user_email IS NOT NULL THEN
-      SELECT COUNT(*), MIN(wu.id)
+      SELECT COUNT(*), (ARRAY_AGG(wu.id ORDER BY wu.id::text))[1]
       INTO matching_workspace_user_count, matching_workspace_user_id
       FROM public.workspace_users wu
       WHERE wu.ws_id = rec.ws_id
@@ -178,7 +178,7 @@ BEGIN
   END IF;
 
   IF user_email IS NOT NULL THEN
-    SELECT COUNT(*), MIN(wu.id)
+    SELECT COUNT(*), (ARRAY_AGG(wu.id ORDER BY wu.id::text))[1]
     INTO matching_workspace_user_count, matching_workspace_user_id
     FROM public.workspace_users wu
     WHERE wu.ws_id = target_ws_id

@@ -7,7 +7,10 @@
  */
 
 import { resolveAuthenticatedSessionUser } from '@tuturuuu/supabase/next/auth-session-user';
-import { createClient } from '@tuturuuu/supabase/next/server';
+import {
+  createAdminClient,
+  createClient,
+} from '@tuturuuu/supabase/next/server';
 import {
   MAX_LONG_TEXT_LENGTH,
   MAX_NAME_LENGTH,
@@ -122,6 +125,8 @@ export async function DELETE(request: Request): Promise<NextResponse> {
   const normalizedWsId = await normalizeWorkspaceId(wsId);
 
   try {
+    const sbAdmin = await createAdminClient();
+
     // First, verify the account belongs to this user and workspace
     const { data: account, error: fetchError } = await supabase
       .from('calendar_auth_tokens')
@@ -135,11 +140,16 @@ export async function DELETE(request: Request): Promise<NextResponse> {
       return NextResponse.json({ error: 'Account not found' }, { status: 404 });
     }
 
-    // Soft delete: mark as inactive instead of hard delete
-    // This preserves history and allows recovery
-    const { error: updateError } = await supabase
+    // Soft delete the account row so reconnect can reuse the same provider/email
+    // record, but clear OAuth secrets immediately.
+    const { error: updateError } = await sbAdmin
       .from('calendar_auth_tokens')
-      .update({ is_active: false })
+      .update({
+        access_token: '',
+        expires_at: null,
+        is_active: false,
+        refresh_token: '',
+      })
       .eq('id', accountId)
       .eq('user_id', user.id)
       .eq('ws_id', normalizedWsId);
@@ -153,10 +163,11 @@ export async function DELETE(request: Request): Promise<NextResponse> {
     }
 
     // Also disable calendar connections for this account
-    const { error: connectionsError } = await supabase
+    const { error: connectionsError } = await sbAdmin
       .from('calendar_connections')
       .update({ is_enabled: false })
-      .eq('auth_token_id', accountId);
+      .eq('auth_token_id', accountId)
+      .eq('ws_id', normalizedWsId);
 
     if (connectionsError) {
       console.error('Error disabling calendar connections:', connectionsError);

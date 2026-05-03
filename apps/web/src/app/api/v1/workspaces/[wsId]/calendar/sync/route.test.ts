@@ -3,12 +3,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const {
   createAdminClientMock,
   createClientMock,
+  createGraphClientMock,
+  fetchMicrosoftEventsMock,
   performIncrementalActiveSyncMock,
   resolveAuthenticatedSessionUserMock,
   verifyWorkspaceMembershipTypeMock,
 } = vi.hoisted(() => ({
   createAdminClientMock: vi.fn(),
   createClientMock: vi.fn(),
+  createGraphClientMock: vi.fn(),
+  fetchMicrosoftEventsMock: vi.fn(),
   performIncrementalActiveSyncMock: vi.fn(),
   resolveAuthenticatedSessionUserMock: vi.fn(),
   verifyWorkspaceMembershipTypeMock: vi.fn(),
@@ -32,12 +36,12 @@ vi.mock('@/lib/calendar/incremental-active-sync', () => ({
 }));
 
 vi.mock('@tuturuuu/microsoft', () => ({
-  createGraphClient: vi.fn(),
+  createGraphClient: createGraphClientMock,
 }));
 
 vi.mock('@tuturuuu/microsoft/calendar', () => ({
   convertMicrosoftEventToWorkspaceFormat: vi.fn(),
-  fetchMicrosoftEvents: vi.fn(),
+  fetchMicrosoftEvents: fetchMicrosoftEventsMock,
 }));
 
 import { POST } from './route';
@@ -66,6 +70,72 @@ function createAwaitableQuery<T>(result: T) {
 }
 
 function createAdminSupabaseMock() {
+  const tokenRows = [
+    {
+      id: 'google-token-id',
+      provider: 'google',
+      access_token: 'google-access-token',
+      is_active: true,
+      ws_id: WS_ID,
+    },
+    {
+      id: 'microsoft-token-id',
+      provider: 'microsoft',
+      access_token: 'microsoft-access-token',
+      is_active: true,
+      ws_id: WS_ID,
+    },
+  ];
+  const connectionRows = [
+    {
+      auth_token_id: 'google-token-id',
+      calendar_id: 'primary',
+      is_enabled: true,
+      ws_id: WS_ID,
+    },
+    {
+      auth_token_id: 'microsoft-token-id',
+      calendar_id: 'microsoft-calendar-id',
+      is_enabled: true,
+      ws_id: WS_ID,
+    },
+  ];
+
+  const createFilteredQuery = <T extends Record<string, unknown>>(
+    rows: T[]
+  ) => {
+    const filters = new Map<string, unknown>();
+    const inFilters = new Map<string, unknown[]>();
+    const query: Record<string, unknown> = {
+      eq: (column: string, value: unknown) => {
+        filters.set(column, value);
+        return query;
+      },
+      get data() {
+        return rows.filter((row) => {
+          for (const [column, value] of filters.entries()) {
+            if (row[column] !== value) return false;
+          }
+
+          for (const [column, values] of inFilters.entries()) {
+            if (!values.includes(row[column])) return false;
+          }
+
+          return true;
+        });
+      },
+      error: null,
+      in: (column: string, values: unknown[]) => {
+        inFilters.set(column, values);
+        return query;
+      },
+      not: () => query,
+      select: () => query,
+    };
+
+    return query;
+  };
+
   return {
     from: vi.fn((table: string) => {
       if (table === 'workspaces') {
@@ -82,19 +152,11 @@ function createAdminSupabaseMock() {
       }
 
       if (table === 'calendar_connections') {
-        return createAwaitableQuery({
-          data: [
-            {
-              auth_token_id: 'google-token-id',
-              calendar_id: 'primary',
-            },
-          ],
-          error: null,
-        });
+        return createFilteredQuery(connectionRows);
       }
 
       if (table === 'calendar_auth_tokens') {
-        return createAwaitableQuery({ data: [], error: null });
+        return createFilteredQuery(tokenRows);
       }
 
       if (table === 'calendar_sync_dashboard') {
@@ -130,6 +192,8 @@ describe('workspace calendar sync route', () => {
     process.env.CRON_SECRET = 'cron-secret';
     vi.clearAllMocks();
     createAdminClientMock.mockResolvedValue(createAdminSupabaseMock());
+    createGraphClientMock.mockReturnValue('graph-client');
+    fetchMicrosoftEventsMock.mockResolvedValue([]);
     performIncrementalActiveSyncMock.mockResolvedValue({
       eventsDeleted: 0,
       eventsInserted: 1,
@@ -169,6 +233,16 @@ describe('workspace calendar sync route', () => {
       expect.any(Date),
       undefined,
       'google-token-id'
+    );
+    expect(performIncrementalActiveSyncMock).toHaveBeenCalledTimes(1);
+    expect(createGraphClientMock).toHaveBeenCalledWith(
+      'microsoft-access-token'
+    );
+    expect(fetchMicrosoftEventsMock).toHaveBeenCalledWith(
+      'graph-client',
+      'microsoft-calendar-id',
+      expect.any(String),
+      expect.any(String)
     );
   });
 });

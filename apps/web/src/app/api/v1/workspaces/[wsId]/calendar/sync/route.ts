@@ -26,6 +26,7 @@ type DashboardRunRow = {
   cooldown_remaining_seconds?: number | null;
 };
 type MicrosoftTokenRow = { id: string; access_token: string };
+type GoogleTokenRow = { id: string };
 type CalendarConnectionRow = {
   calendar_id: string;
   color?: string | null;
@@ -298,15 +299,39 @@ async function syncGoogleInbound(args: {
   rangeEnd: string;
   userIdForFallback: string;
 }) {
-  const { data: connections, error } = await args.sbAdmin
+  const { data: tokenRows, error: tokenError } = await args.sbAdmin
+    .from('calendar_auth_tokens')
+    .select('id')
+    .eq('ws_id', args.wsId)
+    .eq('provider', 'google')
+    .eq('is_active', true);
+
+  if (tokenError) {
+    throw tokenError;
+  }
+
+  const googleTokenIds = ((tokenRows ?? []) as GoogleTokenRow[]).map(
+    (token) => token.id
+  );
+
+  if (googleTokenIds.length === 0) {
+    return {
+      inserted: 0,
+      updated: 0,
+      deleted: 0,
+      processedConnections: 0,
+    };
+  }
+
+  const { data: connections, error: connectionError } = await args.sbAdmin
     .from('calendar_connections')
     .select('calendar_id, auth_token_id')
     .eq('ws_id', args.wsId)
     .eq('is_enabled', true)
-    .not('auth_token_id', 'is', null);
+    .in('auth_token_id', googleTokenIds);
 
-  if (error) {
-    throw error;
+  if (connectionError) {
+    throw connectionError;
   }
 
   const googleConnections = (
