@@ -168,6 +168,63 @@ function formatTime(value: number | null | undefined) {
   }).format(value);
 }
 
+function formatClientContext({
+  ipAddress,
+  userAgent,
+}: {
+  ipAddress?: string | null;
+  userAgent?: string | null;
+}) {
+  return [ipAddress, userAgent].filter(Boolean).join(' · ');
+}
+
+function describeCronSchedule(
+  schedule: string,
+  labels: {
+    dailyAt: (time: string) => string;
+    everyHours: (count: string) => string;
+    everyMinutes: (count: string) => string;
+    raw: (schedule: string) => string;
+  }
+) {
+  const [minute, hour, dayOfMonth, month, dayOfWeek] = schedule.split(/\s+/u);
+  if (!(minute && hour && dayOfMonth && month && dayOfWeek)) {
+    return labels.raw(schedule);
+  }
+
+  if (
+    minute.startsWith('*/') &&
+    hour === '*' &&
+    dayOfMonth === '*' &&
+    month === '*' &&
+    dayOfWeek === '*'
+  ) {
+    return labels.everyMinutes(minute.slice(2));
+  }
+
+  if (
+    minute === '0' &&
+    hour.startsWith('*/') &&
+    dayOfMonth === '*' &&
+    month === '*' &&
+    dayOfWeek === '*'
+  ) {
+    return labels.everyHours(hour.slice(2));
+  }
+
+  if (
+    minute === '0' &&
+    /^\d+$/u.test(hour) &&
+    dayOfMonth === '*' &&
+    month === '*' &&
+    dayOfWeek === '*'
+  ) {
+    return labels.dailyAt(`${hour.padStart(2, '0')}:00 UTC`);
+  }
+
+  return labels.raw(schedule);
+}
+
 function statusClass(status: number | null | undefined) {
   if (status == null) {
     return 'text-muted-foreground';
@@ -455,6 +512,8 @@ function MetricCard({
 }
 
 function LogRow({ log }: { log: ObservabilityLogEvent }) {
+  const clientContext = formatClientContext(log);
+
   return (
     <div className="grid grid-cols-[140px_72px_90px_minmax(0,1fr)] items-start gap-4 border-border/50 border-b px-4 py-3 font-mono text-xs">
       <span className="text-muted-foreground">{formatTime(log.createdAt)}</span>
@@ -476,14 +535,20 @@ function LogRow({ log }: { log: ObservabilityLogEvent }) {
         <p className="mt-1 truncate text-muted-foreground">
           {log.route ?? log.requestId ?? log.source}
         </p>
+        {clientContext ? (
+          <p className="mt-1 truncate text-muted-foreground">{clientContext}</p>
+        ) : null}
       </div>
     </div>
   );
 }
 
 function RequestRow({ request }: { request: ObservabilityRequest }) {
+  const clientContext = formatClientContext(request);
+  const relatedLogs = request.relatedLogs.slice(0, 2);
+
   return (
-    <div className="grid grid-cols-[140px_72px_76px_minmax(0,1fr)_90px] items-center gap-4 border-border/50 border-b px-4 py-3 font-mono text-xs">
+    <div className="grid h-full grid-cols-[140px_72px_76px_minmax(0,1fr)_90px] items-start gap-4 border-border/50 border-b px-4 py-3 font-mono text-xs">
       <span className="text-muted-foreground">
         {formatTime(request.startedAt)}
       </span>
@@ -491,7 +556,24 @@ function RequestRow({ request }: { request: ObservabilityRequest }) {
       <span className={statusClass(request.status)}>
         {request.status ?? '-'}
       </span>
-      <span className="truncate">{request.path ?? request.id}</span>
+      <div className="min-w-0">
+        <p className="truncate">{request.path ?? request.id}</p>
+        {clientContext ? (
+          <p className="mt-1 truncate text-muted-foreground">{clientContext}</p>
+        ) : null}
+        {relatedLogs.length > 0 ? (
+          <div className="mt-2 space-y-1">
+            {relatedLogs.map((log) => (
+              <p className="truncate text-muted-foreground" key={log.id}>
+                <span className={cn('uppercase', statusClass(log.status))}>
+                  {log.level}
+                </span>{' '}
+                {log.message}
+              </p>
+            ))}
+          </div>
+        ) : null}
+      </div>
       <span className="text-muted-foreground">
         {formatDuration(request.durationMs)}
       </span>
@@ -518,11 +600,11 @@ function DeploymentRow({
     <div className="grid h-full grid-cols-[minmax(0,1fr)_110px_110px_100px_90px_120px] items-center gap-4 border-border/50 border-b px-4 py-3 text-sm">
       <div className="min-w-0">
         <div className="flex min-w-0 items-center gap-2">
-          <span className="truncate font-semibold">
-            {deployment.commitSubject ?? tFallbackDeployment(deployment)}
-          </span>
           <span className="shrink-0 rounded border border-border/70 bg-muted/30 px-1.5 py-0.5 font-mono text-muted-foreground text-xs">
             {hash}
+          </span>
+          <span className="truncate font-semibold">
+            {deployment.commitSubject ?? tFallbackDeployment(deployment)}
           </span>
         </div>
         <p className="mt-1 truncate font-mono text-muted-foreground text-xs">
@@ -897,6 +979,12 @@ export function ObservabilityDashboardClient({
     queued: t('deployment_states.queued'),
     ready: t('deployment_states.ready'),
   };
+  const cronScheduleLabels = {
+    dailyAt: (time: string) => cronT('schedule.daily_at', { time }),
+    everyHours: (count: string) => cronT('schedule.every_hours', { count }),
+    everyMinutes: (count: string) => cronT('schedule.every_minutes', { count }),
+    raw: (schedule: string) => cronT('schedule.raw', { schedule }),
+  };
   const statusFamilyLabels = {
     clientError: t('status_families.clientError'),
     redirect: t('status_families.redirect'),
@@ -1166,7 +1254,7 @@ export function ObservabilityDashboardClient({
           ) : (
             <VirtualizedList
               empty={t('empty.requests')}
-              estimateRowHeight={58}
+              estimateRowHeight={96}
               hasMore={requestsQuery.hasNextPage}
               isFetchingMore={requestsQuery.isFetchingNextPage}
               items={requests}
@@ -1291,6 +1379,20 @@ export function ObservabilityDashboardClient({
                     <p className="mt-2 truncate font-mono text-muted-foreground text-xs">
                       {job.schedule} · {job.path}
                     </p>
+                    <div className="mt-2 grid gap-1 text-muted-foreground text-xs sm:grid-cols-3">
+                      <span>
+                        {describeCronSchedule(job.schedule, cronScheduleLabels)}
+                      </span>
+                      <span>
+                        {cronT('last_run')}:{' '}
+                        {formatTime(
+                          job.lastExecution?.startedAt ?? job.lastScheduledAt
+                        )}
+                      </span>
+                      <span>
+                        {cronT('next_run')}: {formatTime(job.nextRunAt)}
+                      </span>
+                    </div>
                   </div>
                   <div className="flex items-center gap-2 lg:justify-end">
                     <Switch

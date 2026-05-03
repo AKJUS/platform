@@ -1626,6 +1626,12 @@
         "missing": "Missing",
         "stale": "Stale"
       },
+      "schedule": {
+        "daily_at": "Daily at {time}",
+        "every_hours": "Every {count} hours",
+        "every_minutes": "Every {count} minutes",
+        "raw": "Cron {schedule}"
+      },
       "states": {
         "disabled": "Disabled",
         "enabled": "Enabled",

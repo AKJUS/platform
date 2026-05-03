@@ -1,5 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
 import crypto from 'node:crypto';
+import { extractIPFromHeaders } from '@tuturuuu/utils/abuse-protection';
+import { extractUserAgentFromHeaders } from '@tuturuuu/utils/abuse-protection/user-agent';
 import postgres, { type Sql } from 'postgres';
 
 export type LogDrainLevel = 'debug' | 'error' | 'info' | 'warn';
@@ -11,6 +13,7 @@ export interface LogDrainEvent {
   durationMs: number | null;
   errorName: string | null;
   errorStack: string | null;
+  ipAddress: string | null;
   level: LogDrainLevel;
   message: string;
   metadata: Record<string, unknown>;
@@ -19,16 +22,19 @@ export interface LogDrainEvent {
   source: LogDrainSource;
   status: number | null;
   time: number;
+  userAgent: string | null;
 }
 
 interface LogDrainContext {
   cronJobId: string | null;
   events: LogDrainEvent[];
+  ipAddress: string | null;
   method: string | null;
   path: string | null;
   requestId: string;
   source: LogDrainSource;
   startedAt: number;
+  userAgent: string | null;
 }
 
 interface RequestDrainOptions {
@@ -133,6 +139,8 @@ export async function ensureLogDrainSchema() {
         error_message TEXT,
         error_name TEXT,
         error_stack TEXT,
+        ip_address TEXT,
+        user_agent TEXT,
         metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
         started_at TIMESTAMPTZ NOT NULL,
         ended_at TIMESTAMPTZ NOT NULL,
@@ -153,6 +161,8 @@ export async function ensureLogDrainSchema() {
         deployment_stamp TEXT,
         error_name TEXT,
         error_stack TEXT,
+        ip_address TEXT,
+        user_agent TEXT,
         metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
         created_at TIMESTAMPTZ NOT NULL
       )
@@ -189,6 +199,10 @@ export async function ensureLogDrainSchema() {
         created_at TIMESTAMPTZ NOT NULL DEFAULT now()
       )
     `;
+    await sql`ALTER TABLE requests ADD COLUMN IF NOT EXISTS ip_address TEXT`;
+    await sql`ALTER TABLE requests ADD COLUMN IF NOT EXISTS user_agent TEXT`;
+    await sql`ALTER TABLE log_events ADD COLUMN IF NOT EXISTS ip_address TEXT`;
+    await sql`ALTER TABLE log_events ADD COLUMN IF NOT EXISTS user_agent TEXT`;
     await sql`CREATE INDEX IF NOT EXISTS log_events_created_at_idx ON log_events (created_at DESC)`;
     await sql`CREATE INDEX IF NOT EXISTS log_events_level_created_at_idx ON log_events (level, created_at DESC)`;
     await sql`CREATE INDEX IF NOT EXISTS log_events_request_id_idx ON log_events (request_id)`;
@@ -200,6 +214,21 @@ export async function ensureLogDrainSchema() {
   })();
 
   await schemaReady;
+}
+
+function getRequestClientMetadata(request: Request | undefined) {
+  if (!request) {
+    return {
+      ipAddress: null,
+      userAgent: null,
+    };
+  }
+
+  const ipAddress = extractIPFromHeaders(request.headers);
+  return {
+    ipAddress: ipAddress === 'unknown' ? null : ipAddress,
+    userAgent: extractUserAgentFromHeaders(request.headers),
+  };
 }
 
 function getDeploymentMetadata() {
@@ -272,6 +301,7 @@ function createEvent(
     durationMs: null,
     errorName: error?.name ?? null,
     errorStack: error?.stack ?? null,
+    ipAddress: context?.ipAddress ?? null,
     level,
     message: args.map(serializeArg).join(' '),
     metadata,
@@ -280,6 +310,7 @@ function createEvent(
     source: context?.source ?? 'server',
     status: null,
     time: Date.now(),
+    userAgent: context?.userAgent ?? null,
   };
 }
 
@@ -314,6 +345,8 @@ async function persistStandaloneEvent(event: LogDrainEvent) {
         deployment_stamp,
         error_name,
         error_stack,
+        ip_address,
+        user_agent,
         metadata,
         created_at
       )
@@ -329,6 +362,8 @@ async function persistStandaloneEvent(event: LogDrainEvent) {
         ${event.deploymentStamp},
         ${event.errorName},
         ${event.errorStack},
+        ${event.ipAddress},
+        ${event.userAgent},
         ${JSON.stringify(event.metadata)}::jsonb,
         ${new Date(event.time)}
       )
@@ -361,9 +396,7 @@ async function persistContext({
       (normalizedError ? 500 : context.source === 'cron' ? 200 : null);
     const durationMs = Math.max(0, endedAt - context.startedAt);
     const deployment = getDeploymentMetadata();
-    const requestMetadata = {
-      userAgent: context.source === 'api' ? null : undefined,
-    };
+    const requestMetadata = {};
 
     await sql.begin(async (transaction) => {
       await transaction`
@@ -381,6 +414,8 @@ async function persistContext({
           error_message,
           error_name,
           error_stack,
+          ip_address,
+          user_agent,
           metadata,
           started_at,
           ended_at
@@ -399,6 +434,8 @@ async function persistContext({
           ${normalizedError?.message ?? null},
           ${normalizedError?.name ?? null},
           ${normalizedError?.stack ?? null},
+          ${context.ipAddress},
+          ${context.userAgent},
           ${JSON.stringify(requestMetadata)}::jsonb,
           ${new Date(context.startedAt)},
           ${new Date(endedAt)}
@@ -409,6 +446,8 @@ async function persistContext({
           error_message = EXCLUDED.error_message,
           error_name = EXCLUDED.error_name,
           error_stack = EXCLUDED.error_stack,
+          ip_address = EXCLUDED.ip_address,
+          user_agent = EXCLUDED.user_agent,
           ended_at = EXCLUDED.ended_at
       `;
 
@@ -465,6 +504,8 @@ async function persistContext({
             deployment_stamp,
             error_name,
             error_stack,
+            ip_address,
+            user_agent,
             metadata,
             created_at
           )
@@ -480,6 +521,8 @@ async function persistContext({
             ${event.deploymentStamp},
             ${event.errorName},
             ${event.errorStack},
+            ${event.ipAddress},
+            ${event.userAgent},
             ${JSON.stringify(event.metadata)}::jsonb,
             ${new Date(event.time)}
           )
@@ -549,15 +592,18 @@ export async function withRequestLogDrain<T extends Response>(
   handler: () => Promise<T>
 ) {
   const url = new URL(options.request.url);
+  const clientMetadata = getRequestClientMetadata(options.request);
   const context: LogDrainContext = {
     cronJobId: null,
     events: [],
+    ipAddress: clientMetadata.ipAddress,
     method: options.request.method,
     path: options.route ?? url.pathname,
     requestId:
       options.request.headers.get('x-request-id') ?? createRequestId('req'),
     source: options.source ?? 'api',
     startedAt: Date.now(),
+    userAgent: clientMetadata.userAgent,
   };
 
   return runWithLogDrain(context, handler);
@@ -567,15 +613,18 @@ export async function withCronLogDrain<T extends Response>(
   options: CronDrainOptions,
   handler: () => Promise<T>
 ) {
+  const clientMetadata = getRequestClientMetadata(options.request);
   const context: LogDrainContext = {
     cronJobId: options.jobId,
     events: [],
+    ipAddress: clientMetadata.ipAddress,
     method: options.request?.method ?? 'GET',
     path: options.path,
     requestId:
       options.request?.headers.get('x-request-id') ?? createRequestId('cron'),
     source: 'cron',
     startedAt: Date.now(),
+    userAgent: clientMetadata.userAgent,
   };
 
   return runWithLogDrain(context, handler);

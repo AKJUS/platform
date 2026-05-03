@@ -192,6 +192,9 @@ function shouldIncludeTime(
 function mapLegacyRequest(request: BlueGreenMonitoringRequestLog) {
   const startedAt = request.time;
   const id = `legacy-request-${request.time}-${request.method ?? 'GET'}-${request.path}`;
+  const relatedLogs = (request.consoleLogs ?? []).map((log) =>
+    mapLegacyConsoleLog(log, request)
+  );
 
   return {
     cronJobId: null,
@@ -201,12 +204,15 @@ function mapLegacyRequest(request: BlueGreenMonitoringRequestLog) {
     endedAt: startedAt + (request.requestTimeMs ?? 0),
     errorMessage: null,
     id,
-    logCount: request.consoleLogs?.length ?? 0,
+    ipAddress: null,
+    logCount: relatedLogs.length,
     method: request.method,
     path: request.path,
+    relatedLogs,
     source: 'api' as const,
     startedAt,
     status: request.status,
+    userAgent: null,
   };
 }
 
@@ -221,6 +227,7 @@ function mapLegacyWatcherLog(
     errorName: null,
     errorStack: null,
     id: `legacy-watcher-${log.time}-${log.message}`,
+    ipAddress: null,
     level:
       log.level === 'error' || log.level === 'warn' || log.level === 'debug'
         ? log.level
@@ -237,6 +244,7 @@ function mapLegacyWatcherLog(
     route: null,
     source: 'server',
     status: null,
+    userAgent: null,
   };
 }
 
@@ -252,6 +260,7 @@ function mapLegacyConsoleLog(
     errorName: null,
     errorStack: null,
     id: `legacy-console-${log.time}-${request.path}-${log.message}`,
+    ipAddress: null,
     level:
       log.level === 'error' || log.level === 'warn' || log.level === 'debug'
         ? log.level
@@ -265,6 +274,7 @@ function mapLegacyConsoleLog(
     route: request.path,
     source: 'api',
     status: request.status,
+    userAgent: null,
   };
 }
 
@@ -352,6 +362,7 @@ async function loadRecentLogs(
       error_name: string | null;
       error_stack: string | null;
       id: string;
+      ip_address: string | null;
       level: ObservabilityLogEvent['level'];
       message: string;
       metadata: Record<string, unknown> | null;
@@ -359,26 +370,30 @@ async function loadRecentLogs(
       route: string | null;
       source: ObservabilityLogEvent['source'];
       status: number | null;
+      user_agent: string | null;
     }>
   >`
     SELECT
-      id::text,
-      request_id,
-      source,
-      level,
-      message,
-      route,
-      status,
-      duration_ms,
-      deployment_color,
-      deployment_stamp,
-      error_name,
-      error_stack,
-      metadata,
-      created_at
+      log_events.id::text,
+      log_events.request_id,
+      log_events.source,
+      log_events.level,
+      log_events.message,
+      log_events.route,
+      log_events.status,
+      log_events.duration_ms,
+      log_events.deployment_color,
+      log_events.deployment_stamp,
+      log_events.error_name,
+      log_events.error_stack,
+      COALESCE(log_events.ip_address, requests.ip_address) AS ip_address,
+      COALESCE(log_events.user_agent, requests.user_agent) AS user_agent,
+      log_events.metadata,
+      log_events.created_at
     FROM log_events
-    WHERE created_at >= now() - make_interval(hours => ${filters.timeframeHours})
-    ORDER BY created_at DESC
+    LEFT JOIN requests ON requests.id = log_events.request_id
+    WHERE log_events.created_at >= now() - make_interval(hours => ${filters.timeframeHours})
+    ORDER BY log_events.created_at DESC
     LIMIT ${MAX_AGGREGATE_ROWS}
   `;
 
@@ -403,6 +418,7 @@ async function loadRecentLogs(
       errorName: row.error_name,
       errorStack: row.error_stack,
       id: row.id,
+      ipAddress: row.ip_address,
       level: row.level,
       message: row.message,
       metadata: toRecord(row.metadata),
@@ -410,6 +426,7 @@ async function loadRecentLogs(
       route: row.route,
       source: row.source,
       status: row.status,
+      userAgent: row.user_agent,
     }));
 
   return [...postgresLogs, ...loadLegacyLogs(filters)].sort(
@@ -435,12 +452,14 @@ async function loadRecentRequests(
       ended_at: Date;
       error_message: string | null;
       id: string;
+      ip_address: string | null;
       log_count: number;
       method: string | null;
       path: string | null;
       source: ObservabilityRequest['source'];
       started_at: Date;
       status: number | null;
+      user_agent: string | null;
     }>
   >`
     SELECT
@@ -454,6 +473,8 @@ async function loadRecentRequests(
       requests.deployment_stamp,
       requests.cron_job_id,
       requests.error_message,
+      requests.ip_address,
+      requests.user_agent,
       requests.started_at,
       requests.ended_at,
       count(log_events.id)::int AS log_count
@@ -489,17 +510,117 @@ async function loadRecentRequests(
       endedAt: toMs(row.ended_at) ?? Date.now(),
       errorMessage: row.error_message,
       id: row.id,
+      ipAddress: row.ip_address,
       logCount: row.log_count,
       method: row.method,
       path: row.path,
+      relatedLogs: [],
       source: row.source,
       startedAt: toMs(row.started_at) ?? Date.now(),
       status: row.status,
+      userAgent: row.user_agent,
     }));
 
   return [...postgresRequests, ...loadLegacyRequests(filters)].sort(
     (left, right) => right.startedAt - left.startedAt
   );
+}
+
+async function attachRelatedLogsToRequests(
+  requests: ObservabilityRequest[]
+): Promise<ObservabilityRequest[]> {
+  const requestIds = requests
+    .map((request) => request.id)
+    .filter((id) => !id.startsWith('legacy-request-'));
+
+  if (requestIds.length === 0) {
+    return requests;
+  }
+
+  const sql = await getSql();
+  if (!sql) {
+    return requests;
+  }
+
+  const rows = await sql<
+    Array<{
+      created_at: Date;
+      deployment_color: string | null;
+      deployment_stamp: string | null;
+      duration_ms: number | null;
+      error_name: string | null;
+      error_stack: string | null;
+      id: string;
+      ip_address: string | null;
+      level: ObservabilityLogEvent['level'];
+      message: string;
+      metadata: Record<string, unknown> | null;
+      request_id: string | null;
+      route: string | null;
+      source: ObservabilityLogEvent['source'];
+      status: number | null;
+      user_agent: string | null;
+    }>
+  >`
+    SELECT
+      log_events.id::text,
+      log_events.request_id,
+      log_events.source,
+      log_events.level,
+      log_events.message,
+      log_events.route,
+      log_events.status,
+      log_events.duration_ms,
+      log_events.deployment_color,
+      log_events.deployment_stamp,
+      log_events.error_name,
+      log_events.error_stack,
+      COALESCE(log_events.ip_address, requests.ip_address) AS ip_address,
+      COALESCE(log_events.user_agent, requests.user_agent) AS user_agent,
+      log_events.metadata,
+      log_events.created_at
+    FROM log_events
+    LEFT JOIN requests ON requests.id = log_events.request_id
+    WHERE log_events.request_id IN ${sql(requestIds)}
+    ORDER BY log_events.created_at ASC
+    LIMIT ${Math.min(requestIds.length * 20, MAX_AGGREGATE_ROWS)}
+  `;
+  const logsByRequest = new Map<string, ObservabilityLogEvent[]>();
+
+  for (const row of rows) {
+    if (!row.request_id) continue;
+
+    const current = logsByRequest.get(row.request_id) ?? [];
+    if (current.length >= 20) continue;
+
+    current.push({
+      createdAt: toMs(row.created_at) ?? Date.now(),
+      deploymentColor: row.deployment_color,
+      deploymentStamp: row.deployment_stamp,
+      durationMs: row.duration_ms,
+      errorName: row.error_name,
+      errorStack: row.error_stack,
+      id: row.id,
+      ipAddress: row.ip_address,
+      level: row.level,
+      message: row.message,
+      metadata: toRecord(row.metadata),
+      requestId: row.request_id,
+      route: row.route,
+      source: row.source,
+      status: row.status,
+      userAgent: row.user_agent,
+    });
+    logsByRequest.set(row.request_id, current);
+  }
+
+  return requests.map((request) => ({
+    ...request,
+    relatedLogs:
+      request.relatedLogs.length > 0
+        ? request.relatedLogs
+        : (logsByRequest.get(request.id) ?? []),
+  }));
 }
 
 export async function readObservabilityLogs(
@@ -514,10 +635,18 @@ export async function readObservabilityLogs(
 export async function readObservabilityRequests(
   filters: ObservabilityFilters = {}
 ) {
-  return paginate(await loadRecentRequests(parseFilterDefaults(filters)), {
-    page: clampPage(filters.page),
-    pageSize: clampPageSize(filters.pageSize),
-  });
+  const page = paginate(
+    await loadRecentRequests(parseFilterDefaults(filters)),
+    {
+      page: clampPage(filters.page),
+      pageSize: clampPageSize(filters.pageSize),
+    }
+  );
+
+  return {
+    ...page,
+    items: await attachRelatedLogsToRequests(page.items),
+  };
 }
 
 export async function readObservabilityCronRuns(
@@ -719,14 +848,16 @@ export async function readObservabilityDeployments(
   }
 
   for (const request of requests) {
+    if (!request.deploymentStamp && !request.deploymentColor) {
+      continue;
+    }
+
     const key =
       (request.deploymentStamp && aliases.get(request.deploymentStamp)) ??
       (request.deploymentColor && aliases.get(request.deploymentColor)) ??
       (request.deploymentStamp
         ? `stamp:${request.deploymentStamp}`
-        : request.deploymentColor
-          ? `color:${request.deploymentColor}`
-          : request.source);
+        : `color:${request.deploymentColor}`);
     const current = deployments.get(key) ?? {
       color: request.deploymentColor,
       commitHash: null,

@@ -1626,6 +1626,12 @@
         "missing": "Thiếu",
         "stale": "Cũ"
       },
+      "schedule": {
+        "daily_at": "Hằng ngày lúc {time}",
+        "every_hours": "Mỗi {count} giờ",
+        "every_minutes": "Mỗi {count} phút",
+        "raw": "Cron {schedule}"
+      },
       "states": {
         "disabled": "Đã tắt",
         "enabled": "Đã bật",

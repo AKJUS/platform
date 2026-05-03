@@ -58,9 +58,13 @@ Deployment rows are grouped around the git commit identity first, then enriched 
 
 The Requests tab intentionally freezes its result window when opened. New traffic is counted in the background and offered as an explicit "show new" action, while older pages are appended automatically as the operator scrolls. This prevents live traffic from shifting the visible rows during investigation.
 
+Each drained request stores the client IP address and user agent when those headers are available. Server logs emitted inside the request or cron AsyncLocalStorage context are scoped back to the same request id, so Requests can show related console/server lines next to the originating request without relying on terminal access.
+
 ## Cron Control
 
 Infrastructure → Monitoring → Cron exposes the native Docker cron runner state, a global enable/disable switch, per-job enable/disable switches, manual run buttons, retained execution rows, and captured response/console output. Runtime overrides are stored in `tmp/docker-web/watch/control/cron-control.json`; they do not edit `apps/web/cron.config.json`, so Vercel cron config remains source-controlled while local Docker operations can pause individual jobs safely.
+
+Cron jobs should show both the raw expression and a natural description such as "Every 15 minutes", plus the previous and next scheduled run timestamps when the runtime snapshot provides them.
 
 ## Resources
 

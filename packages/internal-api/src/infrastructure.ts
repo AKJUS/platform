@@ -583,6 +583,7 @@ export interface ObservabilityLogEvent {
   errorName: string | null;
   errorStack: string | null;
   id: string;
+  ipAddress: string | null;
   level: ObservabilityLogLevel;
   message: string;
   metadata: Record<string, unknown>;
@@ -590,6 +591,7 @@ export interface ObservabilityLogEvent {
   route: string | null;
   source: ObservabilitySource;
   status: number | null;
+  userAgent: string | null;
 }
 
 export interface ObservabilityRequest {
@@ -600,12 +602,15 @@ export interface ObservabilityRequest {
   endedAt: number;
   errorMessage: string | null;
   id: string;
+  ipAddress: string | null;
   logCount: number;
   method: string | null;
   path: string | null;
+  relatedLogs: ObservabilityLogEvent[];
   source: ObservabilitySource;
   startedAt: number;
   status: number | null;
+  userAgent: string | null;
 }
 
 export interface ObservabilityCronRun {
