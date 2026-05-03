@@ -126,7 +126,7 @@ services:
       context: .
       dockerfile: apps/web/docker/blue-green-watcher.Dockerfile
     environment:
-      - PLATFORM_HOST_WORKSPACE_DIR
+      - PLATFORM_HOST_WORKSPACE_DIR=${PLATFORM_HOST_WORKSPACE_DIR:-/workspace-host}
     healthcheck:
       test: ["CMD-SHELL", "ps | grep -q '[w]atch-blue-green-deploy.js'"]
       interval: 30s
@@ -137,11 +137,11 @@ services:
     restart: unless-stopped
     volumes:
       - .:/workspace
-      - .:${PLATFORM_HOST_WORKSPACE_DIR}
+      - .:${PLATFORM_HOST_WORKSPACE_DIR:-/workspace-host}
       - /var/run/docker.sock:/var/run/docker.sock
       - platform-bun-install:/root/.bun/install/cache
       - platform-blue-green-watcher-node_modules:/workspace/node_modules
-      - platform-blue-green-watcher-node_modules:${PLATFORM_HOST_WORKSPACE_DIR}/node_modules
+      - platform-blue-green-watcher-node_modules:${PLATFORM_HOST_WORKSPACE_DIR:-/workspace-host}/node_modules
 
   web-cron-runner:
     build:
@@ -150,9 +150,9 @@ services:
     environment:
       - CRON_SECRET
       - INTERNAL_WEB_API_ORIGIN
-      - PLATFORM_CRON_CONTROL_DIR=${PLATFORM_HOST_WORKSPACE_DIR}/tmp/docker-web/watch/control
-      - PLATFORM_CRON_MONITORING_DIR=${PLATFORM_HOST_WORKSPACE_DIR}/tmp/docker-web/cron
-      - PLATFORM_HOST_WORKSPACE_DIR
+      - PLATFORM_CRON_CONTROL_DIR=${PLATFORM_HOST_WORKSPACE_DIR:-/workspace-host}/tmp/docker-web/watch/control
+      - PLATFORM_CRON_MONITORING_DIR=${PLATFORM_HOST_WORKSPACE_DIR:-/workspace-host}/tmp/docker-web/cron
+      - PLATFORM_HOST_WORKSPACE_DIR=${PLATFORM_HOST_WORKSPACE_DIR:-/workspace-host}
       - VERCEL_CRON_SECRET
     healthcheck:
       test: ["CMD-SHELL", "ps | grep -q '[w]atch-web-crons.js'"]
@@ -164,7 +164,7 @@ services:
     restart: unless-stopped
     volumes:
       - .:/workspace:ro
-      - .:${PLATFORM_HOST_WORKSPACE_DIR}
+      - .:${PLATFORM_HOST_WORKSPACE_DIR:-/workspace-host}
       - /var/run/docker.sock:/var/run/docker.sock
 
   redis:

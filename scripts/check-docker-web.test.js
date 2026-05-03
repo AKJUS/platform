@@ -219,7 +219,10 @@ test('validateDockerProdCompose reports missing watcher host workspace wiring', 
   const composeContent = fs
     .readFileSync(WEB_PROD_COMPOSE_FILE_PATH, 'utf8')
     .replaceAll(
-      '      - .:' + '${' + 'PLATFORM_HOST_WORKSPACE_DIR' + '}\n',
+      '      - .:' +
+        '${' +
+        'PLATFORM_HOST_WORKSPACE_DIR:-/workspace-host' +
+        '}\n',
       ''
     );
 

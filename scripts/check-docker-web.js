@@ -358,22 +358,25 @@ function validateDockerProdCompose(composeContent) {
     '      - VERCEL_CRON_SECRET',
     '      - PLATFORM_CRON_CONTROL_DIR=' +
       '${' +
-      'PLATFORM_HOST_WORKSPACE_DIR' +
+      'PLATFORM_HOST_WORKSPACE_DIR:-/workspace-host' +
       '}' +
       '/tmp/docker-web/watch/control',
     '      - PLATFORM_CRON_MONITORING_DIR=' +
       '${' +
-      'PLATFORM_HOST_WORKSPACE_DIR' +
+      'PLATFORM_HOST_WORKSPACE_DIR:-/workspace-host' +
       '}' +
       '/tmp/docker-web/cron',
-    '      - PLATFORM_HOST_WORKSPACE_DIR',
-    '      - .:' + '${' + 'PLATFORM_HOST_WORKSPACE_DIR' + '}',
+    '      - PLATFORM_HOST_WORKSPACE_DIR=' +
+      '${' +
+      'PLATFORM_HOST_WORKSPACE_DIR:-/workspace-host' +
+      '}',
+    '      - .:' + '${' + 'PLATFORM_HOST_WORKSPACE_DIR:-/workspace-host' + '}',
     '      - /var/run/docker.sock:/var/run/docker.sock',
     '      - platform-bun-install:/root/.bun/install/cache',
     '      - platform-blue-green-watcher-node_modules:/workspace/node_modules',
     '      - platform-blue-green-watcher-node_modules:' +
       '${' +
-      'PLATFORM_HOST_WORKSPACE_DIR' +
+      'PLATFORM_HOST_WORKSPACE_DIR:-/workspace-host' +
       '}' +
       '/node_modules',
     '    image: nginx:1.27-alpine',
