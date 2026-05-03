@@ -372,7 +372,7 @@ export async function PUT(
     const access = await requireWorkspaceAccess(request, await params);
     if ('error' in access) return access.error;
 
-    const { supabase, user, wsId, taskId } = access;
+    const { user, wsId, taskId } = access;
     const sbAdmin = await createAdminClient();
     const body = updateTaskSchema.parse(await request.json());
     const { task, error } = await getWorkspaceTask(sbAdmin, wsId, taskId);
@@ -431,7 +431,7 @@ export async function PUT(
       normalizedAssigneeIds !== undefined &&
       normalizedAssigneeIds.length > 0
     ) {
-      const { data: members, error: membersError } = await supabase
+      const { data: members, error: membersError } = await sbAdmin
         .from('workspace_members')
         .select('user_id')
         .eq('ws_id', wsId)
@@ -455,7 +455,7 @@ export async function PUT(
     }
 
     if (normalizedLabelIds !== undefined && normalizedLabelIds.length > 0) {
-      const { data: labels, error: labelsError } = await supabase
+      const { data: labels, error: labelsError } = await sbAdmin
         .from('workspace_task_labels')
         .select('id')
         .eq('ws_id', wsId)

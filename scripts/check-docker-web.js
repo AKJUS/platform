@@ -353,6 +353,7 @@ function validateDockerProdCompose(composeContent) {
     '      dockerfile: apps/web/docker/blue-green-watcher.Dockerfile',
     '      dockerfile: apps/web/docker/cron-runner.Dockerfile',
     '      context: apps/storage-unzip-proxy',
+    '    - CRON_SECRET',
     '      - CRON_SECRET',
     '      - VERCEL_CRON_SECRET',
     '      - PLATFORM_CRON_CONTROL_DIR=' +

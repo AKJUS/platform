@@ -483,7 +483,7 @@ class _TaskBoardDetailPageViewState extends State<_TaskBoardDetailPageView> {
                 icon: Icons.view_kanban_outlined,
                 label: context.l10n.taskBoardDetailKanbanView,
                 selected: state.currentView == TaskBoardDetailView.kanban,
-                callbackToken: 'kanban-${state.currentView.name}',
+                callbackToken: 'kanban',
                 onPressed: () =>
                     _setBoardView(context, TaskBoardDetailView.kanban),
               ),
@@ -492,7 +492,7 @@ class _TaskBoardDetailPageViewState extends State<_TaskBoardDetailPageView> {
                 icon: Icons.view_list_outlined,
                 label: context.l10n.taskBoardDetailListView,
                 selected: state.currentView == TaskBoardDetailView.list,
-                callbackToken: 'list-${state.currentView.name}',
+                callbackToken: 'list',
                 onPressed: () =>
                     _setBoardView(context, TaskBoardDetailView.list),
               ),
@@ -501,7 +501,7 @@ class _TaskBoardDetailPageViewState extends State<_TaskBoardDetailPageView> {
                 icon: Icons.timeline_outlined,
                 label: context.l10n.taskBoardDetailTimelineView,
                 selected: state.currentView == TaskBoardDetailView.timeline,
-                callbackToken: 'timeline-${state.currentView.name}',
+                callbackToken: 'timeline',
                 onPressed: () =>
                     _setBoardView(context, TaskBoardDetailView.timeline),
               ),

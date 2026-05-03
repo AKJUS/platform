@@ -9,6 +9,7 @@ x-web-service: &web-service
     - path: apps/web/.env.local
       required: true
   environment: &web-environment
+    - CRON_SECRET
     - DISCORD_APP_DEPLOYMENT_URL
     - DRIVE_AUTO_EXTRACT_PROXY_TOKEN
     - DRIVE_AUTO_EXTRACT_PROXY_URL

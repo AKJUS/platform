@@ -13,6 +13,10 @@ const DOCKER_WEB_MARKITDOWN_TOKEN_FILE = path.join(
   DOCKER_WEB_RUNTIME_DIR,
   'markitdown-token'
 );
+const DOCKER_WEB_CRON_TOKEN_FILE = path.join(
+  DOCKER_WEB_RUNTIME_DIR,
+  'cron-token'
+);
 const DOCKER_WEB_STORAGE_UNZIP_TOKEN_FILE = path.join(
   DOCKER_WEB_RUNTIME_DIR,
   'storage-unzip-token'
@@ -147,6 +151,13 @@ function getComposeEnvironment({
   }
 
   if (withSupportServices) {
+    const dockerCronRuntime = getDockerCronRuntime({
+      baseEnv,
+      fsImpl,
+      rootDir,
+    });
+    composeEnv.CRON_SECRET = dockerCronRuntime.secret;
+
     const dockerMarkitdownRuntime = getDockerMarkitdownRuntime({
       baseEnv,
       fsImpl,
@@ -235,6 +246,7 @@ function ensureProductionRedisToken(
 
 function getDockerWebRuntimePaths(rootDir = ROOT_DIR) {
   return {
+    cronTokenFile: path.join(rootDir, 'tmp', 'docker-web', 'cron-token'),
     markitdownTokenFile: path.join(
       rootDir,
       'tmp',
@@ -333,6 +345,29 @@ function getDockerRedisRuntime({
   };
 }
 
+function getDockerCronRuntime({
+  baseEnv = process.env,
+  fsImpl = fs,
+  rootDir = ROOT_DIR,
+} = {}) {
+  const paths = getDockerWebRuntimePaths(rootDir);
+  const envSecret = getFirstNonBlank([
+    baseEnv.DOCKER_CRON_SECRET,
+    baseEnv.CRON_SECRET,
+    baseEnv.VERCEL_CRON_SECRET,
+  ]);
+  const secret =
+    envSecret ??
+    getPersistedDockerToken(paths.cronTokenFile, fsImpl) ??
+    generateDockerServiceToken();
+
+  if (secret !== envSecret) {
+    writeDockerToken(secret, paths.cronTokenFile, paths, fsImpl);
+  }
+
+  return { secret };
+}
+
 function getDockerMarkitdownRuntime({
   baseEnv = process.env,
   fsImpl = fs,
@@ -408,6 +443,7 @@ module.exports = {
   DOCKER_MARKITDOWN_SERVICE_URL,
   DOCKER_REDIS_SERVICE_URL,
   DOCKER_STORAGE_UNZIP_PROXY_URL,
+  DOCKER_WEB_CRON_TOKEN_FILE,
   DOCKER_WEB_MARKITDOWN_TOKEN_FILE,
   DOCKER_WEB_REDIS_TOKEN_FILE,
   DOCKER_WEB_RUNTIME_DIR,
@@ -421,6 +457,7 @@ module.exports = {
   generateDockerRedisToken,
   generateDockerServiceToken,
   getComposeEnvironment,
+  getDockerCronRuntime,
   getDockerMarkitdownRuntime,
   getDockerRedisRuntime,
   getDockerStorageUnzipRuntime,

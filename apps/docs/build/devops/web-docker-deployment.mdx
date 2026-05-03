@@ -268,6 +268,12 @@ In Docker production, the `web-cron-runner` service runs
 `Authorization: Bearer ${CRON_SECRET || VERCEL_CRON_SECRET}` so the same route
 auth gate can protect Vercel and native Docker executions.
 
+When neither `CRON_SECRET` nor `VERCEL_CRON_SECRET` is set on the host, the
+Docker environment generator creates a persisted internal secret at
+`tmp/docker-web/cron-token` and injects it into both the web containers and the
+`web-cron-runner` service as `CRON_SECRET`. This keeps native Docker cron auth
+self-contained while preserving explicit host-provided secrets when present.
+
 Runtime cron telemetry is intentionally file-based and local to the host:
 
 - `tmp/docker-web/cron/status.json` for runner health and the current cycle.

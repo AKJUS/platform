@@ -469,6 +469,7 @@ test('getComposeEnvironment injects blue-green support service URLs when request
     });
 
     assert.equal(env.DISCORD_APP_DEPLOYMENT_URL, DOCKER_MARKITDOWN_SERVICE_URL);
+    assert.match(env.CRON_SECRET, /^[a-f0-9]{64}$/u);
     assert.equal(env.MARKITDOWN_ENDPOINT_URL, DOCKER_MARKITDOWN_ENDPOINT_URL);
     assert.match(env.MARKITDOWN_ENDPOINT_SECRET, /^[a-f0-9]{64}$/u);
     assert.equal(
@@ -482,6 +483,15 @@ test('getComposeEnvironment injects blue-green support service URLs when request
     );
     assert.equal(env.INTERNAL_WEB_API_ORIGIN, 'http://web-proxy:7803');
     assert.equal(env.SUPABASE_URL, `http://${DOCKER_HOST_ALIAS}:8001/`);
+    assert.equal(
+      fs
+        .readFileSync(
+          path.join(tempDir, 'tmp', 'docker-web', 'cron-token'),
+          'utf8'
+        )
+        .trim(),
+      env.CRON_SECRET
+    );
     assert.equal(
       fs
         .readFileSync(
