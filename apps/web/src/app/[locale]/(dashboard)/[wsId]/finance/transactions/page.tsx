@@ -17,7 +17,9 @@ interface Props {
 export default async function WorkspaceTransactionsPage({ params }: Props) {
   return (
     <WorkspaceWrapper params={params}>
-      {async ({ wsId }) => <TransactionsPage wsId={wsId} />}
+      {async ({ wsId }) => (
+        <TransactionsPage wsId={wsId} showTransactionTypeFilter />
+      )}
     </WorkspaceWrapper>
   );
 }

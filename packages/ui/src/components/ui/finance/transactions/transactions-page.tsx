@@ -13,9 +13,13 @@ import { getTranslations } from 'next-intl/server';
 
 interface Props {
   wsId: string;
+  showTransactionTypeFilter?: boolean;
 }
 
-export default async function TransactionsPage({ wsId }: Props) {
+export default async function TransactionsPage({
+  wsId,
+  showTransactionTypeFilter = false,
+}: Props) {
   const [t, workspace, permissions, currency] = await Promise.all([
     getTranslations(),
     getWorkspace(wsId),
@@ -98,6 +102,7 @@ export default async function TransactionsPage({ wsId }: Props) {
         canViewConfidentialDescription={canViewConfidentialDescription}
         canViewConfidentialCategory={canViewConfidentialCategory}
         isPersonalWorkspace={workspace.personal}
+        showTransactionTypeFilter={showTransactionTypeFilter}
       />
     </>
   );

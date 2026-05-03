@@ -45,7 +45,7 @@ export function TransactionTypeFilter({
   onChange,
   className,
 }: TransactionTypeFilterProps) {
-  const t = useTranslations('transaction-data-table');
+  const t = useTranslations();
   const selectedOption =
     TYPE_OPTIONS.find((option) => option.value === value) ?? TYPE_OPTIONS[0];
   const SelectedIcon = selectedOption.icon;
@@ -67,7 +67,8 @@ export function TransactionTypeFilter({
             selectedOption.value === 'expense' && 'text-dynamic-red'
           )}
         />
-        <SelectValue placeholder={t('all')} />
+        <span className="text-xs">{t('ws-transactions.category')}:</span>
+        <SelectValue placeholder={t('transaction-data-table.all')} />
       </SelectTrigger>
       <SelectContent align="start">
         {TYPE_OPTIONS.map((option) => {
@@ -83,7 +84,7 @@ export function TransactionTypeFilter({
                     option.value === 'expense' && 'text-dynamic-red'
                   )}
                 />
-                {t(option.labelKey)}
+                {t(`transaction-data-table.${option.labelKey}`)}
               </div>
             </SelectItem>
           );

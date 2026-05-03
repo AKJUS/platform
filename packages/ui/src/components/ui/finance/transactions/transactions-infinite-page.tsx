@@ -41,6 +41,7 @@ interface TransactionsInfinitePageProps {
   canViewConfidentialCategory?: boolean;
   /** Hide transaction creator (useful for personal workspaces) */
   isPersonalWorkspace?: boolean;
+  showTransactionTypeFilter?: boolean;
 }
 
 export function TransactionsInfinitePage({
@@ -61,6 +62,7 @@ export function TransactionsInfinitePage({
   canViewConfidentialDescription,
   canViewConfidentialCategory,
   isPersonalWorkspace,
+  showTransactionTypeFilter,
 }: TransactionsInfinitePageProps) {
   const t = useTranslations();
   const [q, setQ] = useQueryState(
@@ -122,11 +124,13 @@ export function TransactionsInfinitePage({
           >
             <TagFilterWrapper wsId={wsId} />
           </Suspense>
-          <Suspense
-            fallback={<Skeleton className="h-9 w-full md:h-8 md:w-32" />}
-          >
-            <TransactionTypeFilterWrapper />
-          </Suspense>
+          {showTransactionTypeFilter && (
+            <Suspense
+              fallback={<Skeleton className="h-9 w-full md:h-8 md:w-32" />}
+            >
+              <TransactionTypeFilterWrapper />
+            </Suspense>
+          )}
           <Suspense
             fallback={<Skeleton className="h-9 w-full md:h-8 md:w-32" />}
           >
