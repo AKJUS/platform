@@ -351,4 +351,117 @@ describe('readBlueGreenMonitoringRequestArchive', () => {
       fs.rmSync(tempDir, { force: true, recursive: true });
     }
   });
+
+  it('filters requests before pagination and attaches scoped watcher logs', () => {
+    const tempDir = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'blue-green-monitoring-request-filters-')
+    );
+    const now = Date.UTC(2026, 3, 25, 12, 0, 0);
+
+    try {
+      const watchDir = path.join(tempDir, 'watch');
+      const requestLogDir = path.join(watchDir, 'blue-green-request-logs');
+      fs.mkdirSync(requestLogDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(watchDir, 'blue-green-request-telemetry.state.json'),
+        JSON.stringify({
+          chunks: [
+            {
+              count: 3,
+              file: 'requests-1.jsonl',
+              firstRequestAt: now - 90_000,
+              lastRequestAt: now - 10_000,
+            },
+          ],
+          currentChunkCount: 3,
+          currentChunkFile: 'requests-1.jsonl',
+          totalRecords: 3,
+        })
+      );
+      fs.writeFileSync(
+        path.join(watchDir, 'blue-green-auto-deploy.logs.json'),
+        JSON.stringify([
+          {
+            deploymentStamp: 'deploy-b',
+            level: 'error',
+            message: 'API route threw while rendering invoices',
+            time: now - 9_000,
+          },
+          {
+            deploymentStamp: 'deploy-a',
+            level: 'info',
+            message: 'Unrelated request context',
+            time: now - 80_000,
+          },
+        ])
+      );
+      fs.writeFileSync(
+        path.join(requestLogDir, 'requests-1.jsonl'),
+        [
+          {
+            deploymentStamp: 'deploy-a',
+            host: 'tuturuuu.com',
+            isInternal: false,
+            method: 'GET',
+            path: '/ok',
+            requestTimeMs: 20,
+            status: 200,
+            time: now - 90_000,
+          },
+          {
+            deploymentStamp: 'deploy-b',
+            host: 'tuturuuu.com',
+            isInternal: false,
+            method: 'GET',
+            path: '/api/v1/invoices?_rsc=abc',
+            requestTimeMs: 320,
+            status: 500,
+            time: now - 10_000,
+          },
+          {
+            deploymentStamp: 'deploy-b',
+            host: '127.0.0.1',
+            isInternal: true,
+            method: 'GET',
+            path: '/__platform/drain-status',
+            requestTimeMs: 4,
+            status: 500,
+            time: now - 8_000,
+          },
+        ]
+          .map((entry) => JSON.stringify(entry))
+          .join('\n')
+      );
+      process.env.PLATFORM_BLUE_GREEN_MONITORING_DIR = tempDir;
+
+      const archive = readBlueGreenMonitoringRequestArchive({
+        now,
+        page: 1,
+        pageSize: 1,
+        q: 'invoices',
+        render: 'rsc',
+        status: '5xx',
+        timeframeDays: 7,
+        traffic: 'external',
+      });
+
+      expect(archive.total).toBe(1);
+      expect(archive.items).toHaveLength(1);
+      expect(archive.items[0]).toMatchObject({
+        path: '/api/v1/invoices?_rsc=abc',
+      });
+      expect(archive.items[0]?.relatedLogs).toContainEqual(
+        expect.objectContaining({
+          message: 'API route threw while rendering invoices',
+        })
+      );
+      expect(archive.analytics.requestCount).toBe(1);
+      expect(archive.analytics.topRoutes[0]).toMatchObject({
+        pathname: '/api/v1/invoices',
+        requestCount: 1,
+      });
+    } finally {
+      fs.rmSync(tempDir, { force: true, recursive: true });
+    }
+  });
 });

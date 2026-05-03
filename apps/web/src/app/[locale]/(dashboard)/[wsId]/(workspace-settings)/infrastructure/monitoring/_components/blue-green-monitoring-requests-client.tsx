@@ -114,11 +114,17 @@ export function BlueGreenMonitoringRequestsClient() {
   const timeframeDays = Number(timeframe);
   const rootRef = useRef<HTMLElement | null>(null);
   useMonitoringMotion(rootRef);
+  const serverSearchValue = deferredSearchValue.trim();
 
   const archiveQuery = useBlueGreenMonitoringRequestArchive({
     page,
     pageSize,
+    q: serverSearchValue || undefined,
+    render: renderFilter as 'all' | 'document' | 'rsc',
+    route: routeFilter,
+    status: statusFilter,
     timeframeDays,
+    traffic: trafficFilter as 'all' | 'external' | 'internal',
   });
   const snapshotQuery = useBlueGreenMonitoringSnapshot({
     requestPreviewLimit: 0,
@@ -163,7 +169,7 @@ export function BlueGreenMonitoringRequestsClient() {
       };
     }
   );
-  const query = deferredSearchValue.trim().toLowerCase();
+  const query = serverSearchValue.toLowerCase();
   const filteredRequests = enrichedRequests.filter((request) => {
     if (statusFilter !== 'all') {
       const matchesStatus =
@@ -264,15 +270,40 @@ export function BlueGreenMonitoringRequestsClient() {
     { label: t('explorer.status_3xx'), value: '3xx' },
     { label: t('explorer.status_4xx'), value: '4xx' },
     { label: t('explorer.status_5xx'), value: '5xx' },
+    ...(statusFilter !== 'all' &&
+    !['1xx', '2xx', '3xx', '4xx', '5xx'].includes(statusFilter) &&
+    !archiveAnalytics.statusCodes.some(
+      (value) => String(value) === statusFilter
+    )
+      ? [
+          {
+            label: statusFilter,
+            value: statusFilter,
+          },
+        ]
+      : []),
     ...archiveAnalytics.statusCodes.map((value) => ({
       label: String(value),
       value: String(value),
     })),
   ];
-  const routeOptions = archiveAnalytics.topRoutes.map((summary) => ({
-    label: summary.pathname,
-    value: summary.pathname,
-  }));
+  const routeOptions = [
+    ...(routeFilter !== 'all' &&
+    !archiveAnalytics.topRoutes.some(
+      (summary) => summary.pathname === routeFilter
+    )
+      ? [
+          {
+            label: routeFilter,
+            value: routeFilter,
+          },
+        ]
+      : []),
+    ...archiveAnalytics.topRoutes.map((summary) => ({
+      label: summary.pathname,
+      value: summary.pathname,
+    })),
+  ];
   const errorRequests = filteredRequests.filter(
     (request) =>
       request.statusFamily === '4xx' || request.statusFamily === '5xx'
@@ -380,6 +411,7 @@ export function BlueGreenMonitoringRequestsClient() {
                 onClick={() => {
                   startTransition(() => {
                     setStatusFilter('5xx');
+                    void setPage(1);
                     setInspectedRequest(serverErrorRequests[0] ?? null);
                   });
                 }}
@@ -397,6 +429,7 @@ export function BlueGreenMonitoringRequestsClient() {
                     setRouteFilter('all');
                     setRenderFilter('all');
                     setTrafficFilter('all');
+                    void setPage(1);
                     setInspectedRequest(null);
                   });
                 }}
@@ -520,6 +553,8 @@ export function BlueGreenMonitoringRequestsClient() {
                 onChange={(event) => {
                   startTransition(() => {
                     setSearchValue(event.target.value);
+                    void setPage(1);
+                    setInspectedRequest(null);
                   });
                 }}
                 placeholder={t('explorer.search_requests_placeholder')}
@@ -549,14 +584,26 @@ export function BlueGreenMonitoringRequestsClient() {
 
             <FilterSelect
               label={t('explorer.status_filter')}
-              onValueChange={setStatusFilter}
+              onValueChange={(value) => {
+                startTransition(() => {
+                  setStatusFilter(value);
+                  void setPage(1);
+                  setInspectedRequest(null);
+                });
+              }}
               options={statusOptions}
               value={statusFilter}
             />
 
             <FilterSelect
               label={t('explorer.route_filter')}
-              onValueChange={setRouteFilter}
+              onValueChange={(value) => {
+                startTransition(() => {
+                  setRouteFilter(value);
+                  void setPage(1);
+                  setInspectedRequest(null);
+                });
+              }}
               options={[
                 { label: t('explorer.all_routes'), value: 'all' },
                 ...routeOptions,
@@ -566,7 +613,13 @@ export function BlueGreenMonitoringRequestsClient() {
 
             <FilterSelect
               label={t('explorer.render_filter')}
-              onValueChange={setRenderFilter}
+              onValueChange={(value) => {
+                startTransition(() => {
+                  setRenderFilter(value);
+                  void setPage(1);
+                  setInspectedRequest(null);
+                });
+              }}
               options={[
                 { label: t('explorer.render_all'), value: 'all' },
                 { label: t('explorer.render_document'), value: 'document' },
@@ -577,7 +630,13 @@ export function BlueGreenMonitoringRequestsClient() {
 
             <FilterSelect
               label={t('explorer.traffic_filter')}
-              onValueChange={setTrafficFilter}
+              onValueChange={(value) => {
+                startTransition(() => {
+                  setTrafficFilter(value);
+                  void setPage(1);
+                  setInspectedRequest(null);
+                });
+              }}
               options={[
                 { label: t('explorer.traffic_all'), value: 'all' },
                 { label: t('explorer.traffic_external'), value: 'external' },
@@ -633,6 +692,7 @@ export function BlueGreenMonitoringRequestsClient() {
                       startTransition(() => {
                         setRouteFilter(summary.pathname);
                         void setPage(1);
+                        setInspectedRequest(null);
                       });
                     }}
                     type="button"
@@ -725,6 +785,8 @@ export function BlueGreenMonitoringRequestsClient() {
                   setRouteFilter('all');
                   setRenderFilter('all');
                   setTrafficFilter('all');
+                  void setPage(1);
+                  setInspectedRequest(null);
                 });
               }}
             />
@@ -1176,6 +1238,10 @@ function getRelatedWatcherLogs(
   request: BlueGreenMonitoringRequestLog,
   relatedLogs: BlueGreenMonitoringWatcherLog[]
 ) {
+  if (Array.isArray(request.relatedLogs)) {
+    return request.relatedLogs;
+  }
+
   return relatedLogs.filter((log) => {
     const sameDeployment =
       (request.deploymentKey && log.deploymentKey === request.deploymentKey) ||

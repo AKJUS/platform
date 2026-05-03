@@ -154,6 +154,7 @@ export interface BlueGreenMonitoringRequestLog {
   method: string | null;
   path: string;
   requestTimeMs: number | null;
+  relatedLogs?: BlueGreenMonitoringWatcherLog[];
   status: number | null;
   time: number;
 }
@@ -385,6 +386,15 @@ export interface GetBlueGreenMonitoringArchiveParams {
   timeframeDays?: number;
 }
 
+export interface GetBlueGreenMonitoringRequestArchiveParams
+  extends GetBlueGreenMonitoringArchiveParams {
+  q?: string;
+  render?: 'all' | 'document' | 'rsc';
+  route?: string;
+  status?: string;
+  traffic?: 'all' | 'external' | 'internal';
+}
+
 export async function sendInfrastructurePushTest(
   payload: SendInfrastructurePushTestPayload,
   options?: InternalApiClientOptions
@@ -447,7 +457,7 @@ export async function getBlueGreenMonitoringSnapshot(
 }
 
 export async function getBlueGreenMonitoringRequestArchive(
-  params?: GetBlueGreenMonitoringArchiveParams,
+  params?: GetBlueGreenMonitoringRequestArchiveParams,
   options?: InternalApiClientOptions
 ) {
   const client = getInternalApiClient(options);
@@ -463,6 +473,26 @@ export async function getBlueGreenMonitoringRequestArchive(
 
   if (params?.timeframeDays != null) {
     searchParams.set('timeframeDays', String(params.timeframeDays));
+  }
+
+  if (params?.q) {
+    searchParams.set('q', params.q);
+  }
+
+  if (params?.status && params.status !== 'all') {
+    searchParams.set('status', params.status);
+  }
+
+  if (params?.route && params.route !== 'all') {
+    searchParams.set('route', params.route);
+  }
+
+  if (params?.render && params.render !== 'all') {
+    searchParams.set('render', params.render);
+  }
+
+  if (params?.traffic && params.traffic !== 'all') {
+    searchParams.set('traffic', params.traffic);
   }
 
   return client.json<BlueGreenMonitoringRequestArchive>(

@@ -37,11 +37,21 @@ export function useBlueGreenMonitoringSnapshot({
 export function useBlueGreenMonitoringRequestArchive({
   page,
   pageSize,
+  q,
+  render,
+  route,
+  status,
   timeframeDays,
+  traffic,
 }: {
   page: number;
   pageSize: number;
+  q?: string;
+  render?: 'all' | 'document' | 'rsc';
+  route?: string;
+  status?: string;
   timeframeDays: number;
+  traffic?: 'all' | 'external' | 'internal';
 }) {
   return useQuery({
     queryKey: [
@@ -52,12 +62,22 @@ export function useBlueGreenMonitoringRequestArchive({
       page,
       pageSize,
       timeframeDays,
+      q ?? '',
+      status ?? 'all',
+      route ?? 'all',
+      render ?? 'all',
+      traffic ?? 'all',
     ],
     queryFn: () =>
       getBlueGreenMonitoringRequestArchive({
         page,
         pageSize,
+        q,
+        render,
+        route,
+        status,
         timeframeDays,
+        traffic,
       }),
     refetchInterval: 15000,
     staleTime: 5000,

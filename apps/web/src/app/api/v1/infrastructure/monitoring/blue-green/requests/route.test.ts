@@ -130,4 +130,62 @@ describe('blue-green monitoring requests route', () => {
       timeframeDays: 0,
     });
   });
+
+  it('passes request archive filters to the archive reader', async () => {
+    authorizeInfrastructureViewerMock.mockResolvedValue({
+      ok: true,
+      user: {
+        id: 'user-1',
+      },
+    });
+    readBlueGreenMonitoringRequestArchiveMock.mockReturnValue({
+      analytics: {
+        averageLatencyMs: null,
+        distinctRoutes: 0,
+        errorRequestCount: 0,
+        externalRequestCount: 0,
+        internalRequestCount: 0,
+        requestCount: 0,
+        retainedRequestCount: 0,
+        rscRequestCount: 0,
+        statusCodes: [],
+        timeframe: {
+          days: 7,
+          endAt: 0,
+          startAt: 0,
+        },
+        topRoutes: [],
+      },
+      hasNextPage: false,
+      hasPreviousPage: false,
+      items: [],
+      limit: 25,
+      offset: 0,
+      page: 1,
+      pageCount: 1,
+      total: 0,
+      window: {
+        newestAt: null,
+        oldestAt: null,
+      },
+    });
+
+    const response = await GET(
+      createTestRequest(
+        '?q=login&status=5xx&route=%2Flogin&render=rsc&traffic=external'
+      )
+    );
+
+    expect(response.status).toBe(200);
+    expect(readBlueGreenMonitoringRequestArchiveMock).toHaveBeenCalledWith({
+      page: 1,
+      pageSize: 25,
+      q: 'login',
+      render: 'rsc',
+      route: '/login',
+      status: '5xx',
+      timeframeDays: 7,
+      traffic: 'external',
+    });
+  });
 });

@@ -39,6 +39,14 @@ interface RequestArchiveAggregateCacheEntry {
   signature: string;
 }
 
+interface RequestArchiveFilters {
+  q?: string;
+  render?: string;
+  route?: string;
+  status?: string;
+  traffic?: string;
+}
+
 const requestArchiveAggregateCache = new Map<
   string,
   RequestArchiveAggregateCacheEntry
@@ -258,6 +266,90 @@ function isRequestInTimeframe(
     request.time <= timeframe.endAt &&
     (timeframe.startAt == null || request.time >= timeframe.startAt)
   );
+}
+
+function getRequestStatusCodeFamily(status: number | null | undefined) {
+  if (status == null || !Number.isFinite(status)) {
+    return 'unknown';
+  }
+
+  if (status >= 500) {
+    return '5xx';
+  }
+
+  if (status >= 400) {
+    return '4xx';
+  }
+
+  if (status >= 300) {
+    return '3xx';
+  }
+
+  if (status >= 200) {
+    return '2xx';
+  }
+
+  if (status >= 100) {
+    return '1xx';
+  }
+
+  return 'unknown';
+}
+
+function matchesRequestArchiveFilters(
+  request: BlueGreenMonitoringRequestLog,
+  filters: RequestArchiveFilters = {}
+) {
+  const parsedPath = parseMonitoringRequestPath(request.path);
+
+  if (filters.status) {
+    const statusValue = request.status != null ? String(request.status) : null;
+    const statusFamily = getRequestStatusCodeFamily(request.status);
+
+    if (filters.status !== statusValue && filters.status !== statusFamily) {
+      return false;
+    }
+  }
+
+  if (filters.route && parsedPath.pathname !== filters.route) {
+    return false;
+  }
+
+  if (filters.render === 'rsc' && !parsedPath.isServerComponentRequest) {
+    return false;
+  }
+
+  if (filters.render === 'document' && parsedPath.isServerComponentRequest) {
+    return false;
+  }
+
+  if (filters.traffic === 'internal' && !request.isInternal) {
+    return false;
+  }
+
+  if (filters.traffic === 'external' && request.isInternal) {
+    return false;
+  }
+
+  const query = filters.q?.trim().toLowerCase();
+  if (!query) {
+    return true;
+  }
+
+  return [
+    request.method,
+    request.path,
+    request.host,
+    request.deploymentStamp,
+    request.deploymentColor,
+    request.deploymentKey,
+    request.status != null ? String(request.status) : null,
+    parsedPath.pathname,
+    parsedPath.querySignature,
+  ]
+    .filter((value): value is string => Boolean(value))
+    .map((value) => value.toLowerCase())
+    .some((value) => value.includes(query));
 }
 
 function buildRequestRouteSummaries(
@@ -514,6 +606,26 @@ function readCachedRequestArchiveAggregate({
   }
 
   return nextEntry;
+}
+
+function getScopedWatcherLogsForRequest(
+  request: BlueGreenMonitoringRequestLog,
+  watcherLogs: BlueGreenMonitoringWatcherLog[]
+) {
+  return watcherLogs
+    .filter((log) => {
+      const sameDeployment =
+        (request.deploymentKey &&
+          log.deploymentKey === request.deploymentKey) ||
+        (request.deploymentStamp &&
+          log.deploymentStamp === request.deploymentStamp) ||
+        (request.deploymentColor &&
+          log.activeColor === request.deploymentColor);
+      const nearRequest = Math.abs(log.time - request.time) <= 10 * 60 * 1000;
+
+      return sameDeployment || nearRequest;
+    })
+    .slice(0, 20);
 }
 
 function createArchiveResponse<T extends { time: number }>(
@@ -1469,13 +1581,23 @@ export function readBlueGreenMonitoringRequestArchive({
   now = Date.now(),
   page = 1,
   pageSize = DEFAULT_ARCHIVE_PAGE_SIZE,
+  q,
+  render,
+  route,
+  status,
   timeframeDays = DEFAULT_REQUEST_ARCHIVE_TIMEFRAME_DAYS,
+  traffic,
 }: {
   fsImpl?: FsLike;
   now?: number;
   page?: number;
   pageSize?: number;
+  q?: string;
+  render?: string;
+  route?: string;
+  status?: string;
   timeframeDays?: number | null;
+  traffic?: string;
 } = {}): BlueGreenMonitoringRequestArchive {
   const monitoringDir = resolveMonitoringDir(fsImpl);
   const watchDir = path.join(monitoringDir.path, 'watch');
@@ -1487,12 +1609,24 @@ export function readBlueGreenMonitoringRequestArchive({
     timeframe,
     watchDir,
   });
-  const total = aggregate.items.length;
-  const archivePage = getArchivePage(page, total, normalizedPageSize);
-  const items = aggregate.items.slice(
-    archivePage.offset,
-    archivePage.offset + normalizedPageSize
+  const filters = { q, render, route, status, traffic };
+  const filteredItems = aggregate.items.filter((request) =>
+    matchesRequestArchiveFilters(request, filters)
   );
+  const analytics = buildRequestArchiveAnalytics({
+    requests: filteredItems,
+    retainedRequestCount: aggregate.analytics.retainedRequestCount,
+    timeframe,
+  });
+  const total = filteredItems.length;
+  const archivePage = getArchivePage(page, total, normalizedPageSize);
+  const watcherLogs = readNormalizedWatcherLogs(watchDir, fsImpl);
+  const items = filteredItems
+    .slice(archivePage.offset, archivePage.offset + normalizedPageSize)
+    .map((request) => ({
+      ...request,
+      relatedLogs: getScopedWatcherLogsForRequest(request, watcherLogs),
+    }));
 
   return {
     ...createArchiveResponse(
@@ -1501,7 +1635,7 @@ export function readBlueGreenMonitoringRequestArchive({
       normalizedPageSize,
       total
     ),
-    analytics: aggregate.analytics,
+    analytics,
   };
 }
 

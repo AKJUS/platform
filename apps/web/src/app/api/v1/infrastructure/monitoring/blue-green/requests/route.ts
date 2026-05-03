@@ -24,6 +24,11 @@ function parseTimeframeDays(value: string | null) {
   return Number.isInteger(parsed) && parsed >= 0 ? parsed : 7;
 }
 
+function parseStringFilter(value: string | null) {
+  const trimmed = value?.trim();
+  return trimmed && trimmed !== 'all' ? trimmed : undefined;
+}
+
 export async function GET(request: Request) {
   const authorization = await authorizeInfrastructureViewer(request);
   if (!authorization.ok) {
@@ -35,12 +40,22 @@ export async function GET(request: Request) {
     const page = parsePositiveInt(searchParams.get('page'), 1);
     const pageSize = parsePositiveInt(searchParams.get('pageSize'), 25);
     const timeframeDays = parseTimeframeDays(searchParams.get('timeframeDays'));
+    const q = parseStringFilter(searchParams.get('q'));
+    const status = parseStringFilter(searchParams.get('status'));
+    const route = parseStringFilter(searchParams.get('route'));
+    const render = parseStringFilter(searchParams.get('render'));
+    const traffic = parseStringFilter(searchParams.get('traffic'));
 
     return NextResponse.json(
       readBlueGreenMonitoringRequestArchive({
         page,
         pageSize,
+        q,
+        render,
+        route,
+        status,
         timeframeDays,
+        traffic,
       })
     );
   } catch (error) {
