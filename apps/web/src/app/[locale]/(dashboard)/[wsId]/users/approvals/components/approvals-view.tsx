@@ -14,6 +14,7 @@ import {
   XCircleIcon,
   XIcon,
 } from '@tuturuuu/icons';
+import { listAllWorkspaceUserGroups } from '@tuturuuu/internal-api/user-groups';
 import { Badge } from '@tuturuuu/ui/badge';
 import { Button } from '@tuturuuu/ui/button';
 import {
@@ -125,13 +126,11 @@ export function ApprovalsView({
   const groupsQuery = useQuery({
     queryKey: ['ws', wsId, 'approvals', 'filter-groups'],
     queryFn: async () => {
-      const response = await fetch(
-        `/api/v1/workspaces/${wsId}/users/groups?limit=500`,
-        { cache: 'no-store' }
-      );
-      if (!response.ok) throw new Error('Failed to fetch groups');
-      const { data } = await response.json();
-      return (data ?? []) as Array<{ id: string; name: string | null }>;
+      const data = await listAllWorkspaceUserGroups(wsId);
+      return data.map((group) => ({
+        id: group.id,
+        name: group.name,
+      }));
     },
     staleTime: 5 * 60 * 1000,
   });

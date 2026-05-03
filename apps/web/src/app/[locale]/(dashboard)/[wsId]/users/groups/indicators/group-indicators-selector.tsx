@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { Check, ChevronsUpDown } from '@tuturuuu/icons';
+import { listWorkspaceUserGroups } from '@tuturuuu/internal-api/user-groups';
 import type { WorkspaceUser } from '@tuturuuu/types/primitives/WorkspaceUser';
 import { Button } from '@tuturuuu/ui/button';
 import {
@@ -71,21 +72,13 @@ export default function GroupIndicatorsSelector({
       debouncedQuery,
     ],
     queryFn: async () => {
-      const searchParams = new URLSearchParams({
+      const { data } = await listWorkspaceUserGroups(wsId, {
+        pageSize: 20,
         q: debouncedQuery,
-        limit: '20',
+        userId:
+          workspaceUserId && !hasManageUsers ? workspaceUserId : undefined,
       });
-      if (workspaceUserId && !hasManageUsers) {
-        searchParams.set('userId', workspaceUserId);
-      }
-
-      const res = await fetch(
-        `/api/v1/workspaces/${wsId}/users/groups?${searchParams.toString()}`,
-        { cache: 'no-store' }
-      );
-      if (!res.ok) throw new Error('Failed to fetch groups');
-      const { data } = await res.json();
-      return data || [];
+      return data;
     },
     enabled: !!wsId && (hasManageUsers || !!workspaceUserId),
     staleTime: 5 * 60 * 1000, // 5 minutes

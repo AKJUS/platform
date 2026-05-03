@@ -28,7 +28,7 @@ export async function GET(req: Request, { params }: Params) {
   const { data, error, count } = await supabase
     .from('workspace_role_members')
     .select(
-      '...users!inner(id, display_name, avatar_url, ...user_private_details(email))',
+      'user_id, users:user_id(id, display_name, avatar_url, user_private_details(email))',
       {
         count: 'exact',
       }

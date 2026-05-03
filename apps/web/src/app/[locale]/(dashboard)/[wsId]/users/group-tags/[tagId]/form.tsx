@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { Users, X } from '@tuturuuu/icons';
+import { listWorkspaceUserGroups } from '@tuturuuu/internal-api/user-groups';
 import type { UserGroup } from '@tuturuuu/types/primitives/UserGroup';
 import { Button } from '@tuturuuu/ui/button';
 import SearchBar from '@tuturuuu/ui/custom/search-bar';
@@ -25,16 +26,11 @@ export default function UserGroupForm({ wsId, tagId }: UserGroupFormProps) {
   const workspaceGroupsQuery = useQuery({
     queryKey: ['workspaces', wsId, 'group-tags', 'user-groups', { query }],
     queryFn: async (): Promise<{ data: UserGroup[]; count: number }> => {
-      const searchParams = new URLSearchParams({
+      const { count, data } = await listWorkspaceUserGroups(wsId, {
+        pageSize: 100,
         q: query,
-        limit: '100',
       });
-      const res = await fetch(
-        `/api/v1/workspaces/${wsId}/users/groups?${searchParams.toString()}`,
-        { cache: 'no-store' }
-      );
-      if (!res.ok) throw new Error('Failed to fetch workspace groups');
-      return await res.json();
+      return { count, data };
     },
   });
 

@@ -2,6 +2,10 @@
 
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { CalendarDays, Check, ChevronsUpDown, Users } from '@tuturuuu/icons';
+import {
+  getNextWorkspaceUserGroupsPageParam,
+  listWorkspaceUserGroups,
+} from '@tuturuuu/internal-api/user-groups';
 import { Badge } from '@tuturuuu/ui/badge';
 import { Button } from '@tuturuuu/ui/button';
 import {
@@ -50,8 +54,9 @@ interface GroupOption {
 }
 
 interface GroupsPageResponse {
-  data?: GroupOption[];
   count?: number;
+  data?: GroupOption[];
+  pageSize?: number;
 }
 
 const GROUPS_PAGE_SIZE = 50;
@@ -69,33 +74,17 @@ async function fetchGroupsPage({
   workspaceUserId?: string;
   hasManageUsers: boolean;
 }): Promise<Required<GroupsPageResponse>> {
-  const searchParams = new URLSearchParams({
-    page: String(page),
-    pageSize: String(GROUPS_PAGE_SIZE),
+  const payload = await listWorkspaceUserGroups(wsId, {
+    page,
+    pageSize: GROUPS_PAGE_SIZE,
+    q: query.trim() || undefined,
+    userId: workspaceUserId && !hasManageUsers ? workspaceUserId : undefined,
   });
 
-  if (query.trim()) {
-    searchParams.set('q', query.trim());
-  }
-
-  if (workspaceUserId && !hasManageUsers) {
-    searchParams.set('userId', workspaceUserId);
-  }
-
-  const res = await fetch(
-    `/api/v1/workspaces/${wsId}/users/groups?${searchParams.toString()}`,
-    { cache: 'no-store' }
-  );
-
-  if (!res.ok) {
-    throw new Error('Failed to fetch groups');
-  }
-
-  const payload = (await res.json()) as GroupsPageResponse;
-
   return {
-    data: payload.data ?? [],
-    count: payload.count ?? 0,
+    count: payload.count,
+    data: payload.data,
+    pageSize: GROUPS_PAGE_SIZE,
   };
 }
 
@@ -131,18 +120,7 @@ export default function GroupAttendanceSelector({
         workspaceUserId,
         hasManageUsers,
       }),
-    getNextPageParam: (lastPage, allPages) => {
-      const loadedCount = allPages.reduce(
-        (total, page) => total + page.data.length,
-        0
-      );
-
-      if (loadedCount >= lastPage.count) {
-        return undefined;
-      }
-
-      return allPages.length + 1;
-    },
+    getNextPageParam: getNextWorkspaceUserGroupsPageParam,
     enabled: !!wsId && (hasManageUsers || !!workspaceUserId),
     staleTime: 5 * 60 * 1000, // 5 minutes
   });

@@ -2,6 +2,11 @@
 
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { Check, MinusCircle, PlusCircle, X } from '@tuturuuu/icons';
+import {
+  getNextWorkspaceUserGroupsPageParam,
+  listWorkspaceUserGroups,
+  listWorkspaceUserGroupsByIds,
+} from '@tuturuuu/internal-api/user-groups';
 import { Button } from '@tuturuuu/ui/button';
 import {
   Command,
@@ -35,8 +40,9 @@ interface GroupOption {
 }
 
 interface GroupsPageResponse {
-  data: GroupOption[];
   count: number;
+  data: GroupOption[];
+  pageSize: number;
 }
 
 const GROUPS_PAGE_SIZE = 50;
@@ -45,29 +51,7 @@ async function fetchGroupsByIds(
   wsId: string,
   groupIds: string[]
 ): Promise<GroupOption[]> {
-  if (groupIds.length === 0) {
-    return [];
-  }
-
-  const searchParams = new URLSearchParams();
-  searchParams.set('ids', groupIds.join(','));
-  searchParams.set('page', '1');
-  searchParams.set('pageSize', String(Math.max(groupIds.length, 1)));
-
-  const response = await fetch(
-    `/api/v1/workspaces/${wsId}/users/groups?${searchParams.toString()}`,
-    { cache: 'no-store' }
-  );
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch selected workspace user groups');
-  }
-
-  const payload = (await response.json()) as {
-    data?: GroupOption[];
-  };
-
-  return payload.data ?? [];
+  return listWorkspaceUserGroupsByIds(wsId, groupIds);
 }
 
 async function fetchIncludedGroupsPage(
@@ -75,30 +59,11 @@ async function fetchIncludedGroupsPage(
   page: number,
   query: string
 ): Promise<GroupsPageResponse> {
-  const searchParams = new URLSearchParams();
-  searchParams.set('page', String(page));
-  searchParams.set('pageSize', String(GROUPS_PAGE_SIZE));
-
-  if (query.trim()) {
-    searchParams.set('q', query.trim());
-  }
-
-  const response = await fetch(
-    `/api/v1/workspaces/${wsId}/users/groups?${searchParams.toString()}`,
-    {
-      cache: 'no-store',
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch workspace user groups');
-  }
-
-  const payload = (await response.json()) as GroupsPageResponse;
-  return {
-    data: payload.data ?? [],
-    count: payload.count ?? 0,
-  };
+  return listWorkspaceUserGroups(wsId, {
+    page,
+    pageSize: GROUPS_PAGE_SIZE,
+    q: query.trim() || undefined,
+  });
 }
 
 async function fetchExcludedGroupsPage(
@@ -135,8 +100,9 @@ async function fetchExcludedGroupsPage(
 
   const payload = (await response.json()) as GroupsPageResponse;
   return {
-    data: payload.data ?? [],
     count: payload.count ?? 0,
+    data: payload.data ?? [],
+    pageSize: GROUPS_PAGE_SIZE,
   };
 }
 
@@ -210,18 +176,7 @@ export function GroupFilter({
             searchQuery
           )
         : fetchIncludedGroupsPage(wsId, pageParam, searchQuery),
-    getNextPageParam: (lastPage, allPages) => {
-      const loadedCount = allPages.reduce(
-        (total, currentPage) => total + currentPage.data.length,
-        0
-      );
-
-      if (loadedCount >= lastPage.count) {
-        return undefined;
-      }
-
-      return allPages.length + 1;
-    },
+    getNextPageParam: getNextWorkspaceUserGroupsPageParam,
     enabled: !!wsId,
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,

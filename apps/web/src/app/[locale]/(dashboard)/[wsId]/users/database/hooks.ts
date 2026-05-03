@@ -2,6 +2,10 @@
 
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import {
+  listAllWorkspaceUserGroups,
+  listWorkspaceUserGroupsByIds,
+} from '@tuturuuu/internal-api/user-groups';
+import {
   DATABASE_DEFAULT_EXCLUDED_GROUPS_CONFIG_ID,
   DATABASE_DEFAULT_INCLUDED_GROUPS_CONFIG_ID,
   DATABASE_FEATURED_GROUPS_CONFIG_ID,
@@ -16,76 +20,6 @@ import {
   type UsersDatabaseRequireAttention,
   type UsersDatabaseStatus,
 } from './resolved-filters';
-
-const GROUPS_PAGE_SIZE = 200;
-
-/**
- * Shared helper to fetch all workspace user groups
- * Used by both useWorkspaceUserGroups and useExcludedUserGroups
- */
-async function fetchAllWorkspaceUserGroups(wsId: string): Promise<UserGroup[]> {
-  const groups: UserGroup[] = [];
-  let page = 1;
-  let totalCount = Number.POSITIVE_INFINITY;
-
-  while (groups.length < totalCount) {
-    const response = await fetch(
-      `/api/v1/workspaces/${wsId}/users/groups?page=${page}&pageSize=${GROUPS_PAGE_SIZE}`,
-      {
-        cache: 'no-store',
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error('Failed to fetch workspace user groups');
-    }
-
-    const payload = (await response.json()) as {
-      data?: UserGroup[];
-      count?: number;
-    };
-    const pageData = payload.data ?? [];
-    totalCount = payload.count ?? pageData.length;
-    groups.push(...pageData);
-
-    if (pageData.length < GROUPS_PAGE_SIZE) {
-      break;
-    }
-
-    page += 1;
-  }
-
-  return groups;
-}
-
-async function fetchWorkspaceUserGroupsByIds(
-  wsId: string,
-  groupIds: string[]
-): Promise<UserGroup[]> {
-  if (groupIds.length === 0) {
-    return [];
-  }
-
-  const searchParams = new URLSearchParams();
-  searchParams.set('ids', groupIds.join(','));
-  searchParams.set('page', '1');
-  searchParams.set('pageSize', String(Math.max(groupIds.length, 1)));
-
-  const response = await fetch(
-    `/api/v1/workspaces/${wsId}/users/groups?${searchParams.toString()}`,
-    { cache: 'no-store' }
-  );
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch selected workspace user groups');
-  }
-
-  const payload = (await response.json()) as {
-    data?: UserGroup[];
-  };
-
-  return payload.data ?? [];
-}
 
 export interface WorkspaceUsersParams {
   q?: string;
@@ -197,12 +131,12 @@ export function useWorkspaceUserGroups(
   return useQuery({
     queryKey: ['workspace-user-groups', wsId, normalizedEnsureGroupIds],
     queryFn: async () => {
-      const groups = await fetchAllWorkspaceUserGroups(wsId);
+      const groups = await listAllWorkspaceUserGroups(wsId);
       const groupIds = new Set(groups.map((group) => group.id));
       const missingGroupIds = normalizedEnsureGroupIds.filter(
         (groupId) => !groupIds.has(groupId)
       );
-      const ensuredGroups = await fetchWorkspaceUserGroupsByIds(
+      const ensuredGroups = await listWorkspaceUserGroupsByIds(
         wsId,
         missingGroupIds
       );
@@ -231,7 +165,7 @@ export function useExcludedUserGroups(
     queryFn: async (): Promise<UserGroup[]> => {
       // If no included groups, return all groups
       if (includedGroups.length === 0) {
-        return fetchAllWorkspaceUserGroups(wsId);
+        return listAllWorkspaceUserGroups(wsId);
       }
 
       // Use backend API to get possible excluded groups

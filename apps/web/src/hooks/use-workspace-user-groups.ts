@@ -1,13 +1,20 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import {
+  getNextWorkspaceUserGroupsPageParam,
+  listAllWorkspaceUserGroups,
+  listWorkspaceUserGroups,
+  listWorkspaceUserGroupsByIds,
+} from '@tuturuuu/internal-api/user-groups';
+import type { UserGroup } from '@tuturuuu/types/primitives/UserGroup';
 
 export interface WorkspaceUserGroup {
   id: string;
   name: string;
-  archived: boolean | null;
+  archived?: boolean | null;
 }
 
 export interface WorkspaceUserGroupWithGuest extends WorkspaceUserGroup {
-  is_guest: boolean | null;
+  is_guest: boolean;
 }
 
 interface UseWorkspaceUserGroupsOptions {
@@ -20,7 +27,6 @@ interface UseWorkspaceUserGroupsOptions {
 }
 
 interface FetchWorkspaceUserGroupsPageOptions {
-  includeGuest?: boolean;
   page?: number;
   pageSize?: number;
   query?: string;
@@ -37,46 +43,37 @@ interface WorkspaceUserGroupsPage {
 const GROUPS_PAGE_SIZE = 200;
 const GROUPS_INFINITE_PAGE_SIZE = 50;
 
+function toWorkspaceUserGroupWithGuest(
+  group: UserGroup
+): WorkspaceUserGroupWithGuest {
+  return {
+    archived: group.archived ?? null,
+    id: group.id,
+    is_guest: group.is_guest,
+    name: group.name,
+  };
+}
+
 async function fetchWorkspaceUserGroupsPage(
   wsId: string,
   options: FetchWorkspaceUserGroupsPageOptions = {}
 ): Promise<WorkspaceUserGroupsPage> {
   const {
-    includeGuest: _includeGuest = false,
     page = 1,
     pageSize = GROUPS_PAGE_SIZE,
     query = '',
     groupIds = [],
   } = options;
-  const searchParams = new URLSearchParams();
-  searchParams.set('page', String(page));
-  searchParams.set('pageSize', String(pageSize));
-
-  if (query.trim()) {
-    searchParams.set('q', query.trim());
-  }
-
-  if (groupIds.length > 0) {
-    searchParams.set('ids', groupIds.join(','));
-  }
-
-  const response = await fetch(
-    `/api/v1/workspaces/${wsId}/users/groups?${searchParams.toString()}`,
-    { cache: 'no-store' }
-  );
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch workspace user groups');
-  }
-
-  const payload = (await response.json()) as {
-    data?: WorkspaceUserGroupWithGuest[];
-    count?: number;
-  };
+  const payload = await listWorkspaceUserGroups(wsId, {
+    ids: groupIds.length > 0 ? groupIds : undefined,
+    page,
+    pageSize,
+    q: query.trim() || undefined,
+  });
 
   return {
-    data: payload.data ?? [],
-    count: payload.count ?? 0,
+    count: payload.count,
+    data: payload.data.map(toWorkspaceUserGroupWithGuest),
     page,
     pageSize,
   };
@@ -85,28 +82,8 @@ async function fetchWorkspaceUserGroupsPage(
 async function fetchAllWorkspaceUserGroups(
   wsId: string
 ): Promise<WorkspaceUserGroupWithGuest[]> {
-  const groups: WorkspaceUserGroupWithGuest[] = [];
-  let page = 1;
-  let totalCount = Number.POSITIVE_INFINITY;
-
-  while (groups.length < totalCount) {
-    const payload = await fetchWorkspaceUserGroupsPage(wsId, {
-      page,
-      pageSize: GROUPS_PAGE_SIZE,
-    });
-
-    const pageData = payload.data;
-    totalCount = payload.count;
-    groups.push(...pageData);
-
-    if (pageData.length < GROUPS_PAGE_SIZE) {
-      break;
-    }
-
-    page += 1;
-  }
-
-  return groups;
+  const groups = await listAllWorkspaceUserGroups(wsId);
+  return groups.map(toWorkspaceUserGroupWithGuest);
 }
 
 async function fetchWorkspaceUserGroupsByIds(
@@ -117,13 +94,8 @@ async function fetchWorkspaceUserGroupsByIds(
     return [];
   }
 
-  const payload = await fetchWorkspaceUserGroupsPage(wsId, {
-    page: 1,
-    pageSize: Math.max(groupIds.length, 1),
-    groupIds,
-  });
-
-  return payload.data;
+  const groups = await listWorkspaceUserGroupsByIds(wsId, groupIds);
+  return groups.map(toWorkspaceUserGroupWithGuest);
 }
 
 /**
@@ -227,23 +199,11 @@ export function useInfiniteWorkspaceUserGroups(
     initialPageParam: 1,
     queryFn: ({ pageParam }) =>
       fetchWorkspaceUserGroupsPage(wsId, {
-        includeGuest,
         page: pageParam,
         pageSize: GROUPS_INFINITE_PAGE_SIZE,
         query: normalizedQuery,
       }),
-    getNextPageParam: (lastPage, allPages) => {
-      const loadedCount = allPages.reduce(
-        (total, page) => total + page.data.length,
-        0
-      );
-
-      if (loadedCount >= lastPage.count) {
-        return undefined;
-      }
-
-      return allPages.length + 1;
-    },
+    getNextPageParam: getNextWorkspaceUserGroupsPageParam,
     enabled: !!wsId && enabled,
     staleTime: 5 * 60 * 1000,
   });

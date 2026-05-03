@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   LoaderCircle,
   Plus,
@@ -9,7 +9,11 @@ import {
   Users,
   X,
 } from '@tuturuuu/icons';
-import { listRoleMembers } from '@tuturuuu/internal-api/roles';
+import {
+  addRoleMembers,
+  listRoleMembers,
+  removeRoleMember,
+} from '@tuturuuu/internal-api/roles';
 import { listWorkspaceMembers } from '@tuturuuu/internal-api/workspaces';
 import type { WorkspaceUser } from '@tuturuuu/types/primitives/WorkspaceUser';
 import { Avatar, AvatarFallback, AvatarImage } from '@tuturuuu/ui/avatar';
@@ -23,6 +27,11 @@ import { getInitials } from '@tuturuuu/utils/name-helper';
 import { useTranslations } from 'next-intl';
 import { useEffect, useMemo, useState } from 'react';
 import type { SectionProps } from './index';
+
+type RoleMembersQueryData = {
+  data: WorkspaceUser[];
+  count: number;
+};
 
 function MemberCardSkeleton({ index }: { index: number }) {
   return (
@@ -52,9 +61,15 @@ export default function RoleFormMembersSection({
   onUpdate: React.Dispatch<React.SetStateAction<number>>;
 }) {
   const t = useTranslations();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [addMemberQuery, setAddMemberQuery] = useState('');
   const [showAddMembers, setShowAddMembers] = useState(false);
+
+  const roleMembersQueryKey = useMemo(
+    () => ['workspaces', wsId, 'roles', roleId, 'members'] as const,
+    [roleId, wsId]
+  );
 
   const workspaceMembersQuery = useQuery({
     queryKey: ['workspaces', wsId, 'members'],
@@ -62,8 +77,9 @@ export default function RoleFormMembersSection({
   });
 
   const roleMembersQuery = useQuery({
-    queryKey: ['workspaces', wsId, 'roles', roleId, 'members'],
-    queryFn: roleId ? () => getRoleMembers(wsId, roleId) : undefined,
+    queryKey: roleMembersQueryKey,
+    queryFn: () =>
+      roleId ? getRoleMembers(wsId, roleId) : { data: [], count: 0 },
     enabled: !!roleId,
     initialData:
       roleId && initialMembers
@@ -117,38 +133,58 @@ export default function RoleFormMembersSection({
   }, [addMemberQuery, allUsers, roleMembers]);
 
   const handleAddMember = async (memberId: string) => {
-    const res = await fetch(
-      `/api/v1/workspaces/${wsId}/roles/${roleId}/members`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ memberIds: [memberId] }),
-      }
-    );
+    if (!roleId) return;
 
-    if (res.ok) {
+    try {
+      await addRoleMembers(wsId, roleId, [memberId]);
       toast.success(t('ws-roles.member_added_successfully'));
       void roleMembersQuery.refetch();
       setAddMemberQuery('');
-    } else {
+    } catch {
       toast.error(t('ws-roles.failed_to_add_member'));
     }
   };
 
   const handleRemoveMember = async (memberId: string) => {
-    const res = await fetch(
-      `/api/v1/workspaces/${wsId}/roles/${roleId}/members/${memberId}`,
-      {
-        method: 'DELETE',
-      }
+    if (!roleId) return;
+
+    const previousMembers =
+      queryClient.getQueryData<RoleMembersQueryData>(roleMembersQueryKey);
+    const removedMember = previousMembers?.data.find(
+      (member) => member.id === memberId
     );
 
-    if (res.ok) {
+    if (removedMember) {
+      queryClient.setQueryData<RoleMembersQueryData>(
+        roleMembersQueryKey,
+        (current) => {
+          if (!current) return current;
+
+          const nextData = current.data.filter(
+            (member) => member.id !== memberId
+          );
+
+          return {
+            data: nextData,
+            count: Math.max(
+              current.count - (current.data.length - nextData.length),
+              0
+            ),
+          };
+        }
+      );
+      onUpdate((count) => Math.max(count - 1, 0));
+    }
+
+    try {
+      await removeRoleMember(wsId, roleId, memberId);
       toast.success(t('ws-roles.member_removed_successfully'));
       void roleMembersQuery.refetch();
-    } else {
+    } catch {
+      if (previousMembers) {
+        queryClient.setQueryData(roleMembersQueryKey, previousMembers);
+        onUpdate(previousMembers.count);
+      }
       toast.error(t('ws-roles.failed_to_remove_member'));
     }
   };
@@ -434,8 +470,5 @@ async function getWorkspaceUsers(wsId: string) {
 }
 
 async function getRoleMembers(wsId: string, roleId: string) {
-  return (await listRoleMembers(wsId, roleId)) as {
-    data: WorkspaceUser[];
-    count: number;
-  };
+  return (await listRoleMembers(wsId, roleId)) as RoleMembersQueryData;
 }

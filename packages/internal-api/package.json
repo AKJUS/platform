@@ -97,6 +97,11 @@
       "import": "./dist/tasks-scheduling.js",
       "require": "./dist/tasks-scheduling.js"
     },
+    "./user-groups": {
+      "types": "./dist/user-groups.d.ts",
+      "import": "./dist/user-groups.js",
+      "require": "./dist/user-groups.js"
+    },
     "./templates": {
       "types": "./dist/templates.d.ts",
       "import": "./dist/templates.js",

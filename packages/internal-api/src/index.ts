@@ -324,6 +324,16 @@ export {
   updateWorkspaceBreakType,
 } from './time-tracking';
 export {
+  getNextWorkspaceUserGroupsPageParam,
+  listAllWorkspaceUserGroups,
+  listWorkspaceUserGroups,
+  listWorkspaceUserGroupsByIds,
+  type UserGroupStatusFilter,
+  type WorkspaceUserGroupsPageResponse,
+  type WorkspaceUserGroupsParams,
+  type WorkspaceUserGroupsResponse,
+} from './user-groups';
+export {
   createCurrentUserAvatarUploadUrl,
   createSupportInquiry,
   getCurrentUserDefaultWorkspace,

@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { listWorkspaceUserGroups } from '@tuturuuu/internal-api/user-groups';
 import type { WorkspaceUser } from '@tuturuuu/types/primitives/WorkspaceUser';
 import { Button } from '@tuturuuu/ui/button';
 import {
@@ -53,14 +54,7 @@ export function AttendanceDialog({
     queryFn: async (): Promise<{
       data: Array<{ id: string; name: string | null }>;
       count: number;
-    }> => {
-      const res = await fetch(
-        `/api/v1/workspaces/${wsId}/users/groups?userId=${user.id}`,
-        { cache: 'no-store' }
-      );
-      if (!res.ok) throw new Error('Failed to fetch groups');
-      return await res.json();
-    },
+    }> => listWorkspaceUserGroups(wsId, { userId: user.id }),
   });
 
   const { toast } = useToast();
