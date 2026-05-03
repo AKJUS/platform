@@ -1,5 +1,6 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
 import { NextResponse } from 'next/server';
+import { serverLogger } from '@/lib/infrastructure/log-drain';
 
 interface Params {
   params: Promise<{
@@ -16,7 +17,7 @@ export async function PUT(req: Request, { params }: Params) {
   const { error } = await supabase.from('timezones').upsert(data).eq('id', id);
 
   if (error) {
-    console.log(error);
+    serverLogger.info(error);
     return NextResponse.json(
       { message: 'Error updating timezone' },
       { status: 500 }
@@ -33,7 +34,7 @@ export async function DELETE(_: Request, { params }: Params) {
   const { error } = await supabase.from('timezones').delete().eq('id', id);
 
   if (error) {
-    console.log(error);
+    serverLogger.info(error);
     return NextResponse.json(
       { message: 'Error deleting timezone' },
       { status: 500 }

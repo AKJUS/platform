@@ -2,12 +2,24 @@ import { google } from '@ai-sdk/google';
 import { createClient } from '@tuturuuu/supabase/next/server';
 import { embedMany } from 'ai';
 import { type NextRequest, NextResponse } from 'next/server';
+import { serverLogger, withCronLogDrain } from '@/lib/infrastructure/log-drain';
 
 /**
  * Cron job to generate embeddings for tasks without embeddings
  * Runs daily to ensure all tasks have embeddings for semantic search
  */
 export async function GET(req: NextRequest) {
+  return withCronLogDrain(
+    {
+      jobId: 'tasks-generate-embeddings',
+      path: '/api/cron/tasks/generate-embeddings',
+      request: req,
+    },
+    () => handleGET(req)
+  );
+}
+
+async function handleGET(req: NextRequest) {
   // Verify cron secret
   const cronSecret =
     process.env.CRON_SECRET ?? process.env.VERCEL_CRON_SECRET ?? '';
@@ -35,7 +47,7 @@ export async function GET(req: NextRequest) {
       .limit(100);
 
     if (fetchError) {
-      console.error('Error fetching tasks:', fetchError);
+      serverLogger.error('Error fetching tasks:', fetchError);
       return NextResponse.json(
         {
           ok: false,
@@ -180,7 +192,7 @@ export async function GET(req: NextRequest) {
       errors: results.errors.slice(0, 10), // Limit error messages
     });
   } catch (error) {
-    console.error('Cron job error:', error);
+    serverLogger.error('Cron job error:', error);
     return NextResponse.json(
       {
         ok: false,

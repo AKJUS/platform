@@ -8,6 +8,7 @@ import {
   normalizeWorkspaceId,
 } from '@tuturuuu/utils/workspace-helper';
 import { NextResponse } from 'next/server';
+import { serverLogger } from '@/lib/infrastructure/log-drain';
 
 export async function GET(req: Request) {
   const supabase = await createClient(req);
@@ -48,7 +49,7 @@ export async function GET(req: Request) {
     );
 
   if (error) {
-    console.error('Error fetching workspace products:', error);
+    serverLogger.error('Error fetching workspace products:', error);
     return NextResponse.json(
       { message: 'Error fetching workspace products' },
       { status: 500 }

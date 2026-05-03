@@ -1272,6 +1272,10 @@ export async function WorkspaceNavigationLinks({
               sectionLabel: t('infrastructure-tabs.operations'),
               aliases: [
                 `/${personalOrWsId}/infrastructure/monitoring/cron`,
+                `/${personalOrWsId}/infrastructure/monitoring/deployments`,
+                `/${personalOrWsId}/infrastructure/monitoring/logs`,
+                `/${personalOrWsId}/infrastructure/monitoring/analytics`,
+                `/${personalOrWsId}/infrastructure/monitoring/observability`,
                 `/${personalOrWsId}/infrastructure/monitoring/requests`,
                 `/${personalOrWsId}/infrastructure/monitoring/rollouts`,
                 `/${personalOrWsId}/infrastructure/monitoring/watcher-logs`,
@@ -1290,8 +1294,23 @@ export async function WorkspaceNavigationLinks({
                 },
                 {
                   title: t('infrastructure-tabs.monitoring_rollouts'),
-                  href: `/${personalOrWsId}/infrastructure/monitoring/rollouts`,
-                  icon: <ChartColumnStacked className="h-5 w-5" />,
+                  href: `/${personalOrWsId}/infrastructure/monitoring/deployments`,
+                  icon: <Box className="h-5 w-5" />,
+                },
+                {
+                  title: t('infrastructure-tabs.monitoring_logs'),
+                  href: `/${personalOrWsId}/infrastructure/monitoring/logs`,
+                  icon: <Logs className="h-5 w-5" />,
+                },
+                {
+                  title: t('infrastructure-tabs.monitoring_analytics'),
+                  href: `/${personalOrWsId}/infrastructure/monitoring/analytics`,
+                  icon: <ChartColumn className="h-5 w-5" />,
+                },
+                {
+                  title: t('infrastructure-tabs.monitoring_observability'),
+                  href: `/${personalOrWsId}/infrastructure/monitoring/observability`,
+                  icon: <Database className="h-5 w-5" />,
                 },
                 {
                   title: t('infrastructure-tabs.monitoring_requests'),

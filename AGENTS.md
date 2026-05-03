@@ -15,6 +15,7 @@ Foundational mandates here take absolute precedence. **NEVER** invent ad-hoc beh
 - **Manual Dependency Edits**: NEVER manually edit `package.json` to add or update dependencies. Always use the CLI.
 - **UI Antipatterns**: NEVER use native browser dialogs (alert, confirm), hard-coded color classes (use dynamic-*), or emojis in UI code (use lucide-react via @tuturuuu/icons).
 - **Data Fetching/Mutation (#1 Violation)**: **NEVER use useEffect for data fetching.** TanStack Query (useQuery/useMutation) is the **mandatory** standard. Raw fetch() in client components is forbidden.
+- **Server-Side Logging**: NEVER add raw server-side `console.*` calls in `apps/web` API, cron, or infrastructure runtime code. Use `serverLogger.*` from `@/lib/infrastructure/log-drain` or wrap handlers with the internal log drain so request/cron logs are persisted and visible in Observability.
 - **Git Naming Conventions**: Use Conventional Commits for authored commits and conventional branch names that match the repo checker (`feature/`, `feat/`, `fix/`, `bugfix/`, `hotfix/`, `release/`, `chore/`, `docs/`, `style/`, `refactor/`, `perf/`, `dependabot/`, `claude/`). Git-generated merge commits may keep their standard merge subject.
 
 ### 2.2 Mandatory Actions

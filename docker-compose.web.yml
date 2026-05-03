@@ -15,6 +15,10 @@ services:
       - NEXT_TELEMETRY_DISABLED=1
       - NODE_ENV=development
       - PORT=7803
+      - PLATFORM_LOG_DRAIN_DATABASE_URL=postgres://platform_log_drain:platform_log_drain@log-drain-postgres:5432/platform_log_drain
+      - PLATFORM_LOG_DRAIN_ENABLED=${PLATFORM_LOG_DRAIN_ENABLED:-true}
+      - PLATFORM_LOG_DRAIN_RAW_RETENTION_DAYS=${PLATFORM_LOG_DRAIN_RAW_RETENTION_DAYS:-30}
+      - PLATFORM_LOG_DRAIN_SUMMARY_RETENTION_DAYS=${PLATFORM_LOG_DRAIN_SUMMARY_RETENTION_DAYS:-90}
       - TSC_WATCHDIRECTORY=DynamicPriorityPolling
       - TSC_WATCHFILE=DynamicPriorityPolling
       - WATCHPACK_POLLING=true
@@ -87,6 +91,26 @@ services:
       - platform-web-vercel-dist:/workspace/packages/vercel/dist
       - platform-web-workflows-node_modules:/workspace/packages/workflows/node_modules
       - platform-web-workflows-dist:/workspace/packages/workflows/dist
+    depends_on:
+      log-drain-postgres:
+        condition: service_healthy
+
+  log-drain-postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: platform_log_drain
+      POSTGRES_PASSWORD: platform_log_drain
+      POSTGRES_USER: platform_log_drain
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U platform_log_drain -d platform_log_drain"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "7903:5432"
+    volumes:
+      - platform-web-log-drain-postgres:/var/lib/postgresql/data
+      - ./apps/web/docker/log-drain-init.sql:/docker-entrypoint-initdb.d/001-log-drain.sql:ro
 
   redis:
     profiles: ["redis"]
@@ -149,6 +173,7 @@ volumes:
   platform-web-microsoft-dist:
   platform-web-next:
   platform-web-node_modules:
+  platform-web-log-drain-postgres:
   platform-web-offline-node_modules:
   platform-web-offline-dist:
   platform-web-payment-node_modules:

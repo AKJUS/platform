@@ -5,6 +5,7 @@ import {
   resolveWorkspaceId,
 } from '@tuturuuu/utils/constants';
 import { NextResponse } from 'next/server';
+import { serverLogger } from '@/lib/infrastructure/log-drain';
 
 export async function POST(req: Request) {
   try {
@@ -34,7 +35,7 @@ export async function POST(req: Request) {
         .maybeSingle();
 
       if (error || !data) {
-        console.error('Error fetching personal workspace:', error);
+        serverLogger.error('Error fetching personal workspace:', error);
         return NextResponse.json(
           { error: 'Personal workspace not found' },
           { status: 404 }
@@ -49,7 +50,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ workspaceId });
   } catch (error) {
-    console.error('Error resolving workspace ID:', error);
+    serverLogger.error('Error resolving workspace ID:', error);
     return NextResponse.json(
       { error: 'Failed to resolve workspace ID' },
       { status: 500 }

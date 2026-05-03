@@ -4,6 +4,7 @@ import {
   createClient,
 } from '@tuturuuu/supabase/next/server';
 import { type NextRequest, NextResponse } from 'next/server';
+import { serverLogger } from '@/lib/infrastructure/log-drain';
 
 export async function PUT(req: NextRequest) {
   const { email, enabled } = await req.json();
@@ -30,7 +31,7 @@ export async function PUT(req: NextRequest) {
     .eq('email', email);
 
   if (error) {
-    console.log(error);
+    serverLogger.info(error);
     return NextResponse.json(
       { message: 'Error fetching AI Models' },
       { status: 500 }
@@ -68,7 +69,7 @@ export async function DELETE(
     .eq('email', email);
 
   if (error) {
-    console.log(error);
+    serverLogger.info(error);
     return NextResponse.json(
       { message: 'Error fetching AI Models' },
       { status: 500 }

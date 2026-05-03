@@ -1,6 +1,7 @@
 import { createAdminClient } from '@tuturuuu/supabase/next/server';
 import type { WorkspaceUser } from '@tuturuuu/types/primitives/WorkspaceUser';
 import { NextResponse } from 'next/server';
+import { serverLogger } from '@/lib/infrastructure/log-drain';
 import { batchUpsert, requireDevMode } from '../batch-upsert';
 
 const BATCH_SIZE = 500;
@@ -30,7 +31,7 @@ export async function PUT(req: Request) {
   }
 
   const existingUsersMap = new Map(allExistingUsers.map((u) => [u.id, u]));
-  console.log('Total existing users found:', allExistingUsers.length);
+  serverLogger.info('Total existing users found:', allExistingUsers.length);
 
   // Store original updated_by values for later update
   const updatedByMap = new Map<string, string | null>();
@@ -99,7 +100,7 @@ export async function PUT(req: Request) {
     });
 
   if (usersWithUpdatedBy.length > 0) {
-    console.log(
+    serverLogger.info(
       `Updating self-references for ${usersWithUpdatedBy.length} users`
     );
 
@@ -110,7 +111,7 @@ export async function PUT(req: Request) {
     });
 
     if (!updateResult.success) {
-      console.error(
+      serverLogger.error(
         'Some self-reference updates failed:',
         updateResult.errorCount
       );

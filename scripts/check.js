@@ -181,6 +181,12 @@ const checks = [
     },
   },
   {
+    name: 'server-console',
+    command: 'node',
+    args: ['scripts/check-server-console.js'],
+    parseOutput: () => 'Server logs use internal drain',
+  },
+  {
     name: 'script-tests',
     command: 'bun',
     args: ['run', 'test:scripts'],

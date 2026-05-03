@@ -13,6 +13,7 @@
 
 import { createAdminClient } from '@tuturuuu/supabase/next/server';
 import { type NextRequest, NextResponse } from 'next/server';
+import { serverLogger, withCronLogDrain } from '@/lib/infrastructure/log-drain';
 
 function resolveCalendarScheduleOrigin() {
   if (process.env.INTERNAL_WEB_API_ORIGIN) {
@@ -27,6 +28,17 @@ function resolveCalendarScheduleOrigin() {
 }
 
 export async function GET(req: NextRequest) {
+  return withCronLogDrain(
+    {
+      jobId: 'calendar-smart-schedule',
+      path: '/api/cron/calendar/smart-schedule',
+      request: req,
+    },
+    () => handleGET(req)
+  );
+}
+
+async function handleGET(req: NextRequest) {
   const cronSecret =
     process.env.CRON_SECRET ?? process.env.VERCEL_CRON_SECRET ?? '';
 
@@ -44,7 +56,7 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  console.log('=== Starting smart schedule cron job ===');
+  serverLogger.info('=== Starting smart schedule cron job ===');
 
   try {
     const sbAdmin = await createAdminClient();
@@ -63,15 +75,15 @@ export async function GET(req: NextRequest) {
     const habitWsIds = habitsResult.data?.map((h) => h.ws_id) ?? [];
     const allWsIds = [...new Set(habitWsIds)];
 
-    console.log(
+    serverLogger.info(
       `Found ${allWsIds.length} workspaces with auto-schedule habits`
     );
-    console.log(
+    serverLogger.info(
       `- ${habitWsIds.length} habits across ${new Set(habitWsIds).size} workspaces`
     );
 
     if (allWsIds.length === 0) {
-      console.log('No workspaces with auto-schedule items found');
+      serverLogger.info('No workspaces with auto-schedule items found');
       return NextResponse.json({
         ok: true,
         message: 'No workspaces to schedule',
@@ -97,7 +109,7 @@ export async function GET(req: NextRequest) {
     // Could be parallelized with Promise.all if needed
     for (const ws_id of allWsIds) {
       try {
-        console.log(`[${ws_id}] Scheduling workspace...`);
+        serverLogger.info(`[${ws_id}] Scheduling workspace...`);
 
         const response = await fetch(
           `${baseUrl}/api/v1/workspaces/${ws_id}/calendar/schedule`,
@@ -121,7 +133,7 @@ export async function GET(req: NextRequest) {
 
         const data = await response.json();
 
-        console.log(`[${ws_id}] Scheduled successfully:`, {
+        serverLogger.info(`[${ws_id}] Scheduled successfully:`, {
           eventsCreated: data.summary?.eventsCreated,
           habitsScheduled: data.summary?.habitsScheduled,
           tasksScheduled: data.summary?.tasksScheduled,
@@ -133,7 +145,7 @@ export async function GET(req: NextRequest) {
           eventsCreated: data.summary?.eventsCreated ?? 0,
         });
       } catch (error) {
-        console.error(`[${ws_id}] Error scheduling:`, error);
+        serverLogger.error(`[${ws_id}] Error scheduling:`, error);
         results.push({
           ws_id,
           success: false,
@@ -149,9 +161,9 @@ export async function GET(req: NextRequest) {
       0
     );
 
-    console.log('=== Smart schedule cron job completed ===');
-    console.log(`Successful: ${successful}, Failed: ${failed}`);
-    console.log(`Total events created: ${totalEventsCreated}`);
+    serverLogger.info('=== Smart schedule cron job completed ===');
+    serverLogger.info(`Successful: ${successful}, Failed: ${failed}`);
+    serverLogger.info(`Total events created: ${totalEventsCreated}`);
 
     return NextResponse.json({
       ok: true,
@@ -165,7 +177,7 @@ export async function GET(req: NextRequest) {
       results,
     });
   } catch (error) {
-    console.error('Error in smart schedule cron job:', error);
+    serverLogger.error('Error in smart schedule cron job:', error);
     return NextResponse.json(
       {
         ok: false,

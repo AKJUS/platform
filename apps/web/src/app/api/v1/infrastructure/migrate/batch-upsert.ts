@@ -2,6 +2,7 @@ import type { TypedSupabaseClient } from '@tuturuuu/supabase/next/client';
 import { createAdminClient } from '@tuturuuu/supabase/next/server';
 import { DEV_MODE } from '@tuturuuu/utils/constants';
 import { NextResponse } from 'next/server';
+import { serverLogger } from '@/lib/infrastructure/log-drain';
 
 const BATCH_SIZE = 100;
 const FETCH_LIMIT = 500;
@@ -19,7 +20,7 @@ export function requireDevMode(): NextResponse | null {
     return null; // Allow access in development
   }
 
-  console.error(
+  serverLogger.error(
     '[SECURITY] Blocked access to infrastructure migration route in production'
   );
 
@@ -129,7 +130,7 @@ export async function batchUpsert({
       .upsert(batch as never[], upsertOptions);
 
     if (error) {
-      console.error(`Batch ${batchNumber} error for ${table}:`, error);
+      serverLogger.error(`Batch ${batchNumber} error for ${table}:`, error);
       errors.push({ batch: batchNumber, error });
     } else {
       successCount += batch.length;

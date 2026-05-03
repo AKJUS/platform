@@ -1785,6 +1785,67 @@
       "page_refinement": "Bộ lọc chỉ tác động lên cửa sổ lưu trữ hiện tại. Hãy dùng phân trang để xem các dòng watcher cũ hơn.",
       "title": "Kho Log Watcher"
     },
+    "observability": {
+      "all_levels": "Tất cả cấp độ",
+      "all_sources": "Tất cả nguồn",
+      "analytics": {
+        "description": "Lưu lượng request, phân bố trạng thái và xu hướng cron từ log drain.",
+        "requests": "Requests",
+        "status": "Nhóm trạng thái",
+        "title": "Analytics"
+      },
+      "columns": {
+        "level": "Cấp độ",
+        "message": "Thông điệp",
+        "status": "Trạng thái",
+        "time": "Thời gian"
+      },
+      "cron": {
+        "description": "Các lượt chạy cron gần đây, thời lượng, trạng thái và lỗi đã ghi.",
+        "title": "Cron"
+      },
+      "deployments": {
+        "description": "Dấu triển khai được nhóm theo lưu lượng request và lỗi server.",
+        "title": "Deployments"
+      },
+      "last_24_hours": "24 giờ qua",
+      "last_7_days": "7 ngày qua",
+      "last_hour": "1 giờ qua",
+      "logs": {
+        "description": "Tìm kiếm trực tiếp log request, cron và server từ internal drain.",
+        "title": "Logs"
+      },
+      "metrics": {
+        "cron": "Lượt chạy cron",
+        "errors": "Lỗi server",
+        "p95": "Thời lượng P95",
+        "p95_meta": "Độ trễ request quan sát được",
+        "requests": "Requests",
+        "requests_meta": "Đã ghi trong khung được chọn"
+      },
+      "observability": {
+        "description": "Tín hiệu sức khỏe cô đọng cho web runtime, cron runner và bề mặt API.",
+        "title": "Observability"
+      },
+      "overview": {
+        "description": "Tóm tắt vận hành kiểu Vercel dựa trên internal Postgres log drain.",
+        "title": "Tổng quan"
+      },
+      "recent_errors": "Lỗi gần đây",
+      "refresh": "Làm mới",
+      "requests": {
+        "description": "Dòng thời gian request với trạng thái, đường dẫn, nguồn và thời lượng.",
+        "title": "Requests"
+      },
+      "search_placeholder": "Tìm log, route, request",
+      "signals": {
+        "active_sources": "Nguồn đang hoạt động",
+        "cron_failure_rate": "Tỷ lệ lỗi cron",
+        "server_errors": "Lỗi server",
+        "slow_requests": "Request chậm"
+      },
+      "top_routes": "Route hàng đầu"
+    },
     "overview": {
       "description": "Dùng trang tổng quan như bản tóm tắt dành cho operator: trạng thái runtime hiện tại, nhịp watcher và các lối tắt tới những bề mặt nặng hơn.",
       "focus_cron_description": "Kiểm tra lịch cron Docker native, lượt chạy thủ công đang chờ, lịch sử thực thi và log route đã ghi lại.",
@@ -1904,13 +1965,25 @@
       "events_title": "Luồng Sự Kiện Watcher"
     },
     "routes": {
+      "analytics": {
+        "description": "Xu hướng lưu lượng, trạng thái, độ trễ và cron trong các khung runtime gần đây.",
+        "title": "Analytics"
+      },
       "cron": {
         "description": "Cron runner Docker native, lịch chạy, lượt chạy thủ công và log thực thi.",
-        "title": "Cron Jobs"
+        "title": "Cron"
+      },
+      "deployments": {
+        "description": "Dấu triển khai, lưu lượng, lỗi và lane runtime hiện tại.",
+        "title": "Deployments"
       },
       "logs": {
-        "description": "Các dòng watcher đã lưu để gỡ lỗi rollout và phục hồi.",
-        "title": "Log Watcher"
+        "description": "Log request, cron và server được internal drain ghi lại.",
+        "title": "Logs"
+      },
+      "observability": {
+        "description": "Tín hiệu vận hành cho lỗi, route chậm, sức khỏe cron và nguồn đang hoạt động.",
+        "title": "Observability"
       },
       "overview": {
         "description": "Trạng thái runtime hiện tại, nhịp watcher và điểm nhảy sang các màn sâu hơn.",
@@ -5959,11 +6032,14 @@
     "integrations": "Dịch vụ tích hợp",
     "mobile_versions": "Phiên bản di động",
     "monitoring": "Giám sát",
-    "monitoring_cron": "Giám Sát Cron Jobs",
-    "monitoring_overview": "Tổng Quan Giám Sát",
-    "monitoring_requests": "Request Giám Sát",
-    "monitoring_rollouts": "Rollout Giám Sát",
-    "monitoring_watcher_logs": "Log Watcher Giám Sát",
+    "monitoring_analytics": "Analytics",
+    "monitoring_cron": "Cron",
+    "monitoring_logs": "Logs",
+    "monitoring_observability": "Observability",
+    "monitoring_overview": "Tổng quan",
+    "monitoring_requests": "Requests",
+    "monitoring_rollouts": "Deployments",
+    "monitoring_watcher_logs": "Log Watcher",
     "operations": "Vận Hành",
     "otp_limits": "Giới hạn OTP",
     "overview": "Tổng quan",

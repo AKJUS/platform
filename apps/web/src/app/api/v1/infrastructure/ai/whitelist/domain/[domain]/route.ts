@@ -4,6 +4,7 @@ import {
   createClient,
 } from '@tuturuuu/supabase/next/server';
 import { NextResponse } from 'next/server';
+import { serverLogger } from '@/lib/infrastructure/log-drain';
 
 export async function PUT(
   request: Request,
@@ -34,7 +35,7 @@ export async function PUT(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error updating domain:', error);
+    serverLogger.error('Error updating domain:', error);
     return new NextResponse('Internal Server Error', { status: 500 });
   }
 }
@@ -67,7 +68,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error deleting domain:', error);
+    serverLogger.error('Error deleting domain:', error);
     return new NextResponse('Internal Server Error', { status: 500 });
   }
 }

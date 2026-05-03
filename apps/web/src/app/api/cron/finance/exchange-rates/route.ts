@@ -2,6 +2,7 @@ import { createAdminClient } from '@tuturuuu/supabase/next/server';
 import { SUPPORTED_CURRENCIES } from '@tuturuuu/utils/currencies';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
+import { serverLogger, withCronLogDrain } from '@/lib/infrastructure/log-drain';
 
 const PRIMARY_API_URL =
   'https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json';
@@ -9,6 +10,17 @@ const FALLBACK_API_URL =
   'https://latest.currency-api.pages.dev/v1/currencies/usd.json';
 
 export async function POST(req: NextRequest) {
+  return withCronLogDrain(
+    {
+      jobId: 'finance-exchange-rates',
+      path: '/api/cron/finance/exchange-rates',
+      request: req,
+    },
+    () => handlePOST(req)
+  );
+}
+
+async function handlePOST(req: NextRequest) {
   try {
     // Verify authorization
     const authHeader = req.headers.get('authorization');
@@ -86,7 +98,7 @@ export async function POST(req: NextRequest) {
       });
 
     if (error) {
-      console.error('Failed to upsert exchange rates:', error.message);
+      serverLogger.error('Failed to upsert exchange rates:', error.message);
       return NextResponse.json(
         { error: 'Database upsert failed' },
         { status: 500 }
@@ -99,7 +111,7 @@ export async function POST(req: NextRequest) {
       ratesUpdated: rows.length,
     });
   } catch (error) {
-    console.error('Exchange rates cron error:', error);
+    serverLogger.error('Exchange rates cron error:', error);
     return NextResponse.json(
       { error: 'Internal server error' },
       { status: 500 }

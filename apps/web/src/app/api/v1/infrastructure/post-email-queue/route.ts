@@ -4,6 +4,7 @@ import {
   createClient,
 } from '@tuturuuu/supabase/next/server';
 import { NextResponse } from 'next/server';
+import { serverLogger } from '@/lib/infrastructure/log-drain';
 
 async function requireRootAdmin() {
   const supabase = await createClient();
@@ -43,7 +44,10 @@ export async function GET() {
     .select('status');
 
   if (summaryError) {
-    console.error('[PostEmailQueueInfra] Error fetching queue:', summaryError);
+    serverLogger.error(
+      '[PostEmailQueueInfra] Error fetching queue:',
+      summaryError
+    );
     return NextResponse.json(
       { message: 'Error fetching post email queue' },
       { status: 500 }
@@ -75,7 +79,7 @@ export async function GET() {
     .order('created_at', { ascending: false });
 
   if (workspaceError) {
-    console.error(
+    serverLogger.error(
       '[PostEmailQueueInfra] Error fetching workspace breakdown:',
       workspaceError
     );
@@ -131,7 +135,10 @@ export async function GET() {
     .limit(100);
 
   if (batchError) {
-    console.error('[PostEmailQueueInfra] Error fetching batches:', batchError);
+    serverLogger.error(
+      '[PostEmailQueueInfra] Error fetching batches:',
+      batchError
+    );
   }
 
   const batchMap = new Map<

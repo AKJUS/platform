@@ -1,5 +1,5 @@
-import { BlueGreenMonitoringRequestsClient } from '../_components/blue-green-monitoring-requests-client';
+import { ObservabilityDashboardClient } from '../_components/observability-dashboard-client';
 
 export default function InfrastructureMonitoringRequestsPage() {
-  return <BlueGreenMonitoringRequestsClient />;
+  return <ObservabilityDashboardClient mode="requests" />;
 }

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { readCronMonitoringSnapshot } from '@/lib/infrastructure/cron-monitoring';
+import { serverLogger } from '@/lib/infrastructure/log-drain';
 import { authorizeInfrastructureViewer } from '../blue-green/authorization';
 
 export async function GET(request: Request) {
@@ -11,7 +12,7 @@ export async function GET(request: Request) {
   try {
     return NextResponse.json(readCronMonitoringSnapshot());
   } catch (error) {
-    console.error('Failed to load cron monitoring snapshot:', error);
+    serverLogger.error('Failed to load cron monitoring snapshot:', error);
     return NextResponse.json(
       { message: 'Failed to load cron monitoring snapshot' },
       { status: 500 }

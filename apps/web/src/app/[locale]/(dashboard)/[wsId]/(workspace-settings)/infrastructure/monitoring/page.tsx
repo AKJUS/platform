@@ -1,5 +1,5 @@
-import { BlueGreenMonitoringOverviewClient } from './_components/blue-green-monitoring-overview-client';
+import { ObservabilityDashboardClient } from './_components/observability-dashboard-client';
 
 export default function InfrastructureMonitoringPage() {
-  return <BlueGreenMonitoringOverviewClient showRollbackControls />;
+  return <ObservabilityDashboardClient mode="overview" />;
 }

@@ -1785,6 +1785,67 @@
       "page_refinement": "Filters refine only the current archive window. Use the pager to browse older retained watcher rows.",
       "title": "Watcher Log Archive"
     },
+    "observability": {
+      "all_levels": "All Levels",
+      "all_sources": "All Sources",
+      "analytics": {
+        "description": "Request volume, status distribution, and cron trends from the log drain.",
+        "requests": "Requests",
+        "status": "Status Families",
+        "title": "Analytics"
+      },
+      "columns": {
+        "level": "Level",
+        "message": "Message",
+        "status": "Status",
+        "time": "Time"
+      },
+      "cron": {
+        "description": "Recent cron executions, duration, status, and captured errors.",
+        "title": "Cron"
+      },
+      "deployments": {
+        "description": "Deployment stamps grouped by request traffic and server errors.",
+        "title": "Deployments"
+      },
+      "last_24_hours": "Last 24 Hours",
+      "last_7_days": "Last 7 Days",
+      "last_hour": "Last Hour",
+      "logs": {
+        "description": "Live-search request, cron, and server log events from the internal drain.",
+        "title": "Logs"
+      },
+      "metrics": {
+        "cron": "Cron Runs",
+        "errors": "Server Errors",
+        "p95": "P95 Duration",
+        "p95_meta": "Observed request latency",
+        "requests": "Requests",
+        "requests_meta": "Captured in the selected window"
+      },
+      "observability": {
+        "description": "Compact health signals for the web runtime, cron runner, and API surface.",
+        "title": "Observability"
+      },
+      "overview": {
+        "description": "Vercel-style operator summary backed by the internal Postgres log drain.",
+        "title": "Overview"
+      },
+      "recent_errors": "Recent Errors",
+      "refresh": "Refresh",
+      "requests": {
+        "description": "Request timeline with status, path, source, and duration.",
+        "title": "Requests"
+      },
+      "search_placeholder": "Search logs, routes, requests",
+      "signals": {
+        "active_sources": "Active Sources",
+        "cron_failure_rate": "Cron Failure Rate",
+        "server_errors": "Server Errors",
+        "slow_requests": "Slow Requests"
+      },
+      "top_routes": "Top Routes"
+    },
     "overview": {
       "description": "Use the overview as the operator briefing: current runtime state, cadence, and fast links into the heavier rollout and archive surfaces.",
       "focus_cron_description": "Inspect native Docker cron schedules, queued manual runs, execution history, and captured route logs.",
@@ -1904,13 +1965,25 @@
       "events_title": "Watcher Event Stream"
     },
     "routes": {
+      "analytics": {
+        "description": "Traffic, status, latency, and cron trends for recent runtime windows.",
+        "title": "Analytics"
+      },
       "cron": {
         "description": "Native Docker cron runner, schedules, manual runs, and execution logs.",
-        "title": "Cron Jobs"
+        "title": "Cron"
+      },
+      "deployments": {
+        "description": "Deployment stamps, traffic, failures, and current runtime lanes.",
+        "title": "Deployments"
       },
       "logs": {
-        "description": "Retained watcher rows for debugging rollouts and recovery.",
-        "title": "Watcher Logs"
+        "description": "Request, cron, and server logs captured by the internal drain.",
+        "title": "Logs"
+      },
+      "observability": {
+        "description": "Operational signals for errors, slow routes, cron health, and active sources.",
+        "title": "Observability"
       },
       "overview": {
         "description": "Current runtime state, cadence, and jump points into deeper views.",
@@ -5959,11 +6032,14 @@
     "integrations": "Integrations",
     "mobile_versions": "Mobile Versions",
     "monitoring": "Monitoring",
-    "monitoring_cron": "Monitoring Cron Jobs",
-    "monitoring_overview": "Monitoring Overview",
-    "monitoring_requests": "Monitoring Requests",
-    "monitoring_rollouts": "Monitoring Rollouts",
-    "monitoring_watcher_logs": "Monitoring Watcher Logs",
+    "monitoring_analytics": "Analytics",
+    "monitoring_cron": "Cron",
+    "monitoring_logs": "Logs",
+    "monitoring_observability": "Observability",
+    "monitoring_overview": "Overview",
+    "monitoring_requests": "Requests",
+    "monitoring_rollouts": "Deployments",
+    "monitoring_watcher_logs": "Watcher Logs",
     "operations": "Operations",
     "otp_limits": "OTP Limits",
     "overview": "Overview",

@@ -1,0 +1,62 @@
+---
+title: Internal Log Drain and Observability
+description: Operate the Postgres-backed log drain that powers web runtime logs, requests, deployments, analytics, cron, and observability views.
+---
+
+## Overview
+
+`apps/web` captures server-side API, cron, and infrastructure logs through the internal log drain. The drain preserves normal stdout/stderr output, stores structured events in a dedicated Postgres container, and exposes them in Infrastructure → Monitoring.
+
+The monitoring navigation uses compact labels:
+
+- Overview
+- Deployments
+- Logs
+- Analytics
+- Observability
+- Cron
+- Requests
+
+## Runtime
+
+Docker web runs a dedicated `log-drain-postgres` service. It is separate from Supabase and is owned by the Docker web runtime.
+
+Default connection inside Docker:
+
+```txt
+postgres://platform_log_drain:platform_log_drain@log-drain-postgres:5432/platform_log_drain
+```
+
+Relevant environment variables:
+
+- `PLATFORM_LOG_DRAIN_DATABASE_URL`: Postgres connection string.
+- `PLATFORM_LOG_DRAIN_ENABLED`: set to `false` to disable persistence while preserving stdout/stderr.
+- `PLATFORM_LOG_DRAIN_RAW_RETENTION_DAYS`: raw log retention, default `30`.
+- `PLATFORM_LOG_DRAIN_SUMMARY_RETENTION_DAYS`: request, cron, deployment, and usage retention, default `90`.
+
+## Logging Rules
+
+Server-side code in `apps/web` API, cron, and infrastructure paths must not add raw `console.*` calls. Use:
+
+```ts
+import { serverLogger } from '@/lib/infrastructure/log-drain';
+
+serverLogger.info('Processed job', { jobId });
+serverLogger.error('Job failed', error);
+```
+
+For route or cron handlers, wrap execution with `withRequestLogDrain(...)` or `withCronLogDrain(...)` when the handler should attach logs to a request or cron run id.
+
+The drain is fail-open: if Postgres is unavailable, requests and cron jobs continue normally and logs still go to stdout/stderr.
+
+## Troubleshooting
+
+If the UI is empty:
+
+1. Confirm `log-drain-postgres` is healthy with Docker Compose.
+2. Confirm `PLATFORM_LOG_DRAIN_DATABASE_URL` is present in the web container.
+3. Check that the route or cron handler is using `serverLogger` or a log-drain wrapper.
+4. Use Infrastructure → Monitoring → Logs to search by message, route, request id, level, or source.
+
+If logs are missing only for cron jobs, verify the cron route is wrapped with `withCronLogDrain(...)` and the cron runner is calling the expected web origin.
+

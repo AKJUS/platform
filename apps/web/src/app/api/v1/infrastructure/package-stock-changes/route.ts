@@ -1,5 +1,6 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
 import { NextResponse } from 'next/server';
+import { serverLogger } from '@/lib/infrastructure/log-drain';
 
 export async function GET(req: Request) {
   const supabase = await createClient();
@@ -26,7 +27,7 @@ export async function GET(req: Request) {
     );
 
   if (error) {
-    console.error('Error fetching product_stock_changes:', error);
+    serverLogger.error('Error fetching product_stock_changes:', error);
     return NextResponse.json(
       { message: 'Error fetching product_stock_changes' },
       { status: 500 }

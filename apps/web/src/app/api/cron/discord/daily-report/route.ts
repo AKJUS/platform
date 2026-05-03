@@ -1,6 +1,18 @@
 import { type NextRequest, NextResponse } from 'next/server';
+import { withCronLogDrain } from '@/lib/infrastructure/log-drain';
 
 export async function GET(req: NextRequest) {
+  return withCronLogDrain(
+    {
+      jobId: 'discord-daily-report',
+      path: '/api/cron/discord/daily-report',
+      request: req,
+    },
+    () => handleGET(req)
+  );
+}
+
+async function handleGET(req: NextRequest) {
   const cronSecret =
     process.env.CRON_SECRET ?? process.env.VERCEL_CRON_SECRET ?? '';
 

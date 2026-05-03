@@ -1,5 +1,6 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
 import { NextResponse } from 'next/server';
+import { serverLogger } from '@/lib/infrastructure/log-drain';
 
 export async function GET(_: Request) {
   const supabase = await createClient();
@@ -7,7 +8,7 @@ export async function GET(_: Request) {
   const { data, error } = await supabase.from('timezones').select('*');
 
   if (error) {
-    console.log(error);
+    serverLogger.info(error);
     return NextResponse.json(
       { message: 'Error fetching timezones' },
       { status: 500 }
@@ -25,7 +26,7 @@ export async function POST(req: Request) {
   const { error } = await supabase.from('timezones').insert(data);
 
   if (error) {
-    console.log(error);
+    serverLogger.info(error);
     return NextResponse.json(
       { message: 'Error creating timezone' },
       { status: 500 }

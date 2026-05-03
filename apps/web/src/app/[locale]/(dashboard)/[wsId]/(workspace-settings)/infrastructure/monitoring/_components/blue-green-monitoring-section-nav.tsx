@@ -2,8 +2,10 @@
 
 import {
   Activity,
+  BarChart3,
+  Box,
   CalendarClock,
-  ChartColumnStacked,
+  DatabaseZap,
   Logs,
   Radio,
 } from '@tuturuuu/icons';
@@ -28,10 +30,28 @@ export function BlueGreenMonitoringSectionNav({
       title: t('routes.overview.title'),
     },
     {
-      description: t('routes.rollouts.description'),
-      href: `${baseHref}/rollouts`,
-      icon: ChartColumnStacked,
-      title: t('routes.rollouts.title'),
+      description: t('routes.deployments.description'),
+      href: `${baseHref}/deployments`,
+      icon: Box,
+      title: t('routes.deployments.title'),
+    },
+    {
+      description: t('routes.logs.description'),
+      href: `${baseHref}/logs`,
+      icon: Logs,
+      title: t('routes.logs.title'),
+    },
+    {
+      description: t('routes.analytics.description'),
+      href: `${baseHref}/analytics`,
+      icon: BarChart3,
+      title: t('routes.analytics.title'),
+    },
+    {
+      description: t('routes.observability.description'),
+      href: `${baseHref}/observability`,
+      icon: DatabaseZap,
+      title: t('routes.observability.title'),
     },
     {
       description: t('routes.cron.description'),
@@ -45,16 +65,10 @@ export function BlueGreenMonitoringSectionNav({
       icon: Radio,
       title: t('routes.requests.title'),
     },
-    {
-      description: t('routes.logs.description'),
-      href: `${baseHref}/watcher-logs`,
-      icon: Logs,
-      title: t('routes.logs.title'),
-    },
   ];
 
   return (
-    <div className="grid grid-flow-dense gap-2 md:grid-cols-2 xl:grid-cols-5">
+    <div className="grid grid-flow-dense gap-2 md:grid-cols-2 xl:grid-cols-7">
       {items.map((item) => {
         const Icon = item.icon;
         const isActive =

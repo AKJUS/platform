@@ -1,5 +1,5 @@
-import { CronMonitoringClient } from '../_components/cron-monitoring-client';
+import { ObservabilityDashboardClient } from '../_components/observability-dashboard-client';
 
 export default function InfrastructureCronMonitoringPage() {
-  return <CronMonitoringClient />;
+  return <ObservabilityDashboardClient mode="cron" />;
 }

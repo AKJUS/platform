@@ -5,6 +5,7 @@ import {
   clearBlueGreenDeploymentPin,
   writeBlueGreenDeploymentPin,
 } from '@/lib/infrastructure/blue-green-monitoring-controls';
+import { serverLogger } from '@/lib/infrastructure/log-drain';
 import { authorizeInfrastructureViewer } from '../authorization';
 
 function normalizeCommitHash(value: unknown) {
@@ -92,7 +93,7 @@ export async function POST(request: Request) {
       pin,
     });
   } catch (error) {
-    console.error('Failed to pin blue-green deployment:', error);
+    serverLogger.error('Failed to pin blue-green deployment:', error);
     return NextResponse.json(
       { message: 'Failed to pin blue-green deployment' },
       { status: 500 }
@@ -113,7 +114,7 @@ export async function DELETE(request: Request) {
       message: 'Cleared the pinned deployment.',
     });
   } catch (error) {
-    console.error('Failed to clear blue-green deployment pin:', error);
+    serverLogger.error('Failed to clear blue-green deployment pin:', error);
     return NextResponse.json(
       { message: 'Failed to clear blue-green deployment pin' },
       { status: 500 }

@@ -6,6 +6,7 @@ import {
 } from '@tuturuuu/utils/constants';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import { serverLogger } from '@/lib/infrastructure/log-drain';
 import {
   changelogPermissionDeniedResponse,
   checkChangelogPermission,
@@ -59,7 +60,7 @@ export async function GET(_: Request, { params }: Params) {
   const { data, error } = await query.single();
 
   if (error) {
-    console.error('Error fetching changelog entry:', error);
+    serverLogger.error('Error fetching changelog entry:', error);
     return NextResponse.json(
       { message: 'Changelog entry not found' },
       { status: error.code === 'PGRST116' ? 404 : 500 }
@@ -112,7 +113,7 @@ export async function PUT(req: Request, { params }: Params) {
       .single();
 
     if (error) {
-      console.error('Error updating changelog entry:', error);
+      serverLogger.error('Error updating changelog entry:', error);
 
       if (error.code === '23505') {
         return NextResponse.json(
@@ -136,7 +137,7 @@ export async function PUT(req: Request, { params }: Params) {
       );
     }
 
-    console.error('Unexpected error:', error);
+    serverLogger.error('Unexpected error:', error);
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }
@@ -172,7 +173,7 @@ export async function DELETE(_: Request, { params }: Params) {
     .eq('id', id);
 
   if (error) {
-    console.error('Error deleting changelog entry:', error);
+    serverLogger.error('Error deleting changelog entry:', error);
     return NextResponse.json(
       { message: 'Error deleting changelog entry' },
       { status: 500 }

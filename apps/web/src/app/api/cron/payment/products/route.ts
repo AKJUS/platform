@@ -3,6 +3,7 @@ import { createAdminClient } from '@tuturuuu/supabase/next/server';
 import { DEV_MODE } from '@tuturuuu/utils/constants';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
+import { serverLogger, withCronLogDrain } from '@/lib/infrastructure/log-drain';
 import { syncProductToDatabase } from '@/utils/polar-product-helper';
 
 /**
@@ -10,6 +11,17 @@ import { syncProductToDatabase } from '@/utils/polar-product-helper';
  * Runs periodically to ensure all products are up-to-date
  */
 export async function GET(req: NextRequest) {
+  return withCronLogDrain(
+    {
+      jobId: 'payment-products',
+      path: '/api/cron/payment/products',
+      request: req,
+    },
+    () => handleGET(req)
+  );
+}
+
+async function handleGET(req: NextRequest) {
   try {
     // Verify cron secret
     const authHeader = req.headers.get('authorization');
@@ -80,7 +92,7 @@ export async function GET(req: NextRequest) {
       errors: errors.slice(0, 20), // Limit error messages
     });
   } catch (error) {
-    console.error('Cron job error:', error);
+    serverLogger.error('Cron job error:', error);
     return NextResponse.json(
       {
         error: 'Internal server error',

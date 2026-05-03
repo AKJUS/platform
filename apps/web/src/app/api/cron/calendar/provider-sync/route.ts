@@ -1,5 +1,6 @@
 import { createAdminClient } from '@tuturuuu/supabase/next/server';
 import { type NextRequest, NextResponse } from 'next/server';
+import { withCronLogDrain } from '@/lib/infrastructure/log-drain';
 
 function resolveCalendarSyncOrigin() {
   if (process.env.INTERNAL_WEB_API_ORIGIN) {
@@ -14,6 +15,17 @@ function resolveCalendarSyncOrigin() {
 }
 
 export async function GET(request: NextRequest) {
+  return withCronLogDrain(
+    {
+      jobId: 'calendar-provider-sync',
+      path: '/api/cron/calendar/provider-sync',
+      request: request,
+    },
+    () => handleGET(request)
+  );
+}
+
+async function handleGET(request: NextRequest) {
   const cronSecret =
     process.env.CRON_SECRET ?? process.env.VERCEL_CRON_SECRET ?? '';
 

@@ -9,6 +9,7 @@ import { ROOT_WORKSPACE_ID } from '@tuturuuu/utils/constants';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { preloadBlockedEmailCache } from '@/lib/email-blacklist';
+import { serverLogger, withCronLogDrain } from '@/lib/infrastructure/log-drain';
 import {
   chunkValues,
   fetchAllChunkedPaginatedRows,
@@ -389,12 +390,23 @@ async function cleanupInvalidPushTokens(sbAdmin: any, tokens: string[]) {
       .in('token', tokenChunk);
 
     if (error) {
-      console.error('Failed to delete invalid push tokens:', error);
+      serverLogger.error('Failed to delete invalid push tokens:', error);
     }
   }
 }
 
 export async function GET(req: NextRequest) {
+  return withCronLogDrain(
+    {
+      jobId: 'process-notification-batches',
+      path: '/api/cron/process-notification-batches',
+      request: req,
+    },
+    () => handleGET(req)
+  );
+}
+
+async function handleGET(req: NextRequest) {
   try {
     const authHeader = req.headers.get('authorization');
     const cronSecret = process.env.CRON_SECRET;
@@ -465,7 +477,7 @@ export async function GET(req: NextRequest) {
 
     for (const batch of filteredBatches) {
       if (Date.now() > processingDeadline) {
-        console.warn(
+        serverLogger.warn(
           '[NotificationBatchCron] Processing deadline reached before all batches were handled'
         );
         break;
@@ -803,7 +815,7 @@ export async function GET(req: NextRequest) {
 
         processedCount++;
       } catch (error) {
-        console.error(`Error processing batch ${batch.id}:`, error);
+        serverLogger.error(`Error processing batch ${batch.id}:`, error);
         const errorMessage =
           error instanceof Error ? error.message : 'Unknown error';
 
@@ -826,7 +838,7 @@ export async function GET(req: NextRequest) {
       results,
     });
   } catch (error) {
-    console.error('Error in notification batch processor:', error);
+    serverLogger.error('Error in notification batch processor:', error);
     return NextResponse.json(
       {
         error: 'Internal server error',

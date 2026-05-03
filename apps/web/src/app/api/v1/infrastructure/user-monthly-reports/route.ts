@@ -1,5 +1,6 @@
 import { createAdminClient } from '@tuturuuu/supabase/next/server';
 import { NextResponse } from 'next/server';
+import { serverLogger } from '@/lib/infrastructure/log-drain';
 
 export async function GET(req: Request) {
   const sbAdmin = await createAdminClient();
@@ -26,7 +27,7 @@ export async function GET(req: Request) {
     );
 
   if (error) {
-    console.error('Error fetching external_user_monthly_reports:', error);
+    serverLogger.error('Error fetching external_user_monthly_reports:', error);
     return NextResponse.json(
       { message: 'Error fetching external_user_monthly_reports' },
       { status: 500 }

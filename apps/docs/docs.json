@@ -117,6 +117,7 @@
                   "build/devops/overview",
                   "build/devops/environments-release-flow",
                   "build/devops/web-docker-deployment",
+                  "build/devops/log-drain-observability",
                   "build/devops/github-actions-runbook",
                   "build/devops/secrets-and-configuration",
                   "build/devops/sepay-testing-guide"

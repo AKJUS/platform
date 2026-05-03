@@ -2,6 +2,7 @@ import { createAdminClient } from '@tuturuuu/supabase/next/server';
 import { DEV_MODE, ROOT_WORKSPACE_ID } from '@tuturuuu/utils/constants';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
+import { serverLogger, withCronLogDrain } from '@/lib/infrastructure/log-drain';
 
 /**
  * Vercel Cron Job: Process Task Deadline Reminders
@@ -89,6 +90,17 @@ export function shouldSkipDeadlineReminderTask(
 }
 
 export async function GET(req: NextRequest) {
+  return withCronLogDrain(
+    {
+      jobId: 'tasks-deadline-reminders',
+      path: '/api/cron/tasks/deadline-reminders',
+      request: req,
+    },
+    () => handleGET(req)
+  );
+}
+
+async function handleGET(req: NextRequest) {
   try {
     // Verify authorization
     const authHeader = req.headers.get('authorization');
@@ -119,7 +131,7 @@ export async function GET(req: NextRequest) {
       };
 
     if (settingsError) {
-      console.error('Error fetching reminder settings:', settingsError);
+      serverLogger.error('Error fetching reminder settings:', settingsError);
       return NextResponse.json(
         { error: 'Error fetching settings' },
         { status: 500 }
@@ -195,7 +207,7 @@ export async function GET(req: NextRequest) {
     };
 
     if (tasksError) {
-      console.error('Error fetching tasks:', tasksError);
+      serverLogger.error('Error fetching tasks:', tasksError);
       return NextResponse.json(
         { error: 'Error fetching tasks' },
         { status: 500 }
@@ -303,7 +315,7 @@ export async function GET(req: NextRequest) {
               });
 
             if (notifError) {
-              console.error(
+              serverLogger.error(
                 `Error creating notification for task ${task.id}:`,
                 notifError
               );
@@ -321,7 +333,7 @@ export async function GET(req: NextRequest) {
               });
 
             if (trackError) {
-              console.error(
+              serverLogger.error(
                 `Error tracking reminder for task ${task.id}:`,
                 trackError
               );
@@ -331,7 +343,7 @@ export async function GET(req: NextRequest) {
             taskNotifications++;
 
             if (DEV_MODE) {
-              console.log(
+              serverLogger.info(
                 `[DEBUG] Sent ${interval} reminder for task "${task.name}" to user ${watcher.user_id}`
               );
             }
@@ -357,7 +369,7 @@ export async function GET(req: NextRequest) {
       results,
     });
   } catch (error) {
-    console.error('Error in deadline reminders cron:', error);
+    serverLogger.error('Error in deadline reminders cron:', error);
     return NextResponse.json(
       {
         error: 'Internal server error',

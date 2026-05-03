@@ -2,6 +2,7 @@ import { createAdminClient } from '@tuturuuu/supabase/next/server';
 import type { TypedSupabaseClient } from '@tuturuuu/supabase/types';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
+import { serverLogger, withCronLogDrain } from '@/lib/infrastructure/log-drain';
 import {
   autoSkipOldApprovedPostChecks,
   autoSkipOldPostEmails,
@@ -147,15 +148,26 @@ function log(
   const timestamp = new Date().toISOString();
   const logLine = `${timestamp} ${LOG_PREFIX} ${message}`;
   if (level === 'error') {
-    console.error(logLine, data ?? {});
+    serverLogger.error(logLine, data ?? {});
   } else if (level === 'warn') {
-    console.warn(logLine, data ?? {});
+    serverLogger.warn(logLine, data ?? {});
   } else {
-    console.log(logLine, data ?? {});
+    serverLogger.info(logLine, data ?? {});
   }
 }
 
 export async function GET(req: NextRequest) {
+  return withCronLogDrain(
+    {
+      jobId: 'process-post-email-queue',
+      path: '/api/cron/process-post-email-queue',
+      request: req,
+    },
+    () => handleGET(req)
+  );
+}
+
+async function handleGET(req: NextRequest) {
   const requestId = crypto.randomUUID().slice(0, 8);
   const startTime = Date.now();
 

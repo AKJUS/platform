@@ -535,6 +535,129 @@ export interface UpdateCronMonitoringControlResponse {
   message: string;
 }
 
+export type ObservabilityLogLevel = 'debug' | 'error' | 'info' | 'warn';
+export type ObservabilitySource = 'api' | 'cron' | 'server';
+
+export interface ObservabilityDeployment {
+  color: string | null;
+  commitHash: string | null;
+  commitSubject: string | null;
+  deploymentStamp: string | null;
+  durationMs: number | null;
+  errorCount: number;
+  lastRequestAt: number | null;
+  requestCount: number;
+  startedAt: number | null;
+  status: string;
+}
+
+export interface ObservabilityLogEvent {
+  createdAt: number;
+  deploymentColor: string | null;
+  deploymentStamp: string | null;
+  durationMs: number | null;
+  errorName: string | null;
+  errorStack: string | null;
+  id: string;
+  level: ObservabilityLogLevel;
+  message: string;
+  metadata: Record<string, unknown>;
+  requestId: string | null;
+  route: string | null;
+  source: ObservabilitySource;
+  status: number | null;
+}
+
+export interface ObservabilityRequest {
+  cronJobId: string | null;
+  deploymentColor: string | null;
+  deploymentStamp: string | null;
+  durationMs: number | null;
+  endedAt: number;
+  errorMessage: string | null;
+  id: string;
+  logCount: number;
+  method: string | null;
+  path: string | null;
+  source: ObservabilitySource;
+  startedAt: number;
+  status: number | null;
+}
+
+export interface ObservabilityCronRun {
+  durationMs: number | null;
+  endedAt: number;
+  errorMessage: string | null;
+  httpStatus: number | null;
+  id: string;
+  jobId: string;
+  path: string;
+  requestId: string | null;
+  startedAt: number;
+  status: string;
+}
+
+export interface ObservabilityOverview {
+  cronFailureRate: number;
+  errorRate: number;
+  lastEventAt: number | null;
+  p95DurationMs: number | null;
+  recentErrors: ObservabilityLogEvent[];
+  requestCount: number;
+  serverErrorCount: number;
+  slowRequestCount: number;
+  sourceCounts: Record<string, number>;
+  topRoutes: Array<{
+    averageDurationMs: number | null;
+    errorCount: number;
+    path: string;
+    requestCount: number;
+  }>;
+}
+
+export interface ObservabilityAnalyticsBucket {
+  bucketStart: number;
+  cronRuns: number;
+  errors: number;
+  requests: number;
+  serverErrors: number;
+}
+
+export interface ObservabilityAnalytics {
+  buckets: ObservabilityAnalyticsBucket[];
+  statusFamilies: {
+    clientError: number;
+    redirect: number;
+    serverError: number;
+    success: number;
+    unknown: number;
+  };
+  topCronJobs: Array<{
+    failureCount: number;
+    jobId: string;
+    runCount: number;
+  }>;
+  topRoutes: ObservabilityOverview['topRoutes'];
+}
+
+export interface ObservabilityPaginatedResult<T> {
+  hasNextPage: boolean;
+  items: T[];
+  page: number;
+  pageSize: number;
+  total: number;
+}
+
+export interface GetObservabilityParams {
+  level?: ObservabilityLogLevel | 'all';
+  page?: number;
+  pageSize?: number;
+  q?: string;
+  source?: ObservabilitySource | 'all';
+  status?: string;
+  timeframeHours?: number;
+}
+
 export interface GetBlueGreenMonitoringRequestArchiveParams
   extends GetBlueGreenMonitoringArchiveParams {
   q?: string;
@@ -751,6 +874,113 @@ export async function updateCronMonitoringControl(
       },
       method: 'PUT',
     }
+  );
+}
+
+function appendObservabilitySearchParams(
+  searchParams: URLSearchParams,
+  params?: GetObservabilityParams
+) {
+  if (params?.page != null) {
+    searchParams.set('page', String(params.page));
+  }
+
+  if (params?.pageSize != null) {
+    searchParams.set('pageSize', String(params.pageSize));
+  }
+
+  if (params?.timeframeHours != null) {
+    searchParams.set('timeframeHours', String(params.timeframeHours));
+  }
+
+  if (params?.q) {
+    searchParams.set('q', params.q);
+  }
+
+  if (params?.level && params.level !== 'all') {
+    searchParams.set('level', params.level);
+  }
+
+  if (params?.source && params.source !== 'all') {
+    searchParams.set('source', params.source);
+  }
+
+  if (params?.status) {
+    searchParams.set('status', params.status);
+  }
+}
+
+function getObservabilityPath(path: string, params?: GetObservabilityParams) {
+  const searchParams = new URLSearchParams();
+  appendObservabilitySearchParams(searchParams, params);
+  return `/api/v1/infrastructure/observability/${path}${
+    searchParams.size > 0 ? `?${searchParams.toString()}` : ''
+  }`;
+}
+
+export async function getObservabilityOverview(
+  params?: Pick<GetObservabilityParams, 'timeframeHours'>,
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  return client.json<ObservabilityOverview>(
+    getObservabilityPath('overview', params),
+    { cache: 'no-store' }
+  );
+}
+
+export async function getObservabilityDeployments(
+  params?: GetObservabilityParams,
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  return client.json<ObservabilityPaginatedResult<ObservabilityDeployment>>(
+    getObservabilityPath('deployments', params),
+    { cache: 'no-store' }
+  );
+}
+
+export async function getObservabilityLogs(
+  params?: GetObservabilityParams,
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  return client.json<ObservabilityPaginatedResult<ObservabilityLogEvent>>(
+    getObservabilityPath('logs', params),
+    { cache: 'no-store' }
+  );
+}
+
+export async function getObservabilityRequests(
+  params?: GetObservabilityParams,
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  return client.json<ObservabilityPaginatedResult<ObservabilityRequest>>(
+    getObservabilityPath('requests', params),
+    { cache: 'no-store' }
+  );
+}
+
+export async function getObservabilityAnalytics(
+  params?: Pick<GetObservabilityParams, 'timeframeHours'>,
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  return client.json<ObservabilityAnalytics>(
+    getObservabilityPath('analytics', params),
+    { cache: 'no-store' }
+  );
+}
+
+export async function getObservabilityCronRuns(
+  params?: GetObservabilityParams,
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  return client.json<ObservabilityPaginatedResult<ObservabilityCronRun>>(
+    getObservabilityPath('cron-runs', params),
+    { cache: 'no-store' }
   );
 }
 

@@ -1,6 +1,7 @@
 import { createClient } from '@tuturuuu/supabase/next/server';
 import { NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
+import { serverLogger } from '@/lib/infrastructure/log-drain';
 import {
   changelogPermissionDeniedResponse,
   checkChangelogPermission,
@@ -103,7 +104,7 @@ export async function POST(request: Request) {
       });
 
     if (error) {
-      console.error('Error uploading file:', error);
+      serverLogger.error('Error uploading file:', error);
       return NextResponse.json(
         { message: 'Failed to upload file' },
         { status: 500 }
@@ -121,7 +122,7 @@ export async function POST(request: Request) {
       path: data.path,
     });
   } catch (error) {
-    console.error('Upload error:', error);
+    serverLogger.error('Upload error:', error);
     return NextResponse.json(
       { message: 'An unexpected error occurred' },
       { status: 500 }

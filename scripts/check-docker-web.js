@@ -396,11 +396,31 @@ function validateDockerProdCompose(composeContent) {
     '    - PLATFORM_BLUE_GREEN_CONTROL_DIR=/app/runtime/docker-web-control',
     '    - PLATFORM_BLUE_GREEN_MONITORING_DIR=/app/runtime/docker-web',
     '    - PLATFORM_DEPLOYMENT_STAMP',
+    '    - PLATFORM_LOG_DRAIN_DATABASE_URL=postgres://platform_log_drain:platform_log_drain@log-drain-postgres:5432/platform_log_drain',
+    '    - PLATFORM_LOG_DRAIN_ENABLED=' +
+      '${' +
+      'PLATFORM_LOG_DRAIN_ENABLED:-true' +
+      '}',
+    '    - PLATFORM_LOG_DRAIN_RAW_RETENTION_DAYS=' +
+      '${' +
+      'PLATFORM_LOG_DRAIN_RAW_RETENTION_DAYS:-30' +
+      '}',
+    '    - PLATFORM_LOG_DRAIN_SUMMARY_RETENTION_DAYS=' +
+      '${' +
+      'PLATFORM_LOG_DRAIN_SUMMARY_RETENTION_DAYS:-90' +
+      '}',
     '    - SUPABASE_SERVER_URL',
     '    - UPSTASH_REDIS_REST_TOKEN',
     '    - UPSTASH_REDIS_REST_URL',
     '    - ./tmp/docker-web/watch/control:/app/runtime/docker-web-control',
     '    - ./tmp/docker-web:/app/runtime/docker-web:ro',
+    '  log-drain-postgres:',
+    '    image: postgres:16-alpine',
+    '      POSTGRES_DB: platform_log_drain',
+    '      POSTGRES_USER: platform_log_drain',
+    '      - platform-log-drain-postgres:/var/lib/postgresql/data',
+    '      - ./apps/web/docker/log-drain-init.sql:/docker-entrypoint-initdb.d/001-log-drain.sql:ro',
+    '  platform-log-drain-postgres:',
     '      - DRIVE_UNZIP_PROXY_SHARED_TOKEN',
     '      SRH_TOKEN: ' +
       '${' +
