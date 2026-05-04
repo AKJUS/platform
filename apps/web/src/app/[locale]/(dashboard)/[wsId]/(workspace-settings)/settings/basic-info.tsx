@@ -2,6 +2,7 @@
 
 import type { Workspace } from '@tuturuuu/types';
 import { useTranslations } from 'next-intl';
+import HandleInput from './handle-input';
 import WorkspaceIDCopy from './id-copy';
 import NameInput from './name-input';
 
@@ -27,11 +28,19 @@ export default function BasicInfo({ workspace, allowEdit, isPersonal }: Props) {
 
       <div className="grid gap-6">
         {isPersonal || (
-          <NameInput
-            wsId={workspace.id}
-            defaultValue={workspace.name}
-            disabled={!workspace || !allowEdit}
-          />
+          <>
+            <NameInput
+              wsId={workspace.id}
+              defaultValue={workspace.name}
+              disabled={!workspace || allowEdit === false}
+            />
+            <HandleInput
+              wsId={workspace.id}
+              defaultName={workspace.name}
+              defaultValue={workspace.handle}
+              disabled={!workspace || allowEdit === false}
+            />
+          </>
         )}
         <WorkspaceIDCopy wsId={workspace.id} />
       </div>

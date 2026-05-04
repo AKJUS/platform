@@ -1,7 +1,10 @@
 import { createPolarClient } from '@tuturuuu/payment/polar/server';
 import { resolveAuthenticatedSessionUser } from '@tuturuuu/supabase/next/auth-session-user';
 import { createClient } from '@tuturuuu/supabase/next/server';
-import { MAX_WORKSPACE_NAME_LENGTH } from '@tuturuuu/utils/constants';
+import {
+  MAX_ID_LENGTH,
+  MAX_WORKSPACE_NAME_LENGTH,
+} from '@tuturuuu/utils/constants';
 import {
   getPermissions,
   normalizeWorkspaceId,
@@ -10,6 +13,13 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 const UpdateWorkspaceSchema = z.object({
+  handle: z
+    .string()
+    .trim()
+    .min(1)
+    .max(MAX_ID_LENGTH)
+    .regex(/^[a-z0-9](?:[a-z0-9_-]{0,62}[a-z0-9])?$/)
+    .optional(),
   name: z.string().min(1).max(MAX_WORKSPACE_NAME_LENGTH),
 });
 
@@ -101,15 +111,36 @@ export async function PUT(req: Request, { params }: Params) {
     }
 
     const body = await req.json();
-    const { name } = UpdateWorkspaceSchema.parse(body);
+    const parsedBody = UpdateWorkspaceSchema.parse(body);
+    const nextHandle = parsedBody.handle?.toLowerCase();
+
+    if (
+      nextHandle &&
+      ['internal', 'onboarding', 'home', 'login', 'personal'].includes(
+        nextHandle
+      )
+    ) {
+      return NextResponse.json(
+        { message: 'Workspace handle is reserved' },
+        { status: 400 }
+      );
+    }
 
     const { data, error } = await supabase
       .from('workspaces')
       .update({
-        name,
+        handle: nextHandle,
+        name: parsedBody.name,
       })
       .select('id')
       .eq('id', wsId);
+
+    if (error?.code === '23505') {
+      return NextResponse.json(
+        { message: 'Workspace handle already exists' },
+        { status: 409 }
+      );
+    }
 
     if (error)
       return NextResponse.json(

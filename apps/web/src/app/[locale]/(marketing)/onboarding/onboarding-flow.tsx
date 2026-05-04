@@ -227,6 +227,12 @@ export default function OnboardingFlow({
     }
   };
 
+  const handleJoinWorkspaceByHandle = (handle: string) => {
+    const normalizedHandle = handle.trim().toLowerCase();
+    if (!normalizedHandle) return;
+    router.push(`/${normalizedHandle}`);
+  };
+
   // Handle use case selection
   const handleUseCaseSelect = async (selectedUseCase: UseCase) => {
     setLoading(true);
@@ -516,6 +522,7 @@ export default function OnboardingFlow({
           <WelcomeScreen
             key="welcome"
             onGetStarted={handleWelcomeComplete}
+            onJoinByHandle={handleJoinWorkspaceByHandle}
             loading={loading}
           />
         );
@@ -595,6 +602,7 @@ export default function OnboardingFlow({
           <WelcomeScreen
             key="welcome-default"
             onGetStarted={handleWelcomeComplete}
+            onJoinByHandle={handleJoinWorkspaceByHandle}
             loading={loading}
           />
         );

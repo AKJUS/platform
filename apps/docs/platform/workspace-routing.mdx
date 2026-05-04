@@ -13,6 +13,7 @@ The short version is:
 
 - `apps/web/src/proxy.ts` is the current edge/router coordinator for workspace-aware URL handling.
 - `personal` and `internal` are canonical browser slugs; database queries should still use UUID workspace IDs.
+- Workspace `handle` (slug) can be used as a join-discovery input (for example onboarding and workspace selector), but workspace home URLs remain canonical as `personal`, `internal`, or UUID-based routes for now.
 - `WorkspaceWrapper` is the server-page entry point for workspace resolution.
 - `normalizeWorkspaceId()` is the route-handler entry point for workspace-scoped params.
 - `getPermissions()` is the fine-grained authorization helper layered on top of routing and membership.

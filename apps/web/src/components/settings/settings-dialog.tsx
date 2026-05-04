@@ -776,13 +776,17 @@ export function SettingsDialog({
               <>
                 <BasicInfo
                   workspace={workspace}
-                  allowEdit={!workspace.personal && canManageWorkspaceSettings}
+                  allowEdit={
+                    workspace.personal || canManageWorkspaceSettings
+                  }
                   isPersonal={workspace.personal}
                 />
                 <WorkspaceAvatarSettings
                   user={user}
                   workspace={workspace}
-                  allowEdit={!workspace.personal && canManageWorkspaceSettings}
+                  allowEdit={
+                    workspace.personal || canManageWorkspaceSettings
+                  }
                 />
               </>
             ) : (

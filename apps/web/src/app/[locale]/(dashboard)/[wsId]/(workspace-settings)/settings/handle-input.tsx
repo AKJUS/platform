@@ -5,6 +5,7 @@ import { Button } from '@tuturuuu/ui/button';
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -21,28 +22,34 @@ import * as z from 'zod';
 
 interface Props {
   wsId: string;
+  defaultName?: string | null;
   defaultValue?: string | null;
   disabled?: boolean;
 }
 
 const FormSchema = z.object({
-  name: z.string().min(1).max(50).optional(),
+  handle: z
+    .string()
+    .trim()
+    .min(1)
+    .max(64)
+    .regex(/^[a-z0-9](?:[a-z0-9_-]{0,62}[a-z0-9])?$/),
 });
 
-export default function NameInput({
+export default function HandleInput({
   wsId,
+  defaultName = '',
   defaultValue = '',
   disabled,
 }: Props) {
   const t = useTranslations('ws-settings');
   const router = useRouter();
-
   const [saving, setSaving] = useState(false);
 
   const form = useForm({
     resolver: zodResolver(FormSchema),
     defaultValues: {
-      name: defaultValue || '',
+      handle: defaultValue || '',
     },
   });
 
@@ -50,7 +57,7 @@ export default function NameInput({
   useEffect(() => {
     if (Object.is(prevDefault.current, defaultValue)) return;
     prevDefault.current = defaultValue;
-    form.reset({ name: defaultValue ?? '' });
+    form.reset({ handle: defaultValue ?? '' });
   }, [defaultValue]);
 
   const { isDirty } = form.formState;
@@ -60,21 +67,29 @@ export default function NameInput({
 
     const res = await fetch(`/api/workspaces/${wsId}`, {
       method: 'PUT',
-      body: JSON.stringify(data),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        name: defaultName,
+        handle: data.handle,
+      }),
     });
 
     if (res.ok) {
       toast({
-        title: 'Workspace updated',
-        description: 'The name of the workspace has been updated.',
+        title: t('handle_updated'),
+        description: t('handle_updated_description'),
       });
-
       router.refresh();
-      form.reset({ name: data.name });
+      form.reset({ handle: data.handle.toLowerCase() });
     } else {
+      const payload = (await res.json().catch(() => null)) as {
+        message?: string;
+      } | null;
       toast({
-        title: 'An error occurred',
-        description: 'Please try again.',
+        title: t('handle_update_error'),
+        description: payload?.message || t('handle_update_error_description'),
       });
     }
 
@@ -86,16 +101,19 @@ export default function NameInput({
       <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
         <FormField
           control={form.control}
-          name="name"
+          name="handle"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{t('name')}</FormLabel>
+              <FormLabel>{t('handle')}</FormLabel>
               <div className="flex min-w-0 items-center gap-2">
                 <FormControl className="min-w-0 flex-1">
                   <Input
-                    placeholder={t('name_placeholder')}
+                    placeholder={t('handle_placeholder')}
                     disabled={disabled}
                     {...field}
+                    onChange={(event) => {
+                      field.onChange(event.target.value.toLowerCase());
+                    }}
                   />
                 </FormControl>
                 <Button
@@ -111,6 +129,9 @@ export default function NameInput({
                   )}
                 </Button>
               </div>
+              <FormDescription className="text-xs">
+                {t('handle_description')}
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}

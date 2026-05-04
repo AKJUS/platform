@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   CheckIcon,
   ChevronDown,
+  Link,
   Loader2,
   PlusCircle,
   Star,
@@ -62,6 +63,15 @@ import { TUTURUUU_LOGO_URL } from './tuturuuu-logo';
 
 const FormSchema = z.object({
   name: z.string().min(1).max(100),
+});
+
+const JoinWorkspaceByHandleFormSchema = z.object({
+  handle: z
+    .string()
+    .trim()
+    .min(1)
+    .max(64)
+    .regex(/^[a-z0-9](?:[a-z0-9_-]{0,62}[a-z0-9])?$/),
 });
 
 function WorkspaceIcon({
@@ -148,11 +158,19 @@ export function WorkspaceSelect({
       name: '',
     },
   });
+  const joinByHandleForm = useForm({
+    resolver: zodResolver(JoinWorkspaceByHandleFormSchema),
+    defaultValues: {
+      handle: '',
+    },
+  });
 
   const [open, setOpen] = useState(false);
   const [showNewWorkspaceDialog, setShowNewWorkspaceDialog] = useState(false);
+  const [showJoinWorkspaceDialog, setShowJoinWorkspaceDialog] = useState(false);
 
   const [loading, setLoading] = useState(false);
+  const [joiningByHandle, setJoiningByHandle] = useState(false);
 
   const updateDefaultWorkspaceMutation = useMutation({
     mutationFn: (workspaceId: string) =>
@@ -341,11 +359,83 @@ export function WorkspaceSelect({
       : workspaces?.find((ws: { id: string }) => ws.id === resolvedWorkspaceId);
   if (!wsId) return <div />;
 
+  async function onJoinByHandleSubmit(
+    formData: z.infer<typeof JoinWorkspaceByHandleFormSchema>
+  ) {
+    setJoiningByHandle(true);
+    const slug = formData.handle.trim().toLowerCase();
+    setOpen(false);
+    setShowJoinWorkspaceDialog(false);
+    joinByHandleForm.reset({ handle: '' });
+    router.push(`/${slug}`);
+    setJoiningByHandle(false);
+  }
+
   return (
     <>
       {hideLeading || wsId === ROOT_WORKSPACE_ID || (
         <div className="mx-1 h-4 w-px flex-none rotate-30 bg-foreground/20" />
       )}
+      <Dialog
+        open={showJoinWorkspaceDialog}
+        onOpenChange={(open) => {
+          joinByHandleForm.reset({ handle: '' });
+          setShowJoinWorkspaceDialog(open);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('common.join_workspace')}</DialogTitle>
+            <DialogDescription>
+              {t('common.join_workspace_by_slug_description')}
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...joinByHandleForm}>
+            <form
+              onSubmit={joinByHandleForm.handleSubmit(onJoinByHandleSubmit)}
+              className="grid gap-2"
+            >
+              <FormField
+                control={joinByHandleForm.control}
+                name="handle"
+                disabled={joiningByHandle}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('common.workspace_slug')}</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder={t('common.workspace_slug_placeholder')}
+                        {...field}
+                        onChange={(event) => {
+                          field.onChange(event.target.value.toLowerCase());
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowJoinWorkspaceDialog(false)}
+                >
+                  {t('common.cancel')}
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={
+                    joiningByHandle || !joinByHandleForm.formState.isValid
+                  }
+                >
+                  {t('common.continue')}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
       <Dialog
         open={showNewWorkspaceDialog}
         onOpenChange={(open) => {
@@ -546,6 +636,18 @@ export function WorkspaceSelect({
               </CommandList>
               {!disableCreateNewWorkspace && (
                 <>
+                  <CommandSeparator />
+                  <CommandGroup>
+                    <CommandItem
+                      onSelect={() => {
+                        setOpen(false);
+                        setShowJoinWorkspaceDialog(true);
+                      }}
+                    >
+                      <Link className="h-5 w-5" />
+                      {t('common.join_workspace_by_slug')}
+                    </CommandItem>
+                  </CommandGroup>
                   <CommandSeparator />
                   <DialogTrigger asChild>
                     <CommandGroup>

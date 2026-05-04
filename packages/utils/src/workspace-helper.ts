@@ -78,12 +78,16 @@ const logWorkspaceError = (
 
 function isDirectWorkspaceLookupIdentifier(id: string): boolean {
   const normalized = id.trim().toLowerCase();
+  const isPotentialHandle = /^[a-z0-9](?:[a-z0-9_-]{0,62}[a-z0-9])?$/.test(
+    normalized
+  );
 
   return (
     normalized === PERSONAL_WORKSPACE_SLUG.toLowerCase() ||
     normalized === ROOT_WORKSPACE_ID.toLowerCase() ||
     normalized === 'internal' ||
-    validateUUID(normalized)
+    validateUUID(normalized) ||
+    isPotentialHandle
   );
 }
 
@@ -308,7 +312,11 @@ export async function getWorkspace(
       .eq('personal', true)
       .eq('workspace_members.user_id', principal.id);
   } else {
-    queryBuilder.eq('id', resolvedWorkspaceId);
+    if (validateUUID(resolvedWorkspaceId)) {
+      queryBuilder.eq('id', resolvedWorkspaceId);
+    } else {
+      queryBuilder.eq('handle', id.trim().toLowerCase());
+    }
   }
 
   const { data, error } = await queryBuilder.single();
@@ -924,6 +932,19 @@ export async function normalizeWorkspaceId(
     }
 
     return workspace.id;
+  }
+
+  if (!validateUUID(resolvedWorkspaceId)) {
+    const handle = wsId.trim().toLowerCase();
+    const { data: workspaceByHandle } = await sb
+      .from('workspaces')
+      .select('id')
+      .eq('handle', handle)
+      .maybeSingle();
+
+    if (workspaceByHandle?.id) {
+      return workspaceByHandle.id;
+    }
   }
 
   return resolvedWorkspaceId;
