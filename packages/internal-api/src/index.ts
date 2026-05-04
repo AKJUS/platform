@@ -345,11 +345,18 @@ export {
   getCurrentUserProfile,
   getUserCalendarSettings,
   getUserConfig,
+  getUserWorkspaceConfig,
   listWorkspaceAttendanceExportRecords,
+  type NormalizedRootNavigationConfig,
+  normalizeRootNavigationConfig,
+  parseRootNavigationConfig,
+  type RootNavigationConfig,
+  type RootNavigationTarget,
   removeCurrentUserAvatar,
   updateCurrentUserDefaultWorkspace,
   updateCurrentUserProfile,
   updateUserConfig,
+  updateUserWorkspaceConfig,
   uploadCurrentUserAvatar,
 } from './users';
 export {

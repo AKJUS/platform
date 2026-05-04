@@ -604,6 +604,120 @@ describe('web proxy api handling', () => {
     expect(response).toBeInstanceOf(NextResponse);
   });
 
+  it('redirects root to a configured workspace board when board config is valid', async () => {
+    const queryBuilder = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      is: vi.fn().mockReturnThis(),
+      maybeSingle: vi
+        .fn()
+        .mockResolvedValueOnce({
+          data: {
+            value: JSON.stringify({
+              target: 'tasks',
+              submodule: 'boards',
+              boardId: 'board-1',
+            }),
+          },
+        })
+        .mockResolvedValueOnce({ data: { id: 'board-1' } }),
+    };
+
+    const supabaseClient = {
+      auth: {
+        getUser: vi
+          .fn()
+          .mockResolvedValue({ data: { user: { id: 'user-1' } } }),
+      },
+      from: vi.fn().mockReturnValue(queryBuilder),
+    };
+
+    const adminQueryBuilder = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      is: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: { id: 'board-1' } }),
+    };
+
+    mocks.createClient.mockResolvedValue(supabaseClient);
+    mocks.createAdminClient.mockResolvedValue({
+      from: vi.fn().mockReturnValue(adminQueryBuilder),
+    });
+    mocks.getUserDefaultWorkspace.mockResolvedValue({
+      id: 'ws-1',
+      personal: false,
+    });
+
+    const { proxy } = await import('../proxy');
+    const response = await proxy(new NextRequest('http://localhost/'));
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).toBe(
+      'http://localhost/ws-1/tasks/boards/board-1'
+    );
+  });
+
+  it('falls back to tasks boards and self-heals when configured board no longer exists', async () => {
+    const configSelectBuilder = {
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({
+        data: {
+          value: JSON.stringify({
+            target: 'tasks',
+            submodule: 'boards',
+            boardId: 'deleted-board',
+          }),
+        },
+      }),
+    };
+
+    const updateBuilder = {
+      upsert: vi.fn().mockResolvedValue({ error: null }),
+    };
+
+    const supabaseClient = {
+      auth: {
+        getUser: vi
+          .fn()
+          .mockResolvedValue({ data: { user: { id: 'user-1' } } }),
+      },
+      from: vi.fn((table: string) => {
+        if (table === 'user_workspace_configs') {
+          return {
+            select: vi.fn().mockReturnValue(configSelectBuilder),
+            upsert: updateBuilder.upsert,
+          };
+        }
+        return configSelectBuilder;
+      }),
+    };
+
+    const adminQueryBuilder = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      is: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: null }),
+    };
+
+    mocks.createClient.mockResolvedValue(supabaseClient);
+    mocks.createAdminClient.mockResolvedValue({
+      from: vi.fn().mockReturnValue(adminQueryBuilder),
+    });
+    mocks.getUserDefaultWorkspace.mockResolvedValue({
+      id: 'ws-1',
+      personal: false,
+    });
+
+    const { proxy } = await import('../proxy');
+    const response = await proxy(new NextRequest('http://localhost/'));
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).toBe(
+      'http://localhost/ws-1/tasks/boards'
+    );
+    expect(updateBuilder.upsert).toHaveBeenCalled();
+  });
+
   it('excludes audio assets from the proxy matcher so public media is served directly', async () => {
     const { config } = await import('../proxy');
 

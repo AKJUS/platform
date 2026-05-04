@@ -16,5 +16,6 @@ The short version is:
 - `WorkspaceWrapper` is the server-page entry point for workspace resolution.
 - `normalizeWorkspaceId()` is the route-handler entry point for workspace-scoped params.
 - `getPermissions()` is the fine-grained authorization helper layered on top of routing and membership.
+- Root redirects can be user-configured per workspace via `user_workspace_configs` (config id: `ROOT_DEFAULT_NAVIGATION`). Redirect targets should be validated at request time and stale deep links (for example deleted task boards) must gracefully fall back to a broader route.
 
 Prefer the two architecture pages above for current implementation details.

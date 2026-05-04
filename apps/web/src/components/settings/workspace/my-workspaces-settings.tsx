@@ -1,16 +1,13 @@
 'use client';
 
 import type { Workspace } from '@tuturuuu/types';
-import type { WorkspaceUser } from '@tuturuuu/types/primitives/WorkspaceUser';
 import { Separator } from '@tuturuuu/ui/separator';
-import WorkspaceSettingsCard from './workspace-settings-card';
 
 interface Props {
-  user: WorkspaceUser;
   workspace?: Workspace | null;
 }
 
-export default function MyWorkspacesSettings({ user, workspace }: Props) {
+export default function MyWorkspacesSettings({ workspace }: Props) {
   return (
     <div className="space-y-8">
       {workspace && (
@@ -47,8 +44,6 @@ export default function MyWorkspacesSettings({ user, workspace }: Props) {
           <Separator />
         </>
       )}
-
-      <WorkspaceSettingsCard user={user} />
     </div>
   );
 }

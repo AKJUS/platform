@@ -8,6 +8,126 @@ type UserConfigResponse = {
   value: string | null;
 };
 
+type UserWorkspaceConfigResponse = {
+  value: string | null;
+};
+
+export type RootNavigationTarget =
+  | 'workspace_home'
+  | 'tasks'
+  | 'calendar'
+  | 'finance';
+
+export type RootNavigationConfig = {
+  target: RootNavigationTarget;
+  submodule?: string;
+  boardId?: string;
+};
+
+export type NormalizedRootNavigationConfig = {
+  target: RootNavigationTarget;
+  submodule: string;
+  boardId: string;
+};
+
+const ROOT_NAVIGATION_TARGETS: readonly RootNavigationTarget[] = [
+  'workspace_home',
+  'tasks',
+  'calendar',
+  'finance',
+];
+
+const TASK_SUBMODULES = ['home', 'boards'] as const;
+const FINANCE_SUBMODULES = [
+  'home',
+  'transactions',
+  'wallets',
+  'invoices',
+] as const;
+
+export function parseRootNavigationConfig(raw: unknown): RootNavigationConfig {
+  if (!raw) {
+    return { target: 'workspace_home' };
+  }
+
+  const parseObject = (value: {
+    target?: unknown;
+    submodule?: unknown;
+    boardId?: unknown;
+  }): RootNavigationConfig => {
+    const target =
+      typeof value.target === 'string' ? value.target.trim() : 'workspace_home';
+
+    if (!ROOT_NAVIGATION_TARGETS.includes(target as RootNavigationTarget)) {
+      return { target: 'workspace_home' };
+    }
+
+    return {
+      target: target as RootNavigationTarget,
+      submodule:
+        typeof value.submodule === 'string'
+          ? value.submodule.trim()
+          : undefined,
+      boardId:
+        typeof value.boardId === 'string' ? value.boardId.trim() : undefined,
+    };
+  };
+
+  if (typeof raw === 'object') {
+    return parseObject(raw as Parameters<typeof parseObject>[0]);
+  }
+
+  if (typeof raw !== 'string') {
+    return { target: 'workspace_home' };
+  }
+
+  try {
+    return parseObject(JSON.parse(raw) as Parameters<typeof parseObject>[0]);
+  } catch {
+    return { target: 'workspace_home' };
+  }
+}
+
+export function normalizeRootNavigationConfig(
+  raw: unknown
+): NormalizedRootNavigationConfig {
+  const parsed = parseRootNavigationConfig(raw);
+
+  if (parsed.target === 'tasks') {
+    const submodule = (TASK_SUBMODULES as readonly string[]).includes(
+      parsed.submodule ?? ''
+    )
+      ? (parsed.submodule as string)
+      : 'home';
+
+    return {
+      target: parsed.target,
+      submodule,
+      boardId: parsed.boardId?.trim() ? parsed.boardId : 'none',
+    };
+  }
+
+  if (parsed.target === 'finance') {
+    const submodule = (FINANCE_SUBMODULES as readonly string[]).includes(
+      parsed.submodule ?? ''
+    )
+      ? (parsed.submodule as string)
+      : 'home';
+
+    return {
+      target: parsed.target,
+      submodule,
+      boardId: 'none',
+    };
+  }
+
+  return {
+    target: parsed.target,
+    submodule: 'home',
+    boardId: 'none',
+  };
+}
+
 export type CurrentUserProfileResponse = {
   id: string;
   email: string | null;
@@ -113,6 +233,40 @@ export async function updateUserConfig(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ value }),
+    }
+  );
+}
+
+export async function getUserWorkspaceConfig(
+  workspaceId: string,
+  configId: string,
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  return client.json<UserWorkspaceConfigResponse>(
+    `/api/v1/users/me/workspaces/${encodePathSegment(workspaceId)}/configs/${encodePathSegment(configId)}`,
+    {
+      cache: 'no-store',
+    }
+  );
+}
+
+export async function updateUserWorkspaceConfig(
+  workspaceId: string,
+  configId: string,
+  value: string,
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  return client.json<{ message: string }>(
+    `/api/v1/users/me/workspaces/${encodePathSegment(workspaceId)}/configs/${encodePathSegment(configId)}`,
+    {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ value }),
+      cache: 'no-store',
     }
   );
 }

@@ -73,6 +73,7 @@ import { FormsAutosaveSettings } from './forms/forms-autosave-settings';
 import ReferralSettings from './inventory/referral-settings';
 import { MiraMemorySettings } from './mira/mira-memory-settings';
 import { MiraPersonalitySettings } from './mira/mira-personality-settings';
+import NavigationSettings from './navigation-settings';
 import { ReportDefaultTitleSettings } from './reports/report-default-title-settings';
 import UserAvatar from './settings-avatar';
 import DisplayNameInput from './settings-display-name-input';
@@ -309,6 +310,13 @@ export function SettingsDialog({
           icon: PanelLeft,
           description: t('settings.preferences.sidebar_description'),
           keywords: ['Sidebar', 'Navigation', 'Menu'],
+        },
+        {
+          name: 'navigation',
+          label: t('settings.preferences.navigation.menu_label'),
+          icon: Compass,
+          description: t('settings.preferences.navigation.menu_description'),
+          keywords: ['Navigation', 'Start page', 'Workspace', 'Redirect'],
         },
         {
           name: 'forms',
@@ -721,6 +729,12 @@ export function SettingsDialog({
           </div>
         )}
 
+        {activeTab === 'navigation' && user && (
+          <div className="h-full">
+            <NavigationSettings wsId={wsId} user={user} />
+          </div>
+        )}
+
         {activeTab === 'forms' && (
           <div className="h-full">
             <FormsAutosaveSettings />
@@ -753,7 +767,7 @@ export function SettingsDialog({
 
         {activeTab === 'workspaces' && user && (
           <div className="h-full">
-            <MyWorkspacesSettings user={user} workspace={workspace} />
+            <MyWorkspacesSettings workspace={workspace} />
           </div>
         )}
 

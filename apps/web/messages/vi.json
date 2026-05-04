@@ -8983,6 +8983,41 @@
       "forms_autosave": "Tự động lưu",
       "forms_autosave_description": "Tự động lưu chỉnh sửa biểu mẫu khi bạn làm việc. Bật theo mặc định.",
       "forms_description": "Tùy chọn trình tạo biểu mẫu",
+      "navigation": {
+        "default_workspace_help": "Đây là không gian làm việc bạn thấy đầu tiên khi mở ứng dụng.",
+        "default_workspace_label": "Không gian làm việc mặc định",
+        "description": "Chọn trang bạn sẽ vào khi mở ứng dụng hoặc chuyển sang không gian làm việc này.",
+        "finance_submodule_label": "Chế độ xem Finance",
+        "finance_submodules": {
+          "home": "Tổng quan Finance",
+          "invoices": "Hóa đơn",
+          "transactions": "Giao dịch",
+          "wallets": "Ví"
+        },
+        "menu_description": "Chọn không gian làm việc mặc định và trang bạn muốn vào khi mở ứng dụng",
+        "menu_label": "Điều hướng",
+        "root_target_help": "Mở không gian làm việc này thẳng đến trang bạn dùng nhiều nhất.",
+        "root_target_label": "Trang bắt đầu",
+        "save_error": "Không thể cập nhật cài đặt trang bắt đầu",
+        "save_success": "Đã cập nhật cài đặt trang bắt đầu",
+        "stale_board_warning": "Bảng đã chọn không còn tồn tại. Trang bắt đầu sẽ dùng Nhiệm vụ -> Bảng cho đến khi bạn chọn bảng khác.",
+        "targets": {
+          "calendar": "Lịch",
+          "finance": "Finance",
+          "tasks": "Nhiệm vụ",
+          "workspace_home": "Trang chủ không gian làm việc"
+        },
+        "tasks_board_any": "Tất cả bảng",
+        "tasks_board_label": "Bảng",
+        "tasks_submodule_label": "Chế độ xem nhiệm vụ",
+        "tasks_submodules": {
+          "boards": "Bảng",
+          "home": "Nhiệm vụ của tôi"
+        },
+        "title": "Trang bắt đầu",
+        "unnamed_board": "Bảng chưa đặt tên",
+        "workspace_required": "Hãy mở một không gian làm việc trước để chọn trang bắt đầu của nó."
+      },
       "notifications": "Thông báo",
       "notifications_ws_description": "Quản lý tùy chọn thông báo bao gồm thông báo lịch",
       "sidebar": "Thanh bên",
