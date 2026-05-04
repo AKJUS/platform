@@ -66,6 +66,7 @@ const {
 } = require('./watch-blue-green/logs.js');
 const {
   DEFAULT_PROJECT_POLL_INTERVAL_MS,
+  normalizeProjectBranch,
   processManagedInfrastructureProjects,
   readPlatformProject,
   resolvePlatformProjectTarget,
@@ -4844,6 +4845,7 @@ async function runDeployWatchLoop(
     onIterationResult = () => {},
     onIterationStart = () => {},
     paths = getWatchPaths(),
+    platformProjectReader = readPlatformProject,
     projectPollIntervalMs = DEFAULT_PROJECT_POLL_INTERVAL_MS,
     rootDir = ROOT_DIR,
     runCommand: run = runCommand,
@@ -4856,6 +4858,42 @@ async function runDeployWatchLoop(
   while (true) {
     const startedAt = now();
     onIterationStart(startedAt);
+
+    try {
+      const platformProject = await platformProjectReader({ env });
+      const selectedBranch = normalizeProjectBranch(
+        platformProject.selectedBranch
+      );
+
+      if (
+        platformProject.source === 'database' &&
+        selectedBranch !== target.branch
+      ) {
+        log.info?.(
+          `Platform project target changed from ${target.branch} to ${selectedBranch}. Restarting watcher to re-lock the branch.`
+        );
+        return {
+          checkedAt: startedAt,
+          latestCommit: await getCommitMetadata('HEAD', {
+            env,
+            runCommand: run,
+          }).catch(() => null),
+          project: platformProject,
+          restartRequired: true,
+          status: 'project-target-changed',
+          target: {
+            ...target,
+            branch: selectedBranch,
+            upstreamBranch: selectedBranch,
+            upstreamRef: `${target.remote}/${selectedBranch}`,
+          },
+        };
+      }
+    } catch (error) {
+      log.warn?.(
+        `Platform project target check failed: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
 
     if (startedAt - lastProjectPollAt >= projectPollIntervalMs) {
       lastProjectPollAt = startedAt;

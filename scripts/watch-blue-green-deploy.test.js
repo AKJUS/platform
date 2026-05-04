@@ -3181,6 +3181,55 @@ test('runDeployWatchLoop backs off for git failures instead of exiting immediate
   assert.equal(iterationResults[0].sleepMs, DEFAULT_GIT_FAILURE_BACKOFF_MS);
 });
 
+test('runDeployWatchLoop restarts when the project-selected platform branch changes', async () => {
+  const logs = [];
+  const result = await runDeployWatchLoop(
+    {
+      branch: 'main',
+      remote: 'origin',
+      upstreamBranch: 'main',
+      upstreamRef: 'origin/main',
+    },
+    {
+      log: {
+        error() {},
+        info(message) {
+          logs.push(message);
+        },
+        warn() {},
+      },
+      now: () => 1000,
+      platformProjectReader: async () => ({
+        autoDeployEnabled: true,
+        deploymentStatus: 'queued',
+        id: 'platform',
+        metadata: {},
+        selectedBranch: 'production',
+        source: 'database',
+      }),
+      runCommand: createRunCommandMock(
+        new Map([
+          [
+            'git log -1 --format=%H%n%h%n%s%n%cI HEAD',
+            createResult(
+              'aaa111111111111111111\naaa111\nKeep branch current\n2026-04-18T10:58:00.000Z\n'
+            ),
+          ],
+        ])
+      ),
+      sleepImpl: async () => {
+        throw new Error('unexpected sleep');
+      },
+    }
+  );
+
+  assert.equal(result.status, 'project-target-changed');
+  assert.equal(result.restartRequired, true);
+  assert.equal(result.target.branch, 'production');
+  assert.equal(result.target.upstreamRef, 'origin/production');
+  assert.match(logs.join('\n'), /target changed from main to production/);
+});
+
 test('runPendingDeployAfterRestart refreshes the live proxy before running blue/green deploy', async () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'watch-pending-'));
   const paths = getWatchPaths(tempDir);

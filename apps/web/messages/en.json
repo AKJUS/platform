@@ -1984,6 +1984,7 @@
       "top_routes": "Top Routes",
       "watcher": {
         "badge": "Watcher {health}",
+        "branch_mismatch_queued": "This project targets {projectBranch}, but the live watcher is still locked to {watcherBranch}. Recreate the Docker web watcher or wait for the updated watcher to restart before this queue can advance.",
         "not_live_queued": "This project is queued, but the deployment watcher is {health}. Start or recreate the Docker web watcher before expecting this queue to advance.",
         "title": "Watcher"
       }

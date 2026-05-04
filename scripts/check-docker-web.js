@@ -369,7 +369,17 @@ function validateDockerProdCompose(composeContent) {
     '    image: moby/buildkit:buildx-stable-1',
     '      - platform-buildkit-state:/var/lib/buildkit',
     '      - ./tmp/docker-web/buildkit/buildkitd.toml:/etc/buildkit/buildkitd.toml:ro',
+    '    env_file:',
+    '      - path: apps/web/.env.local',
     '      - DOCKER_WEB_BUILDKIT_ENDPOINT=tcp://buildkit:1234',
+    '      - GITHUB_TOKEN',
+    '      - PLATFORM_LOG_DRAIN_DATABASE_URL=postgres://platform_log_drain:platform_log_drain@log-drain-postgres:5432/platform_log_drain',
+    '      - PLATFORM_LOG_DRAIN_ENABLED=' +
+      '${' +
+      'PLATFORM_LOG_DRAIN_ENABLED:-true' +
+      '}',
+    '      - UPSTASH_REDIS_REST_TOKEN',
+    '      - UPSTASH_REDIS_REST_URL',
     '      context: apps/storage-unzip-proxy',
     '    - CRON_SECRET',
     '      - CRON_SECRET',

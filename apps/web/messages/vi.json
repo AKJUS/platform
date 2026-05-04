@@ -1984,6 +1984,7 @@
       "top_routes": "Route hàng đầu",
       "watcher": {
         "badge": "Watcher {health}",
+        "branch_mismatch_queued": "Dự án này trỏ tới {projectBranch}, nhưng watcher đang chạy vẫn khóa ở {watcherBranch}. Hãy tạo lại Docker web watcher hoặc chờ watcher mới restart trước khi hàng chờ này có thể chạy tiếp.",
         "not_live_queued": "Dự án này đang trong hàng chờ, nhưng deployment watcher đang {health}. Hãy khởi động hoặc tạo lại Docker web watcher trước khi mong hàng chờ này chạy tiếp.",
         "title": "Watcher"
       }

@@ -1456,6 +1456,13 @@ export function ObservabilityDashboardClient({
   const projects = projectsQuery.data?.projects ?? [];
   const selectedProject =
     projects.find((project) => project.id === projectId) ?? projects[0] ?? null;
+  const watcherTargetBranch = watcher?.target?.branch ?? null;
+  const selectedProjectWatcherBranchMismatch =
+    selectedProject?.id === 'platform' &&
+    selectedProject.deploymentStatus === 'queued' &&
+    watcher?.health === 'live' &&
+    typeof watcherTargetBranch === 'string' &&
+    watcherTargetBranch !== selectedProject.selectedBranch;
   const resources = resourcesQuery.data?.dockerResources;
   const logs = useMemo(
     () => logsQuery.data?.pages.flatMap((page) => page.items) ?? [],
@@ -1809,6 +1816,13 @@ export function ObservabilityDashboardClient({
                 health: watcher?.health ?? 'missing',
               })}
             </div>
+          ) : selectedProjectWatcherBranchMismatch ? (
+            <div className="mt-4 rounded-md border border-dynamic-red/30 bg-dynamic-red/10 px-3 py-2 text-dynamic-red text-sm">
+              {t('watcher.branch_mismatch_queued', {
+                projectBranch: selectedProject.selectedBranch,
+                watcherBranch: watcherTargetBranch,
+              })}
+            </div>
           ) : null}
         </section>
       ) : null}
@@ -1975,16 +1989,28 @@ export function ObservabilityDashboardClient({
                           <div
                             className={cn(
                               'rounded-md border px-3 py-2 text-xs',
-                              watcher?.health === 'live'
+                              watcher?.health === 'live' &&
+                                !(
+                                  project.id === 'platform' &&
+                                  watcherTargetBranch &&
+                                  watcherTargetBranch !== project.selectedBranch
+                                )
                                 ? 'border-dynamic-yellow/30 bg-dynamic-yellow/10 text-dynamic-yellow'
                                 : 'border-dynamic-red/30 bg-dynamic-red/10 text-dynamic-red'
                             )}
                           >
-                            {watcher?.health === 'live'
-                              ? t('projects.queued_hint')
-                              : t('watcher.not_live_queued', {
+                            {watcher?.health !== 'live'
+                              ? t('watcher.not_live_queued', {
                                   health: watcher?.health ?? 'missing',
-                                })}
+                                })
+                              : project.id === 'platform' &&
+                                  watcherTargetBranch &&
+                                  watcherTargetBranch !== project.selectedBranch
+                                ? t('watcher.branch_mismatch_queued', {
+                                    projectBranch: project.selectedBranch,
+                                    watcherBranch: watcherTargetBranch,
+                                  })
+                                : t('projects.queued_hint')}
                           </div>
                         ) : null}
                       </div>
