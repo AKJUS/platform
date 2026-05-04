@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   CircleHelp,
   ListFilter,
+  Loader2,
   MinusCircle,
   PlusCircle,
   RotateCcw,
@@ -17,7 +18,6 @@ import { Button } from '@tuturuuu/ui/button';
 import { Filter } from '@tuturuuu/ui/custom/user-filters';
 import { DateRangeFilterWrapper } from '@tuturuuu/ui/finance/shared/date-range-filter-wrapper';
 import { cn } from '@tuturuuu/utils/format';
-import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useQueryStates } from 'nuqs';
 import { useMemo } from 'react';
@@ -45,6 +45,8 @@ export default function PostsFilters({
   defaultDateRange,
   noInclude = false,
   noExclude = false,
+  onRefreshPosts,
+  isRefreshing = false,
 }: {
   wsId: string;
   statusSummary: PostEmailStatusSummary;
@@ -54,8 +56,9 @@ export default function PostsFilters({
   };
   noInclude?: boolean;
   noExclude?: boolean;
+  onRefreshPosts?: () => void;
+  isRefreshing?: boolean;
 }) {
-  const router = useRouter();
   const t = useTranslations();
   const [queryState, setQueryState] = useQueryStates(postsSearchParamParsers);
 
@@ -232,13 +235,15 @@ export default function PostsFilters({
           value: user.id,
         }))}
       />
-      <DateRangeFilterWrapper shallow refreshOnUpdate />
+      <DateRangeFilterWrapper shallow />
       <Button
         variant="outline"
         size="sm"
-        onClick={() => router.refresh()}
+        onClick={() => onRefreshPosts?.()}
+        disabled={isRefreshing}
         className="h-8"
       >
+        {isRefreshing ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
         {t('common.refresh')}
       </Button>
       {hasAnyFilters ? (

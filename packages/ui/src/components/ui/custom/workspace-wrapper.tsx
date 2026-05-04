@@ -24,7 +24,7 @@ interface WorkspaceWrapperProps<TParams extends BaseParams = BaseParams> {
       isRoot: boolean;
       // Spread the additional params to maintain their types
     } & Omit<TParams, 'wsId'>
-  ) => ReactNode;
+  ) => ReactNode | Promise<ReactNode>;
   fallback?: ReactNode;
 }
 
@@ -79,25 +79,23 @@ export default async function WorkspaceWrapper<
   // Extract additional params (excluding wsId) to pass to children
   const { wsId: _, ...additionalParams } = resolvedParams;
 
-  return (
-    <Suspense fallback={fallback}>
-      {children({
-        workspace,
-        wsId: validatedWsId,
-        isPersonal: workspace.personal,
-        isRoot: workspace.id === ROOT_WORKSPACE_ID,
-        ...additionalParams,
-      } as {
-        workspace: Workspace & {
-          joined: boolean;
-          tier: WorkspaceProductTier | null;
-        };
-        wsId: string;
-        isPersonal: boolean;
-        isRoot: boolean;
-      } & Omit<TParams, 'wsId'>)}
-    </Suspense>
-  );
+  const childContent = await children({
+    workspace,
+    wsId: validatedWsId,
+    isPersonal: workspace.personal,
+    isRoot: workspace.id === ROOT_WORKSPACE_ID,
+    ...additionalParams,
+  } as {
+    workspace: Workspace & {
+      joined: boolean;
+      tier: WorkspaceProductTier | null;
+    };
+    wsId: string;
+    isPersonal: boolean;
+    isRoot: boolean;
+  } & Omit<TParams, 'wsId'>);
+
+  return <Suspense fallback={fallback}>{childContent}</Suspense>;
 }
 
 /**

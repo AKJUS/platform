@@ -5,6 +5,15 @@ description: "When and how to fetch data using RSC, Server Actions, React Query,
 
 The Tuturuuu platform uses a layered approach to data fetching, choosing the right strategy based on use case, caching requirements, and user experience needs.
 
+## Heavy Dashboards
+
+For queue-heavy dashboards that run expensive row + summary RPCs (for example posts review):
+
+- Keep the route page server-only for auth, permissions, and canonical URL normalization.
+- Move the actual table + summary fetch into a client shell with TanStack Query.
+- Fetch through `@tuturuuu/internal-api` helpers, not ad-hoc client fetch calls.
+- Avoid `router.refresh()` for routine list refreshes; prefer query refetch/invalidation.
+
 ## Builder Migration Pattern (Education Module Groups)
 
 For highly interactive editors (for example the course builder with module groups + drag/drop):

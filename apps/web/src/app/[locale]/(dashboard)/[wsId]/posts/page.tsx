@@ -4,7 +4,6 @@ import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import WorkspaceWrapper from '@/components/workspace-wrapper';
 import PostsClient from './client';
-import { getPostsPageData } from './data';
 import {
   buildCanonicalPostsSearchParams,
   buildDefaultPostsDateRange,
@@ -56,11 +55,6 @@ export default async function PostsPage({
           rootPermissions?.containsPermission('manage_workspace_roles') ??
           false;
 
-        const { postsData, postsStatus } = await getPostsPageData(
-          wsId,
-          parsedSearchParams
-        );
-
         return (
           <PostsClient
             wsId={wsId}
@@ -69,8 +63,6 @@ export default async function PostsPage({
             canForceSendPosts={canForceSendPosts}
             defaultDateRange={defaultDateRange}
             searchParams={parsedSearchParams}
-            postsData={postsData}
-            postsStatus={postsStatus}
           />
         );
       }}

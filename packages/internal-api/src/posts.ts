@@ -9,6 +9,65 @@ export interface ForceSendWorkspacePostEmailPayload {
   userId: string;
 }
 
+export interface GetWorkspacePostsQuery {
+  page?: number;
+  pageSize?: number;
+  start?: string;
+  end?: string;
+  includedGroups?: string[];
+  excludedGroups?: string[];
+  userId?: string;
+  stage?: string;
+  queueStatus?: string;
+  approvalStatus?: string;
+  showAll?: boolean;
+  cursor?: string;
+}
+
+export interface GetWorkspacePostsResponse<TPost = unknown, TSummary = unknown> {
+  data: TPost[];
+  count: number;
+  summary: TSummary;
+}
+
+export async function getWorkspacePosts<TPost = unknown, TSummary = unknown>(
+  workspaceId: string,
+  query?: GetWorkspacePostsQuery,
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  const search = new URLSearchParams();
+
+  for (const groupId of query?.includedGroups ?? []) {
+    search.append('includedGroups', groupId);
+  }
+
+  for (const groupId of query?.excludedGroups ?? []) {
+    search.append('excludedGroups', groupId);
+  }
+
+  const scalarQuery = {
+    approvalStatus: query?.approvalStatus,
+    cursor: query?.cursor,
+    end: query?.end,
+    page: query?.page,
+    pageSize: query?.pageSize,
+    queueStatus: query?.queueStatus,
+    showAll: query?.showAll,
+    stage: query?.stage,
+    start: query?.start,
+    userId: query?.userId,
+  };
+  const suffix = search.toString();
+  return client.json<GetWorkspacePostsResponse<TPost, TSummary>>(
+    `/api/v1/workspaces/${encodePathSegment(workspaceId)}/posts${suffix ? `?${suffix}` : ''}`,
+    {
+      query: scalarQuery,
+      cache: 'no-store',
+    }
+  );
+}
+
 export async function forceSendWorkspacePostEmail(
   workspaceId: string,
   payload: ForceSendWorkspacePostEmailPayload,
