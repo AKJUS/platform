@@ -8,6 +8,7 @@ import { cn } from '@tuturuuu/utils/format';
 import { VercelAnalytics, VercelInsights } from '@tuturuuu/vercel';
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import { NextIntlClientProvider } from 'next-intl';
 import { setRequestLocale } from 'next-intl/server';
 import type { ReactNode } from 'react';
 import { Suspense } from 'react';
@@ -65,7 +66,9 @@ export default async function RootLayout({ children, params }: Props) {
           <VercelAnalytics />
           <VercelInsights />
           <Suspense>
-            <Providers>{children}</Providers>
+            <Providers>
+              <NextIntlClientProvider>{children}</NextIntlClientProvider>
+            </Providers>
           </Suspense>
           <TailwindIndicator />
           <ProductionIndicator />

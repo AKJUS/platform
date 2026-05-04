@@ -8,14 +8,11 @@ import { LearnerShell, NoWorkspaceState } from '@/components/learner-shell';
 export default async function DashboardLayout({
   children,
   params,
-  searchParams,
 }: {
   children: React.ReactNode;
   params: Promise<{ wsId: string }>;
-  searchParams: Promise<{ studentId?: string }>;
 }) {
   const { wsId } = await params;
-  const { studentId } = await searchParams;
   const requestHeaders = await headers();
   const bootstrap = await getTulearnBootstrap(
     withForwardedInternalApiAuth(requestHeaders)
@@ -26,11 +23,7 @@ export default async function DashboardLayout({
   }
 
   return (
-    <LearnerShell
-      bootstrap={bootstrap}
-      selectedStudentId={studentId}
-      wsId={wsId}
-    >
+    <LearnerShell bootstrap={bootstrap} wsId={wsId}>
       {children}
     </LearnerShell>
   );

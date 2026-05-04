@@ -17,6 +17,7 @@ import type {
 } from '@tuturuuu/internal-api';
 import { Button } from '@tuturuuu/ui/button';
 import { cn } from '@tuturuuu/utils/format';
+import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
 import { Link, usePathname, useRouter } from '@/i18n/routing';
@@ -34,17 +35,16 @@ const navItems = [
 export function LearnerShell({
   bootstrap,
   children,
-  selectedStudentId,
   wsId,
 }: {
   bootstrap: TulearnBootstrapResponse;
   children: ReactNode;
-  selectedStudentId?: string | null;
   wsId: string;
 }) {
   const t = useTranslations();
   const pathname = usePathname();
   const router = useRouter();
+  const selectedStudentId = useSearchParams().get('studentId');
   const linkedStudents = bootstrap.linkedStudents.filter(
     (student) => student.workspace_id === wsId
   );
