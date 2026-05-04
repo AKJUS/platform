@@ -505,33 +505,36 @@ The watcher container mounts:
 
 Behavior:
 
-1. Locks the current local branch and tracked upstream at startup.
-2. Writes a PID-backed lock file at `tmp/docker-web/watch/blue-green-auto-deploy.lock`.
-3. Renders a live terminal dashboard with the locked branch, tracked upstream,
+1. Reads the built-in `platform` project from the log-drain Postgres project registry when `PLATFORM_LOG_DRAIN_DATABASE_URL` is configured. The seeded branch is `production`, but operators can change it from Infrastructure → Monitoring → Projects.
+2. If the selected project branch differs from the current checkout, fetches and checks out that branch only when the worktree is clean. Dirty worktrees are reported as blocked instead of being force-switched.
+3. Locks the selected local branch and tracked upstream at startup.
+4. Writes a PID-backed lock file at `tmp/docker-web/watch/blue-green-auto-deploy.lock`.
+5. Renders a live terminal dashboard with the locked branch, tracked upstream,
    latest local commit, relative commit age, last check time, next poll time,
    current blue/green runtime state, and recent watcher events.
-4. Polls the tracked upstream every `1000ms` by default.
-5. Auto-clears and redraws the dashboard in place on each state change when
+6. Polls the tracked upstream every `1000ms` by default.
+7. Auto-clears and redraws the dashboard in place on each state change when
    attached to a TTY.
-6. Runs the Git and deploy subprocesses quietly so the dashboard is not
+8. Runs the Git and deploy subprocesses quietly so the dashboard is not
    disrupted by `git fetch`, `git pull`, or Docker build output during normal
    watcher operation.
-7. Skips pulls if the worktree is dirty.
-8. Uses `git pull --ff-only` only when the local branch is strictly behind the
+9. Skips pulls if the worktree is dirty.
+10. Uses `git pull --ff-only` only when the local branch is strictly behind the
    locked upstream.
-9. Runs `bun upgrade` and then `bun i` automatically after every successful
+11. Runs `bun upgrade` and then `bun i` automatically after every successful
    fast-forward pull so the host Bun runtime and installed dependencies match
    the fetched revision before the deploy handoff continues.
-10. Treats a worktree that is dirty only because of `bun.lock` as watchable, so
+12. Treats a worktree that is dirty only because of `bun.lock` as watchable, so
     host-side install churn does not stop subsequent polling cycles.
-11. Runs `bun serve:web:docker:bg` automatically after a successful fast-forward
+13. Runs `bun serve:web:docker:bg` automatically after a successful fast-forward
    pull.
-12. If watcher runtime code such as `scripts/watch-blue-green-deploy.js`,
+14. Polls imported Infrastructure projects from log-drain Postgres, synchronizes enabled public GitHub projects into `tmp/docker-web/projects/<projectId>/repo`, deploys them through generated Next.js compose files under the shared `platform` Compose project, and merges hostname routes into the central nginx proxy.
+15. If watcher runtime code such as `scripts/watch-blue-green-deploy.js`,
    `scripts/docker-web/blue-green.js`, or `scripts/docker-web/env.js` changed
    in the pulled revision, the current watcher does not deploy from the old
    process. It releases its lock, spawns a replacement watcher with the same
    CLI args, and exits first.
-13. The replacement watcher refreshes the live `web-proxy` nginx config and
+15. The replacement watcher refreshes the live `web-proxy` nginx config and
    workers in place if blue/green is already serving traffic, verifies proxy
    routing through `/__platform/drain-status`, and only then starts the new
    blue/green build/promotion.

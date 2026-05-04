@@ -244,12 +244,17 @@ async function tagBlueGreenServiceImageForCache(
 
 function renderBlueGreenProxyConfig(
   color,
-  { deploymentStamp = null, standbyColor = null } = {}
+  { deploymentStamp = null, extraServerBlocks = [], standbyColor = null } = {}
 ) {
   const primaryServiceName = getBlueGreenServiceName(color);
   const backupServiceName = standbyColor
     ? getBlueGreenServiceName(standbyColor)
     : null;
+  const projectServerBlocks = Array.isArray(extraServerBlocks)
+    ? extraServerBlocks.filter(
+        (block) => typeof block === 'string' && block.trim().length > 0
+      )
+    : [];
 
   return [
     'map $http_upgrade $connection_upgrade {',
@@ -260,7 +265,7 @@ function renderBlueGreenProxyConfig(
     'resolver 127.0.0.11 ipv6=off valid=5s;',
     '',
     'log_format platform_blue_green_json escape=json',
-    `  '{"time":"$time_iso8601","remoteAddr":"$remote_addr","host":"$host","method":"$request_method","path":"$request_uri","status":$status,"requestTime":$request_time,"upstreamResponseTime":"$upstream_response_time","upstreamAddr":"$upstream_addr","deploymentStamp":"$upstream_http_x_platform_deployment_stamp","deploymentColor":"$upstream_http_x_platform_blue_green_color","primaryColor":"${color}","standbyColor":"${standbyColor ?? 'none'}","userAgent":"$http_user_agent"}';`,
+    `  '{"time":"$time_iso8601","remoteAddr":"$remote_addr","host":"$host","method":"$request_method","path":"$request_uri","status":$status,"requestTime":$request_time,"upstreamResponseTime":"$upstream_response_time","upstreamAddr":"$upstream_addr","projectId":"$platform_project_id","selectedBranch":"$platform_selected_branch","upstreamService":"$platform_upstream_service","deploymentStamp":"$upstream_http_x_platform_deployment_stamp","deploymentColor":"$upstream_http_x_platform_blue_green_color","primaryColor":"${color}","standbyColor":"${standbyColor ?? 'none'}","userAgent":"$http_user_agent"}';`,
     'access_log /dev/stdout platform_blue_green_json;',
     'error_log /dev/stderr warn;',
     '',
@@ -276,6 +281,9 @@ function renderBlueGreenProxyConfig(
     '',
     'server {',
     '  listen 7803;',
+    '  set $platform_project_id "platform";',
+    '  set $platform_selected_branch "production";',
+    `  set $platform_upstream_service "${primaryServiceName}";`,
     '  client_header_buffer_size 16k;',
     '  keepalive_timeout 15s;',
     '  large_client_header_buffers 8 16k;',
@@ -300,6 +308,7 @@ function renderBlueGreenProxyConfig(
     '    proxy_set_header Connection $connection_upgrade;',
     '  }',
     '}',
+    ...projectServerBlocks,
     '',
   ].join('\n');
 }
@@ -308,6 +317,7 @@ function writeBlueGreenProxyConfig(
   color,
   {
     deploymentStamp = null,
+    extraServerBlocks = [],
     fsImpl = fs,
     paths = getBlueGreenPaths(),
     standbyColor = null,
@@ -316,7 +326,11 @@ function writeBlueGreenProxyConfig(
   ensureBlueGreenRuntime(paths, fsImpl);
   fsImpl.writeFileSync(
     paths.proxyConfigFile,
-    renderBlueGreenProxyConfig(color, { deploymentStamp, standbyColor }),
+    renderBlueGreenProxyConfig(color, {
+      deploymentStamp,
+      extraServerBlocks,
+      standbyColor,
+    }),
     'utf8'
   );
 }

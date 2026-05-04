@@ -17,6 +17,7 @@ The monitoring navigation uses compact labels:
 - Cron
 - Requests
 - Resources
+- Projects
 
 ## Runtime
 
@@ -51,6 +52,25 @@ For route or cron handlers, wrap execution with `withRequestLogDrain(...)` or `w
 The drain is fail-open: if Postgres is unavailable, requests and cron jobs continue normally and logs still go to stdout/stderr.
 
 ## Legacy Compatibility
+
+## Projects
+
+Infrastructure → Monitoring → Projects is the log-drain-owned project registry for Docker web deployments. The built-in project is seeded as:
+
+- `id`: `platform`
+- repository: `https://github.com/tutur3u/platform`
+- default selected branch: `production`
+- app root: `apps/web`
+- environment: `production`
+- addons: nginx proxy locked on, log drain on, Redis on, cron on
+
+Project definitions live in the log-drain Postgres tables `infrastructure_projects` and `infrastructure_project_branches`, not Supabase. Existing log, request, deployment, cron, and resource records default to `project_id = 'platform'` so the current monitoring views keep showing the deployed platform while new projects are introduced.
+
+V1 GitHub import supports public GitHub repositories only. The UI syncs repository metadata and branches through unauthenticated GitHub REST calls by default; set `GITHUB_TOKEN` only when the deployment host needs a higher GitHub API rate limit. New projects use the Next.js preset, default app root to the repository root, require hostname routing through the central nginx proxy, and start with log drain plus Redis enabled. Cron is disabled by default for imported projects until an operator enables it.
+
+Changing the selected branch queues the project for deployment. For the built-in `platform` project, the blue/green watcher reads the selected branch from the project registry. If the selected branch differs from the current checkout and the worktree is clean, the watcher fetches and checks out that branch before continuing. If the worktree is dirty, the project is marked blocked in watcher status instead of crashing or forcing a checkout.
+
+For imported projects, the same watcher polls enabled projects from the registry, keeps managed source checkouts under `tmp/docker-web/projects/<projectId>/repo`, and writes generated Next.js compose/runtime files under `tmp/docker-web/projects/<projectId>/runtime`. These services run with the shared `platform` Compose project name, attach to the central Docker network, and receive `PLATFORM_PROJECT_ID`, selected branch, log-drain, Redis, `PORT`, and `HOSTNAME=0.0.0.0` environment wiring. Hostname routes are merged into the central nginx proxy config so nginx remains the mandatory entrypoint.
 
 The revamped monitoring UI reads both the Postgres drain and the pre-drain blue/green files under `tmp/docker-web`. Requests and Logs include retained proxy traffic, watcher logs, and request console lines while deployments are enriched from the watcher snapshot so commit subject, full hash, short hash, stamp, active color, and runtime lane remain visible even before the Postgres drain has a complete history.
 

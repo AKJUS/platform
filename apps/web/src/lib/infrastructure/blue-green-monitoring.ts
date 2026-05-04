@@ -23,6 +23,8 @@ type FsLike = Pick<typeof fs, 'existsSync' | 'readFileSync'> &
 type DockerAggregateContainer = {
   cpuPercent: number | null;
   memoryBytes: number | null;
+  rxBytes: number | null;
+  txBytes: number | null;
 };
 
 const DOCKER_WEB_ENV_KEY = 'PLATFORM_BLUE_GREEN_MONITORING_DIR';
@@ -1475,8 +1477,14 @@ export function readBlueGreenMonitoringSnapshot({
         aggregateContainers.length > 0
           ? sumDockerContainerMetric(aggregateContainers, 'memoryBytes')
           : (toFiniteNumber(dockerResources?.totalMemoryBytes) ?? 0),
-      totalRxBytes: toFiniteNumber(dockerResources?.totalRxBytes) ?? 0,
-      totalTxBytes: toFiniteNumber(dockerResources?.totalTxBytes) ?? 0,
+      totalRxBytes:
+        aggregateContainers.length > 0
+          ? sumDockerContainerMetric(aggregateContainers, 'rxBytes')
+          : (toFiniteNumber(dockerResources?.totalRxBytes) ?? 0),
+      totalTxBytes:
+        aggregateContainers.length > 0
+          ? sumDockerContainerMetric(aggregateContainers, 'txBytes')
+          : (toFiniteNumber(dockerResources?.totalTxBytes) ?? 0),
     },
     deployments: deployments as BlueGreenMonitoringSnapshot['deployments'],
     recoveryCache:

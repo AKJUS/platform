@@ -1276,6 +1276,7 @@ export async function WorkspaceNavigationLinks({
                 `/${personalOrWsId}/infrastructure/monitoring/logs`,
                 `/${personalOrWsId}/infrastructure/monitoring/analytics`,
                 `/${personalOrWsId}/infrastructure/monitoring/observability`,
+                `/${personalOrWsId}/infrastructure/monitoring/projects`,
                 `/${personalOrWsId}/infrastructure/monitoring/requests`,
                 `/${personalOrWsId}/infrastructure/monitoring/resources`,
                 `/${personalOrWsId}/infrastructure/monitoring/rollouts`,
@@ -1312,6 +1313,11 @@ export async function WorkspaceNavigationLinks({
                   title: t('infrastructure-tabs.monitoring_observability'),
                   href: `/${personalOrWsId}/infrastructure/monitoring/observability`,
                   icon: <Database className="h-5 w-5" />,
+                },
+                {
+                  title: t('infrastructure-tabs.monitoring_projects'),
+                  href: `/${personalOrWsId}/infrastructure/monitoring/projects`,
+                  icon: <Box className="h-5 w-5" />,
                 },
                 {
                   title: t('infrastructure-tabs.monitoring_requests'),

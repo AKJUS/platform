@@ -240,6 +240,8 @@ describe('CLI rendering', () => {
   });
 
   it('keeps task metadata columns readable at the fallback terminal width', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-05-03T12:00:00.000+07:00'));
     const columnsDescriptor = Object.getOwnPropertyDescriptor(
       process.stdout,
       'columns'

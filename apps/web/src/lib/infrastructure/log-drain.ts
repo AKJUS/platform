@@ -17,6 +17,7 @@ export interface LogDrainEvent {
   level: LogDrainLevel;
   message: string;
   metadata: Record<string, unknown>;
+  projectId: string;
   requestId: string | null;
   route: string | null;
   source: LogDrainSource;
@@ -31,6 +32,7 @@ interface LogDrainContext {
   ipAddress: string | null;
   method: string | null;
   path: string | null;
+  projectId: string;
   requestId: string;
   source: LogDrainSource;
   startedAt: number;
@@ -59,6 +61,7 @@ const DEFAULT_RAW_RETENTION_DAYS = 30;
 const DEFAULT_SUMMARY_RETENTION_DAYS = 90;
 const MAX_SERIALIZED_ARG_LENGTH = 4_000;
 const MAX_LOG_EVENTS_PER_CONTEXT = 500;
+const DEFAULT_PROJECT_ID = 'platform';
 
 const storage = new AsyncLocalStorage<LogDrainContext>();
 
@@ -108,8 +111,53 @@ export async function ensureLogDrainSchema() {
 
   schemaReady ??= (async () => {
     await sql`
+      CREATE TABLE IF NOT EXISTS infrastructure_projects (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        repo_url TEXT NOT NULL,
+        github_owner TEXT NOT NULL,
+        github_repo TEXT NOT NULL,
+        selected_branch TEXT NOT NULL DEFAULT 'production',
+        app_root TEXT NOT NULL DEFAULT '',
+        environment TEXT NOT NULL DEFAULT 'production',
+        preset TEXT NOT NULL DEFAULT 'nextjs',
+        port INTEGER NOT NULL DEFAULT 3000,
+        hostnames TEXT[] NOT NULL DEFAULT '{}'::text[],
+        auto_deploy_enabled BOOLEAN NOT NULL DEFAULT true,
+        nginx_enabled BOOLEAN NOT NULL DEFAULT true,
+        log_drain_enabled BOOLEAN NOT NULL DEFAULT true,
+        redis_enabled BOOLEAN NOT NULL DEFAULT true,
+        cron_enabled BOOLEAN NOT NULL DEFAULT false,
+        is_builtin BOOLEAN NOT NULL DEFAULT false,
+        latest_commit_hash TEXT,
+        latest_commit_short_hash TEXT,
+        latest_commit_subject TEXT,
+        latest_synced_at TIMESTAMPTZ,
+        deployment_status TEXT NOT NULL DEFAULT 'synced',
+        last_deployed_at TIMESTAMPTZ,
+        metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      )
+    `;
+    await sql`
+      CREATE TABLE IF NOT EXISTS infrastructure_project_branches (
+        project_id TEXT NOT NULL REFERENCES infrastructure_projects(id) ON DELETE CASCADE,
+        name TEXT NOT NULL,
+        commit_hash TEXT,
+        commit_short_hash TEXT,
+        commit_subject TEXT,
+        committed_at TIMESTAMPTZ,
+        protected BOOLEAN NOT NULL DEFAULT false,
+        default_branch BOOLEAN NOT NULL DEFAULT false,
+        last_synced_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        PRIMARY KEY (project_id, name)
+      )
+    `;
+    await sql`
       CREATE TABLE IF NOT EXISTS deployments (
         id BIGSERIAL PRIMARY KEY,
+        project_id TEXT NOT NULL DEFAULT 'platform',
         deployment_stamp TEXT UNIQUE,
         color TEXT,
         commit_hash TEXT,
@@ -127,6 +175,7 @@ export async function ensureLogDrainSchema() {
     await sql`
       CREATE TABLE IF NOT EXISTS requests (
         id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL DEFAULT 'platform',
         source TEXT NOT NULL,
         method TEXT,
         path TEXT,
@@ -150,6 +199,7 @@ export async function ensureLogDrainSchema() {
     await sql`
       CREATE TABLE IF NOT EXISTS log_events (
         id BIGSERIAL PRIMARY KEY,
+        project_id TEXT NOT NULL DEFAULT 'platform',
         request_id TEXT REFERENCES requests(id) ON DELETE SET NULL,
         source TEXT NOT NULL,
         level TEXT NOT NULL,
@@ -170,6 +220,7 @@ export async function ensureLogDrainSchema() {
     await sql`
       CREATE TABLE IF NOT EXISTS cron_runs (
         id TEXT PRIMARY KEY,
+        project_id TEXT NOT NULL DEFAULT 'platform',
         request_id TEXT REFERENCES requests(id) ON DELETE SET NULL,
         job_id TEXT NOT NULL,
         path TEXT NOT NULL,
@@ -187,6 +238,7 @@ export async function ensureLogDrainSchema() {
     await sql`
       CREATE TABLE IF NOT EXISTS usage_events (
         id BIGSERIAL PRIMARY KEY,
+        project_id TEXT NOT NULL DEFAULT 'platform',
         request_id TEXT REFERENCES requests(id) ON DELETE SET NULL,
         source TEXT NOT NULL,
         metric TEXT NOT NULL,
@@ -203,14 +255,71 @@ export async function ensureLogDrainSchema() {
     await sql`ALTER TABLE requests ADD COLUMN IF NOT EXISTS user_agent TEXT`;
     await sql`ALTER TABLE log_events ADD COLUMN IF NOT EXISTS ip_address TEXT`;
     await sql`ALTER TABLE log_events ADD COLUMN IF NOT EXISTS user_agent TEXT`;
+    await sql`ALTER TABLE deployments ADD COLUMN IF NOT EXISTS project_id TEXT NOT NULL DEFAULT 'platform'`;
+    await sql`ALTER TABLE requests ADD COLUMN IF NOT EXISTS project_id TEXT NOT NULL DEFAULT 'platform'`;
+    await sql`ALTER TABLE log_events ADD COLUMN IF NOT EXISTS project_id TEXT NOT NULL DEFAULT 'platform'`;
+    await sql`ALTER TABLE cron_runs ADD COLUMN IF NOT EXISTS project_id TEXT NOT NULL DEFAULT 'platform'`;
+    await sql`ALTER TABLE usage_events ADD COLUMN IF NOT EXISTS project_id TEXT NOT NULL DEFAULT 'platform'`;
+    await sql`
+      INSERT INTO infrastructure_projects (
+        id,
+        name,
+        repo_url,
+        github_owner,
+        github_repo,
+        selected_branch,
+        app_root,
+        environment,
+        preset,
+        port,
+        hostnames,
+        auto_deploy_enabled,
+        nginx_enabled,
+        log_drain_enabled,
+        redis_enabled,
+        cron_enabled,
+        is_builtin
+      )
+      VALUES (
+        'platform',
+        'Tuturuuu Platform',
+        'https://github.com/tutur3u/platform',
+        'tutur3u',
+        'platform',
+        'production',
+        'apps/web',
+        'production',
+        'nextjs',
+        7803,
+        ARRAY[]::text[],
+        true,
+        true,
+        true,
+        true,
+        true,
+        true
+      )
+      ON CONFLICT (id) DO NOTHING
+    `;
+    await sql`UPDATE deployments SET project_id = 'platform' WHERE project_id IS NULL OR project_id = ''`;
+    await sql`UPDATE requests SET project_id = 'platform' WHERE project_id IS NULL OR project_id = ''`;
+    await sql`UPDATE log_events SET project_id = 'platform' WHERE project_id IS NULL OR project_id = ''`;
+    await sql`UPDATE cron_runs SET project_id = 'platform' WHERE project_id IS NULL OR project_id = ''`;
+    await sql`UPDATE usage_events SET project_id = 'platform' WHERE project_id IS NULL OR project_id = ''`;
+    await sql`CREATE INDEX IF NOT EXISTS infrastructure_projects_repo_idx ON infrastructure_projects (github_owner, github_repo)`;
+    await sql`CREATE INDEX IF NOT EXISTS infrastructure_project_branches_project_idx ON infrastructure_project_branches (project_id, name)`;
     await sql`CREATE INDEX IF NOT EXISTS log_events_created_at_idx ON log_events (created_at DESC)`;
+    await sql`CREATE INDEX IF NOT EXISTS log_events_project_created_at_idx ON log_events (project_id, created_at DESC)`;
     await sql`CREATE INDEX IF NOT EXISTS log_events_level_created_at_idx ON log_events (level, created_at DESC)`;
     await sql`CREATE INDEX IF NOT EXISTS log_events_request_id_idx ON log_events (request_id)`;
     await sql`CREATE INDEX IF NOT EXISTS requests_started_at_idx ON requests (started_at DESC)`;
+    await sql`CREATE INDEX IF NOT EXISTS requests_project_started_at_idx ON requests (project_id, started_at DESC)`;
     await sql`CREATE INDEX IF NOT EXISTS requests_status_started_at_idx ON requests (status, started_at DESC)`;
     await sql`CREATE INDEX IF NOT EXISTS requests_path_started_at_idx ON requests (path, started_at DESC)`;
     await sql`CREATE INDEX IF NOT EXISTS cron_runs_job_started_at_idx ON cron_runs (job_id, started_at DESC)`;
+    await sql`CREATE INDEX IF NOT EXISTS cron_runs_project_started_at_idx ON cron_runs (project_id, started_at DESC)`;
     await sql`CREATE INDEX IF NOT EXISTS usage_events_metric_created_at_idx ON usage_events (metric, created_at DESC)`;
+    await sql`CREATE INDEX IF NOT EXISTS usage_events_project_metric_created_at_idx ON usage_events (project_id, metric, created_at DESC)`;
   })();
 
   await schemaReady;
@@ -235,6 +344,7 @@ function getDeploymentMetadata() {
   return {
     deploymentColor: process.env.PLATFORM_BLUE_GREEN_COLOR?.trim() || null,
     deploymentStamp: process.env.PLATFORM_DEPLOYMENT_STAMP?.trim() || null,
+    projectId: process.env.PLATFORM_PROJECT_ID?.trim() || DEFAULT_PROJECT_ID,
   };
 }
 
@@ -305,6 +415,7 @@ function createEvent(
     level,
     message: args.map(serializeArg).join(' '),
     metadata,
+    projectId: context?.projectId ?? deployment.projectId,
     requestId: context?.requestId ?? null,
     route: context?.path ?? null,
     source: context?.source ?? 'server',
@@ -334,6 +445,7 @@ async function persistStandaloneEvent(event: LogDrainEvent) {
 
     await sql`
       INSERT INTO log_events (
+        project_id,
         request_id,
         source,
         level,
@@ -351,6 +463,7 @@ async function persistStandaloneEvent(event: LogDrainEvent) {
         created_at
       )
       VALUES (
+        ${event.projectId},
         ${event.requestId},
         ${event.source},
         ${event.level},
@@ -396,12 +509,14 @@ async function persistContext({
       (normalizedError ? 500 : context.source === 'cron' ? 200 : null);
     const durationMs = Math.max(0, endedAt - context.startedAt);
     const deployment = getDeploymentMetadata();
+    const projectId = context.projectId || deployment.projectId;
     const requestMetadata = {};
 
     await sql.begin(async (transaction) => {
       await transaction`
         INSERT INTO requests (
           id,
+          project_id,
           source,
           method,
           path,
@@ -422,6 +537,7 @@ async function persistContext({
         )
         VALUES (
           ${context.requestId},
+          ${projectId},
           ${context.source},
           ${context.method},
           ${context.path},
@@ -441,6 +557,7 @@ async function persistContext({
           ${new Date(endedAt)}
         )
         ON CONFLICT (id) DO UPDATE SET
+          project_id = EXCLUDED.project_id,
           status = EXCLUDED.status,
           duration_ms = EXCLUDED.duration_ms,
           error_message = EXCLUDED.error_message,
@@ -455,6 +572,7 @@ async function persistContext({
         await transaction`
           INSERT INTO cron_runs (
             id,
+            project_id,
             request_id,
             job_id,
             path,
@@ -469,6 +587,7 @@ async function persistContext({
           )
           VALUES (
             ${context.requestId},
+            ${projectId},
             ${context.requestId},
             ${context.cronJobId},
             ${context.path},
@@ -482,6 +601,7 @@ async function persistContext({
             ${new Date(endedAt)}
           )
           ON CONFLICT (id) DO UPDATE SET
+            project_id = EXCLUDED.project_id,
             status = EXCLUDED.status,
             http_status = EXCLUDED.http_status,
             duration_ms = EXCLUDED.duration_ms,
@@ -493,6 +613,7 @@ async function persistContext({
       for (const event of context.events) {
         await transaction`
           INSERT INTO log_events (
+            project_id,
             request_id,
             source,
             level,
@@ -510,6 +631,7 @@ async function persistContext({
             created_at
           )
           VALUES (
+            ${event.projectId || projectId},
             ${context.requestId},
             ${event.source},
             ${event.level},
@@ -593,12 +715,14 @@ export async function withRequestLogDrain<T extends Response>(
 ) {
   const url = new URL(options.request.url);
   const clientMetadata = getRequestClientMetadata(options.request);
+  const deployment = getDeploymentMetadata();
   const context: LogDrainContext = {
     cronJobId: null,
     events: [],
     ipAddress: clientMetadata.ipAddress,
     method: options.request.method,
     path: options.route ?? url.pathname,
+    projectId: deployment.projectId,
     requestId:
       options.request.headers.get('x-request-id') ?? createRequestId('req'),
     source: options.source ?? 'api',
@@ -614,12 +738,14 @@ export async function withCronLogDrain<T extends Response>(
   handler: () => Promise<T>
 ) {
   const clientMetadata = getRequestClientMetadata(options.request);
+  const deployment = getDeploymentMetadata();
   const context: LogDrainContext = {
     cronJobId: options.jobId,
     events: [],
     ipAddress: clientMetadata.ipAddress,
     method: options.request?.method ?? 'GET',
     path: options.path,
+    projectId: deployment.projectId,
     requestId:
       options.request?.headers.get('x-request-id') ?? createRequestId('cron'),
     source: 'cron',
