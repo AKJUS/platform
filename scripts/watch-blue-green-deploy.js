@@ -115,6 +115,8 @@ const CONTAINER_REFRESH_WATCHED_FILES = [
 ];
 const WATCH_PENDING_DEPLOY_ENV = 'WATCHER_PENDING_BLUE_GREEN_DEPLOY';
 const WATCHER_CONTAINER_ENV = 'PLATFORM_BLUE_GREEN_WATCHER_CONTAINER';
+const WATCHER_CONTAINER_REFRESH_MESSAGE =
+  'host-supervised watcher service recreation';
 const ANSI = {
   blue: '\x1b[34m',
   bold: '\x1b[1m',
@@ -405,6 +407,13 @@ async function streamBlueGreenWatcherLogs({
     return { status: 'recreated' };
   }
 
+  if (
+    result.stdout?.includes(WATCHER_CONTAINER_REFRESH_MESSAGE) ||
+    result.stderr?.includes(WATCHER_CONTAINER_REFRESH_MESSAGE)
+  ) {
+    return { status: 'container-refresh-requested' };
+  }
+
   if (result.code !== 0) {
     const detail = result.stderr?.trim() || result.stdout?.trim();
     throw new Error(
@@ -428,6 +437,11 @@ async function runWatcherCommand(argv = process.argv.slice(2), options = {}) {
     }
 
     await sleep(options.reconnectDelayMs ?? 2_000);
+
+    if (result?.status === 'container-refresh-requested') {
+      await startBlueGreenWatcherContainer(argv, options);
+      continue;
+    }
 
     const state = await getWatcherContainerState(options);
     if (state === 'missing' || state === 'dead' || state === 'exited') {

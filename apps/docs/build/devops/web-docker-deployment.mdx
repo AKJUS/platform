@@ -567,6 +567,11 @@ Operational notes for the containerized watcher:
 - The host log follower treats Docker's `143` exit from an intentionally
   recreated watcher container as a reconnect signal, then reattaches to the
   replacement service instead of leaving the terminal dark.
+- If the followed watcher logs explicitly request host-supervised watcher
+  service recreation, the host wrapper force-recreates `web-blue-green-watcher`
+  before reattaching. Do not rely only on Docker's restart policy in this path:
+  the old container can briefly report healthy while still running the stale
+  image/runtime.
 - Git fetch/pull credentials now need to be usable inside the watcher
   container because the watcher no longer runs directly on the host.
 - The watcher image lives at `apps/web/docker/blue-green-watcher.Dockerfile`.
@@ -778,6 +783,11 @@ Dashboard details:
 - If the watcher pulls a revision that changes its own Dockerfile or baked
   entrypoint, it now rebuilds and recreates the `web-blue-green-watcher`
   service automatically before handing off to the next deployment cycle.
+- When that container-refresh request is emitted from inside the followed
+  watcher logs, `bun serve:web:docker:bg:watch` treats the log text itself as
+  the recreate signal, then rebuilds/recreates and resumes tailing. This keeps
+  the service from getting stuck in a Docker-restarted but operationally offline
+  state.
 - Recovery handoffs now persist a pending-deploy request under
   `tmp/docker-web/watch/` and reconcile it against the latest successful
   deployment history entry on startup. If `HEAD` is newer than the last
