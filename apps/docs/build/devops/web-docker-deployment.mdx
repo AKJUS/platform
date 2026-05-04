@@ -447,6 +447,11 @@ Operational notes:
   creates Docker-managed containers named like `buildx_buildkit_*` outside the
   Compose project, which makes Docker Desktop grouping and health reporting
   confusing.
+- During capped-build setup, the helper removes known legacy Buildx builders
+  such as `platform-web-capped-builder` before creating or reusing the
+  Compose-owned remote `platform` builder. If `docker buildx ls` still shows
+  that legacy builder, run the capped web deploy helper once so it can clean up
+  the stale Buildx record.
 - A lower parallelism setting usually trades build speed for host stability.
 - If BuildKit fails with `ResourceExhausted` or `cannot allocate memory` while
   host memory is still available, the builder cgroup is too small; raise

@@ -10,6 +10,7 @@ const {
   ensureBuildkitBuilder,
   getBuildkitPaths,
   getBuilderConfigFingerprint,
+  LEGACY_BUILDER_NAMES,
   normalizeBuilderConfig,
   parsePositiveInteger,
   parsePositiveNumber,
@@ -292,6 +293,76 @@ test('ensureBuildkitBuilder removes legacy docker-container BuildKit containers'
           call.args[0] === 'rm' &&
           call.args[1] === '-f' &&
           call.args.includes(legacyContainerName)
+      )
+    );
+  } finally {
+    fs.rmSync(tempDir, { force: true, recursive: true });
+  }
+});
+
+test('ensureBuildkitBuilder removes stale legacy Buildx builder names', async () => {
+  const tempDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'buildkit-builder-stale-name-')
+  );
+  const calls = [];
+  const legacyBuilderName = LEGACY_BUILDER_NAMES[0];
+
+  try {
+    await ensureBuildkitBuilder(
+      {
+        cpus: '2',
+        maxParallelism: '1',
+        memory: '4g',
+      },
+      {
+        env: { PATH: 'test-path' },
+        rootDir: tempDir,
+        runCommand: async (command, args, options = {}) => {
+          calls.push({
+            args,
+            command,
+            env: options.env,
+            stdio: options.stdio ?? 'inherit',
+          });
+
+          if (args[0] === 'buildx' && args[1] === 'inspect') {
+            if (args[2] === legacyBuilderName) {
+              return {
+                code: 0,
+                signal: null,
+                stderr: '',
+                stdout: 'Driver: docker-container\n',
+              };
+            }
+
+            return { code: 1, signal: null, stderr: '', stdout: '' };
+          }
+
+          if (args[0] === 'ps' && args.includes('{{.Names}}')) {
+            return { code: 0, signal: null, stderr: '', stdout: '' };
+          }
+
+          return { code: 0, signal: null, stderr: '', stdout: '' };
+        },
+      }
+    );
+
+    assert.ok(
+      calls.some(
+        (call) =>
+          call.command === 'docker' &&
+          call.args[0] === 'buildx' &&
+          call.args[1] === 'rm' &&
+          call.args.includes(legacyBuilderName)
+      )
+    );
+    assert.ok(
+      calls.some(
+        (call) =>
+          call.command === 'docker' &&
+          call.args[0] === 'buildx' &&
+          call.args[1] === 'create' &&
+          call.args.includes(DEFAULT_BUILDER_NAME)
       )
     );
   } finally {
