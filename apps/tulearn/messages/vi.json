@@ -1,0 +1,86 @@
+{
+  "assignments": {
+    "empty": "Hiện chưa có bài tập cần làm.",
+    "markDone": "Đánh dấu xong",
+    "title": "Bài tập"
+  },
+  "auth": {
+    "email": "Email",
+    "login": "Đăng nhập",
+    "logout": "Đăng xuất",
+    "otp": "Mã email",
+    "otpSent": "Hãy kiểm tra email để lấy mã.",
+    "password": "Mật khẩu",
+    "sendCode": "Gửi mã",
+    "submitCode": "Xác minh mã",
+    "subtitle": "Luyện tập, bài học, bài tập và tiến độ trong một nơi thân thiện với người học.",
+    "title": "Chào mừng đến Tulearn"
+  },
+  "common": {
+    "back": "Quay lại",
+    "completed": "Đã hoàn thành",
+    "continue": "Tiếp tục",
+    "empty": "Chưa có nội dung.",
+    "loading": "Đang tải",
+    "save": "Lưu",
+    "saving": "Đang lưu"
+  },
+  "courses": {
+    "empty": "Giáo viên chưa giao khóa học nào.",
+    "locked": "Đã khóa",
+    "modules": "Bài học",
+    "title": "Khóa học"
+  },
+  "home": {
+    "assignments": "Bài tập cần làm",
+    "dailyGoal": "Mục tiêu hôm nay",
+    "hearts": "Tim",
+    "marks": "Điểm gần đây",
+    "nextLesson": "Bài tiếp theo",
+    "streak": "Chuỗi ngày",
+    "title": "Trang chủ",
+    "xp": "XP"
+  },
+  "marks": {
+    "empty": "Điểm sẽ xuất hiện sau khi giáo viên nhập.",
+    "title": "Điểm"
+  },
+  "navigation": {
+    "assignments": "Bài tập",
+    "courses": "Khóa học",
+    "home": "Trang chủ",
+    "marks": "Điểm",
+    "practice": "Luyện tập",
+    "reports": "Báo cáo",
+    "settings": "Cài đặt"
+  },
+  "practice": {
+    "again": "Thử lại",
+    "correct": "Chính xác",
+    "empty": "Chưa có nội dung luyện tập.",
+    "incorrect": "Chưa đúng",
+    "submitCorrect": "Mình làm đúng",
+    "submitIncorrect": "Mình làm sai",
+    "title": "Luyện tập",
+    "xpAwarded": "XP nhận được"
+  },
+  "reports": {
+    "empty": "Báo cáo sẽ xuất hiện sau khi giáo viên phát hành.",
+    "title": "Báo cáo"
+  },
+  "settings": {
+    "dark": "Tối",
+    "displayName": "Tên hiển thị",
+    "email": "Email",
+    "language": "Ngôn ngữ",
+    "light": "Sáng",
+    "linkedStudents": "Học viên được liên kết",
+    "parentMode": "Chế độ phụ huynh",
+    "theme": "Giao diện",
+    "title": "Cài đặt"
+  },
+  "workspace": {
+    "empty": "Tài khoản này chưa có workspace giáo dục.",
+    "switcher": "Workspace"
+  }
+}

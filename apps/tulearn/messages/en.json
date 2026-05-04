@@ -1,0 +1,86 @@
+{
+  "assignments": {
+    "empty": "No assignments are due right now.",
+    "markDone": "Mark done",
+    "title": "Assignments"
+  },
+  "auth": {
+    "email": "Email",
+    "login": "Log in",
+    "logout": "Log out",
+    "otp": "Email code",
+    "otpSent": "Check your email for the code.",
+    "password": "Password",
+    "sendCode": "Send code",
+    "submitCode": "Verify code",
+    "subtitle": "Practice, lessons, assignments, and progress in one learner-friendly place.",
+    "title": "Welcome to Tulearn"
+  },
+  "common": {
+    "back": "Back",
+    "completed": "Completed",
+    "continue": "Continue",
+    "empty": "Nothing here yet.",
+    "loading": "Loading",
+    "save": "Save",
+    "saving": "Saving"
+  },
+  "courses": {
+    "empty": "Your teacher has not assigned courses yet.",
+    "locked": "Locked",
+    "modules": "Modules",
+    "title": "Courses"
+  },
+  "home": {
+    "assignments": "Due assignments",
+    "dailyGoal": "Daily goal",
+    "hearts": "Hearts",
+    "marks": "Recent marks",
+    "nextLesson": "Next lesson",
+    "streak": "Streak",
+    "title": "Home",
+    "xp": "XP"
+  },
+  "marks": {
+    "empty": "Marks will appear after your teacher records them.",
+    "title": "Marks"
+  },
+  "navigation": {
+    "assignments": "Assignments",
+    "courses": "Courses",
+    "home": "Home",
+    "marks": "Marks",
+    "practice": "Practice",
+    "reports": "Reports",
+    "settings": "Settings"
+  },
+  "practice": {
+    "again": "Try again",
+    "correct": "Correct",
+    "empty": "No practice is ready yet.",
+    "incorrect": "Incorrect",
+    "submitCorrect": "I got it",
+    "submitIncorrect": "I missed it",
+    "title": "Practice",
+    "xpAwarded": "XP awarded"
+  },
+  "reports": {
+    "empty": "Reports will appear after your teacher publishes them.",
+    "title": "Reports"
+  },
+  "settings": {
+    "dark": "Dark",
+    "displayName": "Display name",
+    "email": "Email",
+    "language": "Language",
+    "light": "Light",
+    "linkedStudents": "Linked students",
+    "parentMode": "Parent mode",
+    "theme": "Theme",
+    "title": "Settings"
+  },
+  "workspace": {
+    "empty": "No education workspace is available for this account.",
+    "switcher": "Workspace"
+  }
+}
