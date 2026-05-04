@@ -16,15 +16,15 @@ import {
 
 const intlMiddleware = createIntlMiddleware(routing);
 
-function getPreferredLocale(request: NextRequest) {
+function getPreferredLocale(request: NextRequest): Locale {
   const cookieLocale = request.cookies.get(LOCALE_COOKIE_NAME)?.value;
   if (cookieLocale && supportedLocales.includes(cookieLocale as Locale)) {
-    return cookieLocale;
+    return cookieLocale as Locale;
   }
 
   const headers = Object.fromEntries(request.headers.entries());
   const languages = new Negotiator({ headers }).languages();
-  return match(languages, supportedLocales, defaultLocale);
+  return match(languages, supportedLocales, defaultLocale) as Locale;
 }
 
 function stripLocale(pathname: string) {
@@ -35,6 +35,46 @@ function stripLocale(pathname: string) {
   return `/${segments.slice(hasLocale ? 1 : 0).join('/')}`;
 }
 
+function getPathLocale(pathname: string) {
+  const [firstSegment] = pathname.split('/').filter(Boolean);
+  return firstSegment && supportedLocales.includes(firstSegment as Locale)
+    ? (firstSegment as Locale)
+    : null;
+}
+
+function getLoginPath(locale: Locale) {
+  return locale === defaultLocale ? '/login' : `/${locale}/login`;
+}
+
+function getNextValue(request: NextRequest) {
+  const unlocalizedPath = stripLocale(request.nextUrl.pathname);
+  if (unlocalizedPath === '/') return null;
+
+  return `${request.nextUrl.pathname}${request.nextUrl.search}`;
+}
+
+function getCanonicalPublicRedirect(request: NextRequest) {
+  const pathLocale = getPathLocale(request.nextUrl.pathname);
+  const unlocalizedPath = stripLocale(request.nextUrl.pathname);
+
+  if (!unlocalizedPath.startsWith('/login')) return null;
+
+  const url = new URL(request.url);
+  let changed = false;
+
+  if (pathLocale === defaultLocale) {
+    url.pathname = unlocalizedPath;
+    changed = true;
+  }
+
+  if (url.searchParams.get('next') === '/') {
+    url.searchParams.delete('next');
+    changed = true;
+  }
+
+  return changed ? NextResponse.redirect(url) : null;
+}
+
 export async function proxy(request: NextRequest): Promise<NextResponse> {
   if (request.nextUrl.pathname.startsWith('/api')) {
     const guardResponse = await guardApiProxyRequest(request, {
@@ -42,6 +82,9 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     });
     return guardResponse ?? NextResponse.next();
   }
+
+  const canonicalPublicRedirect = getCanonicalPublicRedirect(request);
+  if (canonicalPublicRedirect) return canonicalPublicRedirect;
 
   const unlocalizedPath = stripLocale(request.nextUrl.pathname);
   const isPublicPath = unlocalizedPath.startsWith('/login');
@@ -52,8 +95,11 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
 
     if (!user) {
       const locale = getPreferredLocale(request);
-      const url = new URL(`/${locale}/login`, request.url);
-      url.searchParams.set('next', request.nextUrl.pathname);
+      const url = new URL(getLoginPath(locale), request.url);
+      const next = getNextValue(request);
+
+      if (next) url.searchParams.set('next', next);
+
       return NextResponse.redirect(url);
     }
   }
