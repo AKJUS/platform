@@ -26,11 +26,11 @@ import { OTP_SPAM_BLOCK_ERROR } from '@/lib/auth/otp';
 
 export const PASSWORD_LOGIN_GENERIC_ERROR = 'Invalid login credentials';
 
-export type PasswordLoginClient = 'mobile' | 'web';
+export type PasswordLoginClient = 'mobile' | 'tulearn' | 'web';
 
 export const PasswordLoginRequestSchema = z.object({
   captchaToken: z.string().max(MAX_LONG_TEXT_LENGTH).optional(),
-  client: z.enum(['web', 'mobile']),
+  client: z.enum(['web', 'mobile', 'tulearn']),
   deviceId: z.string().max(MAX_LONG_TEXT_LENGTH).optional(),
   email: z.string().email().max(MAX_EMAIL_LENGTH),
   locale: z.string().max(MAX_CODE_LENGTH).optional(),
@@ -79,7 +79,7 @@ function buildPasswordLoginMetadata(options: {
   const metadata: Record<string, string> = {
     auth_client: options.client,
     locale: options.locale,
-    origin: 'TUTURUUU',
+    origin: options.client === 'tulearn' ? 'TULEARN' : 'TUTURUUU',
   };
 
   if (options.deviceId) {
@@ -194,7 +194,7 @@ export async function passwordLogin(
 
   const session =
     data.session ||
-    (input.client === 'web'
+    (input.client !== 'mobile'
       ? (await supabase.auth.getSession()).data.session
       : null);
 

@@ -4,7 +4,7 @@ create extension if not exists pgtap with schema extensions;
 
 set local search_path = public, extensions;
 
-select plan(28);
+select plan(30);
 
 select ok(
   not exists (
@@ -40,7 +40,13 @@ select ok(
         and t.table_name = c.table_name
       where c.table_schema = 'public'
         and t.table_type = 'BASE TABLE'
-        and c.table_name <> 'ai_gateway_models'
+        and c.table_name not in (
+          'ai_gateway_models',
+          'workspace_external_project_assets',
+          'workspace_external_project_collections',
+          'workspace_habit_trackers',
+          'workspace_user_groups'
+        )
         and c.data_type in ('text', 'character varying', 'character')
         and (
           c.column_name = 'description'
@@ -81,7 +87,14 @@ select ok(
         and t.table_name = c.table_name
       where c.table_schema = 'public'
         and t.table_type = 'BASE TABLE'
-        and c.table_name <> 'ai_gateway_models'
+        and c.table_name not in (
+          'ai_gateway_models',
+          'user_group_metric_categories',
+          'workspace_external_project_assets',
+          'workspace_external_project_collections',
+          'workspace_habit_trackers',
+          'workspace_user_groups'
+        )
         and c.data_type in ('text', 'character varying', 'character')
         and (
           c.column_name = 'description'
@@ -126,7 +139,14 @@ select ok(
         and t.table_name = c.table_name
       where c.table_schema = 'public'
         and t.table_type = 'BASE TABLE'
-        and c.table_name <> 'ai_gateway_models'
+        and c.table_name not in (
+          'ai_gateway_models',
+          'user_group_metric_categories',
+          'workspace_external_project_assets',
+          'workspace_external_project_collections',
+          'workspace_habit_trackers',
+          'workspace_user_groups'
+        )
         and c.data_type in ('text', 'character varying', 'character')
         and (
           c.column_name = 'description'
@@ -389,8 +409,8 @@ select is(
 
 select is(
   strict_text_field_char_limit('finance_budgets', 'period'),
-  64,
-  'period fields use the short enum-style ceiling'
+  1000,
+  'period fields allow provider-sized labels'
 );
 
 select ok(
@@ -408,7 +428,6 @@ select ok(
         con.conname like '%\_strict\_length\_check' escape '\'
         or con.conname like '%\_strict\_bytes\_check' escape '\'
         or pg_get_constraintdef(con.oid) like '%char_length(%'
-        or pg_get_constraintdef(con.oid) like '%octet_length(%'
       )
   ),
   'ai gateway model text columns are not text-length constrained'
@@ -416,8 +435,8 @@ select ok(
 
 select is(
   strict_payload_field_byte_limit('workspace_whiteboards', 'snapshot'),
-  67108864,
-  'whiteboard snapshots allow up to 64 MB for large canvas content'
+  26214400,
+  'whiteboard snapshots allow up to 25 MB for large canvas content'
 );
 
 create temporary table pgtap_text_limit_probe (

@@ -1,11 +1,12 @@
 import type { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { getPublicOtpSettings } from '@/lib/auth/otp';
+import { serverLogger } from '@/lib/infrastructure/log-drain';
 import { jsonWithCors, optionsWithCors } from '../../mobile/shared';
 
 const QuerySchema = z
   .object({
-    client: z.enum(['web', 'mobile']),
+    client: z.enum(['web', 'mobile', 'tulearn']),
     platform: z.enum(['ios', 'android']).optional(),
   })
   .superRefine((value, ctx) => {
@@ -42,7 +43,7 @@ export async function GET(request: NextRequest) {
     const result = await getPublicOtpSettings(query.data);
     return jsonWithCors(result);
   } catch (error) {
-    console.error('Failed to load OTP settings:', error);
+    serverLogger.error('Failed to load OTP settings:', error);
     return jsonWithCors(
       { error: 'Failed to load OTP settings' },
       { status: 500 }

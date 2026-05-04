@@ -16,8 +16,8 @@ select set_config(
 
 select plan(3);
 
-insert into public.users (id, email)
-values ('00000000-0000-0000-0000-0000000000b1', 'task-yjs-rpc@example.com')
+insert into public.users (id)
+values ('00000000-0000-0000-0000-0000000000b1')
 on conflict (id) do nothing;
 
 insert into public.workspaces (id, name, personal, creator_id)
