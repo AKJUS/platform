@@ -185,6 +185,50 @@ describe('useTaskActions', () => {
       });
     });
 
+    it('should keep checkbox completion in the task cache after the server response', async () => {
+      const completedAt = '2026-03-19T01:00:00.000Z';
+      mockUpdateWorkspaceTask.mockResolvedValueOnce({
+        task: {
+          ...mockTask,
+          list_id: 'completion-list',
+          completed: true,
+          completed_at: completedAt,
+          closed_at: completedAt,
+        },
+      });
+      queryClient.setQueryData(['tasks', 'board-1'], [mockTask]);
+
+      const { result } = renderHook(
+        () =>
+          useTaskActions({
+            task: mockTask,
+            boardId: 'board-1',
+            targetCompletionList: mockCompletionList,
+            targetClosedList: mockClosedList,
+            availableLists: mockAvailableLists,
+            onUpdate: vi.fn(),
+            setIsLoading: vi.fn(),
+            setMenuOpen: vi.fn(),
+          }),
+        { wrapper }
+      );
+
+      await act(async () => {
+        await result.current.handleArchiveToggle();
+      });
+
+      expect(queryClient.getQueryData<Task[]>(['tasks', 'board-1'])).toEqual([
+        expect.objectContaining({
+          id: 'task-1',
+          list_id: 'completion-list',
+          completed: true,
+          completed_at: completedAt,
+          closed_at: completedAt,
+          _localMutationAt: expect.any(Number),
+        }),
+      ]);
+    });
+
     it('should handle simple toggle without moving list', async () => {
       const taskInCompletionList = {
         ...mockTask,

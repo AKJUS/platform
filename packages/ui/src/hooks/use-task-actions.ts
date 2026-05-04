@@ -82,6 +82,26 @@ export function useTaskActions({
     } as Task;
   }, []);
 
+  const mergeLocallyMutatedTask = useCallback(
+    (taskId: string, taskPatch: Partial<Task>) => {
+      queryClient.setQueryData<Task[]>(['tasks', boardId], (current) => {
+        if (!current) {
+          return current;
+        }
+
+        return current.map((item) =>
+          item.id === taskId
+            ? markLocallyMutatedTask({
+                ...item,
+                ...taskPatch,
+              } as Task)
+            : item
+        );
+      });
+    },
+    [boardId, markLocallyMutatedTask, queryClient]
+  );
+
   const rollbackTaskIds = useCallback(
     (previousTasks: Task[] | undefined, failedTaskIds: string[]) => {
       if (!previousTasks || failedTaskIds.length === 0) {
@@ -162,6 +182,8 @@ export function useTaskActions({
       targetCompletionList &&
       targetCompletionList.id !== task.list_id
     ) {
+      const now = new Date().toISOString();
+
       try {
         // Optimistic update: move task to completion list and set closed_at
         queryClient.setQueryData(
@@ -173,7 +195,10 @@ export function useTaskActions({
                 ? markLocallyMutatedTask({
                     ...t,
                     list_id: targetCompletionList.id,
-                    closed_at: new Date().toISOString(),
+                    completed: targetCompletionList.status === 'done',
+                    closed_at: now,
+                    completed_at:
+                      targetCompletionList.status === 'done' ? now : null,
                   } as Task)
                 : t
             );
@@ -190,6 +215,14 @@ export function useTaskActions({
             list_id: targetCompletionList.id,
           }
         );
+        mergeLocallyMutatedTask(task.id, {
+          ...movedTask,
+          list_id: targetCompletionList.id,
+          closed_at: movedTask?.closed_at ?? now,
+          completed_at:
+            movedTask?.completed_at ??
+            (targetCompletionList.status === 'done' ? now : undefined),
+        });
         broadcast?.('task:upsert', {
           task: {
             id: task.id,
@@ -241,6 +274,11 @@ export function useTaskActions({
             closed_at: newClosedState ? new Date().toISOString() : null,
           }
         );
+        mergeLocallyMutatedTask(task.id, {
+          ...updatedTask,
+          closed_at: updatedTask.closed_at,
+          completed_at: updatedTask.completed_at,
+        });
 
         broadcast?.('task:upsert', {
           task: {
@@ -275,6 +313,7 @@ export function useTaskActions({
     broadcast,
     getWorkspaceId,
     markLocallyMutatedTask,
+    mergeLocallyMutatedTask,
   ]);
 
   const handleMoveToCompletion = useCallback(async () => {

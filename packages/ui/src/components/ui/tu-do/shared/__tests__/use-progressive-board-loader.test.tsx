@@ -195,6 +195,48 @@ describe('useProgressiveBoardLoader', () => {
     ]);
   });
 
+  it('does not overwrite a fresh local move when a stale request starts after mutation', async () => {
+    const locallyMovedTask = {
+      id: 'task-1',
+      display_number: 1,
+      name: 'Task',
+      list_id: 'done-list',
+      created_at: '2026-03-19T00:00:00.000Z',
+      closed_at: '2026-03-19T01:00:00.000Z',
+      completed_at: '2026-03-19T01:00:00.000Z',
+      _localMutationAt: Date.now(),
+    } as Task;
+
+    queryClient.setQueryData(['tasks', 'board-1'], [locallyMovedTask]);
+
+    vi.mocked(listWorkspaceTasks).mockResolvedValueOnce({
+      tasks: [
+        {
+          ...locallyMovedTask,
+          list_id: 'todo-list',
+          completed_at: undefined,
+          closed_at: undefined,
+        },
+      ],
+    });
+
+    const { result } = renderHook(
+      () => useProgressiveBoardLoader('ws-1', 'board-1'),
+      { wrapper }
+    );
+
+    await act(async () => {
+      await result.current.loadListPage('todo-list', 0);
+    });
+
+    expect(queryClient.getQueryData<Task[]>(['tasks', 'board-1'])).toEqual([
+      {
+        ...locallyMovedTask,
+        _localMutationAt: expect.any(Number),
+      },
+    ]);
+  });
+
   it('overwrites local mutation when _localMutationAt precedes request start', async () => {
     const cachedTask = {
       id: 'task-1',
