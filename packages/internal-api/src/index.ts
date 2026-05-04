@@ -208,9 +208,9 @@ export { listWorkspaceEmails } from './mail';
 export { getCurrentUserNovaTeam } from './nova';
 export {
   forceSendWorkspacePostEmail,
-  getWorkspacePosts,
   type GetWorkspacePostsQuery,
   type GetWorkspacePostsResponse,
+  getWorkspacePosts,
 } from './posts';
 export {
   updateWorkspaceReferralSettings,

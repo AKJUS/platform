@@ -24,7 +24,10 @@ export interface GetWorkspacePostsQuery {
   cursor?: string;
 }
 
-export interface GetWorkspacePostsResponse<TPost = unknown, TSummary = unknown> {
+export interface GetWorkspacePostsResponse<
+  TPost = unknown,
+  TSummary = unknown,
+> {
   data: TPost[];
   count: number;
   summary: TSummary;

@@ -1,11 +1,11 @@
 'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@tuturuuu/ui/card';
-import { getWorkspacePosts } from '@tuturuuu/internal-api';
+import { useQuery } from '@tanstack/react-query';
 import { Loader2 } from '@tuturuuu/icons';
+import { getWorkspacePosts } from '@tuturuuu/internal-api';
+import { Card, CardContent, CardHeader, CardTitle } from '@tuturuuu/ui/card';
 import FeatureSummary from '@tuturuuu/ui/custom/feature-summary';
 import { DataTable } from '@tuturuuu/ui/custom/tables/data-table';
-import { useQuery } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useQueryStates } from 'nuqs';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -63,7 +63,8 @@ export default function PostsClient({
           : (searchParams.includedGroups ?? undefined),
       page: currentPage,
       pageSize: currentPageSize,
-      queueStatus: queryState.queueStatus ?? searchParams.queueStatus ?? undefined,
+      queueStatus:
+        queryState.queueStatus ?? searchParams.queueStatus ?? undefined,
       showAll: queryState.showAll ?? searchParams.showAll ?? undefined,
       stage: activeStage,
       start: queryState.start ?? searchParams.start ?? undefined,
@@ -169,22 +170,22 @@ export default function PostsClient({
         description={t('ws-post-emails.description')}
       />
 
-          <PostStatusSummary
-            activeStage={activeStage}
-            filteredCount={postsData?.count || 0}
-            summary={postsStatus}
-            toolbar={
-              <PostsFilters
-                wsId={wsId}
-                statusSummary={postsStatus}
-                defaultDateRange={defaultDateRange}
-                onRefreshPosts={() => {
-                  void refetch();
-                }}
-                isRefreshing={isFetching}
-              />
-            }
+      <PostStatusSummary
+        activeStage={activeStage}
+        filteredCount={postsData?.count || 0}
+        summary={postsStatus}
+        toolbar={
+          <PostsFilters
+            wsId={wsId}
+            statusSummary={postsStatus}
+            defaultDateRange={defaultDateRange}
+            onRefreshPosts={() => {
+              void refetch();
+            }}
+            isRefreshing={isFetching}
           />
+        }
+      />
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[minmax(0,1.45fr)_minmax(22rem,0.95fr)] xl:items-start">
         <Card className="min-w-0 border-border/60 shadow-sm">
