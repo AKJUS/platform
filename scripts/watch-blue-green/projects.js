@@ -416,6 +416,7 @@ async function resolvePlatformProjectTarget(
 
 async function updatePlatformProjectDeploymentStatus({
   env = process.env,
+  latestCommit = null,
   metadata = {},
   postgresFactory = null,
   status,
@@ -424,6 +425,19 @@ async function updatePlatformProjectDeploymentStatus({
     throw new Error('A platform project deployment status is required.');
   }
 
+  const latestCommitHash =
+    typeof latestCommit?.hash === 'string' && latestCommit.hash.trim()
+      ? latestCommit.hash.trim()
+      : null;
+  const latestCommitShortHash =
+    typeof latestCommit?.shortHash === 'string' && latestCommit.shortHash.trim()
+      ? latestCommit.shortHash.trim()
+      : latestCommitHash?.slice(0, 12) || null;
+  const latestCommitSubject =
+    typeof latestCommit?.subject === 'string' && latestCommit.subject.trim()
+      ? latestCommit.subject.trim()
+      : null;
+
   await withLogDrainSql(
     env,
     async (sql) => {
@@ -431,6 +445,13 @@ async function updatePlatformProjectDeploymentStatus({
         UPDATE infrastructure_projects
         SET
           deployment_status = ${status},
+          latest_commit_hash = COALESCE(${latestCommitHash}, latest_commit_hash),
+          latest_commit_short_hash = COALESCE(${latestCommitShortHash}, latest_commit_short_hash),
+          latest_commit_subject = COALESCE(${latestCommitSubject}, latest_commit_subject),
+          latest_synced_at = CASE
+            WHEN ${latestCommitHash} IS NULL THEN latest_synced_at
+            ELSE now()
+          END,
           metadata = COALESCE(metadata, '{}'::jsonb) || ${JSON.stringify(metadata)}::jsonb,
           last_deployed_at = CASE
             WHEN ${status} = 'ready' THEN now()

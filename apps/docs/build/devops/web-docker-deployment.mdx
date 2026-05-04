@@ -538,6 +538,10 @@ Behavior:
     from the normal Git polling interval, so a watcher configured with a long
     Git interval such as 1000 seconds still wakes on the shorter project queue
     interval to advance queued Deploy actions.
+    Platform project state is updated on both queue-only deploys and normal
+    fast-forward deploys, so a successful pull/deploy clears `queued` and
+    refreshes the latest commit columns instead of relying only on deployment
+    history.
 15. If watcher runtime code such as `scripts/watch-blue-green-deploy.js`,
    `scripts/docker-web/blue-green.js`, or `scripts/docker-web/env.js` changed
    in the pulled revision, the current watcher does not deploy from the old

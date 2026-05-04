@@ -2291,6 +2291,7 @@ test('runDeployWatchIteration restarts before deployment when the watcher script
 
 test('runDeployWatchIteration emits a pending deployment before deploy completion', async () => {
   const pendingStates = [];
+  const projectStatusUpdates = [];
   let pullCompleted = false;
   const runCommand = async (command, args) => {
     const key = `${command} ${args.join(' ')}`;
@@ -2382,6 +2383,14 @@ test('runDeployWatchIteration emits a pending deployment before deploy completio
       onDeploymentStart: (state) => {
         pendingStates.push(state);
       },
+      platformProjectDeploymentStatusUpdater: async (update) => {
+        projectStatusUpdates.push(update);
+      },
+      platformProjectReader: async () => ({
+        deploymentStatus: 'queued',
+        selectedBranch: 'main',
+        source: 'database',
+      }),
       runCommand,
     }
   );
@@ -2389,6 +2398,15 @@ test('runDeployWatchIteration emits a pending deployment before deploy completio
   assert.equal(pendingStates.length, 1);
   assert.equal(pendingStates[0].pendingDeployment.status, 'deploying');
   assert.equal(pendingStates[0].pendingDeployment.commitShortHash, 'bbb222');
+  assert.deepEqual(
+    projectStatusUpdates.map((update) => update.status),
+    ['building', 'deploying', 'ready']
+  );
+  assert.equal(projectStatusUpdates.at(-1).latestCommit.shortHash, 'bbb222');
+  assert.equal(
+    projectStatusUpdates.at(-1).metadata.deployedCommitHash,
+    'bbb222222222222222222'
+  );
   assert.equal(result.status, 'deployed');
 });
 

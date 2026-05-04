@@ -3886,11 +3886,18 @@ async function runDeployWatchIteration(
     now = () => Date.now(),
     onDeploymentStart = () => {},
     paths = getWatchPaths(),
+    platformProjectDeploymentStatusUpdater = updatePlatformProjectDeploymentStatus,
+    platformProjectReader = readPlatformProject,
     rootDir = ROOT_DIR,
     runCommand: run = runCommand,
   } = {}
 ) {
   const checkedAt = now();
+  const updatePlatformProjectStatus = (payload) =>
+    platformProjectDeploymentStatusUpdater({
+      env,
+      ...payload,
+    });
   const attachRuntime = async (result, history = null) => {
     const snapshotNow = now();
 
@@ -3921,6 +3928,9 @@ async function runDeployWatchIteration(
       now,
       onDeploymentStart,
       paths,
+      platformProjectDeploymentStatusUpdater:
+        updatePlatformProjectDeploymentStatus,
+      platformProjectReader,
       rootDir,
       runCommand: run,
     });
@@ -3999,14 +4009,14 @@ async function runDeployWatchIteration(
         deploymentHistory,
         latestCommit.hash
       );
-      const platformProject = await readPlatformProject({ env });
+      const platformProject = await platformProjectReader({ env });
 
       if (platformProject.deploymentStatus === 'queued') {
         if (
           hasReachedDeploymentFailureLimit(deploymentHistory, latestCommit.hash)
         ) {
-          await updatePlatformProjectDeploymentStatus({
-            env,
+          await updatePlatformProjectStatus({
+            latestCommit,
             metadata: {
               failedDeploymentCount,
               retryLimitedAt: new Date(checkedAt).toISOString(),
@@ -4029,8 +4039,8 @@ async function runDeployWatchIteration(
         log.info?.(
           `Processing queued platform deployment for ${latestCommit.shortHash}.`
         );
-        await updatePlatformProjectDeploymentStatus({
-          env,
+        await updatePlatformProjectStatus({
+          latestCommit,
           metadata: {
             buildStartedAt: new Date(checkedAt).toISOString(),
             commitHash: latestCommit.hash,
@@ -4055,8 +4065,8 @@ async function runDeployWatchIteration(
         });
 
         try {
-          await updatePlatformProjectDeploymentStatus({
-            env,
+          await updatePlatformProjectStatus({
+            latestCommit,
             metadata: {
               deployStartedAt: new Date(deployStartedAt).toISOString(),
               commitHash: latestCommit.hash,
@@ -4111,8 +4121,8 @@ async function runDeployWatchIteration(
             log,
             runCommand: run,
           });
-          await updatePlatformProjectDeploymentStatus({
-            env,
+          await updatePlatformProjectStatus({
+            latestCommit,
             metadata: {
               deployedAt: new Date(deployFinishedAt).toISOString(),
               deployedCommitHash: latestCommit.hash,
@@ -4151,8 +4161,8 @@ async function runDeployWatchIteration(
               paths,
             }
           );
-          await updatePlatformProjectDeploymentStatus({
-            env,
+          await updatePlatformProjectStatus({
+            latestCommit,
             metadata: {
               error: error instanceof Error ? error.message : String(error),
               failedAt: new Date(deployFinishedAt).toISOString(),
@@ -4585,6 +4595,10 @@ async function runDeployWatchIteration(
         env,
         runCommand: run,
       });
+      const platformProject = await platformProjectReader({ env });
+      const shouldUpdatePlatformProject =
+        platformProject.source === 'database' ||
+        platformProject.deploymentStatus === 'queued';
       const deploymentHistory = readDeploymentHistory(paths, fsImpl);
       const failedDeploymentCount = getFailedDeploymentCountForCommit(
         deploymentHistory,
@@ -4605,6 +4619,16 @@ async function runDeployWatchIteration(
       if (
         hasReachedDeploymentFailureLimit(deploymentHistory, latestCommit.hash)
       ) {
+        if (shouldUpdatePlatformProject) {
+          await updatePlatformProjectStatus({
+            latestCommit,
+            metadata: {
+              failedDeploymentCount,
+              retryLimitedAt: new Date(checkedAt).toISOString(),
+            },
+            status: 'failed',
+          });
+        }
         logRetryLimitOnce(
           `Skipping deployment for ${latestCommit.shortHash} because it already failed ${failedDeploymentCount} deployment attempts.`,
           latestCommit.hash,
@@ -4617,6 +4641,18 @@ async function runDeployWatchIteration(
           newHead: updatedHead,
           oldHead: localHead,
           status: 'retry-limited',
+        });
+      }
+
+      if (shouldUpdatePlatformProject) {
+        await updatePlatformProjectStatus({
+          latestCommit,
+          metadata: {
+            buildStartedAt: new Date(checkedAt).toISOString(),
+            commitHash: latestCommit.hash,
+            oldHead: localHead,
+          },
+          status: 'building',
         });
       }
 
@@ -4653,6 +4689,16 @@ async function runDeployWatchIteration(
           log.warn?.(
             'Watcher container runtime changed in the pulled revision. Recreating the watcher container before deployment.'
           );
+          if (shouldUpdatePlatformProject) {
+            await updatePlatformProjectStatus({
+              latestCommit,
+              metadata: {
+                pendingRestartAt: new Date(checkedAt).toISOString(),
+                pendingRestartReason: 'container-refresh',
+              },
+              status: 'queued',
+            });
+          }
 
           return attachRuntime({
             checkedAt,
@@ -4681,6 +4727,16 @@ async function runDeployWatchIteration(
           log.warn?.(
             'Watcher script changed in the pulled revision. Restarting watcher before deployment.'
           );
+          if (shouldUpdatePlatformProject) {
+            await updatePlatformProjectStatus({
+              latestCommit,
+              metadata: {
+                pendingRestartAt: new Date(checkedAt).toISOString(),
+                pendingRestartReason: 'process-restart',
+              },
+              status: 'queued',
+            });
+          }
 
           return attachRuntime({
             checkedAt,
@@ -4696,6 +4752,18 @@ async function runDeployWatchIteration(
         log.info?.(
           `Starting blue/green deployment for ${updatedHead.slice(0, 12)}.`
         );
+
+        if (shouldUpdatePlatformProject) {
+          await updatePlatformProjectStatus({
+            latestCommit,
+            metadata: {
+              deployStartedAt: new Date(deployStartedAt).toISOString(),
+              commitHash: latestCommit.hash,
+              oldHead: localHead,
+            },
+            status: 'deploying',
+          });
+        }
 
         await runBlueGreenDeploy({
           deployCommand,
@@ -4744,6 +4812,18 @@ async function runDeployWatchIteration(
           log,
           runCommand: run,
         });
+        if (shouldUpdatePlatformProject) {
+          await updatePlatformProjectStatus({
+            latestCommit,
+            metadata: {
+              deployedAt: new Date(deployFinishedAt).toISOString(),
+              deployedCommitHash: latestCommit.hash,
+              deploymentStamp,
+              oldHead: localHead,
+            },
+            status: 'ready',
+          });
+        }
 
         log.info?.(
           `Blue/green deployment completed for ${updatedHead.slice(0, 12)}.`
@@ -4782,6 +4862,17 @@ async function runDeployWatchIteration(
         log.error?.(
           `Blue/green deployment failed for ${updatedHead.slice(0, 12)}: ${error instanceof Error ? error.message : String(error)}`
         );
+        if (shouldUpdatePlatformProject) {
+          await updatePlatformProjectStatus({
+            latestCommit,
+            metadata: {
+              error: error instanceof Error ? error.message : String(error),
+              failedAt: new Date(deployFinishedAt).toISOString(),
+              oldHead: localHead,
+            },
+            status: 'failed',
+          });
+        }
 
         return attachRuntime(
           {
