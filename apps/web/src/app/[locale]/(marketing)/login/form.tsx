@@ -38,6 +38,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import * as z from 'zod';
 import { DEV_MODE } from '@/constants/common';
 import {
+  AUTH_OAUTH_PROVIDERS,
   type AuthOAuthProvider,
   getAuthOAuthProviderOptions,
 } from '@/lib/auth/oauth-providers';
@@ -187,6 +188,7 @@ export default function LoginForm() {
   const [otpRetryAfterSeconds, setOtpRetryAfterSeconds] = useState<number>(0);
   const [captchaToken, setCaptchaToken] = useState<string>();
   const [captchaError, setCaptchaError] = useState<string>();
+  const autoOAuthProviderRef = useRef<AuthOAuthProvider | null>(null);
   const oauthErrorToastKeyRef = useRef<string | null>(null);
   const captchaRefPassword = useRef<TurnstileInstance>(null);
   const otpSettingsQuery = useQuery({
@@ -632,30 +634,63 @@ export default function LoginForm() {
     return redirectURL;
   }, [searchParams]);
 
-  const handleOAuthLogin = async (provider: AuthOAuthProvider) => {
-    setLoading(true);
+  const handleOAuthLogin = useCallback(
+    async (provider: AuthOAuthProvider) => {
+      setLoading(true);
 
-    const redirectURL = buildOAuthRedirectUrl();
-    const providerOptions = getAuthOAuthProviderOptions(provider);
+      const redirectURL = buildOAuthRedirectUrl();
+      const providerOptions = getAuthOAuthProviderOptions(provider);
 
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: redirectURL,
-        queryParams: providerOptions.queryParams,
-        scopes: providerOptions.scopes,
-      },
-    });
-
-    if (error) {
-      setLoading(false);
-      console.error(`Error signing in with ${provider}:`, error);
-
-      toast.error(t('login.failed'), {
-        description: t('login.social_sign_in_failed'),
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: redirectURL,
+          queryParams: providerOptions.queryParams,
+          scopes: providerOptions.scopes,
+        },
       });
+
+      if (error) {
+        setLoading(false);
+        console.error(`Error signing in with ${provider}:`, error);
+
+        toast.error(t('login.failed'), {
+          description: t('login.social_sign_in_failed'),
+        });
+      }
+    },
+    [buildOAuthRedirectUrl, supabase.auth, t]
+  );
+
+  useEffect(() => {
+    if (!initialized || !readyForAuth || requiresMFA || user) {
+      return;
     }
-  };
+
+    const provider = searchParams.get('provider');
+    if (
+      !provider ||
+      !AUTH_OAUTH_PROVIDERS.includes(provider as AuthOAuthProvider)
+    ) {
+      autoOAuthProviderRef.current = null;
+      return;
+    }
+
+    const oauthProvider = provider as AuthOAuthProvider;
+    if (autoOAuthProviderRef.current === oauthProvider) {
+      return;
+    }
+
+    autoOAuthProviderRef.current = oauthProvider;
+    void handleOAuthLogin(oauthProvider);
+  }, [
+    handleOAuthLogin,
+    initialized,
+    readyForAuth,
+    requiresMFA,
+    searchParams,
+    user,
+  ]);
 
   const advanceToPasswordStage = async () => {
     const isValid = await emailForm.trigger('email');

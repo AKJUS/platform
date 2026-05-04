@@ -947,6 +947,81 @@ function parseFilterDefaults(filters: ObservabilityFilters) {
   };
 }
 
+function normalizeProjectId(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .replace(/-{2,}/g, '-');
+}
+
+function getProjectServiceNeedle(projectId: string) {
+  return `project-${normalizeProjectId(projectId)}`;
+}
+
+function isPlatformResourceName(value: string | null | undefined) {
+  return !String(value ?? '').startsWith('project-');
+}
+
+function matchesProjectService(
+  projectId: string,
+  values: Array<string | null | undefined>
+) {
+  if (projectId === DEFAULT_PROJECT_ID) {
+    return values.every(isPlatformResourceName);
+  }
+
+  const serviceNeedle = getProjectServiceNeedle(projectId);
+  return values.some((value) => String(value ?? '').includes(serviceNeedle));
+}
+
+type ResourceMetricItem = {
+  cpuPercent?: number | null;
+  memoryBytes?: number | null;
+  rxBytes?: number | null;
+  txBytes?: number | null;
+};
+
+function sumResourceMetric(
+  items: ResourceMetricItem[],
+  key: keyof ResourceMetricItem
+) {
+  return items.reduce((total, item) => {
+    const value = item[key];
+    return (
+      total + (typeof value === 'number' && Number.isFinite(value) ? value : 0)
+    );
+  }, 0);
+}
+
+function scopeDockerResources(
+  dockerResources: ObservabilityResources['dockerResources'],
+  projectId: string
+): ObservabilityResources['dockerResources'] {
+  const allContainers = dockerResources.allContainers.filter((container) =>
+    matchesProjectService(projectId, [container.serviceName, container.name])
+  );
+  const containers = dockerResources.containers.filter((container) =>
+    matchesProjectService(projectId, [container.serviceName, container.label])
+  );
+  const serviceHealth = dockerResources.serviceHealth.filter((service) =>
+    matchesProjectService(projectId, [service.serviceName, service.name])
+  );
+  const metricSource = allContainers.length > 0 ? allContainers : containers;
+
+  return {
+    ...dockerResources,
+    allContainers,
+    containers,
+    serviceHealth,
+    totalCpuPercent: sumResourceMetric(metricSource, 'cpuPercent'),
+    totalMemoryBytes: sumResourceMetric(metricSource, 'memoryBytes'),
+    totalRxBytes: sumResourceMetric(metricSource, 'rxBytes'),
+    totalTxBytes: sumResourceMetric(metricSource, 'txBytes'),
+  };
+}
+
 function getTopRoutes(requests: ObservabilityRequest[]) {
   const byPath = new Map<
     string,
@@ -1143,14 +1218,18 @@ export async function readObservabilityResources(
     requestPreviewLimit: 0,
     watcherLogLimit: 0,
   });
+  const scopedDockerResources = scopeDockerResources(
+    snapshot.dockerResources,
+    normalized.projectId
+  );
 
   return {
     buckets: await readResourceBuckets(
       normalized.projectId,
       normalized.timeframeHours,
-      snapshot.dockerResources
+      scopedDockerResources
     ),
-    dockerResources: snapshot.dockerResources,
+    dockerResources: scopedDockerResources,
   };
 }
 

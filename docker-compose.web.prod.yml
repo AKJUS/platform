@@ -150,11 +150,21 @@ services:
     build:
       context: .
       dockerfile: apps/web/docker/blue-green-watcher.Dockerfile
+    env_file:
+      - path: apps/web/.env.local
+        required: true
     environment:
       - DOCKER_WEB_BUILDKIT_ENDPOINT=tcp://buildkit:1234
+      - GITHUB_TOKEN
       - PLATFORM_HOST_WORKSPACE_DIR=${PLATFORM_HOST_WORKSPACE_DIR:-/workspace-host}
+      - PLATFORM_LOG_DRAIN_DATABASE_URL=postgres://platform_log_drain:platform_log_drain@log-drain-postgres:5432/platform_log_drain
+      - PLATFORM_LOG_DRAIN_ENABLED=${PLATFORM_LOG_DRAIN_ENABLED:-true}
+      - UPSTASH_REDIS_REST_TOKEN
+      - UPSTASH_REDIS_REST_URL
     depends_on:
       buildkit:
+        condition: service_healthy
+      log-drain-postgres:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "ps | grep -q '[w]atch-blue-green-deploy.js'"]
@@ -215,7 +225,7 @@ services:
     environment:
       SRH_CONNECTION_STRING: redis://redis:6379
       SRH_MODE: env
-      SRH_TOKEN: ${UPSTASH_REDIS_REST_TOKEN:?UPSTASH_REDIS_REST_TOKEN must be set when enabling the redis profile}
+      SRH_TOKEN: ${UPSTASH_REDIS_REST_TOKEN:-platform-local-redis-token}
     image: hiett/serverless-redis-http:latest
     ports:
       - "8079:80"

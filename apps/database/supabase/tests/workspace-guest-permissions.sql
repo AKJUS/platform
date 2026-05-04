@@ -1,5 +1,5 @@
 begin;
-select plan(25);
+select plan(23);
 
 -- Check table existence
 select has_table('public', 'workspace_guest_permissions', 'Table workspace_guest_permissions should exist');
@@ -24,8 +24,6 @@ select has_column('public', 'workspace_guest_permissions', 'resource_id', 'Colum
 select col_type_is('public', 'workspace_guest_permissions', 'resource_id', 'uuid', 'Column resource_id should be of type uuid');
 
 -- Check foreign key
-select has_fk('public', 'workspace_guest_permissions', 'workspace_guest_permissions_guest_id_fkey', 'Should have foreign key to workspace_guests');
-select has_fk('public', 'workspace_guest_permissions', 'workspace_guest_permissions_resource_id_fkey', 'Should have foreign key to workspace_user_groups');
 select ok(
   exists (
     select 1

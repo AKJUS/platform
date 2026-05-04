@@ -24,6 +24,7 @@ const BUILDKIT_STATE_FILE = path.join(
 const DEFAULT_BUILDER_NAME = 'platform';
 const DEFAULT_BUILDKIT_HOST_PORT = 7914;
 const BUILDKIT_SERVICE_NAME = 'buildkit';
+const LEGACY_BUILDER_NAMES = ['platform-web-capped-builder'];
 
 function parsePositiveNumber(value) {
   if (typeof value === 'number') {
@@ -217,6 +218,37 @@ async function removeLegacyBuildkitContainer(
   });
 }
 
+async function removeLegacyBuildxBuilders(
+  builderName,
+  { env, fsImpl = fs, runCommand: run = runCommand }
+) {
+  for (const legacyBuilderName of LEGACY_BUILDER_NAMES) {
+    if (legacyBuilderName === builderName) {
+      continue;
+    }
+
+    const legacyBuilder = await inspectBuildxBuilder(legacyBuilderName, {
+      env,
+      runCommand: run,
+    });
+
+    if (!legacyBuilder.exists) {
+      continue;
+    }
+
+    await runChecked('docker', ['buildx', 'rm', legacyBuilderName], {
+      env,
+      fsImpl,
+      runCommand: run,
+    });
+
+    await removeLegacyBuildkitContainer(legacyBuilderName, {
+      env,
+      runCommand: run,
+    });
+  }
+}
+
 function getBuildkitComposeEnv(config, env) {
   return {
     ...env,
@@ -307,6 +339,11 @@ async function ensureBuildkitBuilder(
   });
   const fingerprint = getBuilderConfigFingerprint(config);
   const state = readBuilderState(paths, fsImpl);
+  await removeLegacyBuildxBuilders(config.builderName, {
+    env,
+    fsImpl,
+    runCommand: run,
+  });
   const builder = await inspectBuildxBuilder(config.builderName, {
     env,
     runCommand: run,
@@ -375,6 +412,7 @@ module.exports = {
   BUILDKIT_SERVICE_NAME,
   DEFAULT_BUILDKIT_HOST_PORT,
   DEFAULT_BUILDER_NAME,
+  LEGACY_BUILDER_NAMES,
   ensureBuildkitComposeService,
   ensureBuildkitBuilder,
   getBuildkitPaths,

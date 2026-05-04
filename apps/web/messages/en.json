@@ -1903,6 +1903,13 @@
         "branch": "Branch",
         "builtin": "Built-in",
         "cron": "Cron",
+        "delete": "Delete",
+        "delete_cancel": "Cancel",
+        "delete_confirm": "Delete project",
+        "delete_description": "Delete \"{name}\" from Infrastructure projects?",
+        "delete_meta": "The project registry entry and branch cache will be removed. Historical logs and requests remain available in the drain.",
+        "delete_pending": "Deleting...",
+        "delete_title": "Delete project?",
         "deploy": "Deploy",
         "description": "GitHub-backed projects, branch watches, hostnames, and runtime addons.",
         "empty": "No infrastructure projects are registered.",
@@ -1981,7 +1988,15 @@
         "success": "2xx",
         "unknown": "Unknown"
       },
-      "top_routes": "Top Routes"
+      "top_routes": "Top Routes",
+      "watcher": {
+        "badge": "Watcher {health}",
+        "branch_mismatch_queued": "This project targets {projectBranch}, but the live watcher is still locked to {watcherBranch}. Recreate the Docker web watcher or wait for the updated watcher to restart before this queue can advance.",
+        "not_live_queued": "This project is queued, but the deployment watcher is {health}. Start or recreate the Docker web watcher before expecting this queue to advance.",
+        "recovery_failed": "Automatic recovery could not be queued. Check the watcher logs and Docker supervisor.",
+        "recovery_requested": "Automatic watcher recovery has been queued for the Docker supervisor.",
+        "title": "Watcher"
+      }
     },
     "overview": {
       "description": "Use the overview as the operator briefing: current runtime state, cadence, and fast links into the heavier rollout and archive surfaces.",

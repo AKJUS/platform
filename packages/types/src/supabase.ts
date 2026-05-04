@@ -13431,6 +13431,593 @@ export type Database = {
           },
         ];
       };
+      tulearn_gamification_events: {
+        Row: {
+          created_at: string;
+          id: string;
+          idempotency_key: string;
+          metadata: Json;
+          source_id: string | null;
+          source_type: string;
+          user_id: string;
+          ws_id: string;
+          xp: number;
+        };
+        Insert: {
+          created_at?: string;
+          id?: string;
+          idempotency_key: string;
+          metadata?: Json;
+          source_id?: string | null;
+          source_type: string;
+          user_id: string;
+          ws_id: string;
+          xp: number;
+        };
+        Update: {
+          created_at?: string;
+          id?: string;
+          idempotency_key?: string;
+          metadata?: Json;
+          source_id?: string | null;
+          source_type?: string;
+          user_id?: string;
+          ws_id?: string;
+          xp?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'tulearn_gamification_events_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'nova_user_challenge_leaderboard';
+            referencedColumns: ['user_id'];
+          },
+          {
+            foreignKeyName: 'tulearn_gamification_events_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'nova_user_leaderboard';
+            referencedColumns: ['user_id'];
+          },
+          {
+            foreignKeyName: 'tulearn_gamification_events_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'shortened_links_creator_stats';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tulearn_gamification_events_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tulearn_gamification_events_ws_id_fkey';
+            columns: ['ws_id'];
+            isOneToOne: false;
+            referencedRelation: 'entity_limit_source__workspaces';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tulearn_gamification_events_ws_id_fkey';
+            columns: ['ws_id'];
+            isOneToOne: false;
+            referencedRelation: 'entity_limit_source__workspaces';
+            referencedColumns: ['personal_ws_id'];
+          },
+          {
+            foreignKeyName: 'tulearn_gamification_events_ws_id_fkey';
+            columns: ['ws_id'];
+            isOneToOne: false;
+            referencedRelation: 'workspace_link_counts';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tulearn_gamification_events_ws_id_fkey';
+            columns: ['ws_id'];
+            isOneToOne: false;
+            referencedRelation: 'workspaces';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      tulearn_learner_state: {
+        Row: {
+          created_at: string;
+          current_streak: number;
+          hearts: number;
+          last_activity_date: string | null;
+          last_heart_refill_at: string;
+          longest_streak: number;
+          max_hearts: number;
+          preferences: Json;
+          selected_workspace_id: string | null;
+          streak_freezes: number;
+          updated_at: string;
+          user_id: string;
+          ws_id: string;
+          xp_total: number;
+        };
+        Insert: {
+          created_at?: string;
+          current_streak?: number;
+          hearts?: number;
+          last_activity_date?: string | null;
+          last_heart_refill_at?: string;
+          longest_streak?: number;
+          max_hearts?: number;
+          preferences?: Json;
+          selected_workspace_id?: string | null;
+          streak_freezes?: number;
+          updated_at?: string;
+          user_id: string;
+          ws_id: string;
+          xp_total?: number;
+        };
+        Update: {
+          created_at?: string;
+          current_streak?: number;
+          hearts?: number;
+          last_activity_date?: string | null;
+          last_heart_refill_at?: string;
+          longest_streak?: number;
+          max_hearts?: number;
+          preferences?: Json;
+          selected_workspace_id?: string | null;
+          streak_freezes?: number;
+          updated_at?: string;
+          user_id?: string;
+          ws_id?: string;
+          xp_total?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'tulearn_learner_state_selected_workspace_id_fkey';
+            columns: ['selected_workspace_id'];
+            isOneToOne: false;
+            referencedRelation: 'entity_limit_source__workspaces';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tulearn_learner_state_selected_workspace_id_fkey';
+            columns: ['selected_workspace_id'];
+            isOneToOne: false;
+            referencedRelation: 'entity_limit_source__workspaces';
+            referencedColumns: ['personal_ws_id'];
+          },
+          {
+            foreignKeyName: 'tulearn_learner_state_selected_workspace_id_fkey';
+            columns: ['selected_workspace_id'];
+            isOneToOne: false;
+            referencedRelation: 'workspace_link_counts';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tulearn_learner_state_selected_workspace_id_fkey';
+            columns: ['selected_workspace_id'];
+            isOneToOne: false;
+            referencedRelation: 'workspaces';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tulearn_learner_state_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'nova_user_challenge_leaderboard';
+            referencedColumns: ['user_id'];
+          },
+          {
+            foreignKeyName: 'tulearn_learner_state_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'nova_user_leaderboard';
+            referencedColumns: ['user_id'];
+          },
+          {
+            foreignKeyName: 'tulearn_learner_state_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'shortened_links_creator_stats';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tulearn_learner_state_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tulearn_learner_state_ws_id_fkey';
+            columns: ['ws_id'];
+            isOneToOne: false;
+            referencedRelation: 'entity_limit_source__workspaces';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tulearn_learner_state_ws_id_fkey';
+            columns: ['ws_id'];
+            isOneToOne: false;
+            referencedRelation: 'entity_limit_source__workspaces';
+            referencedColumns: ['personal_ws_id'];
+          },
+          {
+            foreignKeyName: 'tulearn_learner_state_ws_id_fkey';
+            columns: ['ws_id'];
+            isOneToOne: false;
+            referencedRelation: 'workspace_link_counts';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tulearn_learner_state_ws_id_fkey';
+            columns: ['ws_id'];
+            isOneToOne: false;
+            referencedRelation: 'workspaces';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      tulearn_parent_invites: {
+        Row: {
+          accepted_at: string | null;
+          created_at: string;
+          expires_at: string;
+          id: string;
+          invited_by: string | null;
+          parent_email: string;
+          parent_user_id: string | null;
+          revoked_at: string | null;
+          status: string;
+          student_workspace_user_id: string;
+          token_hash: string;
+          updated_at: string;
+          ws_id: string;
+        };
+        Insert: {
+          accepted_at?: string | null;
+          created_at?: string;
+          expires_at: string;
+          id?: string;
+          invited_by?: string | null;
+          parent_email: string;
+          parent_user_id?: string | null;
+          revoked_at?: string | null;
+          status?: string;
+          student_workspace_user_id: string;
+          token_hash: string;
+          updated_at?: string;
+          ws_id: string;
+        };
+        Update: {
+          accepted_at?: string | null;
+          created_at?: string;
+          expires_at?: string;
+          id?: string;
+          invited_by?: string | null;
+          parent_email?: string;
+          parent_user_id?: string | null;
+          revoked_at?: string | null;
+          status?: string;
+          student_workspace_user_id?: string;
+          token_hash?: string;
+          updated_at?: string;
+          ws_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'tulearn_parent_invites_invited_by_fkey';
+            columns: ['invited_by'];
+            isOneToOne: false;
+            referencedRelation: 'nova_user_challenge_leaderboard';
+            referencedColumns: ['user_id'];
+          },
+          {
+            foreignKeyName: 'tulearn_parent_invites_invited_by_fkey';
+            columns: ['invited_by'];
+            isOneToOne: false;
+            referencedRelation: 'nova_user_leaderboard';
+            referencedColumns: ['user_id'];
+          },
+          {
+            foreignKeyName: 'tulearn_parent_invites_invited_by_fkey';
+            columns: ['invited_by'];
+            isOneToOne: false;
+            referencedRelation: 'shortened_links_creator_stats';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tulearn_parent_invites_invited_by_fkey';
+            columns: ['invited_by'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tulearn_parent_invites_parent_user_id_fkey';
+            columns: ['parent_user_id'];
+            isOneToOne: false;
+            referencedRelation: 'nova_user_challenge_leaderboard';
+            referencedColumns: ['user_id'];
+          },
+          {
+            foreignKeyName: 'tulearn_parent_invites_parent_user_id_fkey';
+            columns: ['parent_user_id'];
+            isOneToOne: false;
+            referencedRelation: 'nova_user_leaderboard';
+            referencedColumns: ['user_id'];
+          },
+          {
+            foreignKeyName: 'tulearn_parent_invites_parent_user_id_fkey';
+            columns: ['parent_user_id'];
+            isOneToOne: false;
+            referencedRelation: 'shortened_links_creator_stats';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tulearn_parent_invites_parent_user_id_fkey';
+            columns: ['parent_user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tulearn_parent_invites_student_workspace_user_id_fkey';
+            columns: ['student_workspace_user_id'];
+            isOneToOne: false;
+            referencedRelation: 'distinct_invoice_creators';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tulearn_parent_invites_student_workspace_user_id_fkey';
+            columns: ['student_workspace_user_id'];
+            isOneToOne: false;
+            referencedRelation: 'distinct_transaction_creators';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tulearn_parent_invites_student_workspace_user_id_fkey';
+            columns: ['student_workspace_user_id'];
+            isOneToOne: false;
+            referencedRelation: 'group_user_with_attendance';
+            referencedColumns: ['user_id'];
+          },
+          {
+            foreignKeyName: 'tulearn_parent_invites_student_workspace_user_id_fkey';
+            columns: ['student_workspace_user_id'];
+            isOneToOne: false;
+            referencedRelation: 'workspace_users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tulearn_parent_invites_student_workspace_user_id_fkey';
+            columns: ['student_workspace_user_id'];
+            isOneToOne: false;
+            referencedRelation: 'workspace_users_with_groups';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tulearn_parent_invites_ws_id_fkey';
+            columns: ['ws_id'];
+            isOneToOne: false;
+            referencedRelation: 'entity_limit_source__workspaces';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tulearn_parent_invites_ws_id_fkey';
+            columns: ['ws_id'];
+            isOneToOne: false;
+            referencedRelation: 'entity_limit_source__workspaces';
+            referencedColumns: ['personal_ws_id'];
+          },
+          {
+            foreignKeyName: 'tulearn_parent_invites_ws_id_fkey';
+            columns: ['ws_id'];
+            isOneToOne: false;
+            referencedRelation: 'workspace_link_counts';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tulearn_parent_invites_ws_id_fkey';
+            columns: ['ws_id'];
+            isOneToOne: false;
+            referencedRelation: 'workspaces';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      tulearn_parent_student_links: {
+        Row: {
+          accepted_at: string | null;
+          created_at: string;
+          created_by: string | null;
+          id: string;
+          parent_user_id: string;
+          revoked_at: string | null;
+          status: string;
+          student_platform_user_id: string;
+          student_workspace_user_id: string;
+          updated_at: string;
+          ws_id: string;
+        };
+        Insert: {
+          accepted_at?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          parent_user_id: string;
+          revoked_at?: string | null;
+          status?: string;
+          student_platform_user_id: string;
+          student_workspace_user_id: string;
+          updated_at?: string;
+          ws_id: string;
+        };
+        Update: {
+          accepted_at?: string | null;
+          created_at?: string;
+          created_by?: string | null;
+          id?: string;
+          parent_user_id?: string;
+          revoked_at?: string | null;
+          status?: string;
+          student_platform_user_id?: string;
+          student_workspace_user_id?: string;
+          updated_at?: string;
+          ws_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'tulearn_parent_student_links_created_by_fkey';
+            columns: ['created_by'];
+            isOneToOne: false;
+            referencedRelation: 'nova_user_challenge_leaderboard';
+            referencedColumns: ['user_id'];
+          },
+          {
+            foreignKeyName: 'tulearn_parent_student_links_created_by_fkey';
+            columns: ['created_by'];
+            isOneToOne: false;
+            referencedRelation: 'nova_user_leaderboard';
+            referencedColumns: ['user_id'];
+          },
+          {
+            foreignKeyName: 'tulearn_parent_student_links_created_by_fkey';
+            columns: ['created_by'];
+            isOneToOne: false;
+            referencedRelation: 'shortened_links_creator_stats';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tulearn_parent_student_links_created_by_fkey';
+            columns: ['created_by'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tulearn_parent_student_links_parent_user_id_fkey';
+            columns: ['parent_user_id'];
+            isOneToOne: false;
+            referencedRelation: 'nova_user_challenge_leaderboard';
+            referencedColumns: ['user_id'];
+          },
+          {
+            foreignKeyName: 'tulearn_parent_student_links_parent_user_id_fkey';
+            columns: ['parent_user_id'];
+            isOneToOne: false;
+            referencedRelation: 'nova_user_leaderboard';
+            referencedColumns: ['user_id'];
+          },
+          {
+            foreignKeyName: 'tulearn_parent_student_links_parent_user_id_fkey';
+            columns: ['parent_user_id'];
+            isOneToOne: false;
+            referencedRelation: 'shortened_links_creator_stats';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tulearn_parent_student_links_parent_user_id_fkey';
+            columns: ['parent_user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tulearn_parent_student_links_student_platform_user_id_fkey';
+            columns: ['student_platform_user_id'];
+            isOneToOne: false;
+            referencedRelation: 'nova_user_challenge_leaderboard';
+            referencedColumns: ['user_id'];
+          },
+          {
+            foreignKeyName: 'tulearn_parent_student_links_student_platform_user_id_fkey';
+            columns: ['student_platform_user_id'];
+            isOneToOne: false;
+            referencedRelation: 'nova_user_leaderboard';
+            referencedColumns: ['user_id'];
+          },
+          {
+            foreignKeyName: 'tulearn_parent_student_links_student_platform_user_id_fkey';
+            columns: ['student_platform_user_id'];
+            isOneToOne: false;
+            referencedRelation: 'shortened_links_creator_stats';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tulearn_parent_student_links_student_platform_user_id_fkey';
+            columns: ['student_platform_user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tulearn_parent_student_links_student_workspace_user_id_fkey';
+            columns: ['student_workspace_user_id'];
+            isOneToOne: false;
+            referencedRelation: 'distinct_invoice_creators';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tulearn_parent_student_links_student_workspace_user_id_fkey';
+            columns: ['student_workspace_user_id'];
+            isOneToOne: false;
+            referencedRelation: 'distinct_transaction_creators';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tulearn_parent_student_links_student_workspace_user_id_fkey';
+            columns: ['student_workspace_user_id'];
+            isOneToOne: false;
+            referencedRelation: 'group_user_with_attendance';
+            referencedColumns: ['user_id'];
+          },
+          {
+            foreignKeyName: 'tulearn_parent_student_links_student_workspace_user_id_fkey';
+            columns: ['student_workspace_user_id'];
+            isOneToOne: false;
+            referencedRelation: 'workspace_users';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tulearn_parent_student_links_student_workspace_user_id_fkey';
+            columns: ['student_workspace_user_id'];
+            isOneToOne: false;
+            referencedRelation: 'workspace_users_with_groups';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tulearn_parent_student_links_ws_id_fkey';
+            columns: ['ws_id'];
+            isOneToOne: false;
+            referencedRelation: 'entity_limit_source__workspaces';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tulearn_parent_student_links_ws_id_fkey';
+            columns: ['ws_id'];
+            isOneToOne: false;
+            referencedRelation: 'entity_limit_source__workspaces';
+            referencedColumns: ['personal_ws_id'];
+          },
+          {
+            foreignKeyName: 'tulearn_parent_student_links_ws_id_fkey';
+            columns: ['ws_id'];
+            isOneToOne: false;
+            referencedRelation: 'workspace_link_counts';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tulearn_parent_student_links_ws_id_fkey';
+            columns: ['ws_id'];
+            isOneToOne: false;
+            referencedRelation: 'workspaces';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       user_board_list_overrides: {
         Row: {
           board_id: string | null;

@@ -1,6 +1,6 @@
 import { getInternalApiClient, type InternalApiClientOptions } from './client';
 
-export type InternalOtpClient = 'mobile' | 'web';
+export type InternalOtpClient = 'mobile' | 'tulearn' | 'web';
 export type InternalOtpPlatform = 'android' | 'ios';
 
 export interface OtpSettingsResponse {

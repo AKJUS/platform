@@ -447,6 +447,11 @@ Operational notes:
   creates Docker-managed containers named like `buildx_buildkit_*` outside the
   Compose project, which makes Docker Desktop grouping and health reporting
   confusing.
+- During capped-build setup, the helper removes known legacy Buildx builders
+  such as `platform-web-capped-builder` before creating or reusing the
+  Compose-owned remote `platform` builder. If `docker buildx ls` still shows
+  that legacy builder, run the capped web deploy helper once so it can clean up
+  the stale Buildx record.
 - A lower parallelism setting usually trades build speed for host stability.
 - If BuildKit fails with `ResourceExhausted` or `cannot allocate memory` while
   host memory is still available, the builder cgroup is too small; raise
@@ -505,8 +510,8 @@ The watcher container mounts:
 
 Behavior:
 
-1. Reads the built-in `platform` project from the log-drain Postgres project registry when `PLATFORM_LOG_DRAIN_DATABASE_URL` is configured. The seeded branch is `production`, but operators can change it from Infrastructure → Monitoring → Projects.
-2. If the selected project branch differs from the current checkout, fetches and checks out that branch only when the worktree is clean. Dirty worktrees are reported as blocked instead of being force-switched.
+1. Reads the built-in `platform` project from the log-drain Postgres project registry. The production watcher service is wired with `PLATFORM_LOG_DRAIN_DATABASE_URL` so a live watcher can consume queued Infrastructure project deployments instead of falling back to the legacy single-branch loop.
+2. The seeded branch is `production`, but operators can change it from Infrastructure → Monitoring → Projects. If the selected project branch differs from the current checkout, the watcher restarts its child process, fetches, and checks out that branch only when the worktree is clean. Dirty worktrees are reported as blocked instead of being force-switched. If the watcher is already stuck on the wrong branch, the monitoring UI queues a watcher recovery request and `web-cron-runner` recreates `web-blue-green-watcher` through Docker Compose out of band.
 3. Locks the selected local branch and tracked upstream at startup.
 4. Writes a PID-backed lock file at `tmp/docker-web/watch/blue-green-auto-deploy.lock`.
 5. Renders a live terminal dashboard with the locked branch, tracked upstream,
@@ -529,6 +534,14 @@ Behavior:
 13. Runs `bun serve:web:docker:bg` automatically after a successful fast-forward
    pull.
 14. Polls imported Infrastructure projects from log-drain Postgres, synchronizes enabled public GitHub projects into `tmp/docker-web/projects/<projectId>/repo`, deploys them through generated Next.js compose files under the shared `platform` Compose project, and merges hostname routes into the central nginx proxy.
+    The imported-project and manual deployment queue cadence is independent
+    from the normal Git polling interval, so a watcher configured with a long
+    Git interval such as 1000 seconds still wakes on the shorter project queue
+    interval to advance queued Deploy actions.
+    Platform project state is updated on both queue-only deploys and normal
+    fast-forward deploys, so a successful pull/deploy clears `queued` and
+    refreshes the latest commit columns instead of relying only on deployment
+    history.
 15. If watcher runtime code such as `scripts/watch-blue-green-deploy.js`,
    `scripts/docker-web/blue-green.js`, or `scripts/docker-web/env.js` changed
    in the pulled revision, the current watcher does not deploy from the old
@@ -567,6 +580,11 @@ Operational notes for the containerized watcher:
 - The host log follower treats Docker's `143` exit from an intentionally
   recreated watcher container as a reconnect signal, then reattaches to the
   replacement service instead of leaving the terminal dark.
+- If the followed watcher logs explicitly request host-supervised watcher
+  service recreation, the host wrapper force-recreates `web-blue-green-watcher`
+  before reattaching. Do not rely only on Docker's restart policy in this path:
+  the old container can briefly report healthy while still running the stale
+  image/runtime.
 - Git fetch/pull credentials now need to be usable inside the watcher
   container because the watcher no longer runs directly on the host.
 - The watcher image lives at `apps/web/docker/blue-green-watcher.Dockerfile`.
@@ -676,6 +694,22 @@ Dashboard details:
   health check that posts `["PING"]` to `/` with the generated `SRH_TOKEN`;
   do not use a Node-based probe for that image because it is an Erlang release
   image, and do not probe `/ping` because SRH does not expose that route.
+- `SRH_TOKEN` falls back to `platform-local-redis-token` in the Compose files
+  when `UPSTASH_REDIS_REST_TOKEN` is not exported. Keep that fallback so
+  watcher and cron recovery can run Docker Compose commands before the web
+  helper has injected a generated token.
+- After a successful host-triggered `serve:web:docker:bg` rollout, the Docker
+  helper starts or resumes the containerized `web-blue-green-watcher` with
+  `--resume-if-running`. Deploys that are already running inside the watcher
+  skip that handoff via `PLATFORM_BLUE_GREEN_WATCHER_CONTAINER=1`, which avoids
+  recursive watcher starts while still leaving a poller alive for future Git
+  commits.
+- The watcher wrapper and child process must agree on runtime files. If
+  `PLATFORM_BLUE_GREEN_WATCH_ARGS_FILE`,
+  `PLATFORM_BLUE_GREEN_WATCH_RUNTIME_DIR`, or
+  `PLATFORM_BLUE_GREEN_WATCH_STATUS_FILE` are set, both the wrapper and child
+  use those paths so the wrapper does not restart a healthy child for a missing
+  status snapshot.
 - Request counters now come from a persisted local proxy-log drain under
   `tmp/docker-web/watch/blue-green-request-telemetry.*`, not from one-off
   `docker logs` scrapes in the dashboard. The watcher continuously drains
@@ -778,6 +812,11 @@ Dashboard details:
 - If the watcher pulls a revision that changes its own Dockerfile or baked
   entrypoint, it now rebuilds and recreates the `web-blue-green-watcher`
   service automatically before handing off to the next deployment cycle.
+- When that container-refresh request is emitted from inside the followed
+  watcher logs, `bun serve:web:docker:bg:watch` treats the log text itself as
+  the recreate signal, then rebuilds/recreates and resumes tailing. This keeps
+  the service from getting stuck in a Docker-restarted but operationally offline
+  state.
 - Recovery handoffs now persist a pending-deploy request under
   `tmp/docker-web/watch/` and reconcile it against the latest successful
   deployment history entry on startup. If `HEAD` is newer than the last

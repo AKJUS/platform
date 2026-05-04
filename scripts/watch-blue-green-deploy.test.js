@@ -2291,6 +2291,7 @@ test('runDeployWatchIteration restarts before deployment when the watcher script
 
 test('runDeployWatchIteration emits a pending deployment before deploy completion', async () => {
   const pendingStates = [];
+  const projectStatusUpdates = [];
   let pullCompleted = false;
   const runCommand = async (command, args) => {
     const key = `${command} ${args.join(' ')}`;
@@ -2382,6 +2383,14 @@ test('runDeployWatchIteration emits a pending deployment before deploy completio
       onDeploymentStart: (state) => {
         pendingStates.push(state);
       },
+      platformProjectDeploymentStatusUpdater: async (update) => {
+        projectStatusUpdates.push(update);
+      },
+      platformProjectReader: async () => ({
+        deploymentStatus: 'queued',
+        selectedBranch: 'main',
+        source: 'database',
+      }),
       runCommand,
     }
   );
@@ -2389,6 +2398,15 @@ test('runDeployWatchIteration emits a pending deployment before deploy completio
   assert.equal(pendingStates.length, 1);
   assert.equal(pendingStates[0].pendingDeployment.status, 'deploying');
   assert.equal(pendingStates[0].pendingDeployment.commitShortHash, 'bbb222');
+  assert.deepEqual(
+    projectStatusUpdates.map((update) => update.status),
+    ['building', 'deploying', 'ready']
+  );
+  assert.equal(projectStatusUpdates.at(-1).latestCommit.shortHash, 'bbb222');
+  assert.equal(
+    projectStatusUpdates.at(-1).metadata.deployedCommitHash,
+    'bbb222222222222222222'
+  );
   assert.equal(result.status, 'deployed');
 });
 
@@ -3181,6 +3199,55 @@ test('runDeployWatchLoop backs off for git failures instead of exiting immediate
   assert.equal(iterationResults[0].sleepMs, DEFAULT_GIT_FAILURE_BACKOFF_MS);
 });
 
+test('runDeployWatchLoop restarts when the project-selected platform branch changes', async () => {
+  const logs = [];
+  const result = await runDeployWatchLoop(
+    {
+      branch: 'main',
+      remote: 'origin',
+      upstreamBranch: 'main',
+      upstreamRef: 'origin/main',
+    },
+    {
+      log: {
+        error() {},
+        info(message) {
+          logs.push(message);
+        },
+        warn() {},
+      },
+      now: () => 1000,
+      platformProjectReader: async () => ({
+        autoDeployEnabled: true,
+        deploymentStatus: 'queued',
+        id: 'platform',
+        metadata: {},
+        selectedBranch: 'production',
+        source: 'database',
+      }),
+      runCommand: createRunCommandMock(
+        new Map([
+          [
+            'git log -1 --format=%H%n%h%n%s%n%cI HEAD',
+            createResult(
+              'aaa111111111111111111\naaa111\nKeep branch current\n2026-04-18T10:58:00.000Z\n'
+            ),
+          ],
+        ])
+      ),
+      sleepImpl: async () => {
+        throw new Error('unexpected sleep');
+      },
+    }
+  );
+
+  assert.equal(result.status, 'project-target-changed');
+  assert.equal(result.restartRequired, true);
+  assert.equal(result.target.branch, 'production');
+  assert.equal(result.target.upstreamRef, 'origin/production');
+  assert.match(logs.join('\n'), /target changed from main to production/);
+});
+
 test('runPendingDeployAfterRestart refreshes the live proxy before running blue/green deploy', async () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'watch-pending-'));
   const paths = getWatchPaths(tempDir);
@@ -3401,6 +3468,78 @@ test('runDeployWatchLoop honors once mode without sleeping', async () => {
   }
 });
 
+test('runDeployWatchLoop caps long git intervals to the project queue poll interval', async () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'watch-queue-sleep-'));
+  const paths = getWatchPaths(tempDir);
+  const sleepCalls = [];
+  const iterationResults = [];
+  const sentinel = new Error('stop-after-first-sleep');
+
+  try {
+    fs.mkdirSync(paths.runtimeDir, { recursive: true });
+    fs.writeFileSync(
+      paths.historyFile,
+      JSON.stringify([
+        {
+          commitHash: 'aaa111111111111111111',
+          finishedAt: 1000,
+          status: 'successful',
+        },
+      ]),
+      'utf8'
+    );
+
+    await assert.rejects(
+      () =>
+        runDeployWatchLoop(
+          {
+            branch: 'main',
+            remote: 'origin',
+            upstreamBranch: 'main',
+            upstreamRef: 'origin/main',
+          },
+          {
+            intervalMs: 1_000_000,
+            log: { error() {}, info() {}, warn() {} },
+            onIterationResult: (value) => {
+              iterationResults.push(value);
+            },
+            paths,
+            projectPollIntervalMs: 60_000,
+            runCommand: createRunCommandMock(
+              new Map([
+                ['git rev-parse --abbrev-ref HEAD', createResult('main\n')],
+                ['git status --porcelain', createResult('')],
+                ['git fetch origin main', createResult('')],
+                ['git rev-parse HEAD', createResult('aaa111\n')],
+                ['git rev-parse origin/main', createResult('aaa111\n')],
+                [
+                  'git log -1 --format=%H%n%h%n%s%n%cI HEAD',
+                  createResult(
+                    'aaa111111111111111111\naaa111\nKeep branch current\n2026-04-18T10:58:00.000Z\n'
+                  ),
+                ],
+                [prodComposePsKey(BLUE_GREEN_PROXY_SERVICE), createResult('')],
+              ])
+            ),
+            sleepImpl: async (ms) => {
+              sleepCalls.push(ms);
+              throw sentinel;
+            },
+          }
+        ),
+      sentinel
+    );
+  } finally {
+    fs.rmSync(tempDir, { force: true, recursive: true });
+  }
+
+  assert.deepEqual(sleepCalls, [60_000]);
+  assert.equal(iterationResults.length, 1);
+  assert.equal(iterationResults[0].status, 'up-to-date');
+  assert.equal(iterationResults[0].sleepMs, 60_000);
+});
+
 test('spawnReplacementWatcher relaunches the watcher with inherited args', async () => {
   const calls = [];
 
@@ -3463,6 +3602,31 @@ test('writeWatchArgsFile persists argv for the watcher container entrypoint', ()
       '--interval-ms',
       '5000',
     ]);
+  } finally {
+    fs.rmSync(tempDir, { force: true, recursive: true });
+  }
+});
+
+test('getWatchPaths honors container watcher path overrides', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'watch-path-env-'));
+  const runtimeDir = path.join(tempDir, 'runtime');
+  const argsFile = path.join(tempDir, 'control', 'args.json');
+  const statusFile = path.join(tempDir, 'control', 'status.json');
+
+  try {
+    const paths = getWatchPaths(tempDir, {
+      PLATFORM_BLUE_GREEN_WATCH_ARGS_FILE: argsFile,
+      PLATFORM_BLUE_GREEN_WATCH_RUNTIME_DIR: runtimeDir,
+      PLATFORM_BLUE_GREEN_WATCH_STATUS_FILE: statusFile,
+    });
+
+    assert.equal(paths.argsFile, argsFile);
+    assert.equal(paths.runtimeDir, runtimeDir);
+    assert.equal(paths.statusFile, statusFile);
+    assert.equal(
+      paths.logFile,
+      path.join(runtimeDir, 'blue-green-auto-deploy.logs.json')
+    );
   } finally {
     fs.rmSync(tempDir, { force: true, recursive: true });
   }
@@ -3931,6 +4095,80 @@ test('runWatcherCommand recreates the watcher when the log stream completes afte
       prodComposeWatcherLogsKey(),
       prodComposePsAllKey(BLUE_GREEN_WATCHER_SERVICE),
       'docker inspect -f {{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}} watcher-456',
+    ]);
+  } finally {
+    fs.rmSync(tempDir, { force: true, recursive: true });
+  }
+});
+
+test('runWatcherCommand force-recreates when watcher logs request host-supervised refresh', async () => {
+  const tempDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'watch-command-refresh-request-')
+  );
+  const envFilePath = path.join(tempDir, 'apps', 'web', '.env.local');
+  const calls = [];
+
+  try {
+    fs.mkdirSync(path.dirname(envFilePath), { recursive: true });
+    fs.writeFileSync(
+      envFilePath,
+      'NEXT_PUBLIC_SUPABASE_URL=http://localhost:8001\n',
+      'utf8'
+    );
+
+    await runWatcherCommand(['--once'], {
+      env: { PATH: process.env.PATH },
+      envFilePath,
+      fsImpl: fs,
+      reconnectDelayMs: 0,
+      rootDir: tempDir,
+      runCommand: async (command, args) => {
+        const key = `${command} ${args.join(' ')}`;
+        calls.push(key);
+
+        if (key === 'docker compose version') {
+          return createResult('');
+        }
+
+        if (key === prodComposeWatcherUpKey()) {
+          return createResult('');
+        }
+
+        if (key === prodComposeWatcherLogsKey()) {
+          const logCallCount = calls.filter(
+            (call) => call === prodComposeWatcherLogsKey()
+          ).length;
+          return logCallCount === 1
+            ? createResult(
+                'Critical watcher container files changed. Requesting host-supervised watcher service recreation.\nWatcher requested a host-supervised container refresh. Stopping wrapper.\n'
+              )
+            : createResult('');
+        }
+
+        if (key === prodComposePsAllKey(BLUE_GREEN_WATCHER_SERVICE)) {
+          return createResult('watcher-123\n');
+        }
+
+        if (
+          key ===
+          'docker inspect -f {{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}} watcher-123'
+        ) {
+          return createResult('healthy\n');
+        }
+
+        throw new Error(`Unexpected command: ${key}`);
+      },
+    });
+
+    assert.deepEqual(calls, [
+      'docker compose version',
+      prodComposeWatcherUpKey(),
+      prodComposeWatcherLogsKey(),
+      'docker compose version',
+      prodComposeWatcherUpKey(),
+      prodComposeWatcherLogsKey(),
+      prodComposePsAllKey(BLUE_GREEN_WATCHER_SERVICE),
+      'docker inspect -f {{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}} watcher-123',
     ]);
   } finally {
     fs.rmSync(tempDir, { force: true, recursive: true });

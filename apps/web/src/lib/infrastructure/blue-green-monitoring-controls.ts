@@ -9,12 +9,26 @@ type FsLike = Pick<
 const DOCKER_WEB_CONTROL_ENV_KEY = 'PLATFORM_BLUE_GREEN_CONTROL_DIR';
 const INSTANT_ROLLOUT_REQUEST_FILE = 'blue-green-instant-rollout.request.json';
 const DEPLOYMENT_PIN_FILE = 'blue-green-deployment-pin.json';
+const WATCHER_RECOVERY_REQUEST_FILE =
+  'blue-green-watcher-recovery.request.json';
 
 export interface BlueGreenInstantRolloutRequest {
   kind: 'sync-standby';
   requestedAt: string;
   requestedBy: string;
   requestedByEmail: string | null;
+}
+
+export interface BlueGreenWatcherRecoveryRequest {
+  kind: 'watcher-recovery';
+  projectBranch: string | null;
+  projectId: string;
+  reason: string;
+  requestedAt: string;
+  requestedBy: string;
+  requestedByEmail: string | null;
+  watcherBranch: string | null;
+  watcherHealth: string | null;
 }
 
 export interface BlueGreenDeploymentPin {
@@ -193,6 +207,78 @@ export function readBlueGreenDeploymentPin({
       typeof parsed.requestedBy === 'string'
     ) {
       return parsed as BlueGreenDeploymentPin;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+export function queueBlueGreenWatcherRecoveryRequest(
+  {
+    projectBranch = null,
+    projectId,
+    reason,
+    requestedAt = new Date().toISOString(),
+    requestedBy,
+    requestedByEmail,
+    watcherBranch = null,
+    watcherHealth = null,
+  }: Omit<BlueGreenWatcherRecoveryRequest, 'kind' | 'requestedAt'> & {
+    requestedAt?: string;
+  },
+  { fsImpl = fs }: { fsImpl?: FsLike } = {}
+) {
+  const controlDir = resolveMonitoringControlDir(fsImpl);
+  const request: BlueGreenWatcherRecoveryRequest = {
+    kind: 'watcher-recovery',
+    projectBranch,
+    projectId,
+    reason,
+    requestedAt,
+    requestedBy,
+    requestedByEmail,
+    watcherBranch,
+    watcherHealth,
+  };
+
+  fsImpl.mkdirSync(controlDir.path, { recursive: true });
+  fsImpl.writeFileSync(
+    path.join(controlDir.path, WATCHER_RECOVERY_REQUEST_FILE),
+    JSON.stringify(request, null, 2),
+    'utf8'
+  );
+
+  return request;
+}
+
+export function readBlueGreenWatcherRecoveryRequest({
+  fsImpl = fs,
+}: {
+  fsImpl?: FsLike;
+} = {}) {
+  const controlDir = resolveMonitoringControlDir(fsImpl);
+  const filePath = path.join(controlDir.path, WATCHER_RECOVERY_REQUEST_FILE);
+
+  if (!fsImpl.existsSync(filePath)) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(fsImpl.readFileSync(filePath, 'utf8'));
+
+    if (
+      parsed &&
+      typeof parsed === 'object' &&
+      !Array.isArray(parsed) &&
+      parsed.kind === 'watcher-recovery' &&
+      typeof parsed.projectId === 'string' &&
+      typeof parsed.reason === 'string' &&
+      typeof parsed.requestedAt === 'string' &&
+      typeof parsed.requestedBy === 'string'
+    ) {
+      return parsed as BlueGreenWatcherRecoveryRequest;
     }
   } catch {
     return null;

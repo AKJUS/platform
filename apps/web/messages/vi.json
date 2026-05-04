@@ -1903,6 +1903,13 @@
         "branch": "Nhánh",
         "builtin": "Mặc định",
         "cron": "Cron",
+        "delete": "Xóa",
+        "delete_cancel": "Hủy",
+        "delete_confirm": "Xóa dự án",
+        "delete_description": "Xóa \"{name}\" khỏi dự án hạ tầng?",
+        "delete_meta": "Mục registry của dự án và cache nhánh sẽ bị xóa. Log và request lịch sử vẫn được giữ trong drain.",
+        "delete_pending": "Đang xóa...",
+        "delete_title": "Xóa dự án?",
         "deploy": "Triển khai",
         "description": "Dự án từ GitHub, nhánh theo dõi, hostname và addon runtime.",
         "empty": "Chưa đăng ký dự án hạ tầng nào.",
@@ -1981,7 +1988,15 @@
         "success": "2xx",
         "unknown": "Không xác định"
       },
-      "top_routes": "Route hàng đầu"
+      "top_routes": "Route hàng đầu",
+      "watcher": {
+        "badge": "Watcher {health}",
+        "branch_mismatch_queued": "Dự án này trỏ tới {projectBranch}, nhưng watcher đang chạy vẫn khóa ở {watcherBranch}. Hãy tạo lại Docker web watcher hoặc chờ watcher mới restart trước khi hàng chờ này có thể chạy tiếp.",
+        "not_live_queued": "Dự án này đang trong hàng chờ, nhưng deployment watcher đang {health}. Hãy khởi động hoặc tạo lại Docker web watcher trước khi mong hàng chờ này chạy tiếp.",
+        "recovery_failed": "Không thể đưa phục hồi tự động vào hàng chờ. Hãy kiểm tra log watcher và Docker supervisor.",
+        "recovery_requested": "Đã đưa phục hồi watcher tự động vào hàng chờ cho Docker supervisor.",
+        "title": "Watcher"
+      }
     },
     "overview": {
       "description": "Dùng trang tổng quan như bản tóm tắt dành cho operator: trạng thái runtime hiện tại, nhịp watcher và các lối tắt tới những bề mặt nặng hơn.",
