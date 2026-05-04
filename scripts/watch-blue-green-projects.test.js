@@ -3,6 +3,8 @@ const test = require('node:test');
 const {
   DEFAULT_PLATFORM_BRANCH,
   normalizeProjectBranch,
+  renderManagedProjectCompose,
+  renderManagedProjectProxyServerBlocks,
   resolvePlatformProjectTarget,
 } = require('./watch-blue-green/projects.js');
 
@@ -80,4 +82,40 @@ test('resolvePlatformProjectTarget switches a clean branch mismatch', async () =
     ['git', ['fetch', 'origin', 'production']],
     ['git', ['checkout', 'production']],
   ]);
+});
+
+test('renderManagedProjectCompose keeps project services under platform compose group', () => {
+  const compose = renderManagedProjectCompose(
+    {
+      app_root: 'apps/web',
+      id: 'Docs App',
+      log_drain_enabled: true,
+      port: 3000,
+      redis_enabled: true,
+      selected_branch: 'main',
+    },
+    {
+      rootDir: '/workspace',
+    }
+  );
+
+  assert.match(compose, /project-docs-app:/);
+  assert.match(compose, /PLATFORM_PROJECT_ID=docs-app/);
+  assert.match(compose, /PLATFORM_SELECTED_BRANCH=main/);
+  assert.match(compose, /UPSTASH_REDIS_REST_TOKEN/);
+});
+
+test('renderManagedProjectProxyServerBlocks renders host routes with project context', () => {
+  const config = renderManagedProjectProxyServerBlocks([
+    {
+      hostnames: ['docs.example.com'],
+      id: 'docs-app',
+      port: 3000,
+      selected_branch: 'main',
+    },
+  ]);
+
+  assert.match(config, /server_name docs\.example\.com;/);
+  assert.match(config, /set \$platform_project_id "docs-app";/);
+  assert.match(config, /proxy_pass http:\/\/project_docs_app_upstream;/);
 });

@@ -65,6 +65,8 @@ const {
   readWatcherLogEntries,
 } = require('./watch-blue-green/logs.js');
 const {
+  DEFAULT_PROJECT_POLL_INTERVAL_MS,
+  processManagedInfrastructureProjects,
   resolvePlatformProjectTarget,
 } = require('./watch-blue-green/projects.js');
 const {
@@ -4663,16 +4665,43 @@ async function runDeployWatchLoop(
     onIterationResult = () => {},
     onIterationStart = () => {},
     paths = getWatchPaths(),
+    projectPollIntervalMs = DEFAULT_PROJECT_POLL_INTERVAL_MS,
     rootDir = ROOT_DIR,
     runCommand: run = runCommand,
     sleepImpl = sleep,
   } = {}
 ) {
   let consecutiveGitFailures = 0;
+  let lastProjectPollAt = 0;
 
   while (true) {
     const startedAt = now();
     onIterationStart(startedAt);
+
+    if (startedAt - lastProjectPollAt >= projectPollIntervalMs) {
+      lastProjectPollAt = startedAt;
+      try {
+        const projectResults = await processManagedInfrastructureProjects({
+          env,
+          log,
+          rootDir,
+          runCommand: run,
+        });
+        const deployedProjects = projectResults.filter(
+          (result) => result.status === 'ready'
+        );
+
+        if (deployedProjects.length > 0) {
+          log.info?.(
+            `Processed ${deployedProjects.length} managed project deployment${deployedProjects.length === 1 ? '' : 's'}.`
+          );
+        }
+      } catch (error) {
+        log.warn?.(
+          `Managed project polling failed: ${error instanceof Error ? error.message : String(error)}`
+        );
+      }
+    }
 
     const iterationResult = await runDeployWatchIteration(target, {
       deployCommand,
@@ -5077,6 +5106,7 @@ async function main(argv = process.argv.slice(2), options = {}) {
       log: ui,
       now: options.now ?? (() => Date.now()),
       once: parsed.once,
+      projectPollIntervalMs: DEFAULT_PROJECT_POLL_INTERVAL_MS,
       onDeploymentStart: ({ checkedAt, latestCommit, pendingDeployment }) => {
         const currentDeployments = ui.state.deployments ?? [];
         const nextDeployments = prependPendingDeployment(

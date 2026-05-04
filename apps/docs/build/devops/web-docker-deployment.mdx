@@ -528,7 +528,8 @@ Behavior:
     host-side install churn does not stop subsequent polling cycles.
 13. Runs `bun serve:web:docker:bg` automatically after a successful fast-forward
    pull.
-14. If watcher runtime code such as `scripts/watch-blue-green-deploy.js`,
+14. Polls imported Infrastructure projects from log-drain Postgres, synchronizes enabled public GitHub projects into `tmp/docker-web/projects/<projectId>/repo`, deploys them through generated Next.js compose files under the shared `platform` Compose project, and merges hostname routes into the central nginx proxy.
+15. If watcher runtime code such as `scripts/watch-blue-green-deploy.js`,
    `scripts/docker-web/blue-green.js`, or `scripts/docker-web/env.js` changed
    in the pulled revision, the current watcher does not deploy from the old
    process. It releases its lock, spawns a replacement watcher with the same
