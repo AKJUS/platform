@@ -8994,6 +8994,7 @@
           "transactions": "Giao dịch",
           "wallets": "Ví"
         },
+        "load_error": "Không thể tải cài đặt trang bắt đầu. Vui lòng thử lại trước khi lưu thay đổi.",
         "menu_description": "Chọn không gian làm việc mặc định và trang bạn muốn vào khi mở ứng dụng",
         "menu_label": "Điều hướng",
         "root_target_help": "Mở không gian làm việc này thẳng đến trang bạn dùng nhiều nhất.",

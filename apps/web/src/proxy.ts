@@ -163,6 +163,14 @@ function parseRootNavigationConfig(value: string | null): RootNavigationConfig {
   }
 }
 
+function prependLocalePrefix(path: string, localePrefix: string): string {
+  if (!localePrefix) {
+    return path;
+  }
+
+  return path === '/' ? localePrefix : `${localePrefix}${path}`;
+}
+
 async function resolveRootRedirectPath(
   userId: string,
   workspace: { id: string }
@@ -869,6 +877,10 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
 
   // Handle /home path - redirect to root without workspace redirect
   const pathSegments = req.nextUrl.pathname.split('/').filter(Boolean);
+  const activeLocalePrefix =
+    pathSegments[0] && supportedLocales.includes(pathSegments[0] as Locale)
+      ? `/${pathSegments[0]}`
+      : '';
   const isHomePath =
     req.nextUrl.pathname === '/home' ||
     (pathSegments.length === 2 &&
@@ -1012,11 +1024,12 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
             workspaceSlug === resolvedWorkspaceId
               ? path
               : path.replace(`/${resolvedWorkspaceId}`, `/${workspaceSlug}`);
+          const localizedCanonicalPath = prependLocalePrefix(
+            canonicalPath,
+            activeLocalePrefix
+          );
 
-          if (
-            canonicalPath !== req.nextUrl.pathname ||
-            req.nextUrl.searchParams.has('task')
-          ) {
+          if (localizedCanonicalPath !== req.nextUrl.pathname) {
             if (staleConfigValue !== null) {
               try {
                 const sbAdmin = await createAdminClient();
@@ -1038,7 +1051,8 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
               }
             }
 
-            const redirectUrl = new URL(canonicalPath, req.nextUrl);
+            const redirectUrl = new URL(localizedCanonicalPath, req.nextUrl);
+            redirectUrl.search = req.nextUrl.search;
             const workspaceRootRedirect = NextResponse.redirect(redirectUrl);
             propagateAuthCookies(authRes, workspaceRootRedirect);
             return workspaceRootRedirect;
@@ -1089,6 +1103,10 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
             target === defaultWorkspace.id
               ? path
               : path.replace(`/${defaultWorkspace.id}`, `/${target}`);
+          const localizedCanonicalPath = prependLocalePrefix(
+            canonicalPath,
+            activeLocalePrefix
+          );
 
           if (staleConfigValue !== null) {
             try {
@@ -1111,7 +1129,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
             }
           }
 
-          const redirectUrl = new URL(canonicalPath, req.nextUrl);
+          const redirectUrl = new URL(localizedCanonicalPath, req.nextUrl);
           const wsRedirect = NextResponse.redirect(redirectUrl);
           propagateAuthCookies(authRes, wsRedirect);
           return wsRedirect;

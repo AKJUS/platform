@@ -92,7 +92,7 @@ export async function PUT(req: Request, { params }: Params) {
   }
 
   const bodySchema = z.object({
-    value: z.string().nullable().optional(),
+    value: z.string().nullable(),
   });
   let body: unknown;
   try {
@@ -111,7 +111,7 @@ export async function PUT(req: Request, { params }: Params) {
 
   const { value } = parsedBody.data;
 
-  if (value == null || value === '') {
+  if (value === null || value === '') {
     const { error } = await supabase
       .from('user_workspace_configs')
       .delete()

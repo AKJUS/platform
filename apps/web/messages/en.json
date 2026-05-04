@@ -8994,6 +8994,7 @@
           "transactions": "Transactions",
           "wallets": "Wallets"
         },
+        "load_error": "Failed to load start page settings. Try again before saving changes.",
         "menu_description": "Choose your default workspace and the page you land on when opening the app",
         "menu_label": "Navigation",
         "root_target_help": "Open this workspace straight to the page you use most.",

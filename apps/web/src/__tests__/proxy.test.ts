@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   recordMalformedAuthCookieEdge: vi.fn(),
   recordSuspiciousApiRequestEdge: vi.fn(),
   isPersonalWorkspace: vi.fn(),
+  normalizeWorkspaceId: vi.fn(),
   getUserDefaultWorkspace: vi.fn(),
 }));
 
@@ -66,6 +67,9 @@ vi.mock('@tuturuuu/utils/workspace-helper', () => ({
   isPersonalWorkspace: (
     ...args: Parameters<typeof mocks.isPersonalWorkspace>
   ) => mocks.isPersonalWorkspace(...args),
+  normalizeWorkspaceId: (
+    ...args: Parameters<typeof mocks.normalizeWorkspaceId>
+  ) => mocks.normalizeWorkspaceId(...args),
 }));
 
 vi.mock('@tuturuuu/utils/user-helper', () => ({
@@ -75,6 +79,38 @@ vi.mock('@tuturuuu/utils/user-helper', () => ({
 }));
 
 describe('web proxy api handling', () => {
+  function createAuthenticatedSupabaseClient() {
+    const completedOnboardingBuilder = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({
+        data: {
+          completed_at: new Date().toISOString(),
+          profile_completed: true,
+        },
+        error: null,
+      }),
+    };
+    const emptyMaybeSingleBuilder = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+    };
+
+    return {
+      auth: {
+        getUser: vi
+          .fn()
+          .mockResolvedValue({ data: { user: { id: 'user-1' } } }),
+      },
+      from: vi.fn((table: string) =>
+        table === 'onboarding_progress'
+          ? completedOnboardingBuilder
+          : emptyMaybeSingleBuilder
+      ),
+    };
+  }
+
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date());
@@ -112,6 +148,7 @@ describe('web proxy api handling', () => {
     mocks.recordSuspiciousApiRequestEdge.mockResolvedValue(null);
     mocks.isTrustedProxyBypassRequest.mockReturnValue(false);
     mocks.isPersonalWorkspace.mockResolvedValue(false);
+    mocks.normalizeWorkspaceId.mockImplementation(async (wsId: string) => wsId);
     mocks.getUserDefaultWorkspace.mockResolvedValue(null);
   });
 
@@ -623,14 +660,7 @@ describe('web proxy api handling', () => {
         .mockResolvedValueOnce({ data: { id: 'board-1' }, error: null }),
     };
 
-    const supabaseClient = {
-      auth: {
-        getUser: vi
-          .fn()
-          .mockResolvedValue({ data: { user: { id: 'user-1' } } }),
-      },
-      from: vi.fn(),
-    };
+    const supabaseClient = createAuthenticatedSupabaseClient();
 
     mocks.createClient.mockResolvedValue(supabaseClient);
     mocks.createAdminClient.mockResolvedValue({
@@ -650,15 +680,81 @@ describe('web proxy api handling', () => {
     );
   });
 
-  it('falls back to tasks boards and self-heals when configured board no longer exists', async () => {
-    const supabaseClient = {
-      auth: {
-        getUser: vi
-          .fn()
-          .mockResolvedValue({ data: { user: { id: 'user-1' } } }),
-      },
-      from: vi.fn(),
+  it('preserves locale when redirecting root to a configured workspace board', async () => {
+    const adminQueryBuilder = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      is: vi.fn().mockReturnThis(),
+      maybeSingle: vi
+        .fn()
+        .mockResolvedValueOnce({
+          data: {
+            value: JSON.stringify({
+              target: 'tasks',
+              submodule: 'boards',
+              boardId: 'board-1',
+            }),
+          },
+        })
+        .mockResolvedValueOnce({ data: { id: 'board-1' }, error: null }),
     };
+
+    mocks.createClient.mockResolvedValue(createAuthenticatedSupabaseClient());
+    mocks.createAdminClient.mockResolvedValue({
+      from: vi.fn().mockReturnValue(adminQueryBuilder),
+    });
+    mocks.getUserDefaultWorkspace.mockResolvedValue({
+      id: 'ws-1',
+      personal: false,
+    });
+
+    const { proxy } = await import('../proxy');
+    const response = await proxy(new NextRequest('http://localhost/vi'));
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).toBe(
+      'http://localhost/vi/ws-1/tasks/boards/board-1'
+    );
+  });
+
+  it('preserves task query when canonicalizing workspace-home board redirects', async () => {
+    const workspaceId = '11111111-1111-4111-8111-111111111111';
+    const adminQueryBuilder = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      is: vi.fn().mockReturnThis(),
+      maybeSingle: vi
+        .fn()
+        .mockResolvedValueOnce({
+          data: {
+            value: JSON.stringify({
+              target: 'tasks',
+              submodule: 'boards',
+              boardId: 'board-1',
+            }),
+          },
+        })
+        .mockResolvedValueOnce({ data: { id: 'board-1' }, error: null }),
+    };
+
+    mocks.createClient.mockResolvedValue(createAuthenticatedSupabaseClient());
+    mocks.createAdminClient.mockResolvedValue({
+      from: vi.fn().mockReturnValue(adminQueryBuilder),
+    });
+
+    const { proxy } = await import('../proxy');
+    const response = await proxy(
+      new NextRequest(`http://localhost/vi/${workspaceId}?task=task-1`)
+    );
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).toBe(
+      `http://localhost/vi/${workspaceId}/tasks/boards/board-1?task=task-1`
+    );
+  });
+
+  it('falls back to tasks boards and self-heals when configured board no longer exists', async () => {
+    const supabaseClient = createAuthenticatedSupabaseClient();
 
     const configSelectBuilder = {
       eq: vi.fn().mockReturnThis(),

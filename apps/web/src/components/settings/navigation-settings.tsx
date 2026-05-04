@@ -42,6 +42,8 @@ const FINANCE_SUBMODULES = [
   'invoices',
 ] as const;
 
+const DEFAULT_DRAFT_CONFIG = normalizeRootNavigationConfig(null);
+
 function serializeNavigationConfig(config: {
   target: RootNavigationTarget;
   submodule: string;
@@ -80,7 +82,11 @@ export default function NavigationSettings({
   const tCommon = useTranslations('common');
   const queryClient = useQueryClient();
 
-  const { data: savedConfig, isLoading: isConfigLoading } = useQuery({
+  const {
+    data: savedConfig,
+    isError: isConfigError,
+    isLoading: isConfigLoading,
+  } = useQuery({
     queryKey: [
       'user-workspace-config',
       wsId,
@@ -100,31 +106,54 @@ export default function NavigationSettings({
     enabled: Boolean(wsId),
   });
 
-  const normalizedSavedConfig = useMemo(
-    () => normalizeRootNavigationConfig(savedConfig ?? null),
-    [savedConfig]
+  const normalizedSavedConfig = useMemo(() => {
+    if (isConfigLoading || isConfigError) {
+      return null;
+    }
+
+    return normalizeRootNavigationConfig(savedConfig ?? null);
+  }, [isConfigError, isConfigLoading, savedConfig]);
+
+  const [draftConfig, setDraftConfig] = useState<{
+    target: RootNavigationTarget;
+    submodule: string;
+    boardId: string;
+  } | null>(null);
+  const [lastHydratedValue, setLastHydratedValue] = useState<string | null>(
+    null
   );
 
-  const [draftConfig, setDraftConfig] = useState(normalizedSavedConfig);
-  const [lastHydratedValue, setLastHydratedValue] = useState<string>('');
-
   useEffect(() => {
+    if (isConfigLoading || isConfigError || !normalizedSavedConfig) {
+      return;
+    }
+
     const currentSavedValue = savedConfig ?? '';
-    if (currentSavedValue !== lastHydratedValue) {
+    if (currentSavedValue !== lastHydratedValue || !draftConfig) {
       setDraftConfig(normalizedSavedConfig);
       setLastHydratedValue(currentSavedValue);
     }
-  }, [lastHydratedValue, normalizedSavedConfig, savedConfig]);
+  }, [
+    isConfigError,
+    isConfigLoading,
+    draftConfig,
+    lastHydratedValue,
+    normalizedSavedConfig,
+    savedConfig,
+  ]);
+
+  const effectiveDraftConfig = draftConfig ?? DEFAULT_DRAFT_CONFIG;
+  const effectiveSavedConfig = normalizedSavedConfig ?? DEFAULT_DRAFT_CONFIG;
 
   const safeTarget: RootNavigationTarget = TARGET_VALUES.includes(
-    draftConfig.target
+    effectiveDraftConfig.target
   )
-    ? draftConfig.target
+    ? effectiveDraftConfig.target
     : 'workspace_home';
   const safeSubmoduleForTasks = (TASK_SUBMODULES as readonly string[]).includes(
-    draftConfig.submodule
+    effectiveDraftConfig.submodule
   )
-    ? draftConfig.submodule
+    ? effectiveDraftConfig.submodule
     : 'home';
 
   const shouldFetchBoards =
@@ -132,7 +161,7 @@ export default function NavigationSettings({
     safeTarget === 'tasks' &&
     safeSubmoduleForTasks === 'boards';
 
-  const { data: boardsPayload, isFetched: areBoardsFetched } = useQuery({
+  const { data: boardsPayload, isSuccess: areBoardsFetched } = useQuery({
     queryKey: ['navigation-settings-boards', wsId],
     queryFn: () => listWorkspaceBoards(wsId!),
     enabled: shouldFetchBoards,
@@ -147,17 +176,17 @@ export default function NavigationSettings({
 
   const safeSubmoduleForFinance = (
     FINANCE_SUBMODULES as readonly string[]
-  ).includes(draftConfig.submodule)
-    ? draftConfig.submodule
+  ).includes(effectiveDraftConfig.submodule)
+    ? effectiveDraftConfig.submodule
     : 'home';
   const hasBoardOptions = shouldFetchBoards && areBoardsFetched;
   const selectedBoardExists =
-    draftConfig.boardId === 'none' ||
+    effectiveDraftConfig.boardId === 'none' ||
     !hasBoardOptions ||
-    boards.some((board) => board.id === draftConfig.boardId);
+    boards.some((board) => board.id === effectiveDraftConfig.boardId);
   const safeBoardId =
-    draftConfig.boardId === 'none' || selectedBoardExists
-      ? draftConfig.boardId
+    effectiveDraftConfig.boardId === 'none' || selectedBoardExists
+      ? effectiveDraftConfig.boardId
       : 'none';
 
   useEffect(() => {
@@ -165,22 +194,26 @@ export default function NavigationSettings({
       return;
     }
 
-    if (safeBoardId === draftConfig.boardId) {
+    if (!draftConfig || safeBoardId === draftConfig.boardId) {
       return;
     }
 
-    setDraftConfig((previous) => ({
-      ...previous,
-      boardId: safeBoardId,
-    }));
-  }, [draftConfig.boardId, hasBoardOptions, safeBoardId]);
+    setDraftConfig((previous) =>
+      previous
+        ? {
+            ...previous,
+            boardId: safeBoardId,
+          }
+        : previous
+    );
+  }, [draftConfig, hasBoardOptions, safeBoardId]);
 
   const normalizedDraftConfig = useMemo(
     () => ({
-      ...draftConfig,
+      ...effectiveDraftConfig,
       boardId: safeBoardId,
     }),
-    [draftConfig, safeBoardId]
+    [effectiveDraftConfig, safeBoardId]
   );
 
   const serializedCurrentConfig = useMemo(
@@ -188,16 +221,22 @@ export default function NavigationSettings({
     [normalizedDraftConfig]
   );
   const serializedSavedConfig = useMemo(
-    () => serializeNavigationConfig(normalizedSavedConfig),
-    [normalizedSavedConfig]
+    () => serializeNavigationConfig(effectiveSavedConfig),
+    [effectiveSavedConfig]
   );
 
-  const isDirty = serializedCurrentConfig !== serializedSavedConfig;
+  const canEditConfig =
+    !isConfigLoading && !isConfigError && Boolean(draftConfig);
+  const isDirty =
+    canEditConfig && serializedCurrentConfig !== serializedSavedConfig;
 
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!wsId) {
         throw new Error('Workspace ID is required');
+      }
+      if (!canEditConfig) {
+        throw new Error('Start page settings are not ready to save');
       }
 
       return updateUserWorkspaceConfig(
@@ -251,6 +290,8 @@ export default function NavigationSettings({
         <div className="flex justify-center py-8">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
+      ) : isConfigError ? (
+        <p className="text-muted-foreground text-sm">{t('load_error')}</p>
       ) : (
         <form
           className="space-y-4"
@@ -302,11 +343,16 @@ export default function NavigationSettings({
                 value={safeSubmoduleForTasks}
                 onValueChange={(value) => {
                   if ((TASK_SUBMODULES as readonly string[]).includes(value)) {
-                    setDraftConfig((previous) => ({
-                      ...previous,
-                      submodule: value,
-                      boardId: value === 'boards' ? previous.boardId : 'none',
-                    }));
+                    setDraftConfig((previous) =>
+                      previous
+                        ? {
+                            ...previous,
+                            submodule: value,
+                            boardId:
+                              value === 'boards' ? previous.boardId : 'none',
+                          }
+                        : previous
+                    );
                   }
                 }}
               >
@@ -331,10 +377,14 @@ export default function NavigationSettings({
               <Select
                 value={safeBoardId}
                 onValueChange={(value) =>
-                  setDraftConfig((previous) => ({
-                    ...previous,
-                    boardId: value,
-                  }))
+                  setDraftConfig((previous) =>
+                    previous
+                      ? {
+                          ...previous,
+                          boardId: value,
+                        }
+                      : previous
+                  )
                 }
               >
                 <SelectTrigger>
@@ -350,7 +400,7 @@ export default function NavigationSettings({
                 </SelectContent>
               </Select>
               {!selectedBoardExists && (
-                <p className="text-amber-600 text-xs">
+                <p className="text-dynamic-amber text-xs">
                   {t('stale_board_warning')}
                 </p>
               )}
@@ -366,10 +416,14 @@ export default function NavigationSettings({
                   if (
                     (FINANCE_SUBMODULES as readonly string[]).includes(value)
                   ) {
-                    setDraftConfig((previous) => ({
-                      ...previous,
-                      submodule: value,
-                    }));
+                    setDraftConfig((previous) =>
+                      previous
+                        ? {
+                            ...previous,
+                            submodule: value,
+                          }
+                        : previous
+                    );
                   }
                 }}
               >
@@ -394,7 +448,10 @@ export default function NavigationSettings({
             </div>
           )}
 
-          <Button type="submit" disabled={!isDirty || saveMutation.isPending}>
+          <Button
+            type="submit"
+            disabled={!canEditConfig || !isDirty || saveMutation.isPending}
+          >
             {saveMutation.isPending
               ? tCommon('saving')
               : tCommon('save_changes')}
