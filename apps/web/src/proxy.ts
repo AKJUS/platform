@@ -25,6 +25,7 @@ import { getUserDefaultWorkspace } from '@tuturuuu/utils/user-helper';
 import {
   isPersonalWorkspace,
   normalizeWorkspaceId,
+  verifyWorkspaceMembershipType,
 } from '@tuturuuu/utils/workspace-helper';
 import Negotiator from 'negotiator';
 import type { NextRequest } from 'next/server';
@@ -169,6 +170,17 @@ function prependLocalePrefix(path: string, localePrefix: string): string {
   }
 
   return path === '/' ? localePrefix : `${localePrefix}${path}`;
+}
+
+function isWorkspaceHomeRedirectCandidate(
+  workspaceSlug: string | undefined
+): workspaceSlug is string {
+  if (!workspaceSlug) {
+    return false;
+  }
+
+  const pathname = `/${workspaceSlug}`;
+  return !PUBLIC_PATHS.includes(pathname);
 }
 
 async function resolveRootRedirectPath(
@@ -998,12 +1010,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   ) {
     const workspaceSlug = pathSegments[hasLocaleInPath ? 1 : 0];
 
-    if (
-      workspaceSlug &&
-      (workspaceSlug === 'personal' ||
-        workspaceSlug === 'internal' ||
-        uuidRegex.test(workspaceSlug))
-    ) {
+    if (isWorkspaceHomeRedirectCandidate(workspaceSlug)) {
       try {
         const supabase = await createClient();
         const { user } = await resolveAuthenticatedSessionUser(supabase);
@@ -1013,6 +1020,17 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
             workspaceSlug,
             supabase
           );
+          const memberCheck = await verifyWorkspaceMembershipType({
+            wsId: resolvedWorkspaceId,
+            userId: user.id,
+            supabase,
+            requiredType: 'ANY',
+          });
+
+          if (!memberCheck.ok) {
+            return handleLocaleWithAuthCookies(req, authRes);
+          }
+
           const { path, staleConfigValue } = await resolveRootRedirectPath(
             user.id,
             {
@@ -1141,6 +1159,15 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   }
 
   // Continue with locale handling
+  const localeRes = handleLocale({ req });
+  propagateAuthCookies(authRes, localeRes);
+  return localeRes;
+}
+
+function handleLocaleWithAuthCookies(
+  req: NextRequest,
+  authRes: NextResponse
+): NextResponse {
   const localeRes = handleLocale({ req });
   propagateAuthCookies(authRes, localeRes);
   return localeRes;

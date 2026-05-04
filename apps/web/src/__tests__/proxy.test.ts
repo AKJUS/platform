@@ -15,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   recordSuspiciousApiRequestEdge: vi.fn(),
   isPersonalWorkspace: vi.fn(),
   normalizeWorkspaceId: vi.fn(),
+  verifyWorkspaceMembershipType: vi.fn(),
   getUserDefaultWorkspace: vi.fn(),
 }));
 
@@ -70,6 +71,9 @@ vi.mock('@tuturuuu/utils/workspace-helper', () => ({
   normalizeWorkspaceId: (
     ...args: Parameters<typeof mocks.normalizeWorkspaceId>
   ) => mocks.normalizeWorkspaceId(...args),
+  verifyWorkspaceMembershipType: (
+    ...args: Parameters<typeof mocks.verifyWorkspaceMembershipType>
+  ) => mocks.verifyWorkspaceMembershipType(...args),
 }));
 
 vi.mock('@tuturuuu/utils/user-helper', () => ({
@@ -149,6 +153,7 @@ describe('web proxy api handling', () => {
     mocks.isTrustedProxyBypassRequest.mockReturnValue(false);
     mocks.isPersonalWorkspace.mockResolvedValue(false);
     mocks.normalizeWorkspaceId.mockImplementation(async (wsId: string) => wsId);
+    mocks.verifyWorkspaceMembershipType.mockResolvedValue({ ok: true });
     mocks.getUserDefaultWorkspace.mockResolvedValue(null);
   });
 
@@ -751,6 +756,65 @@ describe('web proxy api handling', () => {
     expect(response.headers.get('location')).toBe(
       `http://localhost/vi/${workspaceId}/tasks/boards/board-1?task=task-1`
     );
+  });
+
+  it('applies workspace-home board redirects for non-UUID workspace slugs', async () => {
+    const adminQueryBuilder = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      is: vi.fn().mockReturnThis(),
+      maybeSingle: vi
+        .fn()
+        .mockResolvedValueOnce({
+          data: {
+            value: JSON.stringify({
+              target: 'tasks',
+              submodule: 'boards',
+              boardId: 'board-1',
+            }),
+          },
+        })
+        .mockResolvedValueOnce({ data: { id: 'board-1' }, error: null }),
+    };
+
+    mocks.createClient.mockResolvedValue(createAuthenticatedSupabaseClient());
+    mocks.createAdminClient.mockResolvedValue({
+      from: vi.fn().mockReturnValue(adminQueryBuilder),
+    });
+
+    const { proxy } = await import('../proxy');
+    const response = await proxy(
+      new NextRequest('http://localhost/team-slug?task=task-1')
+    );
+
+    expect(mocks.normalizeWorkspaceId).toHaveBeenCalledWith(
+      'team-slug',
+      expect.anything()
+    );
+    expect(response.status).toBe(307);
+    expect(response.headers.get('location')).toBe(
+      'http://localhost/team-slug/tasks/boards/board-1?task=task-1'
+    );
+  });
+
+  it('skips workspace-home admin reads when the user is not a workspace member', async () => {
+    const adminFrom = vi.fn();
+    mocks.verifyWorkspaceMembershipType.mockResolvedValueOnce({
+      ok: false,
+      error: 'membership_missing',
+    });
+    mocks.createClient.mockResolvedValue(createAuthenticatedSupabaseClient());
+    mocks.createAdminClient.mockResolvedValue({
+      from: adminFrom,
+    });
+
+    const { proxy } = await import('../proxy');
+    const response = await proxy(
+      new NextRequest('http://localhost/11111111-1111-4111-8111-111111111111')
+    );
+
+    expect(response.status).toBe(200);
+    expect(adminFrom).not.toHaveBeenCalled();
   });
 
   it('falls back to tasks boards and self-heals when configured board no longer exists', async () => {

@@ -74,13 +74,19 @@ interface NavigationSettingsProps {
   user: WorkspaceUser | null;
 }
 
-export default function NavigationSettings({
-  wsId,
-  user,
-}: NavigationSettingsProps) {
+export default function NavigationSettings({ user }: NavigationSettingsProps) {
   const t = useTranslations('settings.preferences.navigation');
   const tCommon = useTranslations('common');
   const queryClient = useQueryClient();
+  const [selectedDefaultWorkspaceId, setSelectedDefaultWorkspaceId] = useState<
+    string | null
+  >(user?.default_workspace_id ?? null);
+
+  useEffect(() => {
+    setSelectedDefaultWorkspaceId(user?.default_workspace_id ?? null);
+  }, [user?.default_workspace_id]);
+
+  const startPageWorkspaceId = selectedDefaultWorkspaceId ?? null;
 
   const {
     data: savedConfig,
@@ -89,21 +95,21 @@ export default function NavigationSettings({
   } = useQuery({
     queryKey: [
       'user-workspace-config',
-      wsId,
+      startPageWorkspaceId,
       ROOT_DEFAULT_NAVIGATION_CONFIG_ID,
     ],
     queryFn: async () => {
-      if (!wsId) {
+      if (!startPageWorkspaceId) {
         return null;
       }
 
       const response = await getUserWorkspaceConfig(
-        wsId,
+        startPageWorkspaceId,
         ROOT_DEFAULT_NAVIGATION_CONFIG_ID
       );
       return response.value;
     },
-    enabled: Boolean(wsId),
+    enabled: Boolean(startPageWorkspaceId),
   });
 
   const normalizedSavedConfig = useMemo(() => {
@@ -128,7 +134,7 @@ export default function NavigationSettings({
       return;
     }
 
-    const currentSavedValue = savedConfig ?? '';
+    const currentSavedValue = `${startPageWorkspaceId}:${savedConfig ?? ''}`;
     if (currentSavedValue !== lastHydratedValue || !draftConfig) {
       setDraftConfig(normalizedSavedConfig);
       setLastHydratedValue(currentSavedValue);
@@ -140,6 +146,7 @@ export default function NavigationSettings({
     lastHydratedValue,
     normalizedSavedConfig,
     savedConfig,
+    startPageWorkspaceId,
   ]);
 
   const effectiveDraftConfig = draftConfig ?? DEFAULT_DRAFT_CONFIG;
@@ -157,13 +164,13 @@ export default function NavigationSettings({
     : 'home';
 
   const shouldFetchBoards =
-    Boolean(wsId) &&
+    Boolean(startPageWorkspaceId) &&
     safeTarget === 'tasks' &&
     safeSubmoduleForTasks === 'boards';
 
   const { data: boardsPayload, isSuccess: areBoardsFetched } = useQuery({
-    queryKey: ['navigation-settings-boards', wsId],
-    queryFn: () => listWorkspaceBoards(wsId!),
+    queryKey: ['navigation-settings-boards', startPageWorkspaceId],
+    queryFn: () => listWorkspaceBoards(startPageWorkspaceId!),
     enabled: shouldFetchBoards,
     staleTime: 60 * 1000,
   });
@@ -232,7 +239,7 @@ export default function NavigationSettings({
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      if (!wsId) {
+      if (!startPageWorkspaceId) {
         throw new Error('Workspace ID is required');
       }
       if (!canEditConfig) {
@@ -240,7 +247,7 @@ export default function NavigationSettings({
       }
 
       return updateUserWorkspaceConfig(
-        wsId,
+        startPageWorkspaceId,
         ROOT_DEFAULT_NAVIGATION_CONFIG_ID,
         serializedCurrentConfig
       );
@@ -249,7 +256,7 @@ export default function NavigationSettings({
       void queryClient.invalidateQueries({
         queryKey: [
           'user-workspace-config',
-          wsId,
+          startPageWorkspaceId,
           ROOT_DEFAULT_NAVIGATION_CONFIG_ID,
         ],
       });
@@ -272,6 +279,7 @@ export default function NavigationSettings({
           <Label>{t('default_workspace_label')}</Label>
           <DefaultWorkspaceSetting
             defaultWorkspaceId={user?.default_workspace_id}
+            onSelectedWorkspaceChange={setSelectedDefaultWorkspaceId}
             user={user}
           />
           <p className="text-muted-foreground text-xs">
@@ -282,7 +290,7 @@ export default function NavigationSettings({
 
       <Separator />
 
-      {!wsId ? (
+      {!startPageWorkspaceId ? (
         <p className="text-muted-foreground text-sm">
           {t('workspace_required')}
         </p>
