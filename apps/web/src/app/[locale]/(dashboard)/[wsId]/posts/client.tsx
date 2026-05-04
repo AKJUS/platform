@@ -1,12 +1,14 @@
 'use client';
 
+import { useQuery } from '@tanstack/react-query';
+import { Loader2 } from '@tuturuuu/icons';
+import { getWorkspacePosts } from '@tuturuuu/internal-api';
 import { Card, CardContent, CardHeader, CardTitle } from '@tuturuuu/ui/card';
 import FeatureSummary from '@tuturuuu/ui/custom/feature-summary';
 import { DataTable } from '@tuturuuu/ui/custom/tables/data-table';
-import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useQueryStates } from 'nuqs';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getPostEmailColumns } from './columns';
 import PostsFilters from './filters';
 import { PostDisplay } from './post-display';
@@ -29,8 +31,6 @@ interface PostsClientProps {
     end: string;
   };
   searchParams: PostsSearchParams;
-  postsData: { data: PostEmail[]; count: number };
-  postsStatus: PostEmailStatusSummary;
 }
 
 export default function PostsClient({
@@ -40,17 +40,83 @@ export default function PostsClient({
   canForceSendPosts,
   defaultDateRange,
   searchParams,
-  postsData,
-  postsStatus,
 }: PostsClientProps) {
   const t = useTranslations();
-  const router = useRouter();
   const [queryState, setQueryState] = useQueryStates(postsSearchParamParsers);
   const [posts, setPosts] = usePosts();
   const [selectedPost, setSelectedPost] = useState<PostEmail | null>(null);
   const activeStage = queryState.stage ?? searchParams.stage ?? undefined;
   const currentPage = queryState.page ?? searchParams.page ?? 1;
   const currentPageSize = queryState.pageSize ?? searchParams.pageSize ?? 10;
+  const effectiveSearchParams = useMemo(
+    () => ({
+      approvalStatus:
+        queryState.approvalStatus ?? searchParams.approvalStatus ?? undefined,
+      end: queryState.end ?? searchParams.end ?? undefined,
+      excludedGroups:
+        (queryState.excludedGroups?.length ?? 0) > 0
+          ? queryState.excludedGroups
+          : (searchParams.excludedGroups ?? undefined),
+      includedGroups:
+        (queryState.includedGroups?.length ?? 0) > 0
+          ? queryState.includedGroups
+          : (searchParams.includedGroups ?? undefined),
+      page: currentPage,
+      pageSize: currentPageSize,
+      queueStatus:
+        queryState.queueStatus ?? searchParams.queueStatus ?? undefined,
+      showAll: queryState.showAll ?? searchParams.showAll ?? undefined,
+      stage: activeStage,
+      start: queryState.start ?? searchParams.start ?? undefined,
+      userId: queryState.userId ?? searchParams.userId ?? undefined,
+    }),
+    [activeStage, currentPage, currentPageSize, queryState, searchParams]
+  );
+  const {
+    data: postsResponse,
+    isFetching,
+    isLoading,
+    refetch,
+  } = useQuery({
+    queryKey: ['workspace-posts', wsId, effectiveSearchParams],
+    queryFn: () =>
+      getWorkspacePosts<PostEmail, PostEmailStatusSummary>(
+        wsId,
+        effectiveSearchParams
+      ),
+    placeholderData: (previousData) => previousData,
+  });
+  const isInitialLoading = isLoading && !postsResponse;
+  const postsData = postsResponse
+    ? { count: postsResponse.count, data: postsResponse.data }
+    : { count: 0, data: [] as PostEmail[] };
+  const postsStatus =
+    postsResponse?.summary ??
+    ({
+      approvals: { approved: 0, pending: 0, rejected: 0, skipped: 0 },
+      queue: {
+        blocked: 0,
+        cancelled: 0,
+        failed: 0,
+        processing: 0,
+        queued: 0,
+        sent: 0,
+        skipped: 0,
+      },
+      stages: {
+        approved_awaiting_delivery: 0,
+        delivery_failed: 0,
+        missing_check: 0,
+        pending_approval: 0,
+        processing: 0,
+        queued: 0,
+        rejected: 0,
+        sent: 0,
+        skipped: 0,
+        undeliverable: 0,
+      },
+      total: 0,
+    } as PostEmailStatusSummary);
 
   const handleSetParams = useCallback(
     (params: { page?: number; pageSize?: string }) => {
@@ -113,6 +179,10 @@ export default function PostsClient({
             wsId={wsId}
             statusSummary={postsStatus}
             defaultDateRange={defaultDateRange}
+            onRefreshPosts={() => {
+              void refetch();
+            }}
+            isRefreshing={isFetching}
           />
         }
       />
@@ -128,41 +198,56 @@ export default function PostsClient({
             </CardTitle>
           </CardHeader>
           <CardContent className="min-w-0">
-            <div className="min-h-144 overflow-y-auto">
-              <DataTable
-                data={postsData?.data || []}
-                namespace="post-email-data-table"
-                columnGenerator={getPostEmailColumns}
-                t={t}
-                extraData={{ locale }}
-                count={postsData?.count || 0}
-                pageIndex={Math.max(currentPage - 1, 0)}
-                pageSize={currentPageSize}
-                defaultVisibility={{
-                  id: false,
-                  email: false,
-                  subject: false,
-                  is_completed: false,
-                  notes: false,
-                  created_at: false,
-                  queue_attempt_count: false,
-                  queue_status: false,
-                  stage: true,
-                  approval_status: false,
-                  post_title: false,
-                  post_content: false,
-                }}
-                disableSearch
-                onRefresh={() => router.refresh()}
-                resetParams={() => {}}
-                setParams={handleSetParams}
-                onRowClick={(row) => {
-                  setPosts({
-                    ...posts,
-                    selected: createPostEmailKey(row),
-                  });
-                }}
-              />
+            <div className="relative min-h-144 overflow-y-auto">
+              {isInitialLoading ? (
+                <div className="flex min-h-72 items-center justify-center text-muted-foreground">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                </div>
+              ) : (
+                <>
+                  <DataTable
+                    data={postsData?.data || []}
+                    namespace="post-email-data-table"
+                    columnGenerator={getPostEmailColumns}
+                    t={t}
+                    extraData={{ locale }}
+                    count={postsData?.count || 0}
+                    pageIndex={Math.max(currentPage - 1, 0)}
+                    pageSize={currentPageSize}
+                    defaultVisibility={{
+                      id: false,
+                      email: false,
+                      subject: false,
+                      is_completed: false,
+                      notes: false,
+                      created_at: false,
+                      queue_attempt_count: false,
+                      queue_status: false,
+                      stage: true,
+                      approval_status: false,
+                      post_title: false,
+                      post_content: false,
+                    }}
+                    disableSearch
+                    onRefresh={() => {
+                      void refetch();
+                    }}
+                    resetParams={() => {}}
+                    setParams={handleSetParams}
+                    onRowClick={(row) => {
+                      setPosts({
+                        ...posts,
+                        selected: createPostEmailKey(row),
+                      });
+                    }}
+                  />
+                  {isFetching ? (
+                    <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-md bg-background/55 backdrop-blur-[1px]">
+                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : null}
+                </>
+              )}
             </div>
           </CardContent>
         </Card>

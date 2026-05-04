@@ -206,7 +206,12 @@ export {
 } from './inquiries';
 export { listWorkspaceEmails } from './mail';
 export { getCurrentUserNovaTeam } from './nova';
-export { forceSendWorkspacePostEmail } from './posts';
+export {
+  forceSendWorkspacePostEmail,
+  type GetWorkspacePostsQuery,
+  type GetWorkspacePostsResponse,
+  getWorkspacePosts,
+} from './posts';
 export {
   updateWorkspaceReferralSettings,
   type WorkspaceReferralSettingsPayload,

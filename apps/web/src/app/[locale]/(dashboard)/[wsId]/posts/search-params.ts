@@ -15,7 +15,7 @@ import {
 } from './types';
 
 const postsNavigationOptions = {
-  shallow: false,
+  shallow: true,
 } as const;
 
 export const postsSearchParamParsers = {
