@@ -28,6 +28,7 @@ interface ObservabilityFilters {
   level?: string | null;
   page?: number;
   pageSize?: number;
+  projectId?: string | null;
   q?: string | null;
   since?: number | null;
   source?: string | null;
@@ -41,6 +42,7 @@ const DEFAULT_TIMEFRAME_HOURS = 24;
 const MAX_PAGE_SIZE = 200;
 const MAX_AGGREGATE_ROWS = 5_000;
 const RESOURCE_SAMPLE_MIN_INTERVAL_MS = 60_000;
+const DEFAULT_PROJECT_ID = 'platform';
 const RESOURCE_METRICS = {
   cpu: 'docker.cpu_percent',
   memory: 'docker.memory_bytes',
@@ -102,6 +104,7 @@ export function parseObservabilityFilters(
     level: normalize(searchParams.get('level')),
     page: clampPage(searchParams.get('page')),
     pageSize: clampPageSize(searchParams.get('pageSize')),
+    projectId: normalize(searchParams.get('projectId')) ?? DEFAULT_PROJECT_ID,
     q: normalize(searchParams.get('q')),
     since: parseTimestampFilter(searchParams.get('since')),
     source: normalize(searchParams.get('source')),
@@ -109,6 +112,12 @@ export function parseObservabilityFilters(
     timeframeHours: clampTimeframeHours(searchParams.get('timeframeHours')),
     until: parseTimestampFilter(searchParams.get('until')),
   };
+}
+
+function shouldReadLegacyProject(
+  filters: Pick<ObservabilityFilters, 'projectId'>
+) {
+  return !filters.projectId || filters.projectId === DEFAULT_PROJECT_ID;
 }
 
 function toMs(value: Date | string | number | null | undefined) {
@@ -363,7 +372,7 @@ async function loadRecentLogs(
 ) {
   const sql = await getSql();
   if (!sql) {
-    return loadLegacyLogs(filters);
+    return shouldReadLegacyProject(filters) ? loadLegacyLogs(filters) : [];
   }
 
   const rows = await sql<
@@ -405,7 +414,8 @@ async function loadRecentLogs(
       log_events.created_at
     FROM log_events
     LEFT JOIN requests ON requests.id = log_events.request_id
-    WHERE log_events.created_at >= now() - make_interval(hours => ${filters.timeframeHours})
+    WHERE log_events.project_id = ${filters.projectId ?? DEFAULT_PROJECT_ID}
+      AND log_events.created_at >= now() - make_interval(hours => ${filters.timeframeHours})
     ORDER BY log_events.created_at DESC
     LIMIT ${MAX_AGGREGATE_ROWS}
   `;
@@ -442,9 +452,10 @@ async function loadRecentLogs(
       userAgent: row.user_agent,
     }));
 
-  return [...postgresLogs, ...loadLegacyLogs(filters)].sort(
-    (left, right) => right.createdAt - left.createdAt
-  );
+  return [
+    ...postgresLogs,
+    ...(shouldReadLegacyProject(filters) ? loadLegacyLogs(filters) : []),
+  ].sort((left, right) => right.createdAt - left.createdAt);
 }
 
 async function loadRecentRequests(
@@ -453,7 +464,7 @@ async function loadRecentRequests(
 ) {
   const sql = await getSql();
   if (!sql) {
-    return loadLegacyRequests(filters);
+    return shouldReadLegacyProject(filters) ? loadLegacyRequests(filters) : [];
   }
 
   const rows = await sql<
@@ -493,7 +504,8 @@ async function loadRecentRequests(
       count(log_events.id)::int AS log_count
     FROM requests
     LEFT JOIN log_events ON log_events.request_id = requests.id
-    WHERE requests.started_at >= now() - make_interval(hours => ${filters.timeframeHours})
+    WHERE requests.project_id = ${filters.projectId ?? DEFAULT_PROJECT_ID}
+      AND requests.started_at >= now() - make_interval(hours => ${filters.timeframeHours})
     GROUP BY requests.id
     ORDER BY requests.started_at DESC
     LIMIT ${MAX_AGGREGATE_ROWS}
@@ -534,9 +546,10 @@ async function loadRecentRequests(
       userAgent: row.user_agent,
     }));
 
-  return [...postgresRequests, ...loadLegacyRequests(filters)].sort(
-    (left, right) => right.startedAt - left.startedAt
-  );
+  return [
+    ...postgresRequests,
+    ...(shouldReadLegacyProject(filters) ? loadLegacyRequests(filters) : []),
+  ].sort((left, right) => right.startedAt - left.startedAt);
 }
 
 async function attachRelatedLogsToRequests(
@@ -667,6 +680,16 @@ export async function readObservabilityCronRuns(
 ) {
   const sql = await getSql();
   if (!sql) {
+    if (!shouldReadLegacyProject(filters)) {
+      return {
+        hasNextPage: false,
+        items: [],
+        page: clampPage(filters.page),
+        pageSize: clampPageSize(filters.pageSize),
+        total: 0,
+      };
+    }
+
     const archive = readCronExecutionArchive({
       page: clampPage(filters.page),
       pageSize: clampPageSize(filters.pageSize),
@@ -708,7 +731,8 @@ export async function readObservabilityCronRuns(
   >`
     SELECT id, request_id, job_id, path, status, http_status, duration_ms, error_message, started_at, ended_at
     FROM cron_runs
-    WHERE started_at >= now() - make_interval(hours => ${normalized.timeframeHours})
+    WHERE project_id = ${normalized.projectId}
+      AND started_at >= now() - make_interval(hours => ${normalized.timeframeHours})
     ORDER BY started_at DESC
     LIMIT ${MAX_AGGREGATE_ROWS}
   `;
@@ -918,6 +942,7 @@ function parseFilterDefaults(filters: ObservabilityFilters) {
     ...filters,
     page: clampPage(filters.page),
     pageSize: clampPageSize(filters.pageSize),
+    projectId: filters.projectId?.trim() || DEFAULT_PROJECT_ID,
     timeframeHours: clampTimeframeHours(filters.timeframeHours),
   };
 }
@@ -983,7 +1008,8 @@ async function persistResourceSample(
   const recent = await sql<Array<{ created_at: Date }>>`
     SELECT created_at
     FROM usage_events
-    WHERE metric = ${RESOURCE_METRICS.cpu}
+    WHERE project_id = ${DEFAULT_PROJECT_ID}
+      AND metric = ${RESOURCE_METRICS.cpu}
       AND created_at >= now() - make_interval(secs => ${Math.ceil(
         RESOURCE_SAMPLE_MIN_INTERVAL_MS / 1000
       )})
@@ -1002,12 +1028,12 @@ async function persistResourceSample(
   });
 
   await sql`
-    INSERT INTO usage_events (source, metric, value, unit, metadata)
+    INSERT INTO usage_events (project_id, source, metric, value, unit, metadata)
     VALUES
-      ('server', ${RESOURCE_METRICS.cpu}, ${dockerResources.totalCpuPercent}, 'percent', ${metadata}::jsonb),
-      ('server', ${RESOURCE_METRICS.memory}, ${dockerResources.totalMemoryBytes}, 'bytes', ${metadata}::jsonb),
-      ('server', ${RESOURCE_METRICS.rx}, ${dockerResources.totalRxBytes}, 'bytes', ${metadata}::jsonb),
-      ('server', ${RESOURCE_METRICS.tx}, ${dockerResources.totalTxBytes}, 'bytes', ${metadata}::jsonb)
+      (${DEFAULT_PROJECT_ID}, 'server', ${RESOURCE_METRICS.cpu}, ${dockerResources.totalCpuPercent}, 'percent', ${metadata}::jsonb),
+      (${DEFAULT_PROJECT_ID}, 'server', ${RESOURCE_METRICS.memory}, ${dockerResources.totalMemoryBytes}, 'bytes', ${metadata}::jsonb),
+      (${DEFAULT_PROJECT_ID}, 'server', ${RESOURCE_METRICS.rx}, ${dockerResources.totalRxBytes}, 'bytes', ${metadata}::jsonb),
+      (${DEFAULT_PROJECT_ID}, 'server', ${RESOURCE_METRICS.tx}, ${dockerResources.totalTxBytes}, 'bytes', ${metadata}::jsonb)
   `;
   await pruneOldLogDrainRecords();
 }
@@ -1034,6 +1060,7 @@ function getCurrentResourceBucket(
 }
 
 async function readResourceBuckets(
+  projectId: string,
   timeframeHours: number,
   dockerResources: ObservabilityResources['dockerResources']
 ): Promise<ObservabilityResourceBucket[]> {
@@ -1047,7 +1074,8 @@ async function readResourceBuckets(
   >`
     SELECT metric, value, created_at
     FROM usage_events
-    WHERE metric IN ${sql(Object.values(RESOURCE_METRICS))}
+    WHERE project_id = ${projectId}
+      AND metric IN ${sql(Object.values(RESOURCE_METRICS))}
       AND created_at >= now() - make_interval(hours => ${timeframeHours})
     ORDER BY created_at ASC
     LIMIT ${MAX_AGGREGATE_ROWS}
@@ -1118,6 +1146,7 @@ export async function readObservabilityResources(
 
   return {
     buckets: await readResourceBuckets(
+      normalized.projectId,
       normalized.timeframeHours,
       snapshot.dockerResources
     ),

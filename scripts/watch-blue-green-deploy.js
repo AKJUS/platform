@@ -65,6 +65,9 @@ const {
   readWatcherLogEntries,
 } = require('./watch-blue-green/logs.js');
 const {
+  resolvePlatformProjectTarget,
+} = require('./watch-blue-green/projects.js');
+const {
   clearInstantRolloutRequest,
   readDeploymentPin,
   readInstantRolloutRequest,
@@ -4796,12 +4799,41 @@ async function main(argv = process.argv.slice(2), options = {}) {
   };
 
   try {
-    const target = await resolveLockedBranchTarget({
+    const initialTarget = await resolveLockedBranchTarget({
       env,
       fsImpl,
       paths,
       runCommand: run,
     });
+    const projectTarget = await resolvePlatformProjectTarget(initialTarget, {
+      env,
+      listDirtyWorktreePaths,
+      log: ui,
+      runCommand: run,
+    });
+    const target = projectTarget.target;
+
+    if (projectTarget.blocked) {
+      ui.warn(projectTarget.message ?? 'Project deployment is blocked.');
+      ui.update({
+        lastResult: {
+          project: projectTarget.project,
+          status: 'blocked',
+        },
+        target,
+      });
+      writeWatchStatus(ui.state, {
+        fsImpl,
+        now: Date.now(),
+        paths,
+        processImpl,
+      });
+
+      return {
+        project: projectTarget.project,
+        status: 'blocked',
+      };
+    }
     const latestCommit = await getCommitMetadata('HEAD', {
       env,
       runCommand: run,
@@ -5261,6 +5293,7 @@ module.exports = {
   releaseWatchLock,
   resolveCurrentBlueGreenStatus,
   resolveLockedBranchTarget,
+  resolvePlatformProjectTarget,
   runBunUpgradeAndInstall,
   runBlueGreenDeploy,
   runPendingDeployAfterRestart,

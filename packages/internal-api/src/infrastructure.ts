@@ -557,8 +557,79 @@ export type ObservabilityDashboardMode =
   | 'logs'
   | 'observability'
   | 'overview'
+  | 'projects'
   | 'requests'
   | 'resources';
+
+export interface InfrastructureProjectBranch {
+  commitHash: string | null;
+  commitShortHash: string | null;
+  commitSubject: string | null;
+  committedAt: number | null;
+  defaultBranch: boolean;
+  lastSyncedAt: number;
+  name: string;
+  protected: boolean;
+}
+
+export interface InfrastructureProject {
+  addons: {
+    cron: boolean;
+    logDrain: boolean;
+    nginx: boolean;
+    redis: boolean;
+  };
+  appRoot: string;
+  autoDeployEnabled: boolean;
+  branches: InfrastructureProjectBranch[];
+  createdAt: number;
+  deploymentStatus: string;
+  environment: string;
+  hostnames: string[];
+  id: string;
+  isBuiltin: boolean;
+  lastDeployedAt: number | null;
+  latestCommitHash: string | null;
+  latestCommitShortHash: string | null;
+  latestCommitSubject: string | null;
+  latestSyncedAt: number | null;
+  name: string;
+  port: number;
+  preset: string;
+  repo: {
+    owner: string;
+    repo: string;
+    url: string;
+  };
+  selectedBranch: string;
+  updatedAt: number;
+}
+
+export interface CreateInfrastructureProjectPayload {
+  appRoot?: string;
+  hostnames?: string[];
+  repoUrl: string;
+  selectedBranch?: string;
+}
+
+export interface UpdateInfrastructureProjectPayload {
+  appRoot?: string;
+  autoDeployEnabled?: boolean;
+  cronEnabled?: boolean;
+  hostnames?: string[];
+  logDrainEnabled?: boolean;
+  name?: string;
+  redisEnabled?: boolean;
+  selectedBranch?: string;
+}
+
+export interface InfrastructureProjectResponse {
+  project: InfrastructureProject;
+}
+
+export interface InfrastructureProjectsResponse {
+  projects: InfrastructureProject[];
+}
 
 export interface ObservabilityDeployment {
   color: string | null;
@@ -694,6 +765,7 @@ export interface GetObservabilityParams {
   level?: ObservabilityLogLevel | 'all';
   page?: number;
   pageSize?: number;
+  projectId?: string;
   q?: string;
   since?: number;
   source?: ObservabilitySource | 'all';
@@ -937,6 +1009,10 @@ function appendObservabilitySearchParams(
     searchParams.set('pageSize', String(params.pageSize));
   }
 
+  if (params?.projectId) {
+    searchParams.set('projectId', params.projectId);
+  }
+
   if (params?.timeframeHours != null) {
     searchParams.set('timeframeHours', String(params.timeframeHours));
   }
@@ -975,7 +1051,7 @@ function getObservabilityPath(path: string, params?: GetObservabilityParams) {
 }
 
 export async function getObservabilityOverview(
-  params?: Pick<GetObservabilityParams, 'timeframeHours'>,
+  params?: Pick<GetObservabilityParams, 'projectId' | 'timeframeHours'>,
   options?: InternalApiClientOptions
 ) {
   const client = getInternalApiClient(options);
@@ -1019,7 +1095,7 @@ export async function getObservabilityRequests(
 }
 
 export async function getObservabilityAnalytics(
-  params?: Pick<GetObservabilityParams, 'timeframeHours'>,
+  params?: Pick<GetObservabilityParams, 'projectId' | 'timeframeHours'>,
   options?: InternalApiClientOptions
 ) {
   const client = getInternalApiClient(options);
@@ -1041,13 +1117,88 @@ export async function getObservabilityCronRuns(
 }
 
 export async function getObservabilityResources(
-  params?: Pick<GetObservabilityParams, 'timeframeHours'>,
+  params?: Pick<GetObservabilityParams, 'projectId' | 'timeframeHours'>,
   options?: InternalApiClientOptions
 ) {
   const client = getInternalApiClient(options);
   return client.json<ObservabilityResources>(
     getObservabilityPath('resources', params),
     { cache: 'no-store' }
+  );
+}
+
+export async function getInfrastructureProjects(
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  return client.json<InfrastructureProjectsResponse>(
+    '/api/v1/infrastructure/projects',
+    { cache: 'no-store' }
+  );
+}
+
+export async function createInfrastructureProject(
+  payload: CreateInfrastructureProjectPayload,
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  return client.json<InfrastructureProjectResponse>(
+    '/api/v1/infrastructure/projects',
+    {
+      body: JSON.stringify(payload),
+      cache: 'no-store',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      method: 'POST',
+    }
+  );
+}
+
+export async function updateInfrastructureProject(
+  projectId: string,
+  payload: UpdateInfrastructureProjectPayload,
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  return client.json<InfrastructureProjectResponse>(
+    `/api/v1/infrastructure/projects/${encodeURIComponent(projectId)}`,
+    {
+      body: JSON.stringify(payload),
+      cache: 'no-store',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      method: 'PATCH',
+    }
+  );
+}
+
+export async function syncInfrastructureProject(
+  projectId: string,
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  return client.json<InfrastructureProjectResponse>(
+    `/api/v1/infrastructure/projects/${encodeURIComponent(projectId)}/sync`,
+    {
+      cache: 'no-store',
+      method: 'POST',
+    }
+  );
+}
+
+export async function queueInfrastructureProjectDeploy(
+  projectId: string,
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  return client.json<InfrastructureProjectResponse>(
+    `/api/v1/infrastructure/projects/${encodeURIComponent(projectId)}/deploy`,
+    {
+      cache: 'no-store',
+      method: 'POST',
+    }
   );
 }
 

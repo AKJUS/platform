@@ -24,9 +24,11 @@ import {
 } from '@tuturuuu/icons';
 import {
   type CronExecutionRecord,
+  createInfrastructureProject,
   type GetObservabilityParams,
   getCronMonitoringExecutionArchive,
   getCronMonitoringSnapshot,
+  getInfrastructureProjects,
   getObservabilityAnalytics,
   getObservabilityCronRuns,
   getObservabilityDeployments,
@@ -34,12 +36,17 @@ import {
   getObservabilityOverview,
   getObservabilityRequests,
   getObservabilityResources,
+  type InfrastructureProject,
   type ObservabilityDeployment,
   type ObservabilityLogEvent,
   type ObservabilityRequest,
   type ObservabilityResourceBucket,
   queueCronRun,
+  queueInfrastructureProjectDeploy,
+  syncInfrastructureProject,
+  type UpdateInfrastructureProjectPayload,
   updateCronMonitoringControl,
+  updateInfrastructureProject,
 } from '@tuturuuu/internal-api/infrastructure';
 import { Badge } from '@tuturuuu/ui/badge';
 import { Button } from '@tuturuuu/ui/button';
@@ -85,6 +92,7 @@ export type ObservabilityDashboardMode =
   | 'logs'
   | 'observability'
   | 'overview'
+  | 'projects'
   | 'requests'
   | 'resources';
 
@@ -95,6 +103,7 @@ const modeIcons = {
   logs: Logs,
   observability: DatabaseZap,
   overview: Activity,
+  projects: Box,
   requests: Radio,
   resources: Gauge,
 };
@@ -110,6 +119,11 @@ type InfiniteData<TPage> = {
   pages: TPage[];
 };
 type Tone = 'amber' | 'blue' | 'green' | 'muted' | 'orange' | 'red';
+type ProjectToggleKey =
+  | 'autoDeployEnabled'
+  | 'cronEnabled'
+  | 'logDrainEnabled'
+  | 'redisEnabled';
 
 const toneClasses: Record<
   Tone,
@@ -1131,10 +1145,17 @@ export function ObservabilityDashboardClient({
     'source',
     parseAsString.withDefault('all').withOptions({ shallow: true })
   );
+  const [projectId, setProjectId] = useQueryState(
+    'project',
+    parseAsString.withDefault('platform').withOptions({ shallow: true })
+  );
   const [pageSize] = useQueryState(
     'limit',
     parseAsInteger.withDefault(100).withOptions({ shallow: true })
   );
+  const [projectRepoUrl, setProjectRepoUrl] = useState('');
+  const [projectHostnames, setProjectHostnames] = useState('');
+  const [projectAppRoot, setProjectAppRoot] = useState('');
   const [requestFreezeUntil, setRequestFreezeUntil] = useState(() =>
     Date.now()
   );
@@ -1145,22 +1166,40 @@ export function ObservabilityDashboardClient({
     () => ({
       level: level as GetObservabilityParams['level'],
       pageSize,
+      projectId,
       q: query || undefined,
       source: source as GetObservabilityParams['source'],
       timeframeHours,
     }),
-    [level, pageSize, query, source, timeframeHours]
+    [level, pageSize, projectId, query, source, timeframeHours]
   );
+  const projectsQuery = useQuery({
+    queryFn: () => getInfrastructureProjects(),
+    queryKey: ['infrastructure', 'projects'],
+    refetchInterval: mode === 'projects' ? 10_000 : 30_000,
+  });
   const overviewQuery = useQuery({
-    queryFn: () => getObservabilityOverview({ timeframeHours }),
-    queryKey: ['infrastructure', 'observability', 'overview', timeframeHours],
+    queryFn: () => getObservabilityOverview({ projectId, timeframeHours }),
+    queryKey: [
+      'infrastructure',
+      'observability',
+      'overview',
+      projectId,
+      timeframeHours,
+    ],
     refetchInterval: mode === 'logs' ? 10_000 : 30_000,
   });
   const analyticsQuery = useQuery({
     enabled:
       mode === 'analytics' || mode === 'observability' || mode === 'overview',
-    queryFn: () => getObservabilityAnalytics({ timeframeHours }),
-    queryKey: ['infrastructure', 'observability', 'analytics', timeframeHours],
+    queryFn: () => getObservabilityAnalytics({ projectId, timeframeHours }),
+    queryKey: [
+      'infrastructure',
+      'observability',
+      'analytics',
+      projectId,
+      timeframeHours,
+    ],
   });
   const logsQuery = useInfiniteQuery<
     LogsPage,
@@ -1275,9 +1314,64 @@ export function ObservabilityDashboardClient({
   });
   const resourcesQuery = useQuery({
     enabled: mode === 'resources',
-    queryFn: () => getObservabilityResources({ timeframeHours }),
-    queryKey: ['infrastructure', 'observability', 'resources', timeframeHours],
+    queryFn: () => getObservabilityResources({ projectId, timeframeHours }),
+    queryKey: [
+      'infrastructure',
+      'observability',
+      'resources',
+      projectId,
+      timeframeHours,
+    ],
     refetchInterval: 5_000,
+  });
+  const createProjectMutation = useMutation({
+    mutationFn: () =>
+      createInfrastructureProject({
+        appRoot: projectAppRoot,
+        hostnames: projectHostnames
+          .split(',')
+          .map((hostname) => hostname.trim())
+          .filter(Boolean),
+        repoUrl: projectRepoUrl,
+      }),
+    onSuccess: (response) => {
+      setProjectRepoUrl('');
+      setProjectHostnames('');
+      setProjectAppRoot('');
+      void setProjectId(response.project.id);
+      void queryClient.invalidateQueries({
+        queryKey: ['infrastructure', 'projects'],
+      });
+    },
+  });
+  const updateProjectMutation = useMutation({
+    mutationFn: ({
+      payload,
+      project,
+    }: {
+      payload: Parameters<typeof updateInfrastructureProject>[1];
+      project: InfrastructureProject;
+    }) => updateInfrastructureProject(project.id, payload),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: ['infrastructure', 'projects'],
+      }),
+  });
+  const syncProjectMutation = useMutation({
+    mutationFn: (project: InfrastructureProject) =>
+      syncInfrastructureProject(project.id),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: ['infrastructure', 'projects'],
+      }),
+  });
+  const queueProjectDeployMutation = useMutation({
+    mutationFn: (project: InfrastructureProject) =>
+      queueInfrastructureProjectDeploy(project.id),
+    onSuccess: () =>
+      queryClient.invalidateQueries({
+        queryKey: ['infrastructure', 'projects'],
+      }),
   });
   const runCronMutation = useMutation({
     mutationFn: (jobId: string) => queueCronRun({ jobId }),
@@ -1297,6 +1391,7 @@ export function ObservabilityDashboardClient({
   const overview = overviewQuery.data;
   const analytics = analyticsQuery.data;
   const cronSnapshot = cronSnapshotQuery.data;
+  const projects = projectsQuery.data?.projects ?? [];
   const resources = resourcesQuery.data?.dockerResources;
   const logs = useMemo(
     () => logsQuery.data?.pages.flatMap((page) => page.items) ?? [],
@@ -1408,6 +1503,20 @@ export function ObservabilityDashboardClient({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <select
+            className="h-9 max-w-52 rounded-md border border-border bg-background px-3 text-sm"
+            onChange={(event) => void setProjectId(event.target.value)}
+            value={projectId}
+          >
+            {(projects.length > 0 ? projects : []).map((project) => (
+              <option key={project.id} value={project.id}>
+                {project.name}
+              </option>
+            ))}
+            {projects.length === 0 && (
+              <option value={projectId}>{projectId}</option>
+            )}
+          </select>
           <label className="flex h-9 items-center gap-2 rounded-md border border-border bg-background px-3 text-sm">
             <Search className="h-4 w-4 text-muted-foreground" />
             <input
@@ -1464,6 +1573,7 @@ export function ObservabilityDashboardClient({
               void cronSnapshotQuery.refetch();
               void cronExecutionsQuery.refetch();
               void resourcesQuery.refetch();
+              void projectsQuery.refetch();
             }}
             type="button"
           >
@@ -1503,6 +1613,320 @@ export function ObservabilityDashboardClient({
             value={formatNumber(cronQuery.data?.total ?? 0)}
           />
         </section>
+      )}
+
+      {mode === 'projects' && (
+        <div className="space-y-4">
+          <section className="rounded-lg border border-border bg-background">
+            <div className="grid gap-3 border-border border-b p-4 lg:grid-cols-[minmax(0,1fr)_180px_260px_auto]">
+              <label className="space-y-1">
+                <span className="text-muted-foreground text-xs">
+                  {t('projects.repo_url')}
+                </span>
+                <input
+                  className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm outline-none"
+                  onChange={(event) => setProjectRepoUrl(event.target.value)}
+                  placeholder="https://github.com/owner/repo"
+                  value={projectRepoUrl}
+                />
+              </label>
+              <label className="space-y-1">
+                <span className="text-muted-foreground text-xs">
+                  {t('projects.app_root')}
+                </span>
+                <input
+                  className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm outline-none"
+                  onChange={(event) => setProjectAppRoot(event.target.value)}
+                  placeholder={t('projects.repo_root')}
+                  value={projectAppRoot}
+                />
+              </label>
+              <label className="space-y-1">
+                <span className="text-muted-foreground text-xs">
+                  {t('projects.hostnames')}
+                </span>
+                <input
+                  className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm outline-none"
+                  onChange={(event) => setProjectHostnames(event.target.value)}
+                  placeholder="app.example.com, admin.example.com"
+                  value={projectHostnames}
+                />
+              </label>
+              <div className="flex items-end">
+                <Button
+                  className="h-9"
+                  disabled={
+                    createProjectMutation.isPending || !projectRepoUrl.trim()
+                  }
+                  onClick={() => createProjectMutation.mutate()}
+                  type="button"
+                >
+                  {t('projects.import')}
+                </Button>
+              </div>
+            </div>
+            {createProjectMutation.error && (
+              <p className="border-border border-b px-4 py-3 text-dynamic-red text-sm">
+                {createProjectMutation.error.message}
+              </p>
+            )}
+            {projectsQuery.isLoading ? (
+              <LoadingSkeleton rows={6} />
+            ) : projects.length === 0 ? (
+              <div className="px-4 py-8 text-muted-foreground text-sm">
+                {t('projects.empty')}
+              </div>
+            ) : (
+              <div className="divide-y divide-border">
+                {projects.map((project) => {
+                  const statusTone =
+                    project.deploymentStatus === 'failed' ||
+                    project.deploymentStatus === 'blocked'
+                      ? 'red'
+                      : project.deploymentStatus === 'building' ||
+                          project.deploymentStatus === 'deploying'
+                        ? 'amber'
+                        : project.deploymentStatus === 'queued'
+                          ? 'muted'
+                          : 'green';
+
+                  return (
+                    <article
+                      className="grid gap-4 px-4 py-4 xl:grid-cols-[minmax(0,1.3fr)_minmax(240px,0.8fr)_minmax(260px,1fr)]"
+                      key={project.id}
+                    >
+                      <div className="min-w-0 space-y-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <button
+                            className="truncate text-left font-semibold text-sm"
+                            onClick={() => void setProjectId(project.id)}
+                            type="button"
+                          >
+                            {project.name}
+                          </button>
+                          {project.isBuiltin && (
+                            <Badge variant="secondary">
+                              {t('projects.builtin')}
+                            </Badge>
+                          )}
+                          <span
+                            className={cn(
+                              'inline-flex items-center gap-1 text-xs',
+                              toneClasses[statusTone].text
+                            )}
+                          >
+                            <span
+                              className={cn(
+                                'h-2 w-2 rounded-full',
+                                toneClasses[statusTone].dot
+                              )}
+                            />
+                            {project.deploymentStatus}
+                          </span>
+                        </div>
+                        <p className="truncate text-muted-foreground text-xs">
+                          {project.repo.url}
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          <Badge variant="secondary">Next.js</Badge>
+                          <Badge variant="secondary">
+                            {t('projects.proxy_locked')}
+                          </Badge>
+                          <Badge
+                            variant={
+                              project.addons.logDrain ? 'default' : 'secondary'
+                            }
+                          >
+                            {t('projects.log_drain')}
+                          </Badge>
+                          <Badge
+                            variant={
+                              project.addons.redis ? 'default' : 'secondary'
+                            }
+                          >
+                            Redis
+                          </Badge>
+                          <Badge
+                            variant={
+                              project.addons.cron ? 'default' : 'secondary'
+                            }
+                          >
+                            Cron
+                          </Badge>
+                        </div>
+                        <div className="grid gap-2 text-xs sm:grid-cols-2">
+                          <div>
+                            <span className="text-muted-foreground">
+                              {t('projects.latest_commit')}
+                            </span>
+                            <p className="truncate font-mono">
+                              {project.latestCommitShortHash ?? '-'}{' '}
+                              <span className="font-sans font-semibold">
+                                {project.latestCommitSubject ?? ''}
+                              </span>
+                            </p>
+                          </div>
+                          <div>
+                            <span className="text-muted-foreground">
+                              {t('projects.synced')}
+                            </span>
+                            <p>{formatTime(project.latestSyncedAt)}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
+                        <label className="block space-y-1 text-sm">
+                          <span className="text-muted-foreground text-xs">
+                            {t('projects.branch')}
+                          </span>
+                          <select
+                            className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm"
+                            onChange={(event) =>
+                              updateProjectMutation.mutate({
+                                payload: {
+                                  selectedBranch: event.target.value,
+                                },
+                                project,
+                              })
+                            }
+                            value={project.selectedBranch}
+                          >
+                            {project.branches.length === 0 && (
+                              <option value={project.selectedBranch}>
+                                {project.selectedBranch}
+                              </option>
+                            )}
+                            {project.branches.map((branch) => (
+                              <option key={branch.name} value={branch.name}>
+                                {branch.name}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                        <label className="block space-y-1 text-sm">
+                          <span className="text-muted-foreground text-xs">
+                            {t('projects.app_root')}
+                          </span>
+                          <input
+                            className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm outline-none"
+                            defaultValue={project.appRoot}
+                            onBlur={(event) =>
+                              updateProjectMutation.mutate({
+                                payload: { appRoot: event.target.value },
+                                project,
+                              })
+                            }
+                            placeholder={t('projects.repo_root')}
+                          />
+                        </label>
+                        <label className="block space-y-1 text-sm">
+                          <span className="text-muted-foreground text-xs">
+                            {t('projects.hostnames')}
+                          </span>
+                          <input
+                            className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm outline-none"
+                            defaultValue={project.hostnames.join(', ')}
+                            onBlur={(event) =>
+                              updateProjectMutation.mutate({
+                                payload: {
+                                  hostnames: event.target.value
+                                    .split(',')
+                                    .map((hostname) => hostname.trim())
+                                    .filter(Boolean),
+                                },
+                                project,
+                              })
+                            }
+                          />
+                        </label>
+                      </div>
+
+                      <div className="space-y-3">
+                        {(
+                          [
+                            {
+                              checked: project.autoDeployEnabled,
+                              key: 'autoDeployEnabled',
+                              label: t('projects.auto_deploy'),
+                            },
+                            {
+                              checked: project.addons.logDrain,
+                              key: 'logDrainEnabled',
+                              label: t('projects.log_drain'),
+                            },
+                            {
+                              checked: project.addons.redis,
+                              key: 'redisEnabled',
+                              label: t('projects.redis'),
+                            },
+                            {
+                              checked: project.addons.cron,
+                              key: 'cronEnabled',
+                              label: t('projects.cron'),
+                            },
+                          ] satisfies Array<{
+                            checked: boolean;
+                            key: ProjectToggleKey;
+                            label: string;
+                          }>
+                        ).map(({ checked, key, label }) => (
+                          <div
+                            className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2 text-sm"
+                            key={String(key)}
+                          >
+                            <span>{label}</span>
+                            <Switch
+                              checked={Boolean(checked)}
+                              disabled={updateProjectMutation.isPending}
+                              onCheckedChange={(enabled) =>
+                                updateProjectMutation.mutate({
+                                  payload: {
+                                    [key]: enabled,
+                                  } as UpdateInfrastructureProjectPayload,
+                                  project,
+                                })
+                              }
+                            />
+                          </div>
+                        ))}
+                        <div className="flex items-center justify-between gap-3 rounded-md border border-border px-3 py-2 text-sm">
+                          <span>{t('projects.nginx_proxy')}</span>
+                          <Badge variant="secondary">
+                            {t('projects.locked')}
+                          </Badge>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            disabled={syncProjectMutation.isPending}
+                            onClick={() => syncProjectMutation.mutate(project)}
+                            size="sm"
+                            type="button"
+                            variant="outline"
+                          >
+                            <RefreshCw className="h-4 w-4" />
+                            {t('projects.sync')}
+                          </Button>
+                          <Button
+                            disabled={queueProjectDeployMutation.isPending}
+                            onClick={() =>
+                              queueProjectDeployMutation.mutate(project)
+                            }
+                            size="sm"
+                            type="button"
+                          >
+                            <Play className="h-4 w-4" />
+                            {t('projects.deploy')}
+                          </Button>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            )}
+          </section>
+        </div>
       )}
 
       {mode === 'overview' &&
