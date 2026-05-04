@@ -112,6 +112,7 @@ export function useInfiniteUserGroups(
           pageParams: [1],
         }
       : undefined,
+    placeholderData: keepPreviousData,
     staleTime: 30 * 1000,
     gcTime: 5 * 60 * 1000,
   });

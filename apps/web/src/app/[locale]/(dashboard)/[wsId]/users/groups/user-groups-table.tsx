@@ -67,6 +67,7 @@ export function UserGroupsTable({ wsId, initialData, permissions }: Props) {
     count,
     isLoading,
     isFetching,
+    isPlaceholderData,
     isFetchingNextPage,
     hasNextPage,
     fetchNextPage,
@@ -136,7 +137,8 @@ export function UserGroupsTable({ wsId, initialData, permissions }: Props) {
     );
   }
 
-  const showLoadingOverlay = isFetching && !isLoading && !isFetchingNextPage;
+  const showLoadingOverlay =
+    (isFetching || isPlaceholderData) && !isLoading && !isFetchingNextPage;
 
   return (
     <div className="relative">
