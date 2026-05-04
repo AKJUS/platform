@@ -8998,6 +8998,42 @@
       "forms_autosave": "Auto-save",
       "forms_autosave_description": "Automatically save form edits as you work. Enabled by default.",
       "forms_description": "Form builder preferences",
+      "navigation": {
+        "default_workspace_help": "This is the workspace you see first when you open the app.",
+        "default_workspace_label": "Default Workspace",
+        "description": "Choose where you land when you open the app or switch to this workspace.",
+        "finance_submodule_label": "Finance view",
+        "finance_submodules": {
+          "home": "Finance Overview",
+          "invoices": "Invoices",
+          "transactions": "Transactions",
+          "wallets": "Wallets"
+        },
+        "load_error": "Failed to load start page settings. Try again before saving changes.",
+        "menu_description": "Choose your default workspace and the page you land on when opening the app",
+        "menu_label": "Navigation",
+        "root_target_help": "Open this workspace straight to the page you use most.",
+        "root_target_label": "Start page",
+        "save_error": "Failed to update start page settings",
+        "save_success": "Start page settings updated",
+        "stale_board_warning": "Selected board no longer exists. The start page will use Tasks -> Boards until you choose another board.",
+        "targets": {
+          "calendar": "Calendar",
+          "finance": "Finance",
+          "tasks": "Tasks",
+          "workspace_home": "Workspace home"
+        },
+        "tasks_board_any": "All boards",
+        "tasks_board_label": "Board",
+        "tasks_submodule_label": "Tasks view",
+        "tasks_submodules": {
+          "boards": "Boards",
+          "home": "My tasks"
+        },
+        "title": "Start page",
+        "unnamed_board": "Untitled board",
+        "workspace_required": "Open a workspace first to choose its start page."
+      },
       "notifications": "Notifications",
       "notifications_ws_description": "Manage your notification preferences including calendar notifications",
       "sidebar": "Sidebar",

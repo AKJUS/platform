@@ -22,7 +22,11 @@ import {
 } from '@tuturuuu/utils/api-proxy-guard';
 import { ROOT_WORKSPACE_ID } from '@tuturuuu/utils/constants';
 import { getUserDefaultWorkspace } from '@tuturuuu/utils/user-helper';
-import { isPersonalWorkspace } from '@tuturuuu/utils/workspace-helper';
+import {
+  isPersonalWorkspace,
+  normalizeWorkspaceId,
+  verifyWorkspaceMembershipType,
+} from '@tuturuuu/utils/workspace-helper';
 import Negotiator from 'negotiator';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
@@ -112,6 +116,22 @@ const SUSPICIOUS_QUERY_PARAMS_MAX = parsePositiveIntEnv(
 );
 const SCANNER_PATH_PATTERN =
   /(wp-admin|wp-login\.php|xmlrpc\.php|phpmyadmin|adminer|\.env|\.git|boaform|server-status|cgi-bin|vendor\/phpunit|actuator|jenkins|hudson|\/shell|\/debug)/i;
+const ROOT_DEFAULT_NAVIGATION_CONFIG_ID = 'ROOT_DEFAULT_NAVIGATION';
+
+type RootNavigationTarget = 'workspace_home' | 'tasks' | 'calendar' | 'finance';
+
+type RootNavigationConfig = {
+  target: RootNavigationTarget;
+  submodule?: string;
+  boardId?: string;
+};
+
+const ROOT_NAVIGATION_TARGETS: readonly RootNavigationTarget[] = [
+  'workspace_home',
+  'tasks',
+  'calendar',
+  'finance',
+];
 
 function parsePositiveIntEnv(name: string, fallback: number): number {
   const rawValue = process.env[name];
@@ -121,6 +141,137 @@ function parsePositiveIntEnv(name: string, fallback: number): number {
 
   const parsed = Number.parseInt(rawValue, 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function isRootNavigationTarget(value: unknown): value is RootNavigationTarget {
+  return ROOT_NAVIGATION_TARGETS.includes(value as RootNavigationTarget);
+}
+
+function parseRootNavigationConfig(value: string | null): RootNavigationConfig {
+  if (!value) {
+    return { target: 'workspace_home' };
+  }
+
+  try {
+    const parsed = JSON.parse(value) as RootNavigationConfig;
+    if (!isRootNavigationTarget(parsed?.target)) {
+      return { target: 'workspace_home' };
+    }
+
+    return parsed;
+  } catch {
+    return { target: 'workspace_home' };
+  }
+}
+
+function prependLocalePrefix(path: string, localePrefix: string): string {
+  if (!localePrefix) {
+    return path;
+  }
+
+  return path === '/' ? localePrefix : `${localePrefix}${path}`;
+}
+
+function isWorkspaceHomeRedirectCandidate(
+  workspaceSlug: string | undefined
+): workspaceSlug is string {
+  if (!workspaceSlug) {
+    return false;
+  }
+
+  const pathname = `/${workspaceSlug}`;
+  return !PUBLIC_PATHS.includes(pathname);
+}
+
+async function resolveRootRedirectPath(
+  userId: string,
+  workspace: { id: string }
+): Promise<{ path: string; staleConfigValue: string | null }> {
+  const sbAdmin = await createAdminClient();
+  const { data: configRow } = await sbAdmin
+    .from('user_workspace_configs')
+    .select('value')
+    .eq('user_id', userId)
+    .eq('ws_id', workspace.id)
+    .eq('id', ROOT_DEFAULT_NAVIGATION_CONFIG_ID)
+    .maybeSingle();
+
+  const parsed = parseRootNavigationConfig(configRow?.value ?? null);
+
+  if (parsed.target === 'workspace_home') {
+    return { path: `/${workspace.id}`, staleConfigValue: null };
+  }
+
+  if (parsed.target === 'calendar') {
+    return { path: `/${workspace.id}/calendar`, staleConfigValue: null };
+  }
+
+  if (parsed.target === 'finance') {
+    const financeSubmodule = parsed.submodule;
+    if (financeSubmodule === 'transactions') {
+      return {
+        path: `/${workspace.id}/finance/transactions`,
+        staleConfigValue: null,
+      };
+    }
+    if (financeSubmodule === 'wallets') {
+      return {
+        path: `/${workspace.id}/finance/wallets`,
+        staleConfigValue: null,
+      };
+    }
+    if (financeSubmodule === 'invoices') {
+      return {
+        path: `/${workspace.id}/finance/invoices`,
+        staleConfigValue: null,
+      };
+    }
+
+    return { path: `/${workspace.id}/finance`, staleConfigValue: null };
+  }
+
+  if (parsed.target === 'tasks') {
+    if (parsed.submodule === 'boards') {
+      if (parsed.boardId) {
+        const { data: board, error: boardLookupError } = await sbAdmin
+          .from('workspace_boards')
+          .select('id')
+          .eq('id', parsed.boardId)
+          .eq('ws_id', workspace.id)
+          .is('deleted_at', null)
+          .is('archived_at', null)
+          .maybeSingle();
+
+        if (boardLookupError) {
+          return {
+            path: `/${workspace.id}/tasks/boards`,
+            staleConfigValue: null,
+          };
+        }
+
+        if (board?.id) {
+          return {
+            path: `/${workspace.id}/tasks/boards/${board.id}`,
+            staleConfigValue: null,
+          };
+        }
+
+        return {
+          path: `/${workspace.id}/tasks/boards`,
+          staleConfigValue: JSON.stringify({
+            target: 'tasks',
+            submodule: 'boards',
+          }),
+        };
+      }
+
+      return { path: `/${workspace.id}/tasks/boards`, staleConfigValue: null };
+    }
+
+    return { path: `/${workspace.id}/tasks`, staleConfigValue: null };
+  }
+
+  return { path: `/${workspace.id}`, staleConfigValue: null };
 }
 
 async function hasWorkspaceEmailRateLimitOverrides(
@@ -738,6 +889,10 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
 
   // Handle /home path - redirect to root without workspace redirect
   const pathSegments = req.nextUrl.pathname.split('/').filter(Boolean);
+  const activeLocalePrefix =
+    pathSegments[0] && supportedLocales.includes(pathSegments[0] as Locale)
+      ? `/${pathSegments[0]}`
+      : '';
   const isHomePath =
     req.nextUrl.pathname === '/home' ||
     (pathSegments.length === 2 &&
@@ -838,6 +993,95 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     }
   }
 
+  // Handle direct workspace home routes (/{wsId} or /{locale}/{wsId})
+  // and apply workspace-specific default navigation if configured.
+  const skipWorkspaceRedirect = req.nextUrl.searchParams.has('no-redirect');
+  const isHashNavigation = req.nextUrl.searchParams.has('hash-nav');
+  const isMultiAccountFlow = req.nextUrl.searchParams.has('multiAccount');
+  const isDirectWorkspaceHomePath =
+    (!hasLocaleInPath && pathSegments.length === 1) ||
+    (hasLocaleInPath && pathSegments.length === 2);
+
+  if (
+    isDirectWorkspaceHomePath &&
+    !skipWorkspaceRedirect &&
+    !isHashNavigation &&
+    !isMultiAccountFlow
+  ) {
+    const workspaceSlug = pathSegments[hasLocaleInPath ? 1 : 0];
+
+    if (isWorkspaceHomeRedirectCandidate(workspaceSlug)) {
+      try {
+        const supabase = await createClient();
+        const { user } = await resolveAuthenticatedSessionUser(supabase);
+
+        if (user) {
+          const resolvedWorkspaceId = await normalizeWorkspaceId(
+            workspaceSlug,
+            supabase
+          );
+          const memberCheck = await verifyWorkspaceMembershipType({
+            wsId: resolvedWorkspaceId,
+            userId: user.id,
+            supabase,
+            requiredType: 'ANY',
+          });
+
+          if (!memberCheck.ok) {
+            return handleLocaleWithAuthCookies(req, authRes);
+          }
+
+          const { path, staleConfigValue } = await resolveRootRedirectPath(
+            user.id,
+            {
+              id: resolvedWorkspaceId,
+            }
+          );
+
+          const canonicalPath =
+            workspaceSlug === resolvedWorkspaceId
+              ? path
+              : path.replace(`/${resolvedWorkspaceId}`, `/${workspaceSlug}`);
+          const localizedCanonicalPath = prependLocalePrefix(
+            canonicalPath,
+            activeLocalePrefix
+          );
+
+          if (localizedCanonicalPath !== req.nextUrl.pathname) {
+            if (staleConfigValue !== null) {
+              try {
+                const sbAdmin = await createAdminClient();
+                await sbAdmin.from('user_workspace_configs').upsert(
+                  {
+                    id: ROOT_DEFAULT_NAVIGATION_CONFIG_ID,
+                    user_id: user.id,
+                    ws_id: resolvedWorkspaceId,
+                    value: staleConfigValue,
+                    updated_at: new Date().toISOString(),
+                  },
+                  { onConflict: 'user_id,ws_id,id' }
+                );
+              } catch (error) {
+                console.error(
+                  'Failed to self-heal stale workspace navigation config in proxy:',
+                  error
+                );
+              }
+            }
+
+            const redirectUrl = new URL(localizedCanonicalPath, req.nextUrl);
+            redirectUrl.search = req.nextUrl.search;
+            const workspaceRootRedirect = NextResponse.redirect(redirectUrl);
+            propagateAuthCookies(authRes, workspaceRootRedirect);
+            return workspaceRootRedirect;
+          }
+        }
+      } catch (error) {
+        console.error('Error handling workspace home redirect:', error);
+      }
+    }
+  }
+
   // Handle authenticated users accessing the root path or root with locale
   // Skip workspace redirect if no-redirect parameter is present (from /home redirect)
   const isRootPath = req.nextUrl.pathname === '/';
@@ -845,10 +1089,6 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   const isLocaleRootPath =
     pathSegments.length === 1 &&
     supportedLocales.includes(pathSegments[0] as Locale);
-
-  const skipWorkspaceRedirect = req.nextUrl.searchParams.has('no-redirect');
-  const isHashNavigation = req.nextUrl.searchParams.has('hash-nav');
-  const isMultiAccountFlow = req.nextUrl.searchParams.has('multiAccount');
 
   if (
     (isRootPath || isLocaleRootPath) &&
@@ -869,7 +1109,45 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
             : defaultWorkspace.id === ROOT_WORKSPACE_ID
               ? 'internal'
               : defaultWorkspace.id;
-          const redirectUrl = new URL(`/${target}`, req.nextUrl);
+
+          const { path, staleConfigValue } = await resolveRootRedirectPath(
+            user.id,
+            {
+              id: defaultWorkspace.id,
+            }
+          );
+
+          const canonicalPath =
+            target === defaultWorkspace.id
+              ? path
+              : path.replace(`/${defaultWorkspace.id}`, `/${target}`);
+          const localizedCanonicalPath = prependLocalePrefix(
+            canonicalPath,
+            activeLocalePrefix
+          );
+
+          if (staleConfigValue !== null) {
+            try {
+              const sbAdmin = await createAdminClient();
+              await sbAdmin.from('user_workspace_configs').upsert(
+                {
+                  id: ROOT_DEFAULT_NAVIGATION_CONFIG_ID,
+                  user_id: user.id,
+                  ws_id: defaultWorkspace.id,
+                  value: staleConfigValue,
+                  updated_at: new Date().toISOString(),
+                },
+                { onConflict: 'user_id,ws_id,id' }
+              );
+            } catch (error) {
+              console.error(
+                'Failed to self-heal stale root navigation config in proxy:',
+                error
+              );
+            }
+          }
+
+          const redirectUrl = new URL(localizedCanonicalPath, req.nextUrl);
           const wsRedirect = NextResponse.redirect(redirectUrl);
           propagateAuthCookies(authRes, wsRedirect);
           return wsRedirect;
@@ -881,6 +1159,15 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   }
 
   // Continue with locale handling
+  const localeRes = handleLocale({ req });
+  propagateAuthCookies(authRes, localeRes);
+  return localeRes;
+}
+
+function handleLocaleWithAuthCookies(
+  req: NextRequest,
+  authRes: NextResponse
+): NextResponse {
   const localeRes = handleLocale({ req });
   propagateAuthCookies(authRes, localeRes);
   return localeRes;
