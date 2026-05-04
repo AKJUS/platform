@@ -7,7 +7,9 @@ Tulearn lives in `apps/tulearn` and runs locally on port `7812`. It is the learn
 
 ## Ownership model
 
-Tulearn owns its auth shell locally. Login, callback, logout, and session routes are implemented inside `apps/tulearn`; the app does not bounce users through a centralized cross-app auth redirect. Auth metadata uses the `tulearn` client value, and web-style Supabase cookies are kept on the Tulearn app.
+Tulearn owns its email/password and email-code auth shell locally. Login, callback, logout, and session routes are implemented inside `apps/tulearn`. Auth metadata uses the `tulearn` client value, and web-style Supabase cookies are kept on the Tulearn app.
+
+Social auth providers still run on `apps/web` because OAuth provider callbacks are registered for `tuturuuu.com`. Tulearn social buttons redirect to the central web login with `returnUrl=<Tulearn /verify-token URL>` and `provider=<provider>`. After the web callback succeeds, `apps/web` generates a cross-app token for the `tulearn` app, redirects back to `/verify-token`, and Tulearn creates its own domain-scoped Supabase session through `POST /api/auth/verify-app-token`.
 
 Protected product data still belongs to the central platform. Tulearn calls `apps/web` APIs through `@tuturuuu/internal-api`, and the satellite app rewrites `/api/v1/*` to the central web app when no local Tulearn route exists.
 

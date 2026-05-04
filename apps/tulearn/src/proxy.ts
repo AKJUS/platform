@@ -87,7 +87,9 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
   if (canonicalPublicRedirect) return canonicalPublicRedirect;
 
   const unlocalizedPath = stripLocale(request.nextUrl.pathname);
-  const isPublicPath = unlocalizedPath.startsWith('/login');
+  const isPublicPath =
+    unlocalizedPath.startsWith('/login') ||
+    unlocalizedPath.startsWith('/verify-token');
 
   if (!isPublicPath) {
     const supabase = await createClient(request);

@@ -7,6 +7,10 @@
   "auth": {
     "bentoLead": "Courses, assignments, reports, and marks stay connected so every learner knows the next useful step.",
     "bentoTitle": "A calmer path from practice to progress",
+    "continueWithApple": "Continue with Apple",
+    "continueWithGithub": "Continue with GitHub",
+    "continueWithGoogle": "Continue with Google",
+    "continueWithMicrosoft": "Continue with Microsoft",
     "email": "Email",
     "footerLine": "Use the same Tulearn account for focused lessons, parent views, and classroom progress.",
     "formSubtitle": "Use your school email and password, or request a one-time email code.",
@@ -21,10 +25,12 @@
     "navParents": "Parents",
     "otp": "Email code",
     "otpSent": "Check your email for the code.",
+    "or": "or",
     "parentAccess": "Parent access",
     "parentsCardBody": "Linked parents can follow progress without changing student work.",
     "parentsCardTitle": "Read-only family view",
     "password": "Password",
+    "poweredByTuturuuu": "by Tuturuuu",
     "practiceCardBody": "Short practice sessions, hearts, XP, and streaks keep students moving without turning schoolwork into noise.",
     "practiceCardTitle": "Practice that feels immediate",
     "reportsCardBody": "Marks and reports come from the same education workspace teachers already manage.",
@@ -33,10 +39,12 @@
     "signalHearts": "Hearts",
     "signalPractice": "Practice",
     "signalStreak": "Day streak",
+    "socialLoginLead": "Social sign-ins are completed securely on tuturuuu.com, then returned to Tulearn.",
     "startLearning": "Start learning",
     "submitCode": "Verify code",
     "subtitle": "Practice, lessons, assignments, and progress in one learner-friendly place.",
-    "title": "Welcome to Tulearn"
+    "title": "Welcome to Tulearn",
+    "tuturuuuAccount": "Tuturuuu account"
   },
   "common": {
     "back": "Back",

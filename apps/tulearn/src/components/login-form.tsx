@@ -10,12 +10,15 @@ import {
   Mail,
   ShieldCheck,
   UsersRound,
+  XIcon,
 } from '@tuturuuu/icons';
 import { Button } from '@tuturuuu/ui/button';
+import { TUTURUUU_LOGO_URL } from '@tuturuuu/ui/custom/tuturuuu-logo';
 import { Input } from '@tuturuuu/ui/input';
 import { Label } from '@tuturuuu/ui/label';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useRef, useState } from 'react';
@@ -27,6 +30,96 @@ const inlineImageUrl = 'https://picsum.photos/seed/tulearn-study/420/180';
 const practiceImageUrl = 'https://picsum.photos/seed/tulearn-practice/960/960';
 const reportsImageUrl = 'https://picsum.photos/seed/tulearn-reports/960/640';
 const parentsImageUrl = 'https://picsum.photos/seed/tulearn-parents/960/640';
+const webAppUrl =
+  process.env.NEXT_PUBLIC_WEB_APP_URL ||
+  (process.env.NODE_ENV === 'production'
+    ? 'https://tuturuuu.com'
+    : 'http://localhost:7803');
+
+type SocialProvider = 'google' | 'azure' | 'apple' | 'github';
+
+const socialProviders = [
+  {
+    iconUrl: 'https://tuturuuu.com/media/google-logo.png',
+    labelKey: 'auth.continueWithGoogle',
+    name: 'Google',
+    provider: 'google',
+    type: 'image',
+  },
+  {
+    iconUrl: 'https://tuturuuu.com/media/logos/microsoft.svg',
+    labelKey: 'auth.continueWithMicrosoft',
+    name: 'Microsoft',
+    provider: 'azure',
+    type: 'image',
+  },
+  {
+    iconUrl: 'https://tuturuuu.com/media/logos/apple.svg',
+    labelKey: 'auth.continueWithApple',
+    name: 'Apple',
+    provider: 'apple',
+    type: 'mask',
+  },
+  {
+    iconUrl: 'https://tuturuuu.com/media/logos/github.svg',
+    labelKey: 'auth.continueWithGithub',
+    name: 'GitHub',
+    provider: 'github',
+    type: 'mask',
+  },
+] as const satisfies {
+  iconUrl: string;
+  labelKey: string;
+  name: string;
+  provider: SocialProvider;
+  type: 'image' | 'mask';
+}[];
+
+function normalizeNextPath(value: string) {
+  if (!value?.startsWith('/') || value.startsWith('//')) return '/';
+  return value;
+}
+
+function SocialLogo({
+  iconUrl,
+  name,
+  type,
+}: {
+  iconUrl: string;
+  name: string;
+  type: 'image' | 'mask';
+}) {
+  if (type === 'image') {
+    return (
+      <Image
+        alt={name}
+        className="object-contain transition-transform duration-200 group-hover:scale-110"
+        height={20}
+        src={iconUrl}
+        unoptimized
+        width={20}
+      />
+    );
+  }
+
+  return (
+    <span
+      aria-label={name}
+      className="block size-5 shrink-0 bg-current transition-transform duration-200 group-hover:scale-110"
+      role="img"
+      style={{
+        WebkitMaskImage: `url(${iconUrl})`,
+        WebkitMaskPosition: 'center',
+        WebkitMaskRepeat: 'no-repeat',
+        WebkitMaskSize: 'contain',
+        maskImage: `url(${iconUrl})`,
+        maskPosition: 'center',
+        maskRepeat: 'no-repeat',
+        maskSize: 'contain',
+      }}
+    />
+  );
+}
 
 async function postJson(path: string, payload: Record<string, unknown>) {
   const response = await fetch(path, {
@@ -74,6 +167,17 @@ export function LoginForm() {
     onError: (error) => setMessage(error.message),
     onSuccess: () => router.push(next),
   });
+
+  const handleSocialLogin = (provider: SocialProvider) => {
+    const returnUrl = new URL('/verify-token', window.location.origin);
+    returnUrl.searchParams.set('nextUrl', normalizeNextPath(next));
+
+    const loginUrl = new URL('/login', webAppUrl);
+    loginUrl.searchParams.set('returnUrl', returnUrl.toString());
+    loginUrl.searchParams.set('provider', provider);
+
+    window.location.assign(loginUrl.toString());
+  };
 
   useGSAP(
     () => {
@@ -164,10 +268,24 @@ export function LoginForm() {
           data-login-nav
         >
           <div className="inline-flex items-center gap-3 rounded-full border border-border/70 bg-background/80 px-4 py-2 shadow-sm backdrop-blur-xl">
+            <Image
+              alt="Tuturuuu"
+              className="size-9 rounded-full"
+              height={36}
+              src={TUTURUUU_LOGO_URL}
+              unoptimized
+              width={36}
+            />
+            <XIcon className="size-4 text-muted-foreground/60" />
             <span className="flex h-9 w-9 items-center justify-center rounded-full bg-dynamic-green text-primary-foreground">
               <BookOpen className="h-5 w-5" />
             </span>
-            <span className="font-semibold text-lg">Tulearn</span>
+            <div className="leading-none">
+              <span className="block font-semibold text-lg">Tulearn</span>
+              <span className="block text-muted-foreground text-xs">
+                {t('auth.poweredByTuturuuu')}
+              </span>
+            </div>
           </div>
           <div className="hidden items-center gap-4 rounded-full border border-border/70 bg-background/70 px-5 py-3 text-muted-foreground text-sm backdrop-blur-xl md:flex">
             <span>{t('auth.navLearners')}</span>
@@ -252,6 +370,24 @@ export function LoginForm() {
                 <h2 className="font-bold text-3xl tracking-normal">
                   {t('auth.formTitle')}
                 </h2>
+                <div className="mt-4 flex items-center gap-3 rounded-2xl border border-border/70 bg-background/70 p-3">
+                  <Image
+                    alt="Tuturuuu"
+                    className="size-10 rounded-full"
+                    height={40}
+                    src={TUTURUUU_LOGO_URL}
+                    unoptimized
+                    width={40}
+                  />
+                  <div>
+                    <p className="font-semibold text-sm">
+                      {t('auth.tuturuuuAccount')}
+                    </p>
+                    <p className="text-muted-foreground text-xs">
+                      {t('auth.socialLoginLead')}
+                    </p>
+                  </div>
+                </div>
                 <p className="mt-3 text-muted-foreground text-sm leading-6">
                   {t('auth.formSubtitle')}
                 </p>
@@ -320,6 +456,36 @@ export function LoginForm() {
                   {message}
                 </p>
               ) : null}
+
+              <div className="relative my-6">
+                <div className="h-px bg-border/70" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="bg-card px-3 text-muted-foreground text-xs">
+                    {t('auth.or')}
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                {socialProviders.map((socialProvider) => (
+                  <Button
+                    className="group relative h-12 w-full rounded-2xl border-border/70 bg-background/70 font-medium shadow-sm transition-colors hover:bg-muted/50"
+                    key={socialProvider.provider}
+                    onClick={() => handleSocialLogin(socialProvider.provider)}
+                    type="button"
+                    variant="outline"
+                  >
+                    <span className="absolute left-4 flex items-center justify-center text-foreground">
+                      <SocialLogo
+                        iconUrl={socialProvider.iconUrl}
+                        name={socialProvider.name}
+                        type={socialProvider.type}
+                      />
+                    </span>
+                    <span>{t(socialProvider.labelKey)}</span>
+                  </Button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
