@@ -21,10 +21,12 @@ import {
   RefreshCw,
   Search,
   Terminal,
+  Trash2,
 } from '@tuturuuu/icons';
 import {
   type CronExecutionRecord,
   createInfrastructureProject,
+  deleteInfrastructureProject,
   type GetObservabilityParams,
   getBlueGreenMonitoringSnapshot,
   getCronMonitoringExecutionArchive,
@@ -1209,6 +1211,8 @@ export function ObservabilityDashboardClient({
   const [now, setNow] = useState(() => Date.now());
   const [selectedExecution, setSelectedExecution] =
     useState<CronExecutionRecord | null>(null);
+  const [projectPendingDelete, setProjectPendingDelete] =
+    useState<InfrastructureProject | null>(null);
   const filters: GetObservabilityParams = useMemo(
     () => ({
       level: level as GetObservabilityParams['level'],
@@ -1407,6 +1411,22 @@ export function ObservabilityDashboardClient({
       project: InfrastructureProject;
     }) => updateInfrastructureProject(project.id, payload),
     onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['infrastructure', 'projects'],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['infrastructure', 'observability'],
+      });
+    },
+  });
+  const deleteProjectMutation = useMutation({
+    mutationFn: (project: InfrastructureProject) =>
+      deleteInfrastructureProject(project.id),
+    onSuccess: (response) => {
+      setProjectPendingDelete(null);
+      if (response.project.id === projectId) {
+        void setProjectId('platform');
+      }
       queryClient.invalidateQueries({
         queryKey: ['infrastructure', 'projects'],
       });
@@ -2227,6 +2247,18 @@ export function ObservabilityDashboardClient({
                             <Play className="h-4 w-4" />
                             {t('projects.deploy')}
                           </Button>
+                          {!project.isBuiltin ? (
+                            <Button
+                              disabled={deleteProjectMutation.isPending}
+                              onClick={() => setProjectPendingDelete(project)}
+                              size="sm"
+                              type="button"
+                              variant="destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              {t('projects.delete')}
+                            </Button>
+                          ) : null}
                         </div>
                       </div>
                     </article>
@@ -2237,6 +2269,62 @@ export function ObservabilityDashboardClient({
           </section>
         </div>
       )}
+
+      <Dialog
+        onOpenChange={(open) => {
+          if (!open) {
+            setProjectPendingDelete(null);
+          }
+        }}
+        open={Boolean(projectPendingDelete)}
+      >
+        <DialogContent>
+          {projectPendingDelete ? (
+            <div className="space-y-4">
+              <DialogHeader>
+                <DialogTitle>{t('projects.delete_title')}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-2 text-sm">
+                <p>
+                  {t('projects.delete_description', {
+                    name: projectPendingDelete.name,
+                  })}
+                </p>
+                <p className="text-muted-foreground">
+                  {t('projects.delete_meta')}
+                </p>
+                {deleteProjectMutation.error ? (
+                  <p className="rounded-md border border-dynamic-red/30 bg-dynamic-red/10 px-3 py-2 text-dynamic-red">
+                    {deleteProjectMutation.error.message}
+                  </p>
+                ) : null}
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button
+                  onClick={() => setProjectPendingDelete(null)}
+                  type="button"
+                  variant="outline"
+                >
+                  {t('projects.delete_cancel')}
+                </Button>
+                <Button
+                  disabled={deleteProjectMutation.isPending}
+                  onClick={() =>
+                    deleteProjectMutation.mutate(projectPendingDelete)
+                  }
+                  type="button"
+                  variant="destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  {deleteProjectMutation.isPending
+                    ? t('projects.delete_pending')
+                    : t('projects.delete_confirm')}
+                </Button>
+              </div>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
 
       {mode === 'overview' &&
         (analyticsQuery.isLoading ? (

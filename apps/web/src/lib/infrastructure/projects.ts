@@ -1,5 +1,9 @@
 import crypto from 'node:crypto';
-import type { InfrastructureProject } from '@tuturuuu/internal-api/infrastructure';
+import type {
+  BlueGreenMonitoringDeployment,
+  InfrastructureProject,
+} from '@tuturuuu/internal-api/infrastructure';
+import { readBlueGreenMonitoringSnapshot } from './blue-green-monitoring';
 import {
   ensureLogDrainSchema,
   getLogDrainSqlClient,
@@ -80,6 +84,13 @@ interface BranchRow {
   name: string;
   project_id: string;
   protected: boolean;
+}
+
+interface QueuedPlatformProjectRow {
+  deployment_status: string;
+  id: string;
+  latest_commit_hash: string | null;
+  updated_at: Date | string | null;
 }
 
 export interface CreateInfrastructureProjectInput {
@@ -313,6 +324,70 @@ function shortHash(value: string | null | undefined) {
   return value ? value.slice(0, 10) : null;
 }
 
+function getDeploymentTime(deployment: BlueGreenMonitoringDeployment) {
+  return (
+    deployment.finishedAt ??
+    deployment.activatedAt ??
+    deployment.startedAt ??
+    null
+  );
+}
+
+function getServedPlatformDeployment(
+  deployments: BlueGreenMonitoringDeployment[]
+) {
+  const successfulDeployments = deployments.filter(
+    (deployment) => deployment.status === 'successful' && deployment.commitHash
+  );
+  const activeDeployment = successfulDeployments.find(
+    (deployment) => deployment.runtimeState === 'active'
+  );
+
+  return (
+    activeDeployment ??
+    successfulDeployments.sort(
+      (left, right) =>
+        (getDeploymentTime(right) ?? 0) - (getDeploymentTime(left) ?? 0)
+    )[0] ??
+    null
+  );
+}
+
+export function getQueuedPlatformProjectReconciliation(
+  row: QueuedPlatformProjectRow,
+  deployments: BlueGreenMonitoringDeployment[]
+) {
+  if (row.id !== 'platform' || row.deployment_status !== 'queued') {
+    return null;
+  }
+
+  const deployment = getServedPlatformDeployment(deployments);
+  if (!deployment?.commitHash) {
+    return null;
+  }
+
+  const deployedAt = getDeploymentTime(deployment);
+  const queuedAt = toTimestamp(row.updated_at);
+  const deployedAfterQueue =
+    deployedAt != null && queuedAt != null && deployedAt >= queuedAt;
+  const commitMatchesQueuedHead =
+    row.latest_commit_hash != null &&
+    deployment.commitHash === row.latest_commit_hash;
+
+  if (!(commitMatchesQueuedHead || deployedAfterQueue)) {
+    return null;
+  }
+
+  return {
+    deployedAt,
+    deploymentStamp: deployment.deploymentStamp ?? null,
+    latestCommitHash: deployment.commitHash,
+    latestCommitShortHash:
+      deployment.commitShortHash ?? shortHash(deployment.commitHash),
+    latestCommitSubject: deployment.commitSubject ?? null,
+  };
+}
+
 function makeProjectId(owner: string, repo: string, repoUrl: string) {
   const slug = `${owner}-${repo}`
     .toLowerCase()
@@ -339,6 +414,7 @@ export async function listInfrastructureProjects() {
     FROM infrastructure_projects
     ORDER BY is_builtin DESC, updated_at DESC, id ASC
   `;
+  const reconciledRows = await reconcileQueuedPlatformProjectRows(sql, rows);
   const branches = await sql<BranchRow[]>`
     SELECT *
     FROM infrastructure_project_branches
@@ -352,7 +428,83 @@ export async function listInfrastructureProjects() {
     ]);
   }
 
-  return rows.map((row) => toProject(row, branchesByProject.get(row.id) ?? []));
+  return reconciledRows.map((row) =>
+    toProject(row, branchesByProject.get(row.id) ?? [])
+  );
+}
+
+async function reconcileQueuedPlatformProjectRows(
+  sql: Awaited<ReturnType<typeof getSql>>,
+  rows: ProjectRow[]
+) {
+  const platformRow = rows.find(
+    (row) => row.id === 'platform' && row.deployment_status === 'queued'
+  );
+  if (!platformRow) {
+    return rows;
+  }
+
+  let reconciliation: ReturnType<
+    typeof getQueuedPlatformProjectReconciliation
+  > = null;
+
+  try {
+    const snapshot = readBlueGreenMonitoringSnapshot({
+      requestPreviewLimit: 0,
+      watcherLogLimit: 0,
+    });
+    reconciliation = getQueuedPlatformProjectReconciliation(
+      platformRow,
+      snapshot.deployments
+    );
+  } catch (error) {
+    serverLogger.warn('Unable to reconcile queued platform project status', {
+      error: error instanceof Error ? error.message : String(error),
+    });
+  }
+
+  if (!reconciliation) {
+    return rows;
+  }
+
+  await sql`
+    UPDATE infrastructure_projects
+    SET
+      deployment_status = 'ready',
+      latest_commit_hash = ${reconciliation.latestCommitHash},
+      latest_commit_short_hash = ${reconciliation.latestCommitShortHash},
+      latest_commit_subject = ${reconciliation.latestCommitSubject},
+      latest_synced_at = now(),
+      last_deployed_at = COALESCE(${reconciliation.deployedAt ? new Date(reconciliation.deployedAt) : null}, last_deployed_at, now()),
+      metadata = COALESCE(metadata, '{}'::jsonb) || ${JSON.stringify({
+        deployedAt: reconciliation.deployedAt
+          ? new Date(reconciliation.deployedAt).toISOString()
+          : null,
+        deployedCommitHash: reconciliation.latestCommitHash,
+        deploymentStamp: reconciliation.deploymentStamp,
+        reconciledQueuedStatusAt: new Date().toISOString(),
+      })}::jsonb,
+      updated_at = now()
+    WHERE id = 'platform'
+      AND deployment_status = 'queued'
+  `;
+
+  return rows.map((row) =>
+    row.id === 'platform'
+      ? {
+          ...row,
+          deployment_status: 'ready',
+          last_deployed_at: reconciliation.deployedAt
+            ? new Date(reconciliation.deployedAt)
+            : row.last_deployed_at,
+          latest_commit_hash: reconciliation.latestCommitHash,
+          latest_commit_short_hash: reconciliation.latestCommitShortHash,
+          latest_commit_subject: reconciliation.latestCommitSubject,
+          latest_synced_at: new Date(),
+          updated_at: new Date(),
+        }
+      : row
+  );
 }
 
 export async function getInfrastructureProject(projectId: string) {
@@ -481,6 +633,25 @@ export async function updateInfrastructureProject(
   }
 
   return updated;
+}
+
+export async function deleteInfrastructureProject(projectId: string) {
+  const sql = await getSql();
+  const project = await getInfrastructureProject(projectId);
+  if (!project) {
+    throw new Error('Project not found.');
+  }
+  if (project.isBuiltin) {
+    throw new Error('The built-in platform project cannot be removed.');
+  }
+
+  await sql`
+    DELETE FROM infrastructure_projects
+    WHERE id = ${projectId}
+      AND is_builtin IS NOT TRUE
+  `;
+
+  return project;
 }
 
 export async function syncInfrastructureProject(projectId: string) {

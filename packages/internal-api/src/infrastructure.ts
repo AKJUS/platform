@@ -1199,6 +1199,20 @@ export async function updateInfrastructureProject(
   );
 }
 
+export async function deleteInfrastructureProject(
+  projectId: string,
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  return client.json<InfrastructureProjectResponse>(
+    `/api/v1/infrastructure/projects/${encodeURIComponent(projectId)}`,
+    {
+      cache: 'no-store',
+      method: 'DELETE',
+    }
+  );
+}
+
 export async function syncInfrastructureProject(
   projectId: string,
   options?: InternalApiClientOptions
