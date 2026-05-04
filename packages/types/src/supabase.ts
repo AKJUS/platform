@@ -28687,12 +28687,7 @@ export type Database = {
         }[];
       };
       resolve_guest_self_join_candidate: {
-        Args: {
-          p_auth_email?: string;
-          p_private_email?: string;
-          p_user_id: string;
-          p_ws_id: string;
-        };
+        Args: { p_user_id: string; p_ws_id: string };
         Returns: {
           eligible: boolean;
           matched_email_source: string;

@@ -213,7 +213,7 @@ async function resolveRootRedirectPath(
   if (parsed.target === 'tasks') {
     if (parsed.submodule === 'boards') {
       if (parsed.boardId) {
-        const { data: board } = await sbAdmin
+        const { data: board, error: boardLookupError } = await sbAdmin
           .from('workspace_boards')
           .select('id')
           .eq('id', parsed.boardId)
@@ -221,6 +221,13 @@ async function resolveRootRedirectPath(
           .is('deleted_at', null)
           .is('archived_at', null)
           .maybeSingle();
+
+        if (boardLookupError) {
+          return {
+            path: `/${workspace.id}/tasks/boards`,
+            staleConfigValue: null,
+          };
+        }
 
         if (board?.id) {
           return {
@@ -1011,17 +1018,24 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
             req.nextUrl.searchParams.has('task')
           ) {
             if (staleConfigValue !== null) {
-              const sbAdmin = await createAdminClient();
-              await sbAdmin.from('user_workspace_configs').upsert(
-                {
-                  id: ROOT_DEFAULT_NAVIGATION_CONFIG_ID,
-                  user_id: user.id,
-                  ws_id: resolvedWorkspaceId,
-                  value: staleConfigValue,
-                  updated_at: new Date().toISOString(),
-                },
-                { onConflict: 'user_id,ws_id,id' }
-              );
+              try {
+                const sbAdmin = await createAdminClient();
+                await sbAdmin.from('user_workspace_configs').upsert(
+                  {
+                    id: ROOT_DEFAULT_NAVIGATION_CONFIG_ID,
+                    user_id: user.id,
+                    ws_id: resolvedWorkspaceId,
+                    value: staleConfigValue,
+                    updated_at: new Date().toISOString(),
+                  },
+                  { onConflict: 'user_id,ws_id,id' }
+                );
+              } catch (error) {
+                console.error(
+                  'Failed to self-heal stale workspace navigation config in proxy:',
+                  error
+                );
+              }
             }
 
             const redirectUrl = new URL(canonicalPath, req.nextUrl);
@@ -1077,17 +1091,24 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
               : path.replace(`/${defaultWorkspace.id}`, `/${target}`);
 
           if (staleConfigValue !== null) {
-            const sbAdmin = await createAdminClient();
-            await sbAdmin.from('user_workspace_configs').upsert(
-              {
-                id: ROOT_DEFAULT_NAVIGATION_CONFIG_ID,
-                user_id: user.id,
-                ws_id: defaultWorkspace.id,
-                value: staleConfigValue,
-                updated_at: new Date().toISOString(),
-              },
-              { onConflict: 'user_id,ws_id,id' }
-            );
+            try {
+              const sbAdmin = await createAdminClient();
+              await sbAdmin.from('user_workspace_configs').upsert(
+                {
+                  id: ROOT_DEFAULT_NAVIGATION_CONFIG_ID,
+                  user_id: user.id,
+                  ws_id: defaultWorkspace.id,
+                  value: staleConfigValue,
+                  updated_at: new Date().toISOString(),
+                },
+                { onConflict: 'user_id,ws_id,id' }
+              );
+            } catch (error) {
+              console.error(
+                'Failed to self-heal stale root navigation config in proxy:',
+                error
+              );
+            }
           }
 
           const redirectUrl = new URL(canonicalPath, req.nextUrl);

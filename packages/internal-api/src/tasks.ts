@@ -151,6 +151,15 @@ export interface WorkspaceBoardsDataResponse {
   count: number;
 }
 
+export type WorkspaceBoardNavigationItem = Pick<
+  WorkspaceTaskBoardRow,
+  'id' | 'name' | 'deleted_at' | 'archived_at'
+>;
+
+export interface ListWorkspaceBoardsResponse {
+  boards: WorkspaceBoardNavigationItem[];
+}
+
 export type CreateWorkspaceTaskBoardPayload = Pick<
   Database['public']['Tables']['workspace_boards']['Insert'],
   'name' | 'icon' | 'template_id'
@@ -412,6 +421,19 @@ export async function getWorkspaceBoardsData(
         page: options?.page,
         pageSize: options?.pageSize,
       },
+      cache: 'no-store',
+    }
+  );
+}
+
+export async function listWorkspaceBoards(
+  workspaceId: string,
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  return client.json<ListWorkspaceBoardsResponse>(
+    `/api/v1/workspaces/${encodePathSegment(workspaceId)}/boards`,
+    {
       cache: 'no-store',
     }
   );

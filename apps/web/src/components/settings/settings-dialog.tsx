@@ -93,7 +93,6 @@ import { RequireAttentionColorSettings } from './users/require-attention-color-s
 import UsersManagementSettings from './users/users-management-settings';
 import BillingSettings from './workspace/billing-settings';
 import MembersSettings from './workspace/members-settings';
-import MyWorkspacesSettings from './workspace/my-workspaces-settings';
 import UserStatusSettings from './workspace/user-status-settings';
 
 interface SettingsDialogProps {
@@ -421,56 +420,43 @@ export function SettingsDialog({
       : []),
     {
       label: t('settings.workspaces.title'),
-      items: [
-        {
-          name: 'workspaces',
-          label: wsId
-            ? t('settings.workspaces.overview')
-            : t('settings.workspaces.all_workspaces'),
-          icon: Building,
-          description: wsId
-            ? t('settings.workspaces.manage_current')
-            : t('settings.workspaces.manage_all'),
-          keywords: ['Workspaces', 'Overview', 'All Workspaces'],
-        },
-        ...(wsId
-          ? [
-              {
-                name: 'workspace_general',
-                label: t('settings.workspaces.general'),
-                icon: Building,
-                description: t('ws-settings.general-description'),
-                keywords: ['Workspace', 'General'],
-              },
-              {
-                name: 'workspace_members',
-                label: t('settings.workspaces.members'),
-                icon: Users,
-                description: t('ws-settings.members-description'),
-                keywords: ['Members', 'Team'],
-              },
-              ...(hasBillingPermission
-                ? [
-                    {
-                      name: 'workspace_billing',
-                      label: t('billing.billing'),
-                      icon: CreditCard,
-                      description: t('settings-account.billing-description'),
-                      keywords: ['Billing', 'Plan', 'Subscription'],
-                      disabled: isBillingPermissionLoading,
-                    },
-                  ]
-                : []),
-              {
-                name: 'user_status',
-                label: t('settings.workspaces.user_status'),
-                icon: Users,
-                description: t('settings.workspaces.user_status_description'),
-                keywords: ['User Status'],
-              },
-            ]
-          : []),
-      ],
+      items: wsId
+        ? [
+            {
+              name: 'workspace_general',
+              label: t('settings.workspaces.general'),
+              icon: Building,
+              description: t('ws-settings.general-description'),
+              keywords: ['Workspace', 'General'],
+            },
+            {
+              name: 'workspace_members',
+              label: t('settings.workspaces.members'),
+              icon: Users,
+              description: t('ws-settings.members-description'),
+              keywords: ['Members', 'Team'],
+            },
+            ...(hasBillingPermission
+              ? [
+                  {
+                    name: 'workspace_billing',
+                    label: t('billing.billing'),
+                    icon: CreditCard,
+                    description: t('settings-account.billing-description'),
+                    keywords: ['Billing', 'Plan', 'Subscription'],
+                    disabled: isBillingPermissionLoading,
+                  },
+                ]
+              : []),
+            {
+              name: 'user_status',
+              label: t('settings.workspaces.user_status'),
+              icon: Users,
+              description: t('settings.workspaces.user_status_description'),
+              keywords: ['User Status'],
+            },
+          ]
+        : [],
     },
     ...(wsId
       ? [
@@ -762,12 +748,6 @@ export function SettingsDialog({
         {activeTab === 'mira_memories' && (
           <div className="h-full">
             <MiraMemorySettings />
-          </div>
-        )}
-
-        {activeTab === 'workspaces' && user && (
-          <div className="h-full">
-            <MyWorkspacesSettings workspace={workspace} />
           </div>
         )}
 

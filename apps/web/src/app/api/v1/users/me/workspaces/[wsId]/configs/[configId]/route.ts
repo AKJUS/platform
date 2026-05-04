@@ -6,6 +6,7 @@ import {
 } from '@tuturuuu/utils/workspace-helper';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import { serverLogger } from '@/lib/infrastructure/log-drain';
 
 interface Params {
   params: Promise<{ wsId: string; configId: string }>;
@@ -50,7 +51,7 @@ export async function GET(req: Request, { params }: Params) {
     .maybeSingle();
 
   if (error) {
-    console.error('Error fetching user workspace config:', error);
+    serverLogger.error('Error fetching user workspace config:', error);
     return NextResponse.json(
       { message: 'Error fetching user workspace config' },
       { status: 500 }
@@ -119,7 +120,7 @@ export async function PUT(req: Request, { params }: Params) {
       .eq('id', configId);
 
     if (error) {
-      console.error('Error deleting user workspace config:', error);
+      serverLogger.error('Error deleting user workspace config:', error);
       return NextResponse.json(
         { message: 'Error deleting user workspace config' },
         { status: 500 }
@@ -141,7 +142,7 @@ export async function PUT(req: Request, { params }: Params) {
   );
 
   if (error) {
-    console.error('Error upserting user workspace config:', error);
+    serverLogger.error('Error upserting user workspace config:', error);
     return NextResponse.json(
       { message: 'Error upserting user workspace config' },
       { status: 500 }

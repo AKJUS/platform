@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Loader2 } from '@tuturuuu/icons';
 import {
   getUserWorkspaceConfig,
+  listWorkspaceBoards,
   normalizeRootNavigationConfig,
   type RootNavigationTarget,
   updateUserWorkspaceConfig,
@@ -22,17 +23,9 @@ import { Separator } from '@tuturuuu/ui/separator';
 import { toast } from '@tuturuuu/ui/sonner';
 import { useTranslations } from 'next-intl';
 import { useEffect, useMemo, useState } from 'react';
-import { apiFetch } from '@/lib/api-fetch';
 import DefaultWorkspaceSetting from './workspace/default-workspace-setting';
 
 const ROOT_DEFAULT_NAVIGATION_CONFIG_ID = 'ROOT_DEFAULT_NAVIGATION';
-
-type WorkspaceBoard = {
-  id: string;
-  name: string | null;
-  deleted_at?: string | null;
-  archived_at?: string | null;
-};
 
 const TARGET_VALUES: RootNavigationTarget[] = [
   'workspace_home',
@@ -87,17 +80,6 @@ export default function NavigationSettings({
   const tCommon = useTranslations('common');
   const queryClient = useQueryClient();
 
-  const { data: boardsPayload } = useQuery({
-    queryKey: ['navigation-settings-boards', wsId],
-    queryFn: () =>
-      apiFetch<{ boards: WorkspaceBoard[] }>(
-        `/api/v1/workspaces/${wsId}/boards`,
-        { cache: 'no-store' }
-      ),
-    enabled: Boolean(wsId),
-    staleTime: 60 * 1000,
-  });
-
   const { data: savedConfig, isLoading: isConfigLoading } = useQuery({
     queryKey: [
       'user-workspace-config',
@@ -134,15 +116,76 @@ export default function NavigationSettings({
     }
   }, [lastHydratedValue, normalizedSavedConfig, savedConfig]);
 
+  const safeTarget: RootNavigationTarget = TARGET_VALUES.includes(
+    draftConfig.target
+  )
+    ? draftConfig.target
+    : 'workspace_home';
+  const safeSubmoduleForTasks = (TASK_SUBMODULES as readonly string[]).includes(
+    draftConfig.submodule
+  )
+    ? draftConfig.submodule
+    : 'home';
+
+  const shouldFetchBoards =
+    Boolean(wsId) &&
+    safeTarget === 'tasks' &&
+    safeSubmoduleForTasks === 'boards';
+
+  const { data: boardsPayload, isFetched: areBoardsFetched } = useQuery({
+    queryKey: ['navigation-settings-boards', wsId],
+    queryFn: () => listWorkspaceBoards(wsId!),
+    enabled: shouldFetchBoards,
+    staleTime: 60 * 1000,
+  });
+
   const boards = useMemo(() => {
     return (boardsPayload?.boards ?? []).filter(
       (board) => !board.deleted_at && !board.archived_at
     );
   }, [boardsPayload]);
 
+  const safeSubmoduleForFinance = (
+    FINANCE_SUBMODULES as readonly string[]
+  ).includes(draftConfig.submodule)
+    ? draftConfig.submodule
+    : 'home';
+  const hasBoardOptions = shouldFetchBoards && areBoardsFetched;
+  const selectedBoardExists =
+    draftConfig.boardId === 'none' ||
+    !hasBoardOptions ||
+    boards.some((board) => board.id === draftConfig.boardId);
+  const safeBoardId =
+    draftConfig.boardId === 'none' || selectedBoardExists
+      ? draftConfig.boardId
+      : 'none';
+
+  useEffect(() => {
+    if (!hasBoardOptions) {
+      return;
+    }
+
+    if (safeBoardId === draftConfig.boardId) {
+      return;
+    }
+
+    setDraftConfig((previous) => ({
+      ...previous,
+      boardId: safeBoardId,
+    }));
+  }, [draftConfig.boardId, hasBoardOptions, safeBoardId]);
+
+  const normalizedDraftConfig = useMemo(
+    () => ({
+      ...draftConfig,
+      boardId: safeBoardId,
+    }),
+    [draftConfig, safeBoardId]
+  );
+
   const serializedCurrentConfig = useMemo(
-    () => serializeNavigationConfig(draftConfig),
-    [draftConfig]
+    () => serializeNavigationConfig(normalizedDraftConfig),
+    [normalizedDraftConfig]
   );
   const serializedSavedConfig = useMemo(
     () => serializeNavigationConfig(normalizedSavedConfig),
@@ -177,29 +220,6 @@ export default function NavigationSettings({
       toast.error(t('save_error'));
     },
   });
-
-  const safeTarget: RootNavigationTarget = TARGET_VALUES.includes(
-    draftConfig.target
-  )
-    ? draftConfig.target
-    : 'workspace_home';
-  const safeSubmoduleForTasks = (TASK_SUBMODULES as readonly string[]).includes(
-    draftConfig.submodule
-  )
-    ? draftConfig.submodule
-    : 'home';
-  const safeSubmoduleForFinance = (
-    FINANCE_SUBMODULES as readonly string[]
-  ).includes(draftConfig.submodule)
-    ? draftConfig.submodule
-    : 'home';
-  const selectedBoardExists =
-    draftConfig.boardId === 'none' ||
-    boards.some((board) => board.id === draftConfig.boardId);
-  const safeBoardId =
-    draftConfig.boardId === 'none' || selectedBoardExists
-      ? draftConfig.boardId
-      : 'none';
 
   return (
     <div className="space-y-8">
