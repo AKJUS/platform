@@ -4948,9 +4948,14 @@ async function runDeployWatchLoop(
     });
     const isGitFailure = iterationResult.status === 'git-failed';
     consecutiveGitFailures = isGitFailure ? consecutiveGitFailures + 1 : 0;
-    const sleepMs = isGitFailure
+    const baseSleepMs = isGitFailure
       ? getGitFailureBackoffMs(consecutiveGitFailures)
       : intervalMs;
+    const queuePollSleepMs =
+      Number.isFinite(projectPollIntervalMs) && projectPollIntervalMs > 0
+        ? projectPollIntervalMs
+        : baseSleepMs;
+    const sleepMs = Math.min(baseSleepMs, queuePollSleepMs);
     const result = {
       ...iterationResult,
       gitFailureCount: isGitFailure ? consecutiveGitFailures : 0,

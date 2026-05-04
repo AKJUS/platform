@@ -3450,6 +3450,78 @@ test('runDeployWatchLoop honors once mode without sleeping', async () => {
   }
 });
 
+test('runDeployWatchLoop caps long git intervals to the project queue poll interval', async () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'watch-queue-sleep-'));
+  const paths = getWatchPaths(tempDir);
+  const sleepCalls = [];
+  const iterationResults = [];
+  const sentinel = new Error('stop-after-first-sleep');
+
+  try {
+    fs.mkdirSync(paths.runtimeDir, { recursive: true });
+    fs.writeFileSync(
+      paths.historyFile,
+      JSON.stringify([
+        {
+          commitHash: 'aaa111111111111111111',
+          finishedAt: 1000,
+          status: 'successful',
+        },
+      ]),
+      'utf8'
+    );
+
+    await assert.rejects(
+      () =>
+        runDeployWatchLoop(
+          {
+            branch: 'main',
+            remote: 'origin',
+            upstreamBranch: 'main',
+            upstreamRef: 'origin/main',
+          },
+          {
+            intervalMs: 1_000_000,
+            log: { error() {}, info() {}, warn() {} },
+            onIterationResult: (value) => {
+              iterationResults.push(value);
+            },
+            paths,
+            projectPollIntervalMs: 60_000,
+            runCommand: createRunCommandMock(
+              new Map([
+                ['git rev-parse --abbrev-ref HEAD', createResult('main\n')],
+                ['git status --porcelain', createResult('')],
+                ['git fetch origin main', createResult('')],
+                ['git rev-parse HEAD', createResult('aaa111\n')],
+                ['git rev-parse origin/main', createResult('aaa111\n')],
+                [
+                  'git log -1 --format=%H%n%h%n%s%n%cI HEAD',
+                  createResult(
+                    'aaa111111111111111111\naaa111\nKeep branch current\n2026-04-18T10:58:00.000Z\n'
+                  ),
+                ],
+                [prodComposePsKey(BLUE_GREEN_PROXY_SERVICE), createResult('')],
+              ])
+            ),
+            sleepImpl: async (ms) => {
+              sleepCalls.push(ms);
+              throw sentinel;
+            },
+          }
+        ),
+      sentinel
+    );
+  } finally {
+    fs.rmSync(tempDir, { force: true, recursive: true });
+  }
+
+  assert.deepEqual(sleepCalls, [60_000]);
+  assert.equal(iterationResults.length, 1);
+  assert.equal(iterationResults[0].status, 'up-to-date');
+  assert.equal(iterationResults[0].sleepMs, 60_000);
+});
+
 test('spawnReplacementWatcher relaunches the watcher with inherited args', async () => {
   const calls = [];
 

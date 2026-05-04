@@ -529,6 +529,10 @@ Behavior:
 13. Runs `bun serve:web:docker:bg` automatically after a successful fast-forward
    pull.
 14. Polls imported Infrastructure projects from log-drain Postgres, synchronizes enabled public GitHub projects into `tmp/docker-web/projects/<projectId>/repo`, deploys them through generated Next.js compose files under the shared `platform` Compose project, and merges hostname routes into the central nginx proxy.
+    The imported-project and manual deployment queue cadence is independent
+    from the normal Git polling interval, so a watcher configured with a long
+    Git interval such as 1000 seconds still wakes on the shorter project queue
+    interval to advance queued Deploy actions.
 15. If watcher runtime code such as `scripts/watch-blue-green-deploy.js`,
    `scripts/docker-web/blue-green.js`, or `scripts/docker-web/env.js` changed
    in the pulled revision, the current watcher does not deploy from the old
