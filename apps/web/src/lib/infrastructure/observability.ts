@@ -1085,6 +1085,14 @@ async function readResourceBuckets(
     else if (row.metric === RESOURCE_METRICS.tx) bucket.tx.push(row.value);
   }
 
+  const currentBucket = buckets.at(-1);
+  if (currentBucket) {
+    currentBucket.cpu.push(dockerResources.totalCpuPercent);
+    currentBucket.memory.push(dockerResources.totalMemoryBytes);
+    currentBucket.rx.push(dockerResources.totalRxBytes);
+    currentBucket.tx.push(dockerResources.totalTxBytes);
+  }
+
   const average = (values: number[]) =>
     values.length > 0
       ? values.reduce((total, value) => total + value, 0) / values.length
