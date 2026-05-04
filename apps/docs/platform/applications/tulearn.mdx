@@ -1,0 +1,60 @@
+---
+title: Tulearn learner app
+description: Student and parent-facing education app for Tuturuuu workspaces.
+---
+
+Tulearn lives in `apps/tulearn` and runs locally on port `7812`. It is the learner-facing companion to the main Tuturuuu web platform: students and parents use Tulearn for lessons, practice, assignments, reports, marks, XP, streaks, and hearts, while teachers and admins continue to manage education data in `apps/web`.
+
+## Ownership model
+
+Tulearn owns its auth shell locally. Login, callback, logout, and session routes are implemented inside `apps/tulearn`; the app does not bounce users through a centralized cross-app auth redirect. Auth metadata uses the `tulearn` client value, and web-style Supabase cookies are kept on the Tulearn app.
+
+Protected product data still belongs to the central platform. Tulearn calls `apps/web` APIs through `@tuturuuu/internal-api`, and the satellite app rewrites `/api/v1/*` to the central web app when no local Tulearn route exists.
+
+## Workspace access
+
+Every Tulearn workspace API requires both:
+
+- the authenticated user has student access or an explicit active parent-student link; and
+- `workspace_secrets.name = ENABLE_EDUCATION` has a truthy value for that workspace.
+
+The bootstrap route only returns eligible education workspaces and linked students:
+
+```txt
+GET /api/v1/tulearn/bootstrap
+```
+
+Workspace-scoped learner routes use the normalized workspace id so aliases like `personal` do not diverge between selection and final reads.
+
+## Parent links
+
+Parent access is explicit and read-only in v1. The Tulearn schema adds:
+
+- `tulearn_parent_student_links` for accepted parent to student links;
+- `tulearn_parent_invites` for invite-based parent linking;
+- admin-managed parent-link APIs under `/api/v1/workspaces/[wsId]/tulearn/parent-links`.
+
+Parents can switch between linked students in Tulearn. Parent requests may read home, courses, assignments, reports, marks, and practice context for linked students, but mutation routes reject parent writes.
+
+## Gamification
+
+Tulearn-owned gamification tables are separate from teacher-owned course data:
+
+- `tulearn_gamification_events` stores XP events with an idempotency key per workspace and learner.
+- `tulearn_learner_state` stores hearts, max hearts, total XP, streaks, freezes, selected workspace, and UI preferences.
+
+Courses, modules, quiz sets, flashcards, assignments, monthly reports, and marks continue to reuse existing education and user-group tables.
+
+## Verification
+
+After changing Tulearn schema, API, or UI code, run:
+
+```bash
+bun sb:up
+bun sb:typegen
+bun i18n:sort
+bun type-check:tulearn
+bun check
+```
+
+Run focused route or component tests around parent read-only access, student-only writes, XP idempotency, assignment completion, marks, and reports when those behaviors change.
