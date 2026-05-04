@@ -26,6 +26,10 @@ const CRON_CONTROL_DIR = path.join(
   'control'
 );
 const CRON_RUN_REQUESTS_DIR = path.join(CRON_CONTROL_DIR, 'cron-run-requests');
+const WATCHER_RECOVERY_REQUEST_FILE =
+  'blue-green-watcher-recovery.request.json';
+const WATCHER_RECOVERY_RETRY_MS = 60_000;
+const WATCHER_SERVICE_NAME = 'web-blue-green-watcher';
 
 function parseArgs(argv = process.argv.slice(2)) {
   const parsed = {
@@ -78,6 +82,29 @@ function writeJsonFile(filePath, value, fsImpl = fs) {
   fsImpl.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`);
 }
 
+function normalizeWatcherRecoveryRequest(request) {
+  if (!request || typeof request !== 'object' || Array.isArray(request)) {
+    return null;
+  }
+
+  if (
+    request.kind !== 'watcher-recovery' ||
+    typeof request.projectId !== 'string' ||
+    typeof request.reason !== 'string' ||
+    typeof request.requestedAt !== 'string'
+  ) {
+    return null;
+  }
+
+  return {
+    ...request,
+    attemptCount:
+      typeof request.attemptCount === 'number' ? request.attemptCount : 0,
+    lastAttemptAt:
+      typeof request.lastAttemptAt === 'number' ? request.lastAttemptAt : null,
+  };
+}
+
 function getCronPaths({
   controlDir = process.env.PLATFORM_CRON_CONTROL_DIR || CRON_CONTROL_DIR,
   runtimeDir = process.env.PLATFORM_CRON_MONITORING_DIR || CRON_RUNTIME_DIR,
@@ -90,6 +117,10 @@ function getCronPaths({
     stateFile: path.join(runtimeDir, 'state.json'),
     controlFile: path.join(controlDir, 'cron-control.json'),
     runtimeDir,
+    watcherRecoveryRequestFile: path.join(
+      controlDir,
+      WATCHER_RECOVERY_REQUEST_FILE
+    ),
   };
 }
 
@@ -263,6 +294,101 @@ function runCommand(command, args, options = {}) {
       });
     });
   });
+}
+
+function getWatcherRuntimeDir(paths) {
+  return path.dirname(paths.controlDir);
+}
+
+async function processWatcherRecoveryRequest({
+  env = process.env,
+  fsImpl = fs,
+  now = Date.now(),
+  paths,
+  rootDir = ROOT_DIR,
+  run = runCommand,
+} = {}) {
+  const request = normalizeWatcherRecoveryRequest(
+    readJsonFile(paths.watcherRecoveryRequestFile, null, fsImpl)
+  );
+
+  if (!request) {
+    return null;
+  }
+
+  if (
+    request.lastAttemptAt &&
+    now - request.lastAttemptAt < WATCHER_RECOVERY_RETRY_MS
+  ) {
+    return { request, status: 'backoff' };
+  }
+
+  const attemptCount = request.attemptCount + 1;
+  writeJsonFile(
+    paths.watcherRecoveryRequestFile,
+    {
+      ...request,
+      attemptCount,
+      lastAttemptAt: now,
+    },
+    fsImpl
+  );
+
+  const watcherRuntimeDir = getWatcherRuntimeDir(paths);
+  fsImpl.rmSync(path.join(watcherRuntimeDir, 'blue-green-auto-deploy.lock'), {
+    force: true,
+  });
+  fsImpl.rmSync(
+    path.join(watcherRuntimeDir, 'blue-green-auto-deploy.status.json'),
+    { force: true }
+  );
+
+  const result = await run(
+    'docker',
+    [
+      'compose',
+      '-f',
+      path.join(rootDir, 'docker-compose.web.prod.yml'),
+      '--profile',
+      'redis',
+      'up',
+      '--build',
+      '--detach',
+      '--force-recreate',
+      '--remove-orphans',
+      WATCHER_SERVICE_NAME,
+    ],
+    {
+      env: {
+        ...env,
+        PLATFORM_HOST_WORKSPACE_DIR:
+          env.PLATFORM_HOST_WORKSPACE_DIR || '/workspace-host',
+      },
+      stdio: 'pipe',
+    }
+  );
+
+  if (result.code !== 0) {
+    writeJsonFile(
+      paths.watcherRecoveryRequestFile,
+      {
+        ...request,
+        attemptCount,
+        lastAttemptAt: now,
+        lastError:
+          result.stderr?.trim() ||
+          result.stdout?.trim() ||
+          `docker compose exited with code ${result.code}`,
+      },
+      fsImpl
+    );
+
+    return { request, status: 'failed' };
+  }
+
+  fsImpl.rmSync(paths.watcherRecoveryRequestFile, { force: true });
+
+  return { request, status: 'recreated' };
 }
 
 async function listWebContainers({
@@ -767,6 +893,13 @@ async function runCronCycle({
   ensureDir(paths.runtimeDir, fsImpl);
   ensureDir(paths.executionDir, fsImpl);
   ensureDir(paths.runRequestsDir, fsImpl);
+  await processWatcherRecoveryRequest({
+    env,
+    fsImpl,
+    paths,
+    rootDir,
+    run,
+  });
 
   const now = Date.now();
   const config = readCronConfig({ configPath, fsImpl });
@@ -942,6 +1075,7 @@ module.exports = {
   initializeScheduleState,
   listWebContainers,
   parseArgs,
+  processWatcherRecoveryRequest,
   readControl,
   readExecutionRecords,
   readRunRequests,

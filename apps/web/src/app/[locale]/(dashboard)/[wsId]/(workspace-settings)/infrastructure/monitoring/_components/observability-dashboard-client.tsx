@@ -44,6 +44,7 @@ import {
   type ObservabilityResourceBucket,
   queueCronRun,
   queueInfrastructureProjectDeploy,
+  requestBlueGreenWatcherRecovery,
   syncInfrastructureProject,
   type UpdateInfrastructureProjectPayload,
   updateCronMonitoringControl,
@@ -1463,6 +1464,41 @@ export function ObservabilityDashboardClient({
     watcher?.health === 'live' &&
     typeof watcherTargetBranch === 'string' &&
     watcherTargetBranch !== selectedProject.selectedBranch;
+  const selectedProjectWatcherUnhealthy =
+    selectedProject?.deploymentStatus === 'queued' &&
+    watcherQuery.isFetched &&
+    watcher?.health !== 'live';
+  const watcherRecoveryReason = selectedProjectWatcherBranchMismatch
+    ? 'branch-mismatch'
+    : selectedProjectWatcherUnhealthy
+      ? 'watcher-unhealthy'
+      : null;
+  const watcherRecoveryQuery = useQuery({
+    enabled: Boolean(selectedProject?.id && watcherRecoveryReason),
+    gcTime: 60_000,
+    queryFn: () =>
+      requestBlueGreenWatcherRecovery({
+        projectBranch: selectedProject?.selectedBranch ?? null,
+        projectId: selectedProject?.id ?? 'platform',
+        reason: watcherRecoveryReason ?? 'unknown',
+        watcherBranch: watcherTargetBranch,
+        watcherHealth: watcher?.health ?? null,
+      }),
+    queryKey: [
+      'infrastructure',
+      'monitoring',
+      'blue-green',
+      'watcher-recovery',
+      selectedProject?.id,
+      selectedProject?.selectedBranch,
+      watcherRecoveryReason,
+      watcherTargetBranch,
+      watcher?.health,
+    ],
+    refetchOnWindowFocus: false,
+    retry: 1,
+    staleTime: 60_000,
+  });
   const resources = resourcesQuery.data?.dockerResources;
   const logs = useMemo(
     () => logsQuery.data?.pages.flatMap((page) => page.items) ?? [],
@@ -1812,16 +1848,30 @@ export function ObservabilityDashboardClient({
           {selectedProject.deploymentStatus === 'queued' &&
           watcher?.health !== 'live' ? (
             <div className="mt-4 rounded-md border border-dynamic-red/30 bg-dynamic-red/10 px-3 py-2 text-dynamic-red text-sm">
-              {t('watcher.not_live_queued', {
-                health: watcher?.health ?? 'missing',
-              })}
+              <p>
+                {t('watcher.not_live_queued', {
+                  health: watcher?.health ?? 'missing',
+                })}
+              </p>
+              <p className="mt-1 text-xs">
+                {watcherRecoveryQuery.isError
+                  ? t('watcher.recovery_failed')
+                  : t('watcher.recovery_requested')}
+              </p>
             </div>
           ) : selectedProjectWatcherBranchMismatch ? (
             <div className="mt-4 rounded-md border border-dynamic-red/30 bg-dynamic-red/10 px-3 py-2 text-dynamic-red text-sm">
-              {t('watcher.branch_mismatch_queued', {
-                projectBranch: selectedProject.selectedBranch,
-                watcherBranch: watcherTargetBranch,
-              })}
+              <p>
+                {t('watcher.branch_mismatch_queued', {
+                  projectBranch: selectedProject.selectedBranch,
+                  watcherBranch: watcherTargetBranch,
+                })}
+              </p>
+              <p className="mt-1 text-xs">
+                {watcherRecoveryQuery.isError
+                  ? t('watcher.recovery_failed')
+                  : t('watcher.recovery_requested')}
+              </p>
             </div>
           ) : null}
         </section>
@@ -2011,6 +2061,14 @@ export function ObservabilityDashboardClient({
                                     watcherBranch: watcherTargetBranch,
                                   })
                                 : t('projects.queued_hint')}
+                            {project.id === selectedProject?.id &&
+                            watcherRecoveryReason ? (
+                              <p className="mt-1">
+                                {watcherRecoveryQuery.isError
+                                  ? t('watcher.recovery_failed')
+                                  : t('watcher.recovery_requested')}
+                              </p>
+                            ) : null}
                           </div>
                         ) : null}
                       </div>

@@ -1986,6 +1986,8 @@
         "badge": "Watcher {health}",
         "branch_mismatch_queued": "Dự án này trỏ tới {projectBranch}, nhưng watcher đang chạy vẫn khóa ở {watcherBranch}. Hãy tạo lại Docker web watcher hoặc chờ watcher mới restart trước khi hàng chờ này có thể chạy tiếp.",
         "not_live_queued": "Dự án này đang trong hàng chờ, nhưng deployment watcher đang {health}. Hãy khởi động hoặc tạo lại Docker web watcher trước khi mong hàng chờ này chạy tiếp.",
+        "recovery_failed": "Không thể đưa phục hồi tự động vào hàng chờ. Hãy kiểm tra log watcher và Docker supervisor.",
+        "recovery_requested": "Đã đưa phục hồi watcher tự động vào hàng chờ cho Docker supervisor.",
         "title": "Watcher"
       }
     },
