@@ -84,6 +84,70 @@ test('resolvePlatformProjectTarget switches a clean branch mismatch', async () =
   ]);
 });
 
+test('resolvePlatformProjectTarget allows manual queued deployment when auto deploy is disabled', async () => {
+  const result = await resolvePlatformProjectTarget(
+    {
+      branch: 'production',
+      remote: 'origin',
+      upstreamBranch: 'production',
+      upstreamRef: 'origin/production',
+    },
+    {
+      env: {
+        PLATFORM_LOG_DRAIN_DATABASE_URL: 'postgres://local/test',
+      },
+      listDirtyWorktreePaths: async () => [],
+      postgresFactory: () => {
+        const sql = async () => [
+          {
+            auto_deploy_enabled: false,
+            deployment_status: 'queued',
+            selected_branch: 'production',
+          },
+        ];
+        sql.end = async () => {};
+        return sql;
+      },
+      runCommand: async () => ({ code: 0, stderr: '', stdout: '' }),
+    }
+  );
+
+  assert.equal(result.blocked, false);
+  assert.equal(result.project.deploymentStatus, 'queued');
+});
+
+test('resolvePlatformProjectTarget blocks disabled auto deploy when nothing is queued', async () => {
+  const result = await resolvePlatformProjectTarget(
+    {
+      branch: 'production',
+      remote: 'origin',
+      upstreamBranch: 'production',
+      upstreamRef: 'origin/production',
+    },
+    {
+      env: {
+        PLATFORM_LOG_DRAIN_DATABASE_URL: 'postgres://local/test',
+      },
+      listDirtyWorktreePaths: async () => [],
+      postgresFactory: () => {
+        const sql = async () => [
+          {
+            auto_deploy_enabled: false,
+            deployment_status: 'ready',
+            selected_branch: 'production',
+          },
+        ];
+        sql.end = async () => {};
+        return sql;
+      },
+      runCommand: async () => ({ code: 0, stderr: '', stdout: '' }),
+    }
+  );
+
+  assert.equal(result.blocked, true);
+  assert.match(result.message, /auto-deploy is disabled/);
+});
+
 test('renderManagedProjectCompose keeps project services under platform compose group', () => {
   const compose = renderManagedProjectCompose(
     {

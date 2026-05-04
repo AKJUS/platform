@@ -1913,6 +1913,7 @@
         "log_drain": "Log Drain",
         "nginx_proxy": "Nginx Proxy",
         "proxy_locked": "Proxy đã khóa",
+        "queued_hint": "Đã đưa vào hàng chờ cho watcher. Trạng thái sẽ chuyển sang building hoặc deploying ở lượt quét watcher tiếp theo.",
         "redis": "Redis",
         "repo_root": "Gốc repo",
         "repo_url": "Repository GitHub",
@@ -1950,6 +1951,13 @@
         "total_memory": "Tổng bộ nhớ",
         "tx": "Gửi",
         "uptime": "Uptime"
+      },
+      "scope": {
+        "active": "Phạm vi hiện tại",
+        "addons": "Addon",
+        "meta": "Toàn bộ dữ liệu giám sát trên trang này đang được giới hạn trong dự án {project}.",
+        "title": "Phạm vi dự án",
+        "use": "Dùng phạm vi"
       },
       "search_placeholder": "Tìm log, route, request",
       "signals": {

@@ -239,7 +239,9 @@ async function readPlatformProject({
   if (!databaseUrl) {
     return {
       autoDeployEnabled: true,
+      deploymentStatus: 'synced',
       id: DEFAULT_PLATFORM_PROJECT_ID,
+      metadata: {},
       selectedBranch: DEFAULT_PLATFORM_BRANCH,
       source: 'default',
     };
@@ -252,7 +254,9 @@ async function readPlatformProject({
     } catch {
       return {
         autoDeployEnabled: true,
+        deploymentStatus: 'synced',
         id: DEFAULT_PLATFORM_PROJECT_ID,
+        metadata: {},
         selectedBranch: DEFAULT_PLATFORM_BRANCH,
         source: 'fallback',
       };
@@ -269,6 +273,7 @@ async function readPlatformProject({
   try {
     const rows = await sql`
       SELECT id, selected_branch, auto_deploy_enabled
+      , deployment_status, metadata
       FROM infrastructure_projects
       WHERE id = ${DEFAULT_PLATFORM_PROJECT_ID}
       LIMIT 1
@@ -277,7 +282,9 @@ async function readPlatformProject({
 
     return {
       autoDeployEnabled: row?.auto_deploy_enabled !== false,
+      deploymentStatus: row?.deployment_status ?? 'synced',
       id: DEFAULT_PLATFORM_PROJECT_ID,
+      metadata: row?.metadata ?? {},
       selectedBranch: normalizeProjectBranch(row?.selected_branch),
       source: row ? 'database' : 'default',
     };
@@ -310,7 +317,7 @@ async function resolvePlatformProjectTarget(
 
   const selectedBranch = normalizeProjectBranch(project.selectedBranch);
 
-  if (!project.autoDeployEnabled) {
+  if (!project.autoDeployEnabled && project.deploymentStatus !== 'queued') {
     return {
       blocked: true,
       message: `Project ${project.id} auto-deploy is disabled.`,
@@ -407,6 +414,36 @@ async function resolvePlatformProjectTarget(
   };
 }
 
+async function updatePlatformProjectDeploymentStatus({
+  env = process.env,
+  metadata = {},
+  postgresFactory = null,
+  status,
+} = {}) {
+  if (!status) {
+    throw new Error('A platform project deployment status is required.');
+  }
+
+  await withLogDrainSql(
+    env,
+    async (sql) => {
+      await sql`
+        UPDATE infrastructure_projects
+        SET
+          deployment_status = ${status},
+          metadata = COALESCE(metadata, '{}'::jsonb) || ${JSON.stringify(metadata)}::jsonb,
+          last_deployed_at = CASE
+            WHEN ${status} = 'ready' THEN now()
+            ELSE last_deployed_at
+          END,
+          updated_at = now()
+        WHERE id = ${DEFAULT_PLATFORM_PROJECT_ID}
+      `;
+    },
+    postgresFactory
+  );
+}
+
 async function readManagedInfrastructureProjects({
   env = process.env,
   postgresFactory = null,
@@ -442,7 +479,7 @@ async function readManagedInfrastructureProjectsFromSql(sql) {
       metadata
     FROM infrastructure_projects
     WHERE id <> ${DEFAULT_PLATFORM_PROJECT_ID}
-      AND auto_deploy_enabled IS TRUE
+      AND (auto_deploy_enabled IS TRUE OR deployment_status = 'queued')
       AND preset = 'nextjs'
     ORDER BY updated_at ASC, id ASC
   `;
@@ -463,6 +500,16 @@ async function updateManagedProjectStatus(
         WHEN ${status} = 'ready' THEN now()
         ELSE last_deployed_at
       END,
+      updated_at = now()
+    WHERE id = ${projectId}
+  `;
+}
+
+async function updateManagedProjectMetadata(sql, projectId, metadata = {}) {
+  await sql`
+    UPDATE infrastructure_projects
+    SET
+      metadata = COALESCE(metadata, '{}'::jsonb) || ${JSON.stringify(metadata)}::jsonb,
       updated_at = now()
     WHERE id = ${projectId}
   `;
@@ -686,7 +733,7 @@ async function processManagedInfrastructureProjects({
               (currentCommit && currentCommit !== previousCommit);
 
             if (!shouldDeploy) {
-              await updateManagedProjectStatus(sql, project.id, 'skipped', {
+              await updateManagedProjectMetadata(sql, project.id, {
                 lastCheckedCommitHash: currentCommit,
                 skippedAt: new Date().toISOString(),
               });
@@ -757,4 +804,5 @@ module.exports = {
   renderManagedProjectDockerfile,
   renderManagedProjectProxyServerBlocks,
   resolvePlatformProjectTarget,
+  updatePlatformProjectDeploymentStatus,
 };

@@ -1913,6 +1913,7 @@
         "log_drain": "Log Drain",
         "nginx_proxy": "Nginx Proxy",
         "proxy_locked": "Proxy locked",
+        "queued_hint": "Queued for the watcher. The status will move to building or deploying on the next watcher poll.",
         "redis": "Redis",
         "repo_root": "Repo root",
         "repo_url": "GitHub Repository",
@@ -1950,6 +1951,13 @@
         "total_memory": "Total Memory",
         "tx": "Tx",
         "uptime": "Uptime"
+      },
+      "scope": {
+        "active": "Active scope",
+        "addons": "Addons",
+        "meta": "All monitoring data on this page is scoped to project {project}.",
+        "title": "Project scope",
+        "use": "Use scope"
       },
       "search_placeholder": "Search logs, routes, requests",
       "signals": {

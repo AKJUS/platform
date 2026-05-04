@@ -1012,6 +1012,35 @@ function tFallbackDeployment(deployment: ObservabilityDeployment) {
   return deployment.deploymentStamp ?? deployment.color ?? 'unknown';
 }
 
+function getProjectStatusTone(status: string | null | undefined): Tone {
+  if (status === 'failed' || status === 'blocked') {
+    return 'red';
+  }
+
+  if (status === 'building' || status === 'deploying') {
+    return 'amber';
+  }
+
+  if (status === 'queued') {
+    return 'muted';
+  }
+
+  if (status === 'ready' || status === 'synced') {
+    return 'green';
+  }
+
+  return 'muted';
+}
+
+function getProjectServiceNeedle(projectId: string) {
+  return `project-${projectId
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .replace(/-{2,}/g, '-')}`;
+}
+
 function VirtualizedList<T>({
   empty,
   estimateRowHeight,
@@ -1352,10 +1381,14 @@ export function ObservabilityDashboardClient({
       payload: Parameters<typeof updateInfrastructureProject>[1];
       project: InfrastructureProject;
     }) => updateInfrastructureProject(project.id, payload),
-    onSuccess: () =>
+    onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ['infrastructure', 'projects'],
-      }),
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['infrastructure', 'observability'],
+      });
+    },
   });
   const syncProjectMutation = useMutation({
     mutationFn: (project: InfrastructureProject) =>
@@ -1368,10 +1401,14 @@ export function ObservabilityDashboardClient({
   const queueProjectDeployMutation = useMutation({
     mutationFn: (project: InfrastructureProject) =>
       queueInfrastructureProjectDeploy(project.id),
-    onSuccess: () =>
+    onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ['infrastructure', 'projects'],
-      }),
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['infrastructure', 'observability'],
+      });
+    },
   });
   const runCronMutation = useMutation({
     mutationFn: (jobId: string) => queueCronRun({ jobId }),
@@ -1392,6 +1429,8 @@ export function ObservabilityDashboardClient({
   const analytics = analyticsQuery.data;
   const cronSnapshot = cronSnapshotQuery.data;
   const projects = projectsQuery.data?.projects ?? [];
+  const selectedProject =
+    projects.find((project) => project.id === projectId) ?? projects[0] ?? null;
   const resources = resourcesQuery.data?.dockerResources;
   const logs = useMemo(
     () => logsQuery.data?.pages.flatMap((page) => page.items) ?? [],
@@ -1416,6 +1455,46 @@ export function ObservabilityDashboardClient({
   const cronExecutionsTotal = cronExecutionsQuery.data?.pages[0]?.total ?? 0;
   const newRequestCount = newRequestsQuery.data?.total ?? 0;
   const resourceBuckets = resourcesQuery.data?.buckets ?? [];
+  const scopedContainers = useMemo(() => {
+    const containers = resources?.allContainers ?? [];
+    if (projectId === 'platform') {
+      return containers.filter(
+        (container) =>
+          !String(container.serviceName ?? container.name).startsWith(
+            'project-'
+          )
+      );
+    }
+
+    const projectServiceNeedle = getProjectServiceNeedle(projectId);
+    return containers.filter((container) =>
+      [container.serviceName, container.name]
+        .filter(Boolean)
+        .some((value) => String(value).includes(projectServiceNeedle))
+    );
+  }, [projectId, resources?.allContainers]);
+  const scopedResourceSummary = useMemo(
+    () => ({
+      serviceCount: scopedContainers.length,
+      totalCpuPercent: scopedContainers.reduce(
+        (total, container) => total + (container.cpuPercent ?? 0),
+        0
+      ),
+      totalMemoryBytes: scopedContainers.reduce(
+        (total, container) => total + (container.memoryBytes ?? 0),
+        0
+      ),
+      totalRxBytes: scopedContainers.reduce(
+        (total, container) => total + (container.rxBytes ?? 0),
+        0
+      ),
+      totalTxBytes: scopedContainers.reduce(
+        (total, container) => total + (container.txBytes ?? 0),
+        0
+      ),
+    }),
+    [scopedContainers]
+  );
 
   useEffect(() => {
     if (mode !== 'deployments' || !hasDeploymentInProgress) {
@@ -1425,6 +1504,9 @@ export function ObservabilityDashboardClient({
     const interval = window.setInterval(() => setNow(Date.now()), 100);
     return () => window.clearInterval(interval);
   }, [hasDeploymentInProgress, mode]);
+  useEffect(() => {
+    setRequestFreezeUntil((current) => (projectId ? Date.now() : current));
+  }, [projectId]);
   const infiniteLabels = {
     end: t('infinite.end'),
     loading: t('infinite.loading'),
@@ -1615,6 +1697,76 @@ export function ObservabilityDashboardClient({
         </section>
       )}
 
+      {selectedProject ? (
+        <section className="rounded-lg border border-border bg-background p-4">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-muted-foreground text-xs uppercase">
+                  {t('scope.title')}
+                </span>
+                <ToneBadge
+                  tone={getProjectStatusTone(selectedProject.deploymentStatus)}
+                >
+                  {selectedProject.deploymentStatus}
+                </ToneBadge>
+                <ToneBadge tone="blue">
+                  {selectedProject.selectedBranch}
+                </ToneBadge>
+                {selectedProject.isBuiltin ? (
+                  <ToneBadge tone="green">{t('projects.builtin')}</ToneBadge>
+                ) : null}
+              </div>
+              <h3 className="mt-2 truncate font-semibold text-base">
+                {selectedProject.name}
+              </h3>
+              <p className="mt-1 truncate text-muted-foreground text-xs">
+                {t('scope.meta', {
+                  project: selectedProject.id,
+                })}
+              </p>
+            </div>
+            <div className="grid gap-2 text-xs sm:grid-cols-2 lg:min-w-[520px] lg:grid-cols-4">
+              <div className="rounded-md border border-border/60 bg-muted/20 p-3">
+                <p className="text-muted-foreground">
+                  {t('projects.latest_commit')}
+                </p>
+                <p className="mt-1 truncate font-mono">
+                  {selectedProject.latestCommitShortHash ?? '-'}
+                </p>
+              </div>
+              <div className="rounded-md border border-border/60 bg-muted/20 p-3">
+                <p className="text-muted-foreground">{t('projects.synced')}</p>
+                <p className="mt-1">
+                  {formatTime(selectedProject.latestSyncedAt)}
+                </p>
+              </div>
+              <div className="rounded-md border border-border/60 bg-muted/20 p-3">
+                <p className="text-muted-foreground">
+                  {t('projects.hostnames')}
+                </p>
+                <p className="mt-1 truncate">
+                  {selectedProject.hostnames.join(', ') || '-'}
+                </p>
+              </div>
+              <div className="rounded-md border border-border/60 bg-muted/20 p-3">
+                <p className="text-muted-foreground">{t('scope.addons')}</p>
+                <p className="mt-1 truncate">
+                  {[
+                    selectedProject.addons.logDrain ? 'Logs' : null,
+                    selectedProject.addons.redis ? 'Redis' : null,
+                    selectedProject.addons.cron ? 'Cron' : null,
+                    'Nginx',
+                  ]
+                    .filter(Boolean)
+                    .join(', ')}
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
+      ) : null}
+
       {mode === 'projects' && (
         <div className="space-y-4">
           <section className="rounded-lg border border-border bg-background">
@@ -1679,20 +1831,17 @@ export function ObservabilityDashboardClient({
             ) : (
               <div className="divide-y divide-border">
                 {projects.map((project) => {
-                  const statusTone =
-                    project.deploymentStatus === 'failed' ||
-                    project.deploymentStatus === 'blocked'
-                      ? 'red'
-                      : project.deploymentStatus === 'building' ||
-                          project.deploymentStatus === 'deploying'
-                        ? 'amber'
-                        : project.deploymentStatus === 'queued'
-                          ? 'muted'
-                          : 'green';
+                  const statusTone = getProjectStatusTone(
+                    project.deploymentStatus
+                  );
+                  const isScoped = project.id === projectId;
 
                   return (
                     <article
-                      className="grid gap-4 px-4 py-4 xl:grid-cols-[minmax(0,1.3fr)_minmax(240px,0.8fr)_minmax(260px,1fr)]"
+                      className={cn(
+                        'grid gap-4 px-4 py-4 xl:grid-cols-[minmax(0,1.3fr)_minmax(240px,0.8fr)_minmax(260px,1fr)]',
+                        isScoped && 'bg-dynamic-blue/5'
+                      )}
                       key={project.id}
                     >
                       <div className="min-w-0 space-y-3">
@@ -1723,6 +1872,9 @@ export function ObservabilityDashboardClient({
                             />
                             {project.deploymentStatus}
                           </span>
+                          {isScoped ? (
+                            <Badge variant="outline">{t('scope.active')}</Badge>
+                          ) : null}
                         </div>
                         <p className="truncate text-muted-foreground text-xs">
                           {project.repo.url}
@@ -1773,6 +1925,11 @@ export function ObservabilityDashboardClient({
                             <p>{formatTime(project.latestSyncedAt)}</p>
                           </div>
                         </div>
+                        {project.deploymentStatus === 'queued' ? (
+                          <div className="rounded-md border border-dynamic-yellow/30 bg-dynamic-yellow/10 px-3 py-2 text-dynamic-yellow text-xs">
+                            {t('projects.queued_hint')}
+                          </div>
+                        ) : null}
                       </div>
 
                       <div className="space-y-3">
@@ -1897,6 +2054,17 @@ export function ObservabilityDashboardClient({
                           </Badge>
                         </div>
                         <div className="flex flex-wrap gap-2">
+                          {!isScoped ? (
+                            <Button
+                              onClick={() => void setProjectId(project.id)}
+                              size="sm"
+                              type="button"
+                              variant="outline"
+                            >
+                              <Radio className="h-4 w-4" />
+                              {t('scope.use')}
+                            </Button>
+                          ) : null}
                           <Button
                             disabled={syncProjectMutation.isPending}
                             onClick={() => syncProjectMutation.mutate(project)}
@@ -2617,8 +2785,8 @@ export function ObservabilityDashboardClient({
               </div>
               {resourcesQuery.isLoading ? (
                 <LoadingSkeleton rows={8} />
-              ) : (resources?.allContainers ?? []).length > 0 ? (
-                (resources?.allContainers ?? []).map((container) => {
+              ) : scopedContainers.length > 0 ? (
+                scopedContainers.map((container) => {
                   const cpuTone = getCpuTone(container.cpuPercent);
                   const memoryTone = getMemoryTone(container.memoryBytes);
                   const memoryMb =
@@ -2715,19 +2883,19 @@ export function ObservabilityDashboardClient({
                 <div className="mt-4 grid gap-3">
                   <MetricCard
                     label={t('resources.total_cpu')}
-                    value={`${formatNumber(resources?.totalCpuPercent)}%`}
+                    value={`${formatNumber(scopedResourceSummary.totalCpuPercent)}%`}
                   />
                   <MetricCard
                     label={t('resources.total_memory')}
-                    value={formatBytes(resources?.totalMemoryBytes)}
+                    value={formatBytes(scopedResourceSummary.totalMemoryBytes)}
                   />
                   <MetricCard
                     label={t('resources.network')}
-                    value={`${formatBytes(resources?.totalRxBytes)} / ${formatBytes(resources?.totalTxBytes)}`}
+                    value={`${formatBytes(scopedResourceSummary.totalRxBytes)} / ${formatBytes(scopedResourceSummary.totalTxBytes)}`}
                   />
                   <MetricCard
                     label={t('resources.services')}
-                    value={formatNumber(resources?.serviceHealth.length)}
+                    value={formatNumber(scopedResourceSummary.serviceCount)}
                   />
                 </div>
               )}

@@ -12,7 +12,7 @@ import {
 } from '@tuturuuu/icons';
 import { cn } from '@tuturuuu/utils/format';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
 export function BlueGreenMonitoringSectionNav({
@@ -21,7 +21,18 @@ export function BlueGreenMonitoringSectionNav({
   baseHref: string;
 }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const t = useTranslations('blue-green-monitoring');
+  const sharedQuery = new URLSearchParams();
+
+  for (const key of ['project', 'hours']) {
+    const value = searchParams.get(key);
+    if (value) {
+      sharedQuery.set(key, value);
+    }
+  }
+
+  const querySuffix = sharedQuery.size > 0 ? `?${sharedQuery.toString()}` : '';
 
   const items = [
     {
@@ -86,7 +97,7 @@ export function BlueGreenMonitoringSectionNav({
         return (
           <Link
             key={item.href}
-            href={item.href}
+            href={`${item.href}${querySuffix}`}
             className={cn(
               'rounded-lg border p-3 transition-colors',
               isActive

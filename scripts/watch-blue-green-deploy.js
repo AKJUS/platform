@@ -67,7 +67,9 @@ const {
 const {
   DEFAULT_PROJECT_POLL_INTERVAL_MS,
   processManagedInfrastructureProjects,
+  readPlatformProject,
   resolvePlatformProjectTarget,
+  updatePlatformProjectDeploymentStatus,
 } = require('./watch-blue-green/projects.js');
 const {
   clearInstantRolloutRequest,
@@ -3982,6 +3984,183 @@ async function runDeployWatchIteration(
         deploymentHistory,
         latestCommit.hash
       );
+      const platformProject = await readPlatformProject({ env });
+
+      if (platformProject.deploymentStatus === 'queued') {
+        if (
+          hasReachedDeploymentFailureLimit(deploymentHistory, latestCommit.hash)
+        ) {
+          await updatePlatformProjectDeploymentStatus({
+            env,
+            metadata: {
+              failedDeploymentCount,
+              retryLimitedAt: new Date(checkedAt).toISOString(),
+            },
+            status: 'failed',
+          });
+          logRetryLimitOnce(
+            `Skipping queued platform deployment for ${latestCommit.shortHash} because it already failed ${failedDeploymentCount} deployment attempts.`,
+            latestCommit.hash,
+            { fsImpl, log, paths }
+          );
+          return attachRuntime({
+            checkedAt,
+            failedDeploymentCount,
+            latestCommit,
+            status: 'retry-limited',
+          });
+        }
+
+        log.info?.(
+          `Processing queued platform deployment for ${latestCommit.shortHash}.`
+        );
+        await updatePlatformProjectDeploymentStatus({
+          env,
+          metadata: {
+            buildStartedAt: new Date(checkedAt).toISOString(),
+            commitHash: latestCommit.hash,
+          },
+          status: 'building',
+        });
+        await runBunUpgradeAndInstall({
+          env,
+          runCommand: run,
+        });
+
+        const deployStartedAt = now();
+        onDeploymentStart({
+          checkedAt,
+          latestCommit,
+          pendingDeployment: createPendingDeploymentEntry({
+            deploymentKind: 'manual',
+            latestCommit,
+            startedAt: deployStartedAt,
+            status: 'deploying',
+          }),
+        });
+
+        try {
+          await updatePlatformProjectDeploymentStatus({
+            env,
+            metadata: {
+              deployStartedAt: new Date(deployStartedAt).toISOString(),
+              commitHash: latestCommit.hash,
+            },
+            status: 'deploying',
+          });
+          await runBlueGreenDeploy({
+            deployCommand,
+            env,
+            runCommand: run,
+          });
+
+          const deployFinishedAt = now();
+          const activeColor = readBlueGreenActiveColor(paths.blueGreen, fsImpl);
+          const deploymentStamp = readBlueGreenDeploymentStamp(
+            paths.blueGreen,
+            fsImpl
+          );
+          const imageTag = await cacheBlueGreenDeploymentImage({
+            activeColor,
+            env,
+            envFilePath,
+            fsImpl,
+            latestCommit,
+            log,
+            rootDir,
+            runCommand: run,
+          });
+          const history = appendDeploymentHistory(
+            {
+              activatedAt: deployFinishedAt,
+              activeColor,
+              buildDurationMs: Math.max(0, deployFinishedAt - deployStartedAt),
+              commitHash: latestCommit.hash,
+              commitShortHash: latestCommit.shortHash,
+              commitSubject: latestCommit.subject,
+              deploymentKind: 'manual',
+              deploymentStamp,
+              finishedAt: deployFinishedAt,
+              ...(imageTag ? { imageTag } : {}),
+              startedAt: deployStartedAt,
+              status: 'successful',
+            },
+            {
+              fsImpl,
+              paths,
+            }
+          );
+          await pruneBlueGreenRecoveryCacheImages(history, {
+            env,
+            extraImageTag: imageTag,
+            log,
+            runCommand: run,
+          });
+          await updatePlatformProjectDeploymentStatus({
+            env,
+            metadata: {
+              deployedAt: new Date(deployFinishedAt).toISOString(),
+              deployedCommitHash: latestCommit.hash,
+              deploymentStamp,
+            },
+            status: 'ready',
+          });
+
+          log.info?.(
+            `Queued platform deployment completed for ${latestCommit.shortHash}.`
+          );
+
+          return attachRuntime(
+            {
+              checkedAt,
+              latestCommit,
+              status: 'deployed',
+            },
+            history
+          );
+        } catch (error) {
+          const deployFinishedAt = now();
+          const history = appendDeploymentHistory(
+            {
+              buildDurationMs: Math.max(0, deployFinishedAt - deployStartedAt),
+              commitHash: latestCommit.hash,
+              commitShortHash: latestCommit.shortHash,
+              commitSubject: latestCommit.subject,
+              deploymentKind: 'manual',
+              finishedAt: deployFinishedAt,
+              startedAt: deployStartedAt,
+              status: 'failed',
+            },
+            {
+              fsImpl,
+              paths,
+            }
+          );
+          await updatePlatformProjectDeploymentStatus({
+            env,
+            metadata: {
+              error: error instanceof Error ? error.message : String(error),
+              failedAt: new Date(deployFinishedAt).toISOString(),
+            },
+            status: 'failed',
+          });
+
+          log.error?.(
+            `Queued platform deployment failed for ${latestCommit.shortHash}: ${error instanceof Error ? error.message : String(error)}`
+          );
+
+          return attachRuntime(
+            {
+              checkedAt,
+              error,
+              latestCommit,
+              status: 'deploy-failed',
+            },
+            history
+          );
+        }
+      }
+
       const runtimeSnapshot = await attachRuntime({
         checkedAt,
         latestCommit,
