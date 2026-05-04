@@ -46,6 +46,10 @@ export type GroupPostCheck = Tables<'user_group_post_checks'>;
 export type UserGroupPost = Tables<'user_group_posts'> & {
   group_name?: string | null;
 };
+export type TulearnGamificationEvent = Tables<'tulearn_gamification_events'>;
+export type TulearnLearnerState = Tables<'tulearn_learner_state'>;
+export type TulearnParentInvite = Tables<'tulearn_parent_invites'>;
+export type TulearnParentStudentLink = Tables<'tulearn_parent_student_links'>;
 export type EmailHistoryEntry = Tables<'sent_emails'>;
 export type AbuseEvent = Tables<'abuse_events'>;
 export type Invoice = Tables<'finance_invoices'>;
