@@ -3607,6 +3607,31 @@ test('writeWatchArgsFile persists argv for the watcher container entrypoint', ()
   }
 });
 
+test('getWatchPaths honors container watcher path overrides', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'watch-path-env-'));
+  const runtimeDir = path.join(tempDir, 'runtime');
+  const argsFile = path.join(tempDir, 'control', 'args.json');
+  const statusFile = path.join(tempDir, 'control', 'status.json');
+
+  try {
+    const paths = getWatchPaths(tempDir, {
+      PLATFORM_BLUE_GREEN_WATCH_ARGS_FILE: argsFile,
+      PLATFORM_BLUE_GREEN_WATCH_RUNTIME_DIR: runtimeDir,
+      PLATFORM_BLUE_GREEN_WATCH_STATUS_FILE: statusFile,
+    });
+
+    assert.equal(paths.argsFile, argsFile);
+    assert.equal(paths.runtimeDir, runtimeDir);
+    assert.equal(paths.statusFile, statusFile);
+    assert.equal(
+      paths.logFile,
+      path.join(runtimeDir, 'blue-green-auto-deploy.logs.json')
+    );
+  } finally {
+    fs.rmSync(tempDir, { force: true, recursive: true });
+  }
+});
+
 test('startBlueGreenWatcherContainer writes watcher args and recreates the compose service', async () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'watch-container-'));
   const envFilePath = path.join(tempDir, 'apps', 'web', '.env.local');

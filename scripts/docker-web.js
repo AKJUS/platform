@@ -70,6 +70,10 @@ const {
   appendDeploymentHistory,
 } = require('./watch-blue-green/history.js');
 const { getWatchPaths } = require('./watch-blue-green/paths.js');
+const {
+  WATCHER_CONTAINER_ENV,
+  startBlueGreenWatcherContainer,
+} = require('./watch-blue-green-deploy.js');
 
 const ROOT_DIR = path.resolve(__dirname, '..');
 
@@ -275,6 +279,8 @@ function getInPlaceProdServices(parsed) {
 async function runDockerWebWorkflow(parsed, options = {}) {
   const run = options.runCommand ?? runCommand;
   const fsImpl = options.fsImpl ?? fs;
+  const startWatcherContainer =
+    options.startWatcherContainer ?? startBlueGreenWatcherContainer;
   const composeFile = getComposeFile(parsed.mode);
   const env = options.env ?? process.env;
   const withRedis = hasComposeProfile(parsed.composeGlobalArgs, 'redis');
@@ -407,6 +413,16 @@ async function runDockerWebWorkflow(parsed, options = {}) {
             paths: getWatchPaths(options.rootDir ?? ROOT_DIR),
           }
         );
+      }
+
+      if (env[WATCHER_CONTAINER_ENV] !== '1') {
+        await startWatcherContainer(['--resume-if-running'], {
+          env,
+          envFilePath: options.envFilePath,
+          fsImpl,
+          rootDir: options.rootDir,
+          runCommand: run,
+        });
       }
     } catch (error) {
       if (env[SKIP_WATCH_HISTORY_ENV] !== '1') {

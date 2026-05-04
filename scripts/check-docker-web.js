@@ -323,7 +323,7 @@ function validateDockerCompose(
     '    init: true',
     '      SRH_TOKEN: ' +
       '${' +
-      'UPSTASH_REDIS_REST_TOKEN:?UPSTASH_REDIS_REST_TOKEN must be set when enabling the redis profile' +
+      'UPSTASH_REDIS_REST_TOKEN:-platform-local-redis-token' +
       '}',
   ];
 
@@ -460,7 +460,7 @@ function validateDockerProdCompose(composeContent) {
     '      - DRIVE_UNZIP_PROXY_SHARED_TOKEN',
     '      SRH_TOKEN: ' +
       '${' +
-      'UPSTASH_REDIS_REST_TOKEN:?UPSTASH_REDIS_REST_TOKEN must be set when enabling the redis profile' +
+      'UPSTASH_REDIS_REST_TOKEN:-platform-local-redis-token' +
       '}',
   ];
 

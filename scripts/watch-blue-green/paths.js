@@ -4,6 +4,9 @@ const { getBlueGreenPaths } = require('../docker-web/blue-green.js');
 
 const ROOT_DIR = path.resolve(__dirname, '..', '..');
 const WATCH_RUNTIME_DIR = path.join(ROOT_DIR, 'tmp', 'docker-web', 'watch');
+const WATCH_ARGS_FILE_ENV = 'PLATFORM_BLUE_GREEN_WATCH_ARGS_FILE';
+const WATCH_RUNTIME_DIR_ENV = 'PLATFORM_BLUE_GREEN_WATCH_RUNTIME_DIR';
+const WATCH_STATUS_FILE_ENV = 'PLATFORM_BLUE_GREEN_WATCH_STATUS_FILE';
 const WATCH_LOCK_FILE = path.join(
   WATCH_RUNTIME_DIR,
   'blue-green-auto-deploy.lock'
@@ -50,11 +53,27 @@ const WATCH_REQUEST_STATE_FILE = path.join(
   'blue-green-request-telemetry.state.json'
 );
 
-function getWatchPaths(rootDir = ROOT_DIR) {
-  const runtimeDir = path.join(rootDir, 'tmp', 'docker-web', 'watch');
+function readConfiguredPath(envKey, fallback, env = process.env) {
+  const configured = env[envKey];
+
+  return typeof configured === 'string' && configured.trim().length > 0
+    ? configured.trim()
+    : fallback;
+}
+
+function getWatchPaths(rootDir = ROOT_DIR, env = process.env) {
+  const runtimeDir = readConfiguredPath(
+    WATCH_RUNTIME_DIR_ENV,
+    path.join(rootDir, 'tmp', 'docker-web', 'watch'),
+    env
+  );
 
   return {
-    argsFile: path.join(runtimeDir, 'blue-green-auto-deploy.args.json'),
+    argsFile: readConfiguredPath(
+      WATCH_ARGS_FILE_ENV,
+      path.join(runtimeDir, 'blue-green-auto-deploy.args.json'),
+      env
+    ),
     blueGreen: getBlueGreenPaths(rootDir),
     controlDir: path.join(runtimeDir, 'control'),
     deploymentPinFile: path.join(
@@ -84,12 +103,17 @@ function getWatchPaths(rootDir = ROOT_DIR) {
       'blue-green-request-telemetry.state.json'
     ),
     runtimeDir,
-    statusFile: path.join(runtimeDir, 'blue-green-auto-deploy.status.json'),
+    statusFile: readConfiguredPath(
+      WATCH_STATUS_FILE_ENV,
+      path.join(runtimeDir, 'blue-green-auto-deploy.status.json'),
+      env
+    ),
   };
 }
 
 module.exports = {
   ROOT_DIR,
+  WATCH_ARGS_FILE_ENV,
   WATCH_ARGS_FILE,
   WATCH_CONTROL_DIR,
   WATCH_DEPLOYMENT_PIN_FILE,
@@ -101,7 +125,9 @@ module.exports = {
   WATCH_REQUEST_LOG_DIR,
   WATCH_REQUEST_STATE_FILE,
   WATCH_REQUEST_SUMMARY_FILE,
+  WATCH_RUNTIME_DIR_ENV,
   WATCH_RUNTIME_DIR,
+  WATCH_STATUS_FILE_ENV,
   WATCH_STATUS_FILE,
   getWatchPaths,
 };

@@ -15,6 +15,9 @@ const WATCH_ARGS_FILE =
     'watch',
     'blue-green-auto-deploy.args.json'
   );
+const WATCH_RUNTIME_DIR =
+  process.env.PLATFORM_BLUE_GREEN_WATCH_RUNTIME_DIR ??
+  path.dirname(WATCH_ARGS_FILE);
 const RESTART_EXIT_CODE = 75;
 const CONTAINER_REFRESH_EXIT_CODE = 76;
 const WATCHER_CONTAINER_ENV = 'PLATFORM_BLUE_GREEN_WATCHER_CONTAINER';
@@ -210,6 +213,9 @@ function runWatcherOnce(args, options = {}) {
       cwd: WORKSPACE_DIR,
       env: {
         ...process.env,
+        PLATFORM_BLUE_GREEN_WATCH_ARGS_FILE: WATCH_ARGS_FILE,
+        PLATFORM_BLUE_GREEN_WATCH_RUNTIME_DIR: WATCH_RUNTIME_DIR,
+        PLATFORM_BLUE_GREEN_WATCH_STATUS_FILE: WATCH_STATUS_FILE,
         [WATCHER_CONTAINER_ENV]: '1',
       },
       stdio: 'inherit',

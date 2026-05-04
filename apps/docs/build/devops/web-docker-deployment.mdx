@@ -694,6 +694,22 @@ Dashboard details:
   health check that posts `["PING"]` to `/` with the generated `SRH_TOKEN`;
   do not use a Node-based probe for that image because it is an Erlang release
   image, and do not probe `/ping` because SRH does not expose that route.
+- `SRH_TOKEN` falls back to `platform-local-redis-token` in the Compose files
+  when `UPSTASH_REDIS_REST_TOKEN` is not exported. Keep that fallback so
+  watcher and cron recovery can run Docker Compose commands before the web
+  helper has injected a generated token.
+- After a successful host-triggered `serve:web:docker:bg` rollout, the Docker
+  helper starts or resumes the containerized `web-blue-green-watcher` with
+  `--resume-if-running`. Deploys that are already running inside the watcher
+  skip that handoff via `PLATFORM_BLUE_GREEN_WATCHER_CONTAINER=1`, which avoids
+  recursive watcher starts while still leaving a poller alive for future Git
+  commits.
+- The watcher wrapper and child process must agree on runtime files. If
+  `PLATFORM_BLUE_GREEN_WATCH_ARGS_FILE`,
+  `PLATFORM_BLUE_GREEN_WATCH_RUNTIME_DIR`, or
+  `PLATFORM_BLUE_GREEN_WATCH_STATUS_FILE` are set, both the wrapper and child
+  use those paths so the wrapper does not restart a healthy child for a missing
+  status snapshot.
 - Request counters now come from a persisted local proxy-log drain under
   `tmp/docker-web/watch/blue-green-request-telemetry.*`, not from one-off
   `docker logs` scrapes in the dashboard. The watcher continuously drains
