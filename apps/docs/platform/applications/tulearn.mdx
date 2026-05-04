@@ -58,3 +58,14 @@ bun check
 ```
 
 Run focused route or component tests around parent read-only access, student-only writes, XP idempotency, assignment completion, marks, and reports when those behaviors change.
+
+## CI and deployment
+
+Tulearn has dedicated Vercel workflows:
+
+- `.github/workflows/vercel-preview-tulearn.yaml`
+- `.github/workflows/vercel-production-tulearn.yaml`
+
+Both workflows are registered in `tuturuuu.ts` and use the shared `ci-check.yml` switchboard. They require the standard Vercel secrets plus `VERCEL_TULEARN_PROJECT_ID`; production also uses the shared production Supabase secrets.
+
+`apps/tulearn/vercel.json` disables Vercel Git deployments and GitHub integration so preview and production deploys only happen through the CI workflows.
