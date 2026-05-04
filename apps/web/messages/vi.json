@@ -1981,7 +1981,12 @@
         "success": "2xx",
         "unknown": "Không xác định"
       },
-      "top_routes": "Route hàng đầu"
+      "top_routes": "Route hàng đầu",
+      "watcher": {
+        "badge": "Watcher {health}",
+        "not_live_queued": "Dự án này đang trong hàng chờ, nhưng deployment watcher đang {health}. Hãy khởi động hoặc tạo lại Docker web watcher trước khi mong hàng chờ này chạy tiếp.",
+        "title": "Watcher"
+      }
     },
     "overview": {
       "description": "Dùng trang tổng quan như bản tóm tắt dành cho operator: trạng thái runtime hiện tại, nhịp watcher và các lối tắt tới những bề mặt nặng hơn.",

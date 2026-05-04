@@ -80,6 +80,8 @@ The Requests tab intentionally freezes its result window when opened. New traffi
 
 Monitoring links preserve the selected `project` query parameter so Overview, Deployments, Logs, Analytics, Observability, Cron, Requests, and Resources stay scoped to the same project while an operator moves between tabs. The project scope card on each tab is the visible source of truth for the active project, branch, hostnames, commit, and addons.
 
+Queued deployment rows only advance while the blue/green deployment watcher is live. If the Projects tab shows a queued project and the watcher is missing, offline, or stale, the queue is only persisted state; restart or recreate the Docker web watcher so it can consume the queued record.
+
 Each drained request stores the client IP address and user agent when those headers are available. Server logs emitted inside the request or cron AsyncLocalStorage context are scoped back to the same request id, so Requests can show related console/server lines next to the originating request without relying on terminal access.
 
 ## Cron Control

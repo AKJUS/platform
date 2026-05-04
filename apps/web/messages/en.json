@@ -1981,7 +1981,12 @@
         "success": "2xx",
         "unknown": "Unknown"
       },
-      "top_routes": "Top Routes"
+      "top_routes": "Top Routes",
+      "watcher": {
+        "badge": "Watcher {health}",
+        "not_live_queued": "This project is queued, but the deployment watcher is {health}. Start or recreate the Docker web watcher before expecting this queue to advance.",
+        "title": "Watcher"
+      }
     },
     "overview": {
       "description": "Use the overview as the operator briefing: current runtime state, cadence, and fast links into the heavier rollout and archive surfaces.",
