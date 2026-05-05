@@ -16,6 +16,8 @@ Every development-tooling change should ask:
 - Can this become a plugin skill, reference checklist, script, or docs runbook?
 - Can this be validated automatically in CI or a focused local script?
 - Did the session reveal a durable gotcha worth preserving for future agents?
+- Could another agent be editing the same worktree, and does the coordination
+  protocol need a note or update?
 
 ## Incremental Improvement Standard
 
@@ -48,6 +50,21 @@ When improving agent task-capture behavior, make `ttr` the default path for new
 Tuturuuu tasks. Update `AGENTS.md`, `$tuturuuu-cli`, and plugin docs together so
 future assistants create, label, split, and verify tasks through the CLI instead
 of drifting into local notes or issue trackers.
+
+## Shared Worktree Coordination
+
+Read `references/agent-coordination.md` when a session may overlap with human or
+agent work in the same checkout. Keep `AGENTS.md`,
+`apps/docs/overview/agent-operating-manual.mdx`, and plugin docs aligned when
+changing the coordination protocol.
+
+Default posture:
+
+- run `git status --short` before editing
+- treat unknown dirty or untracked files as user-owned or other-agent-owned
+- use ignored `tmp/agent-coordination/` notes for live ownership and handoff
+- stage only paths intentionally changed
+- do not fix unrelated files just because a repo-wide check reports them
 
 ## Documentation Follow-Through
 

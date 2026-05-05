@@ -4,6 +4,13 @@ Use this checklist before and after code changes in the current Tuturuuu platfor
 
 ## Before Editing
 
+- Run `git status --short` and identify dirty or untracked paths that predate
+  your work.
+- If `tmp/agent-coordination/` exists, read active notes before choosing your
+  write set.
+- When overlap is likely, create a coordination note under
+  `tmp/agent-coordination/` with intent, owned paths, observed dirty paths,
+  status, and needs.
 - Read the task-local code and docs before proposing abstractions.
 - Check for existing helpers in `packages/internal-api`, `packages/types`, `packages/ui`, and app-local utilities.
 - Identify whether the change affects user-facing copy, route navigation, database schema, generated types, docs, or mobile localization.
@@ -41,4 +48,6 @@ Use this checklist before and after code changes in the current Tuturuuu platfor
 - Run `bun check` for TypeScript, JavaScript, root script, or repo config changes.
 - Update `apps/docs` for durable workflow, deployment, architecture, debugging, or operations knowledge.
 - Update the Tuturuuu plugin when agent-facing CLI, validation, setup, or workflow knowledge changes.
+- Stage only paths you intentionally changed. Do not fix, format, or stage
+  unrelated dirty files owned by a human or another agent.
 - Use Conventional Commit style if asked to commit.

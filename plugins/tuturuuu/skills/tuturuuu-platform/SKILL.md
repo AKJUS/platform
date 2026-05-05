@@ -9,6 +9,11 @@ description: Tuturuuu platform monorepo workflow guidance. Use when Codex works 
 
 Start by reading the nearest `AGENTS.md` instructions and any task-local docs before editing. Treat those instructions as authoritative for this checkout.
 
+Run `git status --short` before edits. If dirty or untracked files already
+exist, assume they belong to the user or another agent unless local evidence says
+otherwise. For overlapping or long-running work, use
+`tmp/agent-coordination/` notes before touching shared files.
+
 Map the request to the smallest owning surface:
 
 - `apps/web`: Next.js App Router platform UI and API routes.
@@ -41,6 +46,10 @@ Use the more focused plugin skills when they match the task:
 - `$tuturuuu-development-tooling` for Codex plugin, skill, validation, docs, scripts, and durable agent workflow improvements.
 - `$tuturuuu-mobile-task-board` for Flutter task-board date, routing, assignee, detail, or version bump work.
 - `$tuturuuu-review-comments` for fetching, fixing, resolving, and reporting unresolved GitHub PR review threads.
+
+Use `$tuturuuu-development-tooling` when the durable change is about agent
+coordination, plugin behavior, skill text, validation scripts, docs runbooks, or
+repo automation.
 
 If the user asks to add, create, track, or split a Tuturuuu task while working in
 this repo, route to `$tuturuuu-cli` and use `ttr` as the source of truth instead
