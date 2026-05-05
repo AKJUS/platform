@@ -13,6 +13,7 @@ import {
 import type {
   ValseaClassroomOutputType,
   ValseaClassroomScenarioResponse,
+  ValseaPronunciationAssessorModel,
 } from '@tuturuuu/internal-api';
 import { Badge } from '@tuturuuu/ui/badge';
 import { Button } from '@tuturuuu/ui/button';
@@ -34,6 +35,8 @@ import {
   type LanguageOption,
   OUTPUT_TYPES,
   type OutputOption,
+  PRONUNCIATION_MODELS,
+  type PronunciationModelOption,
   SUGGESTED_PROMPTS,
   TARGET_LANGUAGES,
 } from './constants';
@@ -256,9 +259,11 @@ export function StudioComposer({
   onGenerateScenario,
   onLanguageChange,
   onOutputTypeChange,
+  onPronunciationModelChange,
   onTargetLanguageChange,
   onTranscriptChange,
   outputType,
+  pronunciationModel,
   targetLanguage,
   t,
   transcript,
@@ -275,9 +280,11 @@ export function StudioComposer({
   onGenerateScenario: () => void;
   onLanguageChange: (value: string) => void;
   onOutputTypeChange: (value: string) => void;
+  onPronunciationModelChange: (value: string) => void;
   onTargetLanguageChange: (value: string) => void;
   onTranscriptChange: (value: string) => void;
   outputType: ValseaClassroomOutputType;
+  pronunciationModel: ValseaPronunciationAssessorModel;
   targetLanguage: string;
   t: ReturnType<typeof useTranslations>;
   transcript: string;
@@ -346,6 +353,15 @@ export function StudioComposer({
           options={OUTPUT_TYPES}
           t={t}
           value={outputType}
+        />
+
+        <SelectField
+          id="valsea-pronunciation-model"
+          label={t('pronunciation_model')}
+          onValueChange={onPronunciationModelChange}
+          options={PRONUNCIATION_MODELS}
+          t={t}
+          value={pronunciationModel}
         />
 
         <div className="grid gap-3 sm:grid-cols-[1fr_0.8fr]">
@@ -419,7 +435,7 @@ function SelectField({
   id: string;
   label: string;
   onValueChange: (value: string) => void;
-  options: Array<LanguageOption | OutputOption>;
+  options: Array<LanguageOption | OutputOption | PronunciationModelOption>;
   t: ReturnType<typeof useTranslations>;
   value: string;
 }) {

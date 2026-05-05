@@ -175,6 +175,16 @@ also opt in automatically so CMS/WebGL workspaces can reuse the unzipper without
 duplicating storage automation setup. The Docker-internal URL and token are
 fallbacks for workspaces that have not supplied custom proxy secrets.
 
+The `pronunciation-assessor` helper is local-only. It defaults to
+`PRONUNCIATION_ASSESSOR_DEFAULT_MODEL=local-whisper-large-v3-turbo`, can switch
+between local Whisper sizes and `local-wav2vec2`, and stores downloaded
+Transformers checkpoints in the `platform-pronunciation-assessor-cache` volume.
+Use `PRONUNCIATION_ASSESSOR_PRELOAD=true` when cold-start latency matters, or
+leave it false so the first request lazily loads the selected model. On shared
+hosts, keep `PRONUNCIATION_ASSESSOR_MAX_LOADED_MODELS=1` and tune
+`PRONUNCIATION_ASSESSOR_IDLE_TTL_SECONDS` so idle models are unloaded before
+they hold GPU or RAM capacity unnecessarily.
+
 CMS WebGL package uploads also use the `storage-unzip-proxy`, but they are a
 first-class CMS upload path rather than generic Drive automation. They require a
 configured unzip proxy URL and token, but they do not require the

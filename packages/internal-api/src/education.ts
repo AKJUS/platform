@@ -110,11 +110,21 @@ export type ValseaClassroomOutputType =
   | 'service_log'
   | 'subtitles';
 
+export type ValseaPronunciationAssessorModel =
+  | 'local-wav2vec2'
+  | 'local-whisper-base'
+  | 'local-whisper-large-v3'
+  | 'local-whisper-large-v3-turbo'
+  | 'local-whisper-medium'
+  | 'local-whisper-small'
+  | 'local-whisper-tiny';
+
 export interface ValseaClassroomPayload {
   apiKey?: string;
   file?: File;
   language: string;
   outputType: ValseaClassroomOutputType;
+  pronunciationModel?: ValseaPronunciationAssessorModel;
   targetLanguage: string;
   transcript?: string;
 }
@@ -162,6 +172,7 @@ export interface ValseaVoiceGradeWord {
 }
 
 export interface ValseaVoiceGradeResult {
+  assessorModel?: string;
   heardText: string;
   nativeSimilarity: number;
   overallScore: number;
@@ -212,6 +223,12 @@ export interface ValseaClassroomArtifactResponse {
 
 export interface ValseaClassroomConfigResponse {
   hasServerKey: boolean;
+  pronunciationDefaultModel: ValseaPronunciationAssessorModel;
+  pronunciationModels: ValseaPronunciationAssessorModel[];
+}
+
+export interface ValseaClassroomKeyValidationResponse {
+  ok: boolean;
 }
 
 export async function createWorkspaceCourse(
@@ -261,6 +278,22 @@ export async function generateValseaClassroomScenario(
   );
 }
 
+export async function validateValseaClassroomApiKey(
+  workspaceId: string,
+  apiKey: string,
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  return client.json<ValseaClassroomKeyValidationResponse>(
+    `/api/v1/workspaces/${encodePathSegment(workspaceId)}/education/valsea/validate-key`,
+    {
+      cache: 'no-store',
+      headers: { 'X-Valsea-Api-Key': apiKey },
+      method: 'POST',
+    }
+  );
+}
+
 export async function generateValseaClassroomArtifact(
   workspaceId: string,
   payload: ValseaClassroomPayload,
@@ -278,6 +311,9 @@ export async function generateValseaClassroomArtifact(
     formData.set('language', payload.language);
     formData.set('outputType', payload.outputType);
     formData.set('targetLanguage', payload.targetLanguage);
+    if (payload.pronunciationModel) {
+      formData.set('pronunciationModel', payload.pronunciationModel);
+    }
     if (payload.transcript) {
       formData.set('transcript', payload.transcript);
     }
@@ -294,6 +330,7 @@ export async function generateValseaClassroomArtifact(
     body: JSON.stringify({
       language: payload.language,
       outputType: payload.outputType,
+      pronunciationModel: payload.pronunciationModel,
       targetLanguage: payload.targetLanguage,
       transcript: payload.transcript,
     }),

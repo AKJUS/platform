@@ -78,11 +78,13 @@ export type {
   UpsertWorkspaceQuizSetPayload,
   ValseaClassroomArtifactResponse,
   ValseaClassroomConfigResponse,
+  ValseaClassroomKeyValidationResponse,
   ValseaClassroomOutputType,
   ValseaClassroomPayload,
   ValseaClassroomScenarioPayload,
   ValseaClassroomScenarioResponse,
   ValseaClassroomSemanticTag,
+  ValseaPronunciationAssessorModel,
   ValseaVoiceGradeCharacter,
   ValseaVoiceGradeLevel,
   ValseaVoiceGradeResult,
@@ -121,6 +123,7 @@ export {
   updateWorkspaceFlashcard,
   updateWorkspaceQuiz,
   updateWorkspaceQuizSet,
+  validateValseaClassroomApiKey,
 } from './education';
 export type {
   WorkspaceExternalProjectWebglPackageArtifact,

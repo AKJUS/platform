@@ -7,6 +7,8 @@ import {
   getValseaClassroomConfig,
   type ValseaClassroomOutputType,
   type ValseaClassroomScenarioResponse,
+  type ValseaPronunciationAssessorModel,
+  validateValseaClassroomApiKey,
 } from '@tuturuuu/internal-api';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
@@ -19,6 +21,8 @@ import {
   StudioNav,
 } from './studio-layout';
 
+const VALSEA_API_KEY_STORAGE_PREFIX = 'tuturuuu:valsea:valsea-api-key';
+
 export function ValseaClassroomClient({ wsId }: { wsId: string }) {
   const t = useTranslations('workspace-education-tabs.valsea');
   const shellRef = useRef<HTMLDivElement>(null);
@@ -27,11 +31,15 @@ export function ValseaClassroomClient({ wsId }: { wsId: string }) {
   const [targetLanguage, setTargetLanguage] = useState('vietnamese');
   const [outputType, setOutputType] =
     useState<ValseaClassroomOutputType>('action_items');
+  const [pronunciationModel, setPronunciationModel] =
+    useState<ValseaPronunciationAssessorModel>('local-whisper-large-v3-turbo');
   const [file, setFile] = useState<File | undefined>();
-  const [apiKey, setApiKey] = useState('');
+  const [draftApiKey, setDraftApiKey] = useState('');
+  const [validatedApiKey, setValidatedApiKey] = useState('');
   const [keyDialogOpen, setKeyDialogOpen] = useState(false);
   const [scenario, setScenario] =
     useState<ValseaClassroomScenarioResponse | null>(null);
+  const apiKeyStorageKey = `${VALSEA_API_KEY_STORAGE_PREFIX}:${wsId}`;
 
   const configQuery = useQuery({
     queryFn: () => getValseaClassroomConfig(wsId),
@@ -39,21 +47,40 @@ export function ValseaClassroomClient({ wsId }: { wsId: string }) {
   });
 
   const hasApiKey =
-    Boolean(apiKey.trim()) || Boolean(configQuery.data?.hasServerKey);
+    Boolean(validatedApiKey.trim()) || Boolean(configQuery.data?.hasServerKey);
   const canGenerate = file || transcript.trim().length > 0;
+
+  const keyValidationMutation = useMutation({
+    mutationFn: (key: string) => validateValseaClassroomApiKey(wsId, key),
+    onSuccess: (_result, key) => {
+      const normalizedKey = key.trim();
+      setDraftApiKey(normalizedKey);
+      setValidatedApiKey(normalizedKey);
+      window.localStorage.setItem(apiKeyStorageKey, normalizedKey);
+      setKeyDialogOpen(false);
+    },
+  });
 
   const mutation = useMutation({
     mutationFn: () =>
       generateValseaClassroomArtifact(wsId, {
-        apiKey: apiKey.trim() || undefined,
+        apiKey: validatedApiKey.trim() || undefined,
         file,
         language,
         outputType,
+        pronunciationModel,
         targetLanguage,
         transcript: transcript.trim() || undefined,
       }),
     onError: (error) => {
-      if (error.message.toLowerCase().includes('valsea api key')) {
+      const message = error.message.toLowerCase();
+      if (
+        message.includes('valsea api key') ||
+        message.includes('validation failed') ||
+        message.includes('unauthorized')
+      ) {
+        setValidatedApiKey('');
+        window.localStorage.removeItem(apiKeyStorageKey);
         setKeyDialogOpen(true);
       }
     },
@@ -75,10 +102,22 @@ export function ValseaClassroomClient({ wsId }: { wsId: string }) {
   });
 
   useEffect(() => {
-    if (configQuery.data && !configQuery.data.hasServerKey && !apiKey.trim()) {
+    const cachedKey = window.localStorage.getItem(apiKeyStorageKey)?.trim();
+    if (cachedKey) {
+      setDraftApiKey(cachedKey);
+      setValidatedApiKey(cachedKey);
+    }
+  }, [apiKeyStorageKey]);
+
+  useEffect(() => {
+    if (
+      configQuery.data &&
+      !configQuery.data.hasServerKey &&
+      !validatedApiKey.trim()
+    ) {
       setKeyDialogOpen(true);
     }
-  }, [apiKey, configQuery.data]);
+  }, [configQuery.data, validatedApiKey]);
 
   useEffect(() => {
     let context: { revert: () => void } | undefined;
@@ -126,6 +165,11 @@ export function ValseaClassroomClient({ wsId }: { wsId: string }) {
   }, []);
 
   const handleGenerate = () => {
+    if (draftApiKey.trim() && draftApiKey.trim() !== validatedApiKey.trim()) {
+      setKeyDialogOpen(true);
+      return;
+    }
+
     if (!hasApiKey) {
       setKeyDialogOpen(true);
       return;
@@ -133,9 +177,18 @@ export function ValseaClassroomClient({ wsId }: { wsId: string }) {
     mutation.mutate();
   };
 
+  const handleApiKeyChange = (value: string) => {
+    setDraftApiKey(value);
+    keyValidationMutation.reset();
+    if (value.trim() !== validatedApiKey.trim()) {
+      setValidatedApiKey('');
+    }
+  };
+
   const handleKeySubmit = () => {
-    if (!apiKey.trim()) return;
-    setKeyDialogOpen(false);
+    const trimmedKey = draftApiKey.trim();
+    if (!trimmedKey) return;
+    keyValidationMutation.mutate(trimmedKey);
   };
 
   return (
@@ -144,12 +197,14 @@ export function ValseaClassroomClient({ wsId }: { wsId: string }) {
       className="w-full max-w-full overflow-x-hidden rounded-md border border-foreground/10 bg-background p-3 text-foreground sm:p-5"
     >
       <ValseaKeyDialog
-        apiKey={apiKey}
-        onApiKeyChange={setApiKey}
+        apiKey={draftApiKey}
+        isValidating={keyValidationMutation.isPending}
+        onApiKeyChange={handleApiKeyChange}
         onOpenChange={setKeyDialogOpen}
         onSubmit={handleKeySubmit}
         open={keyDialogOpen}
         t={t}
+        validationError={keyValidationMutation.error?.message}
       />
 
       <div className="mx-auto flex max-w-[1500px] flex-col gap-5">
@@ -162,12 +217,12 @@ export function ValseaClassroomClient({ wsId }: { wsId: string }) {
 
         <section className="grid gap-5 xl:grid-cols-[minmax(360px,0.82fr)_1.18fr]">
           <StudioComposer
-            apiKey={apiKey}
+            apiKey={draftApiKey}
             file={file}
             isGenerating={mutation.isPending}
             isGeneratingScenario={scenarioMutation.isPending}
             language={language}
-            onApiKeyChange={setApiKey}
+            onApiKeyChange={handleApiKeyChange}
             onFileChange={setFile}
             onGenerate={handleGenerate}
             onGenerateScenario={() => scenarioMutation.mutate()}
@@ -175,9 +230,13 @@ export function ValseaClassroomClient({ wsId }: { wsId: string }) {
             onOutputTypeChange={(value) =>
               setOutputType(value as ValseaClassroomOutputType)
             }
+            onPronunciationModelChange={(value) =>
+              setPronunciationModel(value as ValseaPronunciationAssessorModel)
+            }
             onTargetLanguageChange={setTargetLanguage}
             onTranscriptChange={setTranscript}
             outputType={outputType}
+            pronunciationModel={pronunciationModel}
             targetLanguage={targetLanguage}
             t={t}
             transcript={transcript}

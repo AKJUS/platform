@@ -20,6 +20,16 @@ type ValseaRecord = Record<string, unknown>;
 
 const VALSEA_BASE_URL = 'https://api.valsea.ai/v1';
 const MAX_AUDIO_UPLOAD_BYTES = 10 * 1024 * 1024;
+const PRONUNCIATION_MODELS = [
+  'local-whisper-large-v3-turbo',
+  'local-whisper-large-v3',
+  'local-whisper-medium',
+  'local-whisper-small',
+  'local-whisper-base',
+  'local-whisper-tiny',
+  'local-wav2vec2',
+] as const;
+const DEFAULT_PRONUNCIATION_MODEL = 'local-whisper-large-v3-turbo';
 
 const classroomSchema = z.object({
   language: z.string().min(2).max(64).default('auto'),
@@ -34,6 +44,9 @@ const classroomSchema = z.object({
       'subtitles',
     ])
     .default('action_items'),
+  pronunciationModel: z
+    .enum(PRONUNCIATION_MODELS)
+    .default(DEFAULT_PRONUNCIATION_MODEL),
   targetLanguage: z.string().min(2).max(64).default('vietnamese'),
   transcript: z.string().trim().min(1).max(12_000).optional(),
 });
@@ -249,6 +262,7 @@ async function parsePayload(request: NextRequest): Promise<ParsePayloadResult> {
     const parsed = classroomSchema.safeParse({
       language: formData.get('language') || undefined,
       outputType: formData.get('outputType') || undefined,
+      pronunciationModel: formData.get('pronunciationModel') || undefined,
       targetLanguage: formData.get('targetLanguage') || undefined,
       transcript: formData.get('transcript') || undefined,
     });
@@ -289,7 +303,11 @@ export const GET = withSessionAuth<Params>(
     if (accessError) return accessError;
 
     return NextResponse.json(
-      { hasServerKey: Boolean(process.env.VALSEA_API_KEY?.trim()) },
+      {
+        hasServerKey: Boolean(process.env.VALSEA_API_KEY?.trim()),
+        pronunciationDefaultModel: DEFAULT_PRONUNCIATION_MODEL,
+        pronunciationModels: PRONUNCIATION_MODELS,
+      },
       { headers: { 'Cache-Control': 'private, no-store' } }
     );
   },
@@ -305,7 +323,8 @@ export const POST = withSessionAuth<Params>(
       const parsed = await parsePayload(request);
       if (parsed.error) return parsed.error;
 
-      const { file, language, outputType, targetLanguage } = parsed.data;
+      const { file, language, outputType, pronunciationModel, targetLanguage } =
+        parsed.data;
       if (file && file.size > MAX_AUDIO_UPLOAD_BYTES) {
         return NextResponse.json(
           { message: 'Audio file must be 10 MB or smaller' },
@@ -376,6 +395,7 @@ export const POST = withSessionAuth<Params>(
       const pronunciation =
         file && parsed.data.transcript
           ? await gradeVoicePronunciation({
+              assessorModel: pronunciationModel,
               file,
               language,
               referenceText: parsed.data.transcript,

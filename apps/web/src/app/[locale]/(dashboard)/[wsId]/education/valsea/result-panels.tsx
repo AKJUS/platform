@@ -229,6 +229,9 @@ function VoiceGradePanel({
               ? t('voice_grade_provider_local')
               : t('voice_grade_provider_valsea')}
           </Badge>
+          {grade.assessorModel ? (
+            <Badge variant="outline">{grade.assessorModel}</Badge>
+          ) : null}
         </div>
         <CardTitle>{t('voice_grade_title')}</CardTitle>
       </CardHeader>
