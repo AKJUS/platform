@@ -1,9 +1,11 @@
 import { resolveWorkspaceId } from '@tuturuuu/utils/constants';
+import { sanitizePath } from '@tuturuuu/utils/storage-path';
 import { verifyWorkspaceMembershipType } from '@tuturuuu/utils/workspace-helper';
 import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { type AuthorizedRequest, withSessionAuth } from '@/lib/api-auth';
 import { serverLogger } from '@/lib/infrastructure/log-drain';
+import { createWorkspaceStorageSignedReadUrl } from '@/lib/workspace-storage-provider';
 import { gradeVoicePronunciation } from './voice-grading';
 
 type Params = {
@@ -20,8 +22,21 @@ type ValseaRecord = Record<string, unknown>;
 
 const VALSEA_BASE_URL = 'https://api.valsea.ai/v1';
 const MAX_AUDIO_UPLOAD_BYTES = 10 * 1024 * 1024;
+const VALSEA_AUDIO_DRIVE_PATH = 'education/valsea/audio/';
+const PRONUNCIATION_MODELS = [
+  'local-whisper-large-v3-turbo',
+  'local-whisper-large-v3',
+  'local-whisper-medium',
+  'local-whisper-small',
+  'local-whisper-base',
+  'local-whisper-tiny',
+  'local-wav2vec2',
+] as const;
+const DEFAULT_PRONUNCIATION_MODEL = 'local-whisper-large-v3-turbo';
 
 const classroomSchema = z.object({
+  audioFileName: z.string().trim().min(1).max(255).optional(),
+  audioStoragePath: z.string().trim().min(1).max(1024).optional(),
   language: z.string().min(2).max(64).default('auto'),
   outputType: z
     .enum([
@@ -34,6 +49,9 @@ const classroomSchema = z.object({
       'subtitles',
     ])
     .default('action_items'),
+  pronunciationModel: z
+    .enum(PRONUNCIATION_MODELS)
+    .default(DEFAULT_PRONUNCIATION_MODEL),
   targetLanguage: z.string().min(2).max(64).default('vietnamese'),
   transcript: z.string().trim().min(1).max(12_000).optional(),
 });
@@ -240,6 +258,42 @@ async function transcribeAudio(
   return data;
 }
 
+async function readDriveAudioFile({
+  audioFileName,
+  audioStoragePath,
+  wsId,
+}: {
+  audioFileName?: string;
+  audioStoragePath: string;
+  wsId: string;
+}) {
+  const sanitizedPath = sanitizePath(audioStoragePath);
+  if (!sanitizedPath?.startsWith(VALSEA_AUDIO_DRIVE_PATH)) {
+    throw new ValseaRequestError('Invalid Valsea audio storage path', 400);
+  }
+
+  const signedUrl = await createWorkspaceStorageSignedReadUrl(
+    resolveWorkspaceId(wsId),
+    sanitizedPath,
+    { expiresIn: 5 * 60 }
+  );
+  const response = await fetch(signedUrl, { cache: 'no-store' });
+  if (!response.ok) {
+    throw new ValseaRequestError('Could not read stored classroom audio', 404);
+  }
+
+  const buffer = await response.arrayBuffer();
+  if (buffer.byteLength > MAX_AUDIO_UPLOAD_BYTES) {
+    throw new ValseaRequestError('Audio file must be 10 MB or smaller', 413);
+  }
+
+  const fallbackName =
+    sanitizedPath.split('/').at(-1) || 'classroom-audio.webm';
+  return new File([buffer], audioFileName || fallbackName, {
+    type: response.headers.get('content-type') || 'application/octet-stream',
+  });
+}
+
 async function parsePayload(request: NextRequest): Promise<ParsePayloadResult> {
   const contentType = request.headers.get('content-type') ?? '';
 
@@ -248,7 +302,10 @@ async function parsePayload(request: NextRequest): Promise<ParsePayloadResult> {
     const file = formData.get('file');
     const parsed = classroomSchema.safeParse({
       language: formData.get('language') || undefined,
+      audioFileName: formData.get('audioFileName') || undefined,
+      audioStoragePath: formData.get('audioStoragePath') || undefined,
       outputType: formData.get('outputType') || undefined,
+      pronunciationModel: formData.get('pronunciationModel') || undefined,
       targetLanguage: formData.get('targetLanguage') || undefined,
       transcript: formData.get('transcript') || undefined,
     });
@@ -289,7 +346,11 @@ export const GET = withSessionAuth<Params>(
     if (accessError) return accessError;
 
     return NextResponse.json(
-      { hasServerKey: Boolean(process.env.VALSEA_API_KEY?.trim()) },
+      {
+        hasServerKey: Boolean(process.env.VALSEA_API_KEY?.trim()),
+        pronunciationDefaultModel: DEFAULT_PRONUNCIATION_MODEL,
+        pronunciationModels: PRONUNCIATION_MODELS,
+      },
       { headers: { 'Cache-Control': 'private, no-store' } }
     );
   },
@@ -305,7 +366,23 @@ export const POST = withSessionAuth<Params>(
       const parsed = await parsePayload(request);
       if (parsed.error) return parsed.error;
 
-      const { file, language, outputType, targetLanguage } = parsed.data;
+      const {
+        audioFileName,
+        audioStoragePath,
+        language,
+        outputType,
+        pronunciationModel,
+        targetLanguage,
+      } = parsed.data;
+      const driveFile = audioStoragePath
+        ? await readDriveAudioFile({
+            audioFileName,
+            audioStoragePath,
+            wsId,
+          })
+        : undefined;
+      const file = parsed.data.file ?? driveFile;
+
       if (file && file.size > MAX_AUDIO_UPLOAD_BYTES) {
         return NextResponse.json(
           { message: 'Audio file must be 10 MB or smaller' },
@@ -376,6 +453,7 @@ export const POST = withSessionAuth<Params>(
       const pronunciation =
         file && parsed.data.transcript
           ? await gradeVoicePronunciation({
+              assessorModel: pronunciationModel,
               file,
               language,
               referenceText: parsed.data.transcript,

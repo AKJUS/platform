@@ -29,7 +29,8 @@ codex plugin marketplace add ./
 
 - `$tuturuuu-platform`: repo-wide workflow guidance for `apps/web`,
   `packages/*`, `apps/database`, `apps/docs`, translations, navigation, and
-  verification follow-through.
+  verification follow-through, including shared-worktree preflight and scoped
+  staging expectations.
 - `$tuturuuu-cli`: native `ttr` CLI install, browser login, copy-token login,
   workspace discovery, active-board defaults, open-task defaults, compact task tables, and release
   verification guidance. It also covers scoped help such as `ttr tasks --help`,
@@ -44,7 +45,8 @@ codex plugin marketplace add ./
 - `$tuturuuu-development-tooling`: shared guidance for improving Codex skills,
   plugin behavior, validation scripts, docs runbooks, helper scripts, and
   durable workflow learnings that should benefit future Tuturuuu contributors
-  and assistants.
+  and assistants. It also owns shared-worktree coordination guidance for agents
+  that may be editing the same checkout at the same time.
 - `$tuturuuu-mobile-task-board`: Flutter mobile task-board guidance for task
   dates, overdue behavior, task detail routing, description mode, assignee
   flows, and mobile version bump checks.
@@ -78,6 +80,24 @@ The CI check currently verifies:
 - Codex plugin workflow registration in `tuturuuu.ts`
 - absence of scaffold `[TODO: ...]` placeholders
 - absence of machine-specific local paths in plugin text
+
+## Shared Worktree Coordination
+
+Agents should assume that humans or other agents may have uncommitted work in the
+same checkout. The source-of-truth coordination protocol is documented in the
+[Agent Operating Manual](/overview/agent-operating-manual#shared-worktree-coordination).
+
+Use `tmp/agent-coordination/` for lightweight agent-to-agent notes when work may
+overlap. The directory is ignored by git, so it can hold live intent, ownership,
+status, and handoff messages without polluting commits. A note should list the
+agent or session id, intended change, owned paths, observed dirty paths that will
+not be touched, status, and any question for another agent.
+
+The protocol is advisory rather than a lock manager. If another note claims the
+same file set, agents should choose non-overlapping slices, reply in the
+coordination directory, or ask the human partner to arbitrate. They should never
+format, stage, or fix unrelated dirty files simply because a repo-wide check or
+commit hook reports them.
 
 ## Validate The Plugin
 
@@ -115,6 +135,8 @@ library.
   `<repo-root>`, or `~` over user-specific absolute paths.
 - Put detailed guidance in `references/` and keep `SKILL.md` focused on the
   workflow that should be loaded immediately.
+- Keep shared-worktree coordination guidance aligned across `AGENTS.md`, the
+  Agent Operating Manual, and `$tuturuuu-development-tooling`.
 - Add marketplace metadata only when deciding where the plugin should be
   installed from: repo-local `.agents/plugins/marketplace.json` or home-local
   `~/.agents/plugins/marketplace.json`.

@@ -19,6 +19,7 @@ Reference these guidelines when:
 - Reviewing code for performance issues
 - Refactoring existing React/Next.js code
 - Optimizing bundle size or load times
+- Keeping module boundaries healthy: automatically split React/Next.js files over 400 LOC and components over 200 LOC before final verification. Prefer route-level modules, focused cards/panels, extracted hooks, and stable barrel re-exports over monolithic client files.
 
 ## Rule Categories by Priority
 

@@ -17,6 +17,7 @@ Foundational mandates here take absolute precedence. **NEVER** invent ad-hoc beh
 - **Data Fetching/Mutation (#1 Violation)**: **NEVER use useEffect for data fetching.** TanStack Query (useQuery/useMutation) is the **mandatory** standard. Raw fetch() in client components is forbidden.
 - **Server-Side Logging**: NEVER add raw server-side `console.*` calls in `apps/web` API, cron, or infrastructure runtime code. Use `serverLogger.*` from `@/lib/infrastructure/log-drain` or wrap handlers with the internal log drain so request/cron logs are persisted and visible in Observability.
 - **Git Naming Conventions**: Use Conventional Commits for authored commits and conventional branch names that match the repo checker (`feature/`, `feat/`, `fix/`, `bugfix/`, `hotfix/`, `release/`, `chore/`, `docs/`, `style/`, `refactor/`, `perf/`, `dependabot/`, `claude/`). Git-generated merge commits may keep their standard merge subject.
+- **Shared Worktree Isolation**: NEVER modify, format, stage, commit, delete, rename, or "clean up" files you did not intentionally touch. Treat unknown dirty or untracked files as user-owned or other-agent-owned until proven otherwise.
 
 ### 2.2 Mandatory Actions
 
@@ -25,13 +26,14 @@ Foundational mandates here take absolute precedence. **NEVER** invent ad-hoc beh
 - **Shared UI Translation Parity**: When adding new translation keys consumed from shared packages like `packages/ui` (for example `common.*` keys), update every app-level `messages/en.json` and `messages/vi.json` bundle that ships that shared UI, and keep the message files alphabetically sorted.
 - **Translation Sorting Follow-Through**: After editing any `messages/en.json` or `messages/vi.json` file, run `bun i18n:sort` before the final `bun check`. `bun check` enforces alphabetical ordering and will fail even when key parity is otherwise correct.
 - **Navigation Parity**: ALWAYS update `navigation.tsx` in the relevant app when adding new routes (aliases + children + icons + permissions).
-- **Proactive Refactoring**: Evaluate files >400 LOC and components >200 LOC for extraction into smaller, focused units.
+- **Automatic Refactoring**: When creating or significantly editing code, automatically split files that exceed 400 LOC and components/widgets that exceed 200 LOC into smaller, focused modules before final verification. Keep existing import paths stable with thin barrel re-exports when callers already depend on them; do not wait for a follow-up request.
 - **Unified Verification**: If your changes touch TypeScript/Javascript files (or root scripts/config that affect repo-wide checks), end your session with `bun check`.
 - **Flutter L10n Regeneration**: After adding or renaming keys in `apps/mobile/lib/l10n/arb/*.arb`, run `flutter gen-l10n` before `flutter analyze` or tests. The generated `app_localizations*.dart` files are tracked here, and stale generated code will surface as undefined localization getters even when the ARB files are correct.
 - **UI Preflight Hygiene**: For newly added/edited files, format files with `bun ff` before running verification checks to avoid `biome` issues.
 - **Formatting Workflow**: For fixing formatting issues, try `bun ff` first before making manual edits.
 - **Documentation Follow-Through**: At the end of every session, document durable operational, architectural, deployment, or workflow knowledge in `apps/docs` whenever the work changes how the team should build, run, debug, deploy, or operate the system. Do not stop at code changes alone.
 - **Session Retrospective**: Conduct a retrospective at the end of every session to document mistakes and update these guidelines.
+- **Worktree Coordination Preflight**: Before editing, inspect `git status --short`, identify pre-existing dirty/untracked paths, and choose a non-overlapping write set. If overlap is likely, coordinate through `tmp/agent-coordination/` before editing.
 
 ## 3. Repository Structure & Semantics
 
@@ -99,6 +101,23 @@ Foundational mandates here take absolute precedence. **NEVER** invent ad-hoc beh
 - **Mutation Examples**: Create with `ttr tasks create "Add Tuturuuu CLI"` or `ttr tasks create --list <list-id> --name "Write release notes"`. Mark done with `ttr tasks done <task-id>`; pass `--list <done-list-id>` when a specific done destination is required. Mark closed with `ttr tasks close <task-id>` or `ttr tasks close <task-id> --list <closed-list-id>`. Use `ttr tasks update <task-id> --json-payload '{"completed":true}'` only when a raw update payload is needed.
 - **Interactive Selection**: In a TTY, omit ids on `use`, `get`, `update`, `delete`, or `move` to select with up/down or `j`/`k`, then space/enter. Use explicit ids and `--json` for scripts and non-interactive agents.
 - **Version Checks**: Use `ttr -v` or `ttr --version` to print the installed version. The CLI checks for updates at most once per hour, may print update notices to stderr, and can be upgraded with `ttr upgrade`. Keep stdout JSON clean for machine-readable commands.
+
+### 4.7 Multi-Agent Worktree Coordination
+
+Assume another agent may be working in the same checkout. Coordination is advisory, but it is mandatory whenever work overlaps, long-running edits touch broad areas, or existing dirty files are present.
+
+1. **Inspect first**: Run `git status --short` before edits. Do not infer ownership from file names alone.
+2. **Read active notes**: If `tmp/agent-coordination/` exists, read the latest notes before choosing files. This directory is ignored by git and is the shared scratchpad for agent-to-agent coordination.
+3. **Declare ownership when useful**: For overlapping or long-running work, create `tmp/agent-coordination/<YYYYMMDD-HHMMSS>-<agent-or-task>.md` with:
+   - `Agent`: stable name or session id if available.
+   - `Intent`: one-line task summary.
+   - `Owned paths`: files or directories you expect to edit.
+   - `Observed dirty paths`: relevant pre-existing files you will not touch.
+   - `Status`: `working`, `blocked`, `handoff`, or `done`.
+   - `Needs`: specific question or response requested from other agents.
+4. **Resolve overlaps explicitly**: If another note claims the same files, do not race or overwrite. Leave a response note in `tmp/agent-coordination/`, choose a disjoint slice, or ask the user to arbitrate.
+5. **Stage by path**: When committing, stage only paths you intentionally changed. If verification or hooks fail on unrelated dirty files, do not format or fix those files; report the blocker and keep your staged diff scoped.
+6. **Close the loop**: Before final response or handoff, update your coordination note to `done` or `handoff` with remaining risks and commands already run.
 
 ## 5. Engineering Standards
 
@@ -387,7 +406,7 @@ Foundational mandates here take absolute precedence. **NEVER** invent ad-hoc beh
 - **next-intl ICU Syntax**: In `next-intl` message files, use ICU placeholders with single braces (`{count}`, `{name}`, plural/select blocks). Do not use Handlebars-style `{{...}}`, which renders as malformed arguments at runtime.
 - **Markdown Separator Validation**: When detecting Markdown table separator rows, do not use ambiguous regex character ranges like `[\s:-|]`. Escape or reposition `-`, or prefer explicit per-character validation, to avoid false positives and CodeQL `js/overly-large-range` alerts.
 - **Special Tag Prompt Rules**: Custom tags like `@<FOLLOWUP>` must not contain internal whitespace, but blank lines between distinct prompt sections are required.
-- **Module Boundaries**: When file grows beyond roughly 500 LOC, split it by concern and keep the original entrypoint as a thin barrel re-export so dispatcher imports remain stable.
+- **Module Boundaries**: When a file grows beyond 400 LOC or a component/widget grows beyond 200 LOC, split it by concern before final verification. Keep the original entrypoint as a thin barrel re-export when dispatcher imports or route imports already depend on it.
 - **Board Workspace ID Fallback Propagation**: In shared board surfaces, normalize `effectiveWorkspaceId = board.ws_id ?? workspace.id` once near the top-level view and pass that explicit id through headers, dialogs, filters, forms, and mutations. Do not let child actions keep reading raw `board.ws_id`, or some board payloads will still fail list/board mutations with local `"Workspace ID is required"` errors even though the page already knows the correct workspace.
 - **Cache-Driven Task List Rollbacks**: When a board view renders columns/lists from the TanStack `['task_lists', boardId]` cache, list rename/delete mutations must restore cached `task_lists`/`tasks` snapshots on error. Do not rely on `invalidateQueries` alone for rollback, because cache-driven list UIs may not refetch immediately and will otherwise stay stuck in the optimistic state.
 

@@ -40,11 +40,11 @@ import 'package:mobile/features/settings/view/settings_workspace_roles_page.dart
 import 'package:mobile/features/settings/view/settings_workspace_secrets_page.dart';
 import 'package:mobile/features/shell/view/manage_accounts_page.dart';
 import 'package:mobile/features/shell/view/shell_page.dart';
-import 'package:mobile/features/task_portfolio/view/task_portfolio_page.dart';
+import 'package:mobile/features/task_planning/view/task_planning_page.dart';
 import 'package:mobile/features/task_portfolio/view/task_project_detail_page.dart';
+import 'package:mobile/features/tasks_boards/cubit/task_board_detail_cubit.dart';
 import 'package:mobile/features/tasks_boards/view/task_board_detail_page.dart';
 import 'package:mobile/features/tasks_boards/view/task_boards_page.dart';
-import 'package:mobile/features/tasks_estimates/view/task_estimates_page.dart';
 import 'package:mobile/features/time_tracker/cubit/time_tracker_state.dart';
 import 'package:mobile/features/time_tracker/view/time_tracker_page.dart';
 import 'package:mobile/features/time_tracker/view/time_tracker_requests_page.dart';
@@ -131,6 +131,19 @@ DateTime? _parseHistoryDate(String? value) {
   final parsed = DateTime.tryParse(value);
   if (parsed == null) return null;
   return DateTime(parsed.year, parsed.month, parsed.day);
+}
+
+TaskBoardDetailView? _parseTaskBoardDetailView(String? value) {
+  switch (value?.trim().toLowerCase()) {
+    case 'list':
+      return TaskBoardDetailView.list;
+    case 'kanban':
+      return TaskBoardDetailView.kanban;
+    case 'timeline':
+      return TaskBoardDetailView.timeline;
+    default:
+      return null;
+  }
 }
 
 /// Creates the app-level [GoRouter] with auth- and workspace-aware redirects.
@@ -347,23 +360,30 @@ GoRouter createAppRouter(
               return TaskBoardDetailPage(
                 boardId: boardId,
                 initialTaskId: state.uri.queryParameters['taskId'],
+                initialView: _parseTaskBoardDetailView(
+                  state.uri.queryParameters['view'],
+                ),
               );
             },
           ),
           GoRoute(
+            path: Routes.taskPlanning,
+            builder: (context, state) => const TaskPlanningPage(),
+          ),
+          GoRoute(
             path: Routes.taskEstimates,
-            builder: (context, state) => const TaskEstimatesPage(),
+            redirect: (context, state) => Routes.taskPlanning,
           ),
           GoRoute(
             path: Routes.taskPortfolio,
-            builder: (context, state) => const TaskPortfolioPage(),
+            redirect: (context, state) => Routes.taskPlanning,
           ),
           GoRoute(
             path: Routes.taskPortfolioProject,
             builder: (context, state) {
               final projectId = state.pathParameters['projectId'];
               if (projectId == null || projectId.isEmpty) {
-                return const TaskPortfolioPage();
+                return const TaskPlanningPage();
               }
               return TaskProjectDetailPage(projectId: projectId);
             },

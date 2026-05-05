@@ -31,8 +31,9 @@ No purple/blue neon, no pure black, no oversaturated accent palette.
 
 - **Buttons:** Flat, high-contrast, minimum 44px touch target, subtle transform feedback only.
 - **Cards:** Used for workbench hierarchy. Corners are 1.25rem to 2rem; borders carry structure more than shadows.
-- **Inputs:** Label above, helper text below, no floating labels. BYOK input uses password type and never persists.
-- **Dialog:** Opens automatically when no server key exists. Explains request-scoped BYOK forwarding and uses a single primary action.
+- **Inputs:** Label above, helper text below, no floating labels. BYOK input uses password type and only persists after validation.
+- **Dialog:** Opens automatically when no server key exists. Explains backend key validation, browser-only caching, and uses a single primary action.
+- **Pronunciation Model:** A compact select near audio upload. Defaults to local Whisper large-v3 turbo and offers smaller Whisper or Wav2Vec2 options for constrained demos.
 - **Scenario Console:** Mira-generated scenarios fill the composer directly and stay visible as a compact mission board.
 - **Loading:** Pipeline and generate button show local progress while preserving layout dimensions.
 - **Results:** Raw JSON is collapsed by default; the visible surface uses badges, tags, cards, character heatmaps, and score bars.

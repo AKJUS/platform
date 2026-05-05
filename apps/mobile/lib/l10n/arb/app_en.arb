@@ -2029,7 +2029,7 @@
     "settingsDefaultTaskBoardNavigation": "Open Tasks board by default",
     "settingsDefaultTaskBoardNavigationBoardPicker": "Board picker",
     "settingsDefaultTaskBoardNavigationDefaultBoard": "Tasks board",
-    "settingsDefaultTaskBoardNavigationDescription": "Open your personal Tasks board directly from Tasks and Boards. Turn this off to keep the board picker.",
+    "settingsDefaultTaskBoardNavigationDescription": "Open your personal Tasks board directly from Boards. Tasks always opens the board list view.",
     "settingsDefaultWorkspace": "Default workspace",
     "settingsDefaultWorkspaceDescription": "The app opens here by default on every launch.",
     "settingsWorkspacePropertiesTitle": "Workspace information",

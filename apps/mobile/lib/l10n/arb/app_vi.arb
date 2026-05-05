@@ -2033,7 +2033,7 @@
     "settingsDefaultTaskBoardNavigation": "Mở bảng Tasks theo mặc định",
     "settingsDefaultTaskBoardNavigationBoardPicker": "Bộ chọn bảng",
     "settingsDefaultTaskBoardNavigationDefaultBoard": "Bảng Tasks",
-    "settingsDefaultTaskBoardNavigationDescription": "Mở thẳng bảng Tasks cá nhân từ Công việc và Bảng. Tắt tùy chọn này để giữ bộ chọn bảng.",
+    "settingsDefaultTaskBoardNavigationDescription": "Mở thẳng bảng Tasks cá nhân từ Bảng. Công việc luôn mở chế độ danh sách của bảng.",
     "settingsDefaultWorkspace": "Không gian mặc định",
     "settingsDefaultWorkspaceDescription": "Ứng dụng sẽ mở vào đây mặc định mỗi lần khởi động.",
     "settingsWorkspacePropertiesTitle": "Thông tin không gian làm việc",

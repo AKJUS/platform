@@ -22,6 +22,7 @@ export interface VoiceGradeWord {
 }
 
 export interface VoiceGradeResult {
+  assessorModel?: string;
   heardText: string;
   nativeSimilarity: number;
   overallScore: number;
@@ -33,6 +34,7 @@ export interface VoiceGradeResult {
 }
 
 interface GradeVoiceInput {
+  assessorModel: string;
   file: File;
   language: string;
   referenceText: string;
@@ -194,6 +196,7 @@ function buildHeuristicGrade(input: GradeVoiceInput): VoiceGradeResult {
   const nativeSimilarity = clampScore(nativeAverage);
 
   return {
+    assessorModel: input.assessorModel,
     heardText,
     nativeSimilarity,
     overallScore,
@@ -252,6 +255,7 @@ function normalizeExternalGrade(
 
   return {
     heardText: getString(data, 'heardText') || fallback.heardText,
+    assessorModel: getString(data, 'assessorModel') || fallback.assessorModel,
     nativeSimilarity: clampScore(
       getNumber(data, 'nativeSimilarity') ?? fallback.nativeSimilarity
     ),
@@ -278,6 +282,7 @@ async function gradeWithLocalModel(
     formData.set('file', input.file, input.file.name);
     formData.set('language', input.language);
     formData.set('referenceText', input.referenceText);
+    formData.set('assessorModel', input.assessorModel);
     formData.set('valseaTranscript', fallback.heardText);
     formData.set('valseaResponse', JSON.stringify(input.transcription ?? {}));
 

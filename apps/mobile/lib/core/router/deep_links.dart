@@ -190,7 +190,7 @@ String? _tasksLocation(Uri uri, List<String> segments) {
 
   return switch (segments[1]) {
     'boards' => _taskBoardsLocation(uri, segments),
-    'estimates' => Routes.taskEstimates,
+    'planning' || 'estimates' => Routes.taskPlanning,
     'portfolio' => _taskPortfolioLocation(segments),
     'projects' =>
       segments.length > 2
@@ -207,6 +207,10 @@ String _taskBoardsLocation(Uri uri, List<String> segments) {
   final boardId = segments[2];
   final taskId = _taskIdFromQuery(uri);
   if (taskId == null || taskId.isEmpty) {
+    final view = uri.queryParameters['view']?.trim();
+    if (view != null && view.isNotEmpty) {
+      return Routes.taskBoardDetailViewPath(boardId, view);
+    }
     return Routes.taskBoardDetailPath(boardId);
   }
 

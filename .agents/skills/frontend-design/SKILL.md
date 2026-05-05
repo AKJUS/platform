@@ -23,6 +23,7 @@ Then implement working code (HTML/CSS/JS, React, Vue, etc.) that is:
 - Visually striking and memorable
 - Cohesive with a clear aesthetic point-of-view
 - Meticulously refined in every detail
+- Split large UI files automatically: keep files under 400 LOC and individual components under 200 LOC where feasible. Extract route sections, cards, panels, hooks, and motion helpers into focused modules, and preserve existing import paths with thin barrel re-exports when callers depend on them.
 
 ## Frontend Aesthetics Guidelines
 

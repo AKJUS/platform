@@ -76,6 +76,7 @@ For each component type, describe shape, color, shadow depth, and interaction be
 - CSS Grid over Flexbox math — never use `calc()` percentage hacks
 - Contain layouts using max-width constraints (e.g., 1400px centered)
 - Full-height sections must use `min-h-[100dvh]` — never `h-screen` (iOS Safari catastrophic jump)
+- Generated implementation guidance must include module extraction when code grows: split files over 400 LOC and components/widgets over 200 LOC into focused modules, keeping public entrypoints stable with thin barrels when existing imports depend on them.
 
 ### 7. Define Responsive Rules
 Every design must work across all viewports:

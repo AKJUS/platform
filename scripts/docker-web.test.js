@@ -385,6 +385,7 @@ test('getComposeEnvironment derives a server-side Supabase URL for Docker', () =
     });
 
     assert.equal(env.PATH, 'test-path');
+    assert.equal(env.BUILDX_NO_DEFAULT_ATTESTATIONS, '1');
     assert.equal(env.COMPOSE_DOCKER_CLI_BUILD, '1');
     assert.equal(env.COMPOSE_PROJECT_NAME, path.basename(tempDir));
     assert.equal(env.SUPABASE_URL, `http://${DOCKER_HOST_ALIAS}:8001/`);
@@ -448,6 +449,17 @@ test('getComposeEnvironment pins compose project names from the workspace path',
   } finally {
     fs.rmSync(tempDir, { force: true, recursive: true });
   }
+});
+
+test('getComposeEnvironment preserves an explicit Buildx attestation override', () => {
+  const env = getComposeEnvironment({
+    baseEnv: {
+      BUILDX_NO_DEFAULT_ATTESTATIONS: '0',
+      PATH: 'test-path',
+    },
+  });
+
+  assert.equal(env.BUILDX_NO_DEFAULT_ATTESTATIONS, '0');
 });
 
 test('getComposeEnvironment injects blue-green support service URLs when requested', () => {

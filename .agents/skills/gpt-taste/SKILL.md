@@ -71,4 +71,5 @@ Before writing ANY React/UI code, you MUST output a `<design_plan>` block contai
 3. **Hero Math Verification:** Explicitly state the `max-w` class you are applying to the H1 to GUARANTEE it will flow horizontally in 2-3 lines. Confirm NO stamp icons or spam tags exist.
 4. **Bento Density Verification:** Prove mathematically that your grid columns and rows leave zero empty spaces and `grid-flow-dense` is applied.
 5. **Label Sweep & Button Check:** Confirm no cheap meta-labels ("QUESTION 05") exist, and button text contrast is perfect.
+6. **Module Boundary Check:** Confirm generated or modified files stay under 400 LOC and components/widgets stay under 200 LOC, or split them into focused modules with stable barrel re-exports.
 Only output the UI code after this rigorous verification is complete.

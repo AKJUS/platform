@@ -37,6 +37,7 @@ import 'package:mobile/features/shell/cubit/shell_chrome_actions_cubit.dart';
 import 'package:mobile/features/shell/view/shell_chrome_actions.dart';
 import 'package:mobile/features/shell/view/shell_mini_nav.dart';
 import 'package:mobile/features/shell/view/shell_title_override.dart';
+import 'package:mobile/features/tasks/utils/task_board_navigation.dart';
 import 'package:mobile/features/tasks_boards/cubit/task_board_detail_cubit.dart';
 import 'package:mobile/features/tasks_boards/utils/task_description_payload.dart';
 import 'package:mobile/features/tasks_boards/utils/task_description_tiptap_converter.dart';
@@ -93,11 +94,13 @@ class TaskBoardDetailPage extends StatelessWidget {
     super.key,
     this.taskRepository,
     this.initialTaskId,
+    this.initialView,
   });
 
   final String boardId;
   final TaskRepository? taskRepository;
   final String? initialTaskId;
+  final TaskBoardDetailView? initialView;
 
   @override
   Widget build(BuildContext context) {
@@ -108,6 +111,10 @@ class TaskBoardDetailPage extends StatelessWidget {
           final cubit = TaskBoardDetailCubit(
             taskRepository: context.read<TaskRepository>(),
           );
+          final initialView = this.initialView;
+          if (initialView != null) {
+            cubit.setView(initialView);
+          }
           final wsId = context
               .read<WorkspaceCubit>()
               .state
@@ -121,6 +128,7 @@ class TaskBoardDetailPage extends StatelessWidget {
         child: _TaskBoardDetailPageView(
           boardId: boardId,
           initialTaskId: initialTaskId,
+          initialView: initialView,
         ),
       ),
     );

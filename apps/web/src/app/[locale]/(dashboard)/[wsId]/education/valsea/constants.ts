@@ -1,4 +1,7 @@
-import type { ValseaClassroomOutputType } from '@tuturuuu/internal-api';
+import type {
+  ValseaClassroomOutputType,
+  ValseaPronunciationAssessorModel,
+} from '@tuturuuu/internal-api';
 
 export type LanguageOption = {
   labelKey: string;
@@ -8,6 +11,11 @@ export type LanguageOption = {
 export type OutputOption = {
   labelKey: string;
   value: ValseaClassroomOutputType;
+};
+
+export type PronunciationModelOption = {
+  labelKey: string;
+  value: ValseaPronunciationAssessorModel;
 };
 
 export const INPUT_LANGUAGES: LanguageOption[] = [
@@ -39,6 +47,34 @@ export const OUTPUT_TYPES: OutputOption[] = [
   { labelKey: 'output_email_summary', value: 'email_summary' },
   { labelKey: 'output_meeting_minutes', value: 'meeting_minutes' },
   { labelKey: 'output_service_log', value: 'service_log' },
+];
+
+export const PRONUNCIATION_MODELS: PronunciationModelOption[] = [
+  {
+    labelKey: 'pronunciation_model_whisper_large_v3_turbo',
+    value: 'local-whisper-large-v3-turbo',
+  },
+  {
+    labelKey: 'pronunciation_model_whisper_large_v3',
+    value: 'local-whisper-large-v3',
+  },
+  {
+    labelKey: 'pronunciation_model_whisper_medium',
+    value: 'local-whisper-medium',
+  },
+  {
+    labelKey: 'pronunciation_model_whisper_small',
+    value: 'local-whisper-small',
+  },
+  {
+    labelKey: 'pronunciation_model_whisper_base',
+    value: 'local-whisper-base',
+  },
+  {
+    labelKey: 'pronunciation_model_whisper_tiny',
+    value: 'local-whisper-tiny',
+  },
+  { labelKey: 'pronunciation_model_wav2vec2', value: 'local-wav2vec2' },
 ];
 
 export const SUGGESTED_PROMPTS = ['sample_1', 'sample_2', 'sample_3'] as const;

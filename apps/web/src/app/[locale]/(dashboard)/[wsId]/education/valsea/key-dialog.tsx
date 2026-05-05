@@ -1,6 +1,6 @@
 'use client';
 
-import { KeyRound, ShieldCheck } from '@tuturuuu/icons';
+import { KeyRound, Loader2, ShieldCheck } from '@tuturuuu/icons';
 import { Button } from '@tuturuuu/ui/button';
 import {
   Dialog,
@@ -15,18 +15,22 @@ import type { useTranslations } from 'next-intl';
 
 export function ValseaKeyDialog({
   apiKey,
+  isValidating,
   onApiKeyChange,
   onOpenChange,
   onSubmit,
   open,
   t,
+  validationError,
 }: {
   apiKey: string;
+  isValidating: boolean;
   onApiKeyChange: (value: string) => void;
   onOpenChange: (value: boolean) => void;
   onSubmit: () => void;
   open: boolean;
   t: ReturnType<typeof useTranslations>;
+  validationError?: string;
 }) {
   const trimmedKey = apiKey.trim();
 
@@ -62,6 +66,11 @@ export function ValseaKeyDialog({
             <p className="text-foreground/60 text-sm leading-6">
               {t('key_dialog_hint')}
             </p>
+            {validationError ? (
+              <p className="rounded-md border border-dynamic-red/25 bg-dynamic-red/10 px-3 py-2 text-dynamic-red text-sm">
+                {validationError}
+              </p>
+            ) : null}
           </div>
 
           <div className="grid gap-3 rounded-md border border-foreground/10 bg-foreground/4 p-4 text-sm sm:grid-cols-[auto_1fr]">
@@ -73,8 +82,11 @@ export function ValseaKeyDialog({
             <Button variant="ghost" onClick={() => onOpenChange(false)}>
               {t('key_dialog_cancel')}
             </Button>
-            <Button disabled={!trimmedKey} onClick={onSubmit}>
-              {t('key_dialog_save')}
+            <Button disabled={!trimmedKey || isValidating} onClick={onSubmit}>
+              {isValidating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : null}
+              {isValidating ? t('key_dialog_validating') : t('key_dialog_save')}
             </Button>
           </div>
         </div>

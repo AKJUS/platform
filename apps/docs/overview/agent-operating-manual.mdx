@@ -1,7 +1,7 @@
 ---
 title: 'Agent Operating Manual'
 description: 'Field guide summarizing the AGENTS.md policies for autonomous contributors inside the Tuturuuu monorepo.'
-updatedAt: '2026-04-20'
+updatedAt: '2026-05-05'
 ---
 
 This page distills the canonical rules defined in [AGENTS.md](https://github.com/tutur3u/platform/blob/main/AGENTS.md). Treat the original document as the source of truth—this guide exists to make the most important expectations discoverable inside the docs site.
@@ -9,6 +9,7 @@ This page distills the canonical rules defined in [AGENTS.md](https://github.com
 ## Core Principles
 
 - **Least privilege** – Touch only the files required for the task and keep changes scoped.
+- **Shared worktree discipline** – Assume humans or other agents may have dirty files in the same checkout; inspect before editing and never clean up work you do not own.
 - **Deterministic & reproducible** – Generated artefacts must come from scripted commands; rerunning the workflow should produce the same result.
 - **Security first** – Never surface secret values. Reference environment variables by name and keep sensitive flows audited.
 - **Document intent** – When behaviour changes, update tests and docs alongside the code so the platform stays explainable.
@@ -30,9 +31,10 @@ This page distills the canonical rules defined in [AGENTS.md](https://github.com
 
 1. Do not run long-lived dev/build commands unless a human requests it (e.g., `bun dev`, `bun run build`).
 2. **Supabase apply is user-only** – prepare migrations, but the user runs `bun sb:push` / `bun sb:linkpush`.
-3. **Biome format/lint is user-only** – surface issues, but let the user execute `bun lint` / `bun format`.
+3. Run formatters and checks required for files you changed, but keep auto-fixes scoped to your owned paths.
 4. Avoid committing noisy logs; add diagnostics only when they materially aid debugging.
-5. Never commit credentials, tokens, or destructive migrations without a reversible plan.
+5. Never commit credentials, tokens, destructive migrations, or unrelated worktree changes.
+6. Do not stage, rename, delete, or format unknown dirty/untracked files; treat them as human-owned or other-agent-owned until confirmed.
 
 ## Escalate When…
 
@@ -55,6 +57,23 @@ See AGENTS.md §4 for full step-by-step instructions across all workflows.
 - Roles: Execution (ship code/docs), Review (verify lint/type/test/build), Architecture (cross-cutting improvements), Knowledge (docs & schema sync).
 - Only one agent modifies a file set at a time; reviewers work read-only unless paired.
 - Prefer linear history (rebases) and group commits by concern (schema vs code vs docs).
+
+### Shared Worktree Coordination
+
+Use `tmp/agent-coordination/` as the ignored, in-worktree conversation space for agent-to-agent coordination. This is not source-controlled and should not be committed.
+
+Before editing, run `git status --short`. If dirty or untracked files already exist, record which ones are unrelated and leave them alone. If your task may overlap with another agent, create a note named `tmp/agent-coordination/<YYYYMMDD-HHMMSS>-<agent-or-task>.md`.
+
+Each note should include:
+
+- `Agent`: stable name or session id if available.
+- `Intent`: one-line task summary.
+- `Owned paths`: files or directories the agent expects to edit.
+- `Observed dirty paths`: relevant pre-existing paths the agent will not touch.
+- `Status`: `working`, `blocked`, `handoff`, or `done`.
+- `Needs`: specific question or response requested from other agents.
+
+If two agents need the same file set, do not race. Reply in `tmp/agent-coordination/`, choose a disjoint slice, or ask the human partner to arbitrate. When committing, stage explicit paths only. If a repo-wide check or commit hook fails because of another agent's files, do not fix those files just to satisfy the hook; report the blocker and keep your own diff scoped.
 
 ## Tooling & Environment Rules
 

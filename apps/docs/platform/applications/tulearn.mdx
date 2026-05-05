@@ -47,6 +47,12 @@ Tulearn-owned gamification tables are separate from teacher-owned course data:
 
 Courses, modules, quiz sets, flashcards, assignments, monthly reports, and marks continue to reuse existing education and user-group tables.
 
+## Code organization
+
+Tulearn learner pages keep the public `apps/tulearn/src/components/learner-pages.tsx` entrypoint as a thin barrel export. Route-level screens live under `apps/tulearn/src/components/learner-pages/*`, with shared page motion, loading, empty state, and section primitives in `shared.tsx`.
+
+Keep Tulearn learner files under 400 LOC and individual components under 200 LOC. When a screen grows, split reusable cards, rows, panels, and route-specific helpers into adjacent modules before final verification instead of letting `learner-pages.tsx` or any route screen become a monolith again.
+
 ## Verification
 
 After changing Tulearn schema, API, or UI code, run:

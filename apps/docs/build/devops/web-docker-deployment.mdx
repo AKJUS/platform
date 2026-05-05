@@ -64,7 +64,10 @@ This is the operational guide for the Docker-based `apps/web` runtime.
 ## Runtime Requirements
 
 - `apps/web/.env.local` must exist for both the build secret and the runtime env file.
-- Docker BuildKit must be available. The helper sets `COMPOSE_DOCKER_CLI_BUILD=1` and `DOCKER_BUILDKIT=1`.
+- Docker BuildKit must be available. The helper sets
+  `COMPOSE_DOCKER_CLI_BUILD=1`, `DOCKER_BUILDKIT=1`, and
+  `BUILDX_NO_DEFAULT_ATTESTATIONS=1` so local blue/green image exports do not
+  stall while resolving default provenance metadata.
 - The Docker web flow does not start local Supabase unless you explicitly choose `bun devx:web:docker` or `bun devrs:web:docker`.
 - By default the Docker container uses the Supabase URL already configured in `apps/web/.env.local`, which should stay pointed at the cloud project for normal Tuturuuu work.
 - If that configured URL explicitly points at host-run local Supabase, the helper rewrites the server-side Supabase URL to `host.docker.internal` while leaving `NEXT_PUBLIC_SUPABASE_URL` alone for browsers.
@@ -174,6 +177,17 @@ Workspace ZIP auto-extract is enabled by the workspace-level
 also opt in automatically so CMS/WebGL workspaces can reuse the unzipper without
 duplicating storage automation setup. The Docker-internal URL and token are
 fallbacks for workspaces that have not supplied custom proxy secrets.
+
+The `pronunciation-assessor` helper is local-only. It defaults to
+`PRONUNCIATION_ASSESSOR_DEFAULT_MODEL=local-whisper-large-v3-turbo`, can switch
+between local Whisper sizes and `local-wav2vec2`, and stores downloaded
+Transformers checkpoints in the `platform-pronunciation-assessor-cache` volume.
+The default model preloads at container startup. Set
+`PRONUNCIATION_ASSESSOR_PRELOAD=false` only when startup speed matters more than
+first-request latency. On shared hosts, keep
+`PRONUNCIATION_ASSESSOR_MAX_LOADED_MODELS=1` and tune
+`PRONUNCIATION_ASSESSOR_IDLE_TTL_SECONDS` so idle models are unloaded before
+they hold GPU or RAM capacity unnecessarily.
 
 CMS WebGL package uploads also use the `storage-unzip-proxy`, but they are a
 first-class CMS upload path rather than generic Drive automation. They require a

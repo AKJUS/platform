@@ -4868,7 +4868,7 @@ class AppLocalizationsVi extends AppLocalizations {
   String get settingsDefaultTaskBoardNavigationDefaultBoard => 'Bảng Tasks';
 
   @override
-  String get settingsDefaultTaskBoardNavigationDescription => 'Mở thẳng bảng Tasks cá nhân từ Công việc và Bảng. Tắt tùy chọn này để giữ bộ chọn bảng.';
+  String get settingsDefaultTaskBoardNavigationDescription => 'Mở thẳng bảng Tasks cá nhân từ Bảng. Công việc luôn mở chế độ danh sách của bảng.';
 
   @override
   String get settingsDefaultWorkspace => 'Không gian mặc định';

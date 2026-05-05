@@ -2,19 +2,20 @@ import 'dart:async';
 
 import 'package:flutter/material.dart' hide AppBar, Scaffold;
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mobile/core/cache/cache_warmup_coordinator.dart';
 import 'package:mobile/core/responsive/responsive_padding.dart';
 import 'package:mobile/core/responsive/responsive_values.dart';
 import 'package:mobile/core/responsive/responsive_wrapper.dart';
-import 'package:mobile/data/repositories/settings_repository.dart';
 import 'package:mobile/data/repositories/task_repository.dart';
 import 'package:mobile/features/auth/cubit/auth_cubit.dart';
 import 'package:mobile/features/auth/cubit/auth_state.dart';
 import 'package:mobile/features/tasks/cubit/task_list_cubit.dart';
+import 'package:mobile/features/tasks/utils/task_board_navigation.dart';
 import 'package:mobile/features/tasks/widgets/my_tasks_header.dart';
 import 'package:mobile/features/tasks/widgets/task_section_accordion.dart';
 import 'package:mobile/features/tasks/widgets/task_surface.dart';
-import 'package:mobile/features/tasks_boards/view/task_board_detail_page.dart';
+import 'package:mobile/features/tasks_boards/view/task_boards_page.dart';
 import 'package:mobile/features/workspace/cubit/workspace_cubit.dart';
 import 'package:mobile/features/workspace/cubit/workspace_state.dart';
 import 'package:mobile/l10n/l10n.dart';
@@ -114,23 +115,12 @@ class _DefaultPersonalTaskBoardGateState
   }
 
   Future<String?> _loadDefaultBoardId() async {
-    final settings = SettingsRepository();
-    final disabled = await settings.getDisableDefaultTaskBoardNavigation();
-    if (disabled) return null;
-
     final page = await TaskRepository().getTaskBoards(
       widget.workspaceId,
       pageSize: 50,
       status: 'active',
     );
-    for (final board in page.boards) {
-      if (board.name?.trim().toLowerCase() == 'tasks' &&
-          !board.isArchived &&
-          !board.isRecentlyDeleted) {
-        return board.id;
-      }
-    }
-    return null;
+    return preferredPersonalTaskBoard(page.boards)?.id;
   }
 
   @override
@@ -145,9 +135,20 @@ class _DefaultPersonalTaskBoardGateState
         }
         final boardId = snapshot.data;
         if (boardId == null) {
-          return const _ClassicTaskListPage();
+          return const TaskBoardsPage();
         }
-        return TaskBoardDetailPage(boardId: boardId);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!context.mounted) return;
+          context.go(
+            taskBoardViewLocation(
+              boardId: boardId,
+              view: taskBoardDetailViewList,
+            ),
+          );
+        });
+        return const shad.Scaffold(
+          child: Center(child: NovaLoadingIndicator()),
+        );
       },
     );
   }

@@ -139,6 +139,12 @@ GoRouter _buildRouter({required String initialLocation}) {
             ),
           ),
           GoRoute(
+            path: Routes.taskPlanning,
+            builder: (context, state) => const _RoutePage(
+              label: 'task-planning',
+            ),
+          ),
+          GoRoute(
             path: Routes.taskEstimates,
             builder: (context, state) => const _TaskEstimatesRoutePage(),
           ),
@@ -471,7 +477,7 @@ void main() {
       expect(find.text(l10n.navBack), findsOneWidget);
       expect(find.text(l10n.taskBoardsTitle), findsOneWidget);
       expect(find.text(l10n.taskPlanningTitle), findsOneWidget);
-      expect(find.text(l10n.taskPortfolioTitle), findsOneWidget);
+      expect(find.text(l10n.taskPortfolioTitle), findsNothing);
     });
 
     testWidgets('injected mini-nav takes precedence over module mini-nav', (
@@ -505,7 +511,6 @@ void main() {
       expect(find.text(l10n.taskPortfolioProjectsTab), findsOneWidget);
       expect(find.text(l10n.taskPortfolioInitiativesTab), findsOneWidget);
       expect(find.text(l10n.taskBoardsTitle), findsNothing);
-      expect(find.text(l10n.taskPlanningTitle), findsNothing);
     });
 
     testWidgets('system back from mini-app root goes to apps picker', (

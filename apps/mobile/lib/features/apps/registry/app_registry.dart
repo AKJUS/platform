@@ -191,16 +191,10 @@ class AppRegistry {
       labelBuilder: _labelTaskBoards,
     ),
     MiniAppNavItem(
-      id: 'tasks_estimates',
-      route: Routes.taskEstimates,
-      icon: shad.LucideIcons.calculator,
-      labelBuilder: _labelTaskEstimates,
-    ),
-    MiniAppNavItem(
-      id: 'tasks_portfolio',
-      route: Routes.taskPortfolio,
-      icon: shad.LucideIcons.gitBranch,
-      labelBuilder: _labelTaskPortfolio,
+      id: 'tasks_planning',
+      route: Routes.taskPlanning,
+      icon: shad.LucideIcons.route,
+      labelBuilder: _labelTaskPlanning,
     ),
   ];
 
@@ -510,11 +504,9 @@ class AppRegistry {
       l10n.habitsActivityLabel;
   static String _labelHabitsLibrary(AppLocalizations l10n) =>
       l10n.habitsLibraryLabel;
-  static String _labelTaskEstimates(AppLocalizations l10n) =>
+  static String _labelTaskPlanning(AppLocalizations l10n) =>
       l10n.taskPlanningTitle;
   static String _labelTaskBoards(AppLocalizations l10n) => l10n.taskBoardsTitle;
-  static String _labelTaskPortfolio(AppLocalizations l10n) =>
-      l10n.taskPortfolioTitle;
   static String _labelCalendar(AppLocalizations l10n) => l10n.navCalendar;
   static String _labelFinance(AppLocalizations l10n) => l10n.navFinance;
   static String _labelDrive(AppLocalizations l10n) => l10n.driveTitle;

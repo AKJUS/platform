@@ -1,5 +1,6 @@
 {
   "assignments": {
+    "description": "{count, plural, =0 {Bảng nhiệm vụ đã trống.} one {Còn một nhiệm vụ đang chờ bạn.} other {Còn # nhiệm vụ đang chờ bạn.}}",
     "empty": "Hiện chưa có bài tập cần làm.",
     "markDone": "Đánh dấu xong",
     "title": "Bài tập"
@@ -58,20 +59,41 @@
   "courses": {
     "empty": "Giáo viên chưa giao khóa học nào.",
     "locked": "Đã khóa",
+    "mapDescription": "Đi theo lộ trình khóa học, mở từng điểm mốc và nhìn rõ bài nào cần học tiếp.",
     "modules": "Bài học",
     "title": "Khóa học"
   },
   "home": {
     "assignments": "Bài tập cần làm",
+    "continueCourse": "Tiếp tục khóa học",
     "dailyGoal": "Mục tiêu hôm nay",
+    "dailyQuests": "Nhiệm vụ hôm nay",
     "hearts": "Tim",
+    "heroDescription": "Chọn một nhiệm vụ nhỏ, giữ tim và duy trì chuỗi học tập của bạn.",
+    "heroTitle": "Sẵn sàng cho hôm nay chưa, {name}?",
+    "learningPath": "Lộ trình học",
+    "learningPathDescription": "Mỗi khóa học trở thành một lộ trình có điểm mốc, bài hiện tại và thành quả dễ thấy.",
     "marks": "Điểm gần đây",
     "nextLesson": "Bài tiếp theo",
+    "openMap": "Mở bản đồ",
+    "parentSnapshot": "Góc gia đình",
+    "questAssignments": "Dọn bảng nhiệm vụ",
+    "questAssignmentsCount": "{count, plural, one {Một bài tập cần chú ý.} other {# bài tập cần chú ý.}}",
+    "questBoard": "Bảng nhiệm vụ",
+    "questBoardDescription": "{count, plural, =0 {Hiện không có nhiệm vụ mở.} one {Còn một nhiệm vụ mở.} other {Còn # nhiệm vụ mở.}}",
+    "questPractice": "Khởi động bằng luyện tập",
+    "questPracticeDescription": "Một lượt ôn ngắn giúp bài tiếp theo dễ hơn.",
+    "questProgress": "Phát triển lộ trình",
+    "questProgressDescription": "Lộ trình khóa học đã hoàn thành {progress}%.",
+    "recentWin": "Thành quả gần đây",
+    "startPractice": "Bắt đầu luyện tập",
     "streak": "Chuỗi ngày",
+    "studentMode": "Chế độ học viên",
     "title": "Trang chủ",
     "xp": "XP"
   },
   "marks": {
+    "description": "Điểm được trình bày thành các thẻ thân thiện để học viên và phụ huynh nhanh chóng thấy tiến bộ.",
     "empty": "Điểm sẽ xuất hiện sau khi giáo viên nhập.",
     "title": "Điểm"
   },
@@ -87,14 +109,21 @@
   "practice": {
     "again": "Thử lại",
     "correct": "Chính xác",
+    "description": "Trả lời một thử thách nhỏ, nhận phản hồi ngay và lấy XP cho phiên học.",
     "empty": "Chưa có nội dung luyện tập.",
     "incorrect": "Chưa đúng",
+    "keepHearts": "Giữ tim nhé",
+    "resultSummary": "Nhận {xp} XP. Số tim hiện tại: {hearts}.",
+    "retryHint": "Thử lại giúp lộ trình luôn ấm.",
     "submitCorrect": "Mình làm đúng",
     "submitIncorrect": "Mình làm sai",
     "title": "Luyện tập",
-    "xpAwarded": "XP nhận được"
+    "xpAwarded": "XP nhận được",
+    "xpAwardedValue": "+{xp} XP",
+    "xpHint": "Nhận XP"
   },
   "reports": {
+    "description": "Đọc nhận xét của giáo viên dưới dạng ghi chú tiến bộ đơn giản cho học viên và phụ huynh.",
     "empty": "Báo cáo sẽ xuất hiện sau khi giáo viên phát hành.",
     "title": "Báo cáo"
   },
@@ -102,10 +131,18 @@
     "dark": "Tối",
     "displayName": "Tên hiển thị",
     "email": "Email",
+    "focus": {
+      "balanced": "Luyện tập cân bằng",
+      "challenge": "Chế độ thử thách",
+      "light": "Ôn nhẹ"
+    },
+    "focusMode": "Nhịp học",
     "language": "Ngôn ngữ",
     "light": "Sáng",
     "linkedStudents": "Học viên được liên kết",
     "parentMode": "Chế độ phụ huynh",
+    "profile": "Hồ sơ",
+    "description": "Cá nhân hóa hồ sơ, giao diện và nhịp học để việc học mỗi ngày nhẹ nhàng hơn.",
     "theme": "Giao diện",
     "title": "Cài đặt"
   },

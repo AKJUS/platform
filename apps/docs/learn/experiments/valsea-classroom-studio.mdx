@@ -15,11 +15,13 @@ to the repository.
 For hackathon demos, the page also supports BYOK. The authenticated route exposes
 a no-store `GET` status response that tells the client whether a server key is
 configured. If not, the page automatically opens the Valsea key dialog. A user
-can paste a Valsea key into the password field, and the client forwards it to the
-authenticated server route in the `X-Valsea-Api-Key` header for that request
-only. The key is not stored in local storage, cookies, Supabase, or the rendered
-response. The server falls back to `VALSEA_API_KEY` when the request does not
-include a BYOK header.
+can paste a Valsea key into the password field, and the client first validates it
+through the backend with a small Valsea request. After validation succeeds, the
+key is cached in browser `localStorage` for that workspace and forwarded to the
+authenticated server route in the `X-Valsea-Api-Key` header. The key is not
+stored in cookies, Supabase, the server environment, or the rendered response.
+The server falls back to `VALSEA_API_KEY` when the request does not include a
+BYOK header.
 
 The server route is:
 
@@ -31,11 +33,20 @@ The route is session-authenticated, verifies workspace membership, and calls
 Valsea from the server. The browser never receives the server provider key.
 
 ```txt
+POST /api/v1/workspaces/:wsId/education/valsea/validate-key
+```
+
+The validation route is session-authenticated, verifies workspace membership,
+reads the candidate key from `X-Valsea-Api-Key`, makes a lightweight Valsea
+clarification request, and returns `{ "ok": true }` only after the provider
+accepts the key.
+
+```txt
 GET /api/v1/workspaces/:wsId/education/valsea
 ```
 
-The `GET` route returns only `{ "hasServerKey": boolean }` and does not expose
-the configured key.
+The `GET` route returns key availability plus the supported local
+pronunciation models. It does not expose the configured key.
 
 ```txt
 POST /api/v1/workspaces/:wsId/education/valsea/scenario
@@ -47,10 +58,23 @@ confusion tags, grading rubric, and the Valsea output mode to use. If the
 internal model runtime is unavailable, the route returns a curated local
 scenario so hackathon demos still work with only a valid Valsea API key.
 
+```txt
+POST /api/v1/workspaces/:wsId/education/valsea/audio/upload-url
+```
+
+The audio upload route is session-authenticated, verifies workspace membership,
+checks file type and size, applies workspace Drive capacity checks, and returns a
+short-lived signed upload URL for
+`education/valsea/audio/<timestamp>-<uuid>-<filename>` in workspace storage. The
+browser uploads selected files and live recordings there before generation.
+
 ## Pipeline
 
-The experiment accepts either a JSON transcript payload or multipart audio file
-upload. Audio is capped at 10 MB before being forwarded to Valsea.
+The experiment accepts a JSON transcript payload plus an optional Drive-backed
+audio storage path. The UI can record live audio through `MediaRecorder` or use a
+local file picker; either way, the audio is saved into workspace Drive storage
+first and then referenced as `audioStoragePath` when generation starts. Audio is
+capped at 10 MB before upload and again before being forwarded to Valsea.
 
 For text and transcribed audio, the server runs this Valsea pipeline:
 
@@ -62,11 +86,12 @@ For text and transcribed audio, the server runs this Valsea pipeline:
 
 ## Voice Grading
 
-When the request includes both an audio file and a typed transcript, the typed
-transcript is treated as the reference phrase and the uploaded audio is treated
-as the learner reading that phrase aloud. The server uses the Valsea
-transcription result to compare expected words against what was heard and
-returns a `pronunciation` object with:
+When the request includes both a Drive-backed audio path and a typed transcript,
+the typed transcript is treated as the reference phrase and the stored audio is
+treated as the learner reading that phrase aloud. The server downloads the audio
+object through the workspace storage provider, uses the Valsea transcription
+result to compare expected words against what was heard, and returns a
+`pronunciation` object with:
 
 - `overallScore`: word-level pronunciation match percentage.
 - `nativeSimilarity`: the pronunciation score adjusted for transcript
@@ -82,12 +107,30 @@ container and sets:
 VALSEA_PRONUNCIATION_ASSESSOR_URL=http://pronunciation-assessor:8010/assess
 ```
 
-The helper uses a local Wav2Vec2 CTC speech model to produce an acoustic
-confidence and independent transcript, then blends that with Valsea's
-accent-aware transcript/corrections. This follows the current pronunciation
-assessment direction of CTC/GOP-style scoring with self-supervised speech
-models while keeping the product contract simple: a deployed stack only needs a
-valid Valsea API key, because the pronunciation model runs locally.
+The helper supports local-only model switching between Wav2Vec2 CTC and OpenAI
+Whisper checkpoints served through Transformers:
+
+- `local-whisper-large-v3-turbo` (default)
+- `local-whisper-large-v3`
+- `local-whisper-medium`
+- `local-whisper-small`
+- `local-whisper-base`
+- `local-whisper-tiny`
+- `local-wav2vec2`
+
+Whisper models produce the independent local transcript, while Wav2Vec2 also
+returns an acoustic confidence estimate. The grader blends that local signal
+with Valsea's accent-aware transcript/corrections. This keeps the product
+contract simple: a deployed stack only needs a valid Valsea API key, because the
+pronunciation model runs locally in the helper container.
+
+The assessor is resource-aware. The default model preloads at container startup;
+other models are loaded lazily when selected, exposed through `GET /models`,
+pre-loadable through `POST /models/load`, removable through `POST /models/unload`,
+and idle-unloaded after
+`PRONUNCIATION_ASSESSOR_IDLE_TTL_SECONDS` seconds. Set
+`PRONUNCIATION_ASSESSOR_MAX_LOADED_MODELS=1` on constrained hosts so switching
+models evicts the least recently used resident model.
 
 The web route POSTs multipart form data to the assessor with `file`, `language`,
 `referenceText`, `valseaTranscript`, and `valseaResponse`. If the local assessor

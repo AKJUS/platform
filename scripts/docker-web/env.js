@@ -128,6 +128,8 @@ function getComposeEnvironment({
 
   const composeEnv = {
     ...baseEnv,
+    BUILDX_NO_DEFAULT_ATTESTATIONS:
+      baseEnv.BUILDX_NO_DEFAULT_ATTESTATIONS ?? '1',
     COMPOSE_DOCKER_CLI_BUILD: baseEnv.COMPOSE_DOCKER_CLI_BUILD ?? '1',
     COMPOSE_PROJECT_NAME:
       getFirstNonBlank([baseEnv.DOCKER_WEB_COMPOSE_PROJECT_NAME]) ??
