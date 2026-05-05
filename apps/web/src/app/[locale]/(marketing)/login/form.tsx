@@ -6,6 +6,7 @@ import { generateCrossAppToken, mapUrlToApp } from '@tuturuuu/auth/cross-app';
 import { ArrowLeft, Eye, EyeOff, Lock, Mail } from '@tuturuuu/icons';
 import {
   getOtpSettings,
+  type QrLoginSessionPayload,
   sendOtpWithInternalApi,
   verifyOtpWithInternalApi,
 } from '@tuturuuu/internal-api/auth';
@@ -43,6 +44,7 @@ import {
   getAuthOAuthProviderOptions,
 } from '@/lib/auth/oauth-providers';
 import { passwordLoginAction } from './actions';
+import { LoginQrCard } from './login-qr-card';
 import { SocialLoginButton } from './social-login-button';
 
 const CAPTCHA_ERROR_RETRY_DELAY = 3000;
@@ -334,7 +336,7 @@ export default function LoginForm() {
   }, [router, searchParams, supabase]);
 
   const completePrimarySignIn = useCallback(
-    async (source: 'otp' | 'password') => {
+    async (source: 'otp' | 'password' | 'qr') => {
       router.refresh();
 
       if (await needsMFA()) {
@@ -367,6 +369,28 @@ export default function LoginForm() {
       window.location.reload();
     },
     [needsMFA, processNextUrl, router, searchParams]
+  );
+
+  const handleQrAuthenticated = useCallback(
+    async (session: QrLoginSessionPayload) => {
+      setLoading(true);
+
+      const { error } = await supabase.auth.setSession({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+      });
+
+      if (error) {
+        toast.error(t('login.qr_failed_title'), {
+          description: error.message,
+        });
+        setLoading(false);
+        return;
+      }
+
+      await completePrimarySignIn('qr');
+    },
+    [completePrimarySignIn, supabase.auth, t]
   );
 
   const sendOtpMutation = useMutation({
@@ -1075,6 +1099,12 @@ export default function LoginForm() {
                       </Button>
                     </form>
                   </Form>
+
+                  <LoginQrCard
+                    disabled={loading}
+                    locale={locale || 'en'}
+                    onAuthenticated={handleQrAuthenticated}
+                  />
 
                   <div className="relative py-0.5">
                     <Separator className="bg-border/60" />

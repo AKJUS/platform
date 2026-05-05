@@ -44,6 +44,59 @@ export interface VerifyOtpResponse {
   success?: boolean;
 }
 
+export type QrLoginChallengeStatus =
+  | 'approved'
+  | 'consumed'
+  | 'expired'
+  | 'pending'
+  | 'rejected';
+
+export interface QrLoginSessionPayload {
+  access_token: string;
+  expires_at: number | null;
+  expires_in: number;
+  refresh_token: string;
+  token_type: string;
+}
+
+export interface CreateQrLoginChallengePayload {
+  locale?: string;
+  origin?: string;
+}
+
+export interface CreateQrLoginChallengeResponse {
+  challenge?: {
+    expiresAt: string;
+    id: string;
+    payload: string;
+    status: QrLoginChallengeStatus;
+  };
+  error?: string;
+  expiresIn?: number;
+  success?: boolean;
+}
+
+export interface PollQrLoginChallengeResponse {
+  error?: string;
+  expiresAt?: string;
+  session?: QrLoginSessionPayload;
+  status?: QrLoginChallengeStatus;
+  success?: boolean;
+}
+
+export interface ApproveQrLoginChallengePayload {
+  deviceId?: string;
+  platform?: InternalOtpPlatform;
+  secret: string;
+}
+
+export interface ApproveQrLoginChallengeResponse {
+  error?: string;
+  expiresAt?: string;
+  status?: QrLoginChallengeStatus;
+  success?: boolean;
+}
+
 async function parseAuthResponse<T>(response: Response): Promise<T> {
   const payload = (await response.json().catch(() => null)) as T | null;
 
@@ -102,4 +155,60 @@ export async function verifyOtpWithInternalApi(
     method: 'POST',
   });
   return parseAuthResponse<VerifyOtpResponse>(response);
+}
+
+export async function createQrLoginChallengeWithInternalApi(
+  payload: CreateQrLoginChallengePayload,
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  const response = await client.fetch('/api/v1/auth/qr-login/challenges', {
+    body: JSON.stringify(payload),
+    cache: 'no-store',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    method: 'POST',
+  });
+  return parseAuthResponse<CreateQrLoginChallengeResponse>(response);
+}
+
+export async function pollQrLoginChallengeWithInternalApi(
+  payload: {
+    challengeId: string;
+    secret: string;
+  },
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  const response = await client.fetch(
+    `/api/v1/auth/qr-login/challenges/${encodeURIComponent(payload.challengeId)}`,
+    {
+      cache: 'no-store',
+      query: {
+        secret: payload.secret,
+      },
+    }
+  );
+  return parseAuthResponse<PollQrLoginChallengeResponse>(response);
+}
+
+export async function approveQrLoginChallengeWithInternalApi(
+  challengeId: string,
+  payload: ApproveQrLoginChallengePayload,
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  const response = await client.fetch(
+    `/api/v1/auth/qr-login/challenges/${encodeURIComponent(challengeId)}/approve`,
+    {
+      body: JSON.stringify(payload),
+      cache: 'no-store',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      method: 'POST',
+    }
+  );
+  return parseAuthResponse<ApproveQrLoginChallengeResponse>(response);
 }
