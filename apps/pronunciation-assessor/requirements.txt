@@ -1,9 +1,9 @@
 fastapi==0.115.12
 librosa==0.10.2.post1
 numpy==1.26.4
-python-multipart==0.0.20
+python-multipart==0.0.26
 rapidfuzz==3.13.0
 soundfile==0.12.1
-torch==2.6.0
-transformers==4.51.3
+torch==2.8.0
+transformers==5.0.0rc3
 uvicorn[standard]==0.34.2
