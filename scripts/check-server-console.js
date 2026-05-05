@@ -36,9 +36,12 @@ if (result.error) {
   throw result.error;
 }
 
+const normalizePathSeparators = (line) => line.replace(/\\/g, '/');
+
 const violations = result.stdout
   .split(/\r?\n/)
   .filter(Boolean)
+  .map(normalizePathSeparators)
   .filter(
     (line) => !allowedFragments.some((fragment) => line.includes(fragment))
   );
