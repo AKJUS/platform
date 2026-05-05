@@ -120,6 +120,19 @@ function SocialLogoMask({ src, alt }: { src: string; alt: string }) {
   );
 }
 
+function LoginMethodSeparator({ label }: { label: string }) {
+  return (
+    <div className="relative py-0.5">
+      <Separator className="bg-border/60" />
+      <div className="absolute inset-0 flex items-center justify-center">
+        <span className="bg-background/95 px-3 text-muted-foreground text-xs">
+          {label}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 export default function LoginForm() {
   const supabase = createClient();
   const t = useTranslations();
@@ -1262,7 +1275,7 @@ export default function LoginForm() {
 
                       {!isResolvingOtpEnablement &&
                       turnstileClientState.isRequired ? (
-                        <div className="rounded-2xl border border-border/60 bg-muted/20 p-4">
+                        <div className="rounded-2xl bg-transparent py-1">
                           {turnstileClientState.canRenderWidget &&
                           turnstileSiteKey ? (
                             <div className="flex flex-col items-center gap-2">
@@ -1310,6 +1323,8 @@ export default function LoginForm() {
                     </form>
                   </Form>
 
+                  <LoginMethodSeparator label={t('login.or')} />
+
                   <Button
                     type="button"
                     variant="outline"
@@ -1321,14 +1336,7 @@ export default function LoginForm() {
                     <span>{t('login.qr_title')}</span>
                   </Button>
 
-                  <div className="relative py-0.5">
-                    <Separator className="bg-border/60" />
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <span className="bg-background px-3 text-muted-foreground text-xs">
-                        {t('login.or')}
-                      </span>
-                    </div>
-                  </div>
+                  <LoginMethodSeparator label={t('login.or')} />
 
                   <div className="space-y-3">
                     <SocialLoginButton
@@ -1512,7 +1520,7 @@ export default function LoginForm() {
                       </Button>
 
                       {turnstileClientState.isRequired ? (
-                        <div className="rounded-2xl border border-border/60 bg-muted/20 p-4">
+                        <div className="rounded-2xl bg-transparent py-1">
                           {turnstileClientState.canRenderWidget &&
                           turnstileSiteKey ? (
                             <div className="flex flex-col items-center gap-2">
@@ -1654,7 +1662,7 @@ export default function LoginForm() {
                       />
 
                       {turnstileClientState.isRequired ? (
-                        <div className="rounded-2xl border border-border/60 bg-muted/20 p-4">
+                        <div className="rounded-2xl bg-transparent py-1">
                           {turnstileClientState.canRenderWidget &&
                           turnstileSiteKey ? (
                             <div className="flex flex-col items-center gap-2">

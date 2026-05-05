@@ -181,7 +181,7 @@ export function LoginQrCard({
       </div>
 
       {requiresTurnstile ? (
-        <div className="rounded-2xl border border-border/60 bg-muted/20 p-4">
+        <div className="rounded-2xl bg-transparent py-1">
           {canRenderTurnstile && turnstileSiteKey ? (
             <div className="flex flex-col items-center gap-2">
               <Turnstile
