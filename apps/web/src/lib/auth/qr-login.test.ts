@@ -24,6 +24,7 @@ const mocks = vi.hoisted(() => ({
     info: vi.fn(),
     warn: vi.fn(),
   },
+  verifyTurnstileToken: vi.fn(),
   userClient: {
     auth: {
       getUser: vi.fn(),
@@ -51,6 +52,14 @@ vi.mock('@/lib/rate-limit', () => ({
     mocks.checkRateLimit(...args),
 }));
 
+vi.mock('@tuturuuu/turnstile/server', () => ({
+  isTurnstileError: (error: unknown) =>
+    error instanceof Error && error.name === 'TurnstileError',
+  verifyTurnstileToken: (
+    ...args: Parameters<typeof mocks.verifyTurnstileToken>
+  ) => mocks.verifyTurnstileToken(...args),
+}));
+
 function createMaybeSingleBuilder<T>(value: T, error: unknown = null) {
   const builder = {
     eq: vi.fn(() => builder),
@@ -73,6 +82,7 @@ describe('QR login helpers', () => {
     mocks.createClient.mockResolvedValue(mocks.userClient);
     mocks.createDetachedClient.mockReturnValue(mocks.detachedClient);
     mocks.checkRateLimit.mockResolvedValue({ allowed: true, headers: {} });
+    mocks.verifyTurnstileToken.mockResolvedValue(undefined);
     mocks.adminClient.from.mockReset();
     mocks.userClient.auth.getUser.mockResolvedValue({
       data: {
@@ -143,6 +153,7 @@ describe('QR login helpers', () => {
 
     const result = await createQrLoginChallenge(
       {
+        captchaToken: 'captcha-token',
         locale: 'en',
         origin: 'https://tuturuuu.com',
       },
@@ -156,6 +167,10 @@ describe('QR login helpers', () => {
       }
     );
 
+    expect(mocks.verifyTurnstileToken).toHaveBeenCalledWith(
+      expect.objectContaining({ headers: expect.any(Headers) }),
+      'captcha-token'
+    );
     expect(insertBuilder.insert).toHaveBeenCalledWith(
       expect.objectContaining({
         expires_at: expect.any(String),
@@ -171,6 +186,38 @@ describe('QR login helpers', () => {
       },
       expiresIn: 120,
       success: true,
+    });
+  });
+
+  it('requires Turnstile verification before creating QR challenges', async () => {
+    const { createQrLoginChallenge } = await import('./qr-login');
+    const error = new Error('Turnstile verification is required');
+    error.name = 'TurnstileError';
+    mocks.verifyTurnstileToken.mockRejectedValue(error);
+
+    const result = await createQrLoginChallenge(
+      {
+        locale: 'en',
+        origin: 'https://tuturuuu.com',
+      },
+      {
+        endpoint: '/api/v1/auth/qr-login/challenges',
+        headers: new Headers(),
+        request: {
+          headers: new Headers(),
+          url: 'https://tuturuuu.com/login',
+        },
+      }
+    );
+
+    expect(mocks.verifyTurnstileToken).toHaveBeenCalledWith(
+      expect.objectContaining({ headers: expect.any(Headers) }),
+      undefined
+    );
+    expect(mocks.adminClient.from).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      body: { error: 'Turnstile verification is required' },
+      status: 400,
     });
   });
 

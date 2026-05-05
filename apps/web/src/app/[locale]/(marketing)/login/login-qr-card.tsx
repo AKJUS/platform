@@ -14,9 +14,12 @@ import { QRCodeSVG } from 'qrcode.react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 interface LoginQrCardProps {
+  captchaToken?: string;
+  captchaTokenVersion?: number;
   disabled?: boolean;
   locale: string;
   onAuthenticated: (session: QrLoginSessionPayload) => Promise<void>;
+  requiresTurnstile?: boolean;
 }
 
 function readSecretFromPayload(payload?: string) {
@@ -32,26 +35,42 @@ function readSecretFromPayload(payload?: string) {
 }
 
 export function LoginQrCard({
+  captchaToken,
+  captchaTokenVersion = 0,
   disabled = false,
   locale,
   onAuthenticated,
+  requiresTurnstile = false,
 }: LoginQrCardProps) {
   const t = useTranslations();
   const [refreshIndex, setRefreshIndex] = useState(0);
   const handledSessionRef = useRef(false);
+  const canCreateChallenge = !requiresTurnstile || Boolean(captchaToken);
 
   const challengeQuery = useQuery({
-    queryFn: () =>
-      createQrLoginChallengeWithInternalApi({
+    enabled: canCreateChallenge && !disabled,
+    queryFn: () => {
+      const payload = {
+        captchaToken,
         locale,
         origin: window.location.origin,
-      }),
-    queryKey: ['auth', 'qr-login', 'challenge', locale, refreshIndex],
+      };
+
+      return createQrLoginChallengeWithInternalApi(payload);
+    },
+    queryKey: [
+      'auth',
+      'qr-login',
+      'challenge',
+      locale,
+      captchaTokenVersion,
+      refreshIndex,
+    ],
     refetchOnWindowFocus: false,
     retry: 1,
   });
 
-  const challenge = challengeQuery.data?.challenge;
+  const challenge = canCreateChallenge ? challengeQuery.data?.challenge : null;
   const secret = useMemo(
     () => readSecretFromPayload(challenge?.payload),
     [challenge?.payload]
@@ -121,7 +140,16 @@ export function LoginQrCard({
 
       <div className="mt-4 flex flex-col items-center gap-3">
         <div className="flex size-48 items-center justify-center rounded-2xl border border-border/60 bg-background p-3">
-          {isLoading ? (
+          {!canCreateChallenge ? (
+            <div className="space-y-2 text-center">
+              <p className="font-medium text-sm">
+                {t('login.qr_turnstile_title')}
+              </p>
+              <p className="text-muted-foreground text-xs">
+                {t('login.qr_turnstile_description')}
+              </p>
+            </div>
+          ) : isLoading ? (
             <LoadingIndicator className="size-6" />
           ) : hasError || !challenge?.payload || !secret ? (
             <div className="space-y-2 text-center">

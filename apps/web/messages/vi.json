@@ -7463,6 +7463,8 @@
     "qr_refresh": "Làm mới mã",
     "qr_scan_hint": "Đang chờ phê duyệt trên di động",
     "qr_title": "Đăng nhập bằng QR trên di động",
+    "qr_turnstile_description": "Hoàn tất bước kiểm tra bảo mật ở trên trước khi tạo mã QR.",
+    "qr_turnstile_title": "Cần kiểm tra bảo mật",
     "qr_unavailable_description": "Hãy làm mới mã hoặc dùng phương thức đăng nhập khác.",
     "qr_unavailable_title": "Không thể đăng nhập bằng QR",
     "resend": "Gửi lại",

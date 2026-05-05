@@ -7463,6 +7463,8 @@
     "qr_refresh": "Refresh code",
     "qr_scan_hint": "Waiting for mobile approval",
     "qr_title": "Sign in with mobile QR",
+    "qr_turnstile_description": "Complete the security check above before a QR code is generated.",
+    "qr_turnstile_title": "Security check required",
     "qr_unavailable_description": "Try refreshing the code or use another sign-in method.",
     "qr_unavailable_title": "QR sign-in is unavailable",
     "resend": "Resend code",

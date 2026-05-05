@@ -189,6 +189,7 @@ export default function LoginForm() {
   const [showDomainPreview, setShowDomainPreview] = useState(false);
   const [otpRetryAfterSeconds, setOtpRetryAfterSeconds] = useState<number>(0);
   const [captchaToken, setCaptchaToken] = useState<string>();
+  const [captchaTokenVersion, setCaptchaTokenVersion] = useState(0);
   const [captchaError, setCaptchaError] = useState<string>();
   const autoOAuthProviderRef = useRef<AuthOAuthProvider | null>(null);
   const oauthErrorToastKeyRef = useRef<string | null>(null);
@@ -244,6 +245,12 @@ export default function LoginForm() {
   const resetCaptcha = useCallback(() => {
     captchaRefPassword.current?.reset();
     setCaptchaToken(undefined);
+  }, []);
+
+  const handleCaptchaSuccess = useCallback((token: string) => {
+    setCaptchaToken(token);
+    setCaptchaTokenVersion((value) => value + 1);
+    setCaptchaError(undefined);
   }, []);
 
   const handleCaptchaError = useCallback(
@@ -1047,7 +1054,6 @@ export default function LoginForm() {
                       />
 
                       {!isResolvingOtpEnablement &&
-                      webOtpEnabled &&
                       turnstileClientState.isRequired ? (
                         <div className="rounded-2xl border border-border/60 bg-muted/20 p-4">
                           {turnstileClientState.canRenderWidget &&
@@ -1056,10 +1062,7 @@ export default function LoginForm() {
                               <Turnstile
                                 ref={captchaRefPassword}
                                 siteKey={turnstileSiteKey}
-                                onSuccess={(token) => {
-                                  setCaptchaToken(token);
-                                  setCaptchaError(undefined);
-                                }}
+                                onSuccess={handleCaptchaSuccess}
                                 onExpire={() => setCaptchaToken(undefined)}
                                 onError={handleCaptchaError}
                                 onTimeout={handleCaptchaTimeout}
@@ -1101,9 +1104,12 @@ export default function LoginForm() {
                   </Form>
 
                   <LoginQrCard
+                    captchaToken={captchaToken}
+                    captchaTokenVersion={captchaTokenVersion}
                     disabled={loading}
                     locale={locale || 'en'}
                     onAuthenticated={handleQrAuthenticated}
+                    requiresTurnstile={turnstileClientState.isRequired}
                   />
 
                   <div className="relative py-0.5">
@@ -1271,10 +1277,7 @@ export default function LoginForm() {
                               <Turnstile
                                 ref={captchaRefPassword}
                                 siteKey={turnstileSiteKey}
-                                onSuccess={(token) => {
-                                  setCaptchaToken(token);
-                                  setCaptchaError(undefined);
-                                }}
+                                onSuccess={handleCaptchaSuccess}
                                 onExpire={() => setCaptchaToken(undefined)}
                                 onError={handleCaptchaError}
                                 onTimeout={handleCaptchaTimeout}
@@ -1416,10 +1419,7 @@ export default function LoginForm() {
                               <Turnstile
                                 ref={captchaRefPassword}
                                 siteKey={turnstileSiteKey}
-                                onSuccess={(token) => {
-                                  setCaptchaToken(token);
-                                  setCaptchaError(undefined);
-                                }}
+                                onSuccess={handleCaptchaSuccess}
                                 onExpire={() => setCaptchaToken(undefined)}
                                 onError={handleCaptchaError}
                                 onTimeout={handleCaptchaTimeout}

@@ -4,6 +4,11 @@ import {
   createClient,
   createDetachedClient,
 } from '@tuturuuu/supabase/next/server';
+import {
+  isTurnstileError,
+  type TurnstileRequestLike,
+  verifyTurnstileToken,
+} from '@tuturuuu/turnstile/server';
 import type { Database, QrLoginChallenge } from '@tuturuuu/types/db';
 import type { Json } from '@tuturuuu/types/supabase';
 import {
@@ -64,6 +69,7 @@ interface QrLoginSuccessResult {
 }
 
 export const QrLoginCreateRequestSchema = z.object({
+  captchaToken: z.string().max(MAX_LONG_TEXT_LENGTH).optional(),
   locale: z.string().max(MAX_CODE_LENGTH).optional(),
   origin: z.string().url().max(MAX_LONG_TEXT_LENGTH).optional(),
 });
@@ -123,6 +129,26 @@ function normalizeOrigin(origin: string | undefined, requestUrl?: string) {
 
 function asJson(value: Record<string, unknown>) {
   return value as Json;
+}
+
+function createTurnstileRequestLike(
+  context: QrLoginRequestContext
+): TurnstileRequestLike {
+  if (context.request) {
+    return { headers: context.request.headers };
+  }
+
+  if (context.headers instanceof Headers || context.headers instanceof Map) {
+    return { headers: context.headers };
+  }
+
+  const headers = new Headers();
+  for (const [key, value] of Object.entries(context.headers)) {
+    if (value) {
+      headers.set(key, value);
+    }
+  }
+  return { headers };
 }
 
 function challengeStatus(value: string): QrLoginChallengeStatus {
@@ -253,6 +279,22 @@ export async function createQrLoginChallenge(
       body: { error: QR_LOGIN_INVALID_ORIGIN_ERROR },
       status: 400,
     };
+  }
+
+  try {
+    await verifyTurnstileToken(
+      createTurnstileRequestLike(context),
+      input.captchaToken
+    );
+  } catch (error) {
+    if (isTurnstileError(error)) {
+      return {
+        body: { error: error.message },
+        status: 400,
+      };
+    }
+
+    throw error;
   }
 
   const secret = generateQrLoginSecret();

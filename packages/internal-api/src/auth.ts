@@ -60,6 +60,7 @@ export interface QrLoginSessionPayload {
 }
 
 export interface CreateQrLoginChallengePayload {
+  captchaToken?: string;
   locale?: string;
   origin?: string;
 }
