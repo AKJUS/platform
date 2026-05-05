@@ -44,6 +44,10 @@ const nextConfig: NextConfig = {
           source: '/api/v1/:path*',
           destination: `${WEB_APP_URL}/api/v1/:path*`,
         },
+        {
+          source: '/api/ai/:path*',
+          destination: `${WEB_APP_URL}/api/ai/:path*`,
+        },
       ],
     };
   },

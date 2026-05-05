@@ -1,4 +1,22 @@
 {
+  "aiChat": {
+    "coachDescription": "Hỏi gợi ý, cách giải thích nhẹ nhàng hơn hoặc một bài quiz nhỏ mà không rời lộ trình học.",
+    "coachTitle": "Huấn luyện viên Tulearn",
+    "description": "Một bạn đồng hành học tập thân thiện cho bài học, luyện tập, báo cáo và kế hoạch làm bài.",
+    "emptyDescription": "Bắt đầu bằng một câu hỏi trên lớp hoặc chọn gợi ý nhanh. Huấn luyện viên trả lời ngắn gọn, dễ hiểu và tập trung vào việc học.",
+    "emptyTitle": "Mình sẽ học gì tiếp theo?",
+    "featureExplain": "Giải thích dễ hiểu",
+    "featureLessons": "Lên kế hoạch bài học",
+    "featurePractice": "Gợi ý luyện tập",
+    "newChat": "Cuộc trò chuyện mới",
+    "placeholder": "Hỏi về bài học, bài tập hoặc câu luyện tập...",
+    "promptExplain": "Giải thích bài này như thể mình mới học lần đầu.",
+    "promptQuiz": "Cho mình một quiz ngắn để kiểm tra mức hiểu bài.",
+    "promptReview": "Giúp mình ôn những gì nên luyện hôm nay.",
+    "send": "Gửi tin nhắn",
+    "thinking": "Đang nghĩ gợi ý tiếp theo cho bạn...",
+    "title": "AI Chat"
+  },
   "assignments": {
     "description": "{count, plural, =0 {Bảng nhiệm vụ đã trống.} one {Còn một nhiệm vụ đang chờ bạn.} other {Còn # nhiệm vụ đang chờ bạn.}}",
     "empty": "Hiện chưa có bài tập cần làm.",
@@ -98,6 +116,7 @@
     "title": "Điểm"
   },
   "navigation": {
+    "aiChat": "AI Chat",
     "assignments": "Bài tập",
     "courses": "Khóa học",
     "home": "Trang chủ",

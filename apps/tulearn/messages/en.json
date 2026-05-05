@@ -1,4 +1,22 @@
 {
+  "aiChat": {
+    "coachDescription": "Ask for a hint, a gentler explanation, or a tiny quiz without leaving your learning path.",
+    "coachTitle": "Tulearn coach",
+    "description": "A friendly study companion for lessons, practice, reports, and assignment planning.",
+    "emptyDescription": "Start with a question from class or pick a quick prompt. The coach keeps answers short, kind, and focused on learning.",
+    "emptyTitle": "What should we learn next?",
+    "featureExplain": "Simple explanations",
+    "featureLessons": "Lesson planning",
+    "featurePractice": "Practice hints",
+    "newChat": "New chat",
+    "placeholder": "Ask for help with a lesson, assignment, or practice question...",
+    "promptExplain": "Explain this lesson like I am new to it.",
+    "promptQuiz": "Give me a quick quiz to check my understanding.",
+    "promptReview": "Help me review what I should practice today.",
+    "send": "Send message",
+    "thinking": "Thinking through your next hint...",
+    "title": "AI Chat"
+  },
   "assignments": {
     "description": "{count, plural, =0 {Your quest board is clear.} one {One quest is waiting for you.} other {# quests are waiting for you.}}",
     "empty": "No assignments are due right now.",
@@ -98,6 +116,7 @@
     "title": "Marks"
   },
   "navigation": {
+    "aiChat": "AI Chat",
     "assignments": "Assignments",
     "courses": "Courses",
     "home": "Home",

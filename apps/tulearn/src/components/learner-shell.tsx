@@ -10,6 +10,7 @@ import {
   Home,
   LineChart,
   LogOut,
+  MessageCircle,
   Rocket,
   Settings,
   Sparkles,
@@ -31,10 +32,12 @@ import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
 import { Link, usePathname, useRouter } from '@/i18n/routing';
+import { LanguageSwitcher } from './language-switcher';
 
 const navItems = [
   { key: 'home', href: '', icon: Home },
   { key: 'practice', href: '/practice', icon: HeartPulse },
+  { key: 'aiChat', href: '/ai-chat', icon: MessageCircle },
   { key: 'courses', href: '/courses', icon: BookOpen },
   { key: 'assignments', href: '/assignments', icon: ClipboardCheck },
   { key: 'reports', href: '/reports', icon: LineChart },
@@ -79,7 +82,7 @@ export function LearnerShell({
           </div>
         </div>
         <TooltipProvider delayDuration={120} skipDelayDuration={80}>
-          <nav className="grid grid-cols-7 gap-2 p-2 md:grid-cols-1 md:gap-3 md:px-3">
+          <nav className="grid grid-cols-4 gap-2 p-2 md:grid-cols-1 md:gap-3 md:px-3">
             {navItems.map((item) => {
               const Icon = item.icon;
               const href = makeHref(item.href);
@@ -120,7 +123,7 @@ export function LearnerShell({
           </nav>
         </TooltipProvider>
       </aside>
-      <main className="min-h-screen pb-28 md:pb-8 md:pl-32">
+      <main className="min-h-screen pb-44 md:pb-8 md:pl-32">
         <header className="sticky top-0 z-10 px-4 py-3 md:px-8 md:pt-5">
           <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 rounded-[1.75rem] border border-border/70 bg-background/90 p-3 shadow-sm backdrop-blur-xl">
             <div className="flex items-center gap-3">
@@ -181,6 +184,7 @@ export function LearnerShell({
                 <Flame className="h-4 w-4" />
                 {t('home.streak')}
               </div>
+              <LanguageSwitcher compact />
               <form action="/api/auth/logout" method="post">
                 <Button
                   className="h-11 rounded-2xl"

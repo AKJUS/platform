@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { Moon, Sun, Target } from '@tuturuuu/icons';
+import { Languages, Moon, Sun, Target } from '@tuturuuu/icons';
 import { getTulearnBootstrap } from '@tuturuuu/internal-api';
 import { Button } from '@tuturuuu/ui/button';
 import { Input } from '@tuturuuu/ui/input';
@@ -10,6 +10,7 @@ import { cn } from '@tuturuuu/utils/format';
 import { useTranslations } from 'next-intl';
 import { useTheme } from 'next-themes';
 import { type ReactNode, useState } from 'react';
+import { LanguageSwitcher } from '../language-switcher';
 import { type IconComponent, Section, usePageMotion } from './shared';
 
 export function SettingsPage() {
@@ -121,6 +122,10 @@ export function SettingsPage() {
                 </button>
               ))}
             </div>
+          </SettingsPanel>
+
+          <SettingsPanel icon={Languages} title={t('settings.language')}>
+            <LanguageSwitcher />
           </SettingsPanel>
         </div>
       </div>
