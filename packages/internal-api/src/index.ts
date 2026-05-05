@@ -76,6 +76,10 @@ export type {
   UpsertWorkspaceFlashcardPayload,
   UpsertWorkspaceQuizPayload,
   UpsertWorkspaceQuizSetPayload,
+  ValseaClassroomArtifactResponse,
+  ValseaClassroomOutputType,
+  ValseaClassroomPayload,
+  ValseaClassroomSemanticTag,
   WorkspaceEducationAttemptListQuery,
 } from './education';
 export {
@@ -91,6 +95,7 @@ export {
   deleteWorkspaceFlashcard,
   deleteWorkspaceQuiz,
   deleteWorkspaceQuizSet,
+  generateValseaClassroomArtifact,
   getWorkspaceEducationAttemptDetail,
   linkQuizSetModules,
   listWorkspaceCourseModuleGroupModules,

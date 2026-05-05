@@ -1009,6 +1009,7 @@ export async function WorkspaceNavigationLinks({
                 `/${personalOrWsId}/education/library/quizzes`,
                 `/${personalOrWsId}/education/library/quiz-sets`,
                 `/${personalOrWsId}/education/library/flashcards`,
+                `/${personalOrWsId}/education/valsea`,
               ],
               children: [
                 {
@@ -1036,6 +1037,12 @@ export async function WorkspaceNavigationLinks({
                   title: t('workspace-education-tabs.attempts'),
                   href: `/${personalOrWsId}/education/attempts`,
                   icon: <ClipboardList className="h-5 w-5" />,
+                },
+                {
+                  title: t('workspace-education-tabs.valsea.title'),
+                  href: `/${personalOrWsId}/education/valsea`,
+                  icon: <Languages className="h-5 w-5" />,
+                  experimental: 'beta',
                 },
               ],
               disabled:

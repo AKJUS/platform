@@ -101,6 +101,67 @@ export interface WorkspaceEducationAttemptListQuery {
   status?: 'all' | 'completed' | 'incomplete';
 }
 
+export type ValseaClassroomOutputType =
+  | 'action_items'
+  | 'email_summary'
+  | 'interview_notes'
+  | 'key_quotes'
+  | 'meeting_minutes'
+  | 'service_log'
+  | 'subtitles';
+
+export interface ValseaClassroomPayload {
+  apiKey?: string;
+  file?: File;
+  language: string;
+  outputType: ValseaClassroomOutputType;
+  targetLanguage: string;
+  transcript?: string;
+}
+
+export interface ValseaClassroomSemanticTag {
+  meaning?: string;
+  phrase?: string;
+  tag?: string;
+}
+
+export interface ValseaClassroomArtifactResponse {
+  annotations: {
+    accentCorrections: unknown[];
+    annotatedText?: string;
+    raw: unknown;
+    semanticTags: ValseaClassroomSemanticTag[];
+  };
+  artifact: {
+    output: string;
+    outputType: ValseaClassroomOutputType;
+    raw: unknown;
+  };
+  clarification: {
+    explanations: unknown[];
+    raw: unknown;
+    text: string;
+  };
+  sentiment: {
+    confidence?: number;
+    emotions: string[];
+    raw: unknown;
+    reasoning?: string;
+    sentiment?: string;
+  };
+  source: {
+    detectedLanguages: unknown[];
+    rawTranscript: string;
+    transcript: string;
+  };
+  translation: {
+    raw: unknown;
+    sourceLanguage?: string;
+    targetLanguage: string;
+    text: string;
+  };
+}
+
 export async function createWorkspaceCourse(
   workspaceId: string,
   payload: UpsertWorkspaceCoursePayload,
@@ -116,6 +177,51 @@ export async function createWorkspaceCourse(
       cache: 'no-store',
     }
   );
+}
+
+export async function generateValseaClassroomArtifact(
+  workspaceId: string,
+  payload: ValseaClassroomPayload,
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  const path = `/api/v1/workspaces/${encodePathSegment(workspaceId)}/education/valsea`;
+  const byokHeaders = payload.apiKey
+    ? { 'X-Valsea-Api-Key': payload.apiKey }
+    : undefined;
+
+  if (payload.file) {
+    const formData = new FormData();
+    formData.set('file', payload.file);
+    formData.set('language', payload.language);
+    formData.set('outputType', payload.outputType);
+    formData.set('targetLanguage', payload.targetLanguage);
+    if (payload.transcript) {
+      formData.set('transcript', payload.transcript);
+    }
+
+    return client.json<ValseaClassroomArtifactResponse>(path, {
+      body: formData,
+      cache: 'no-store',
+      headers: byokHeaders,
+      method: 'POST',
+    });
+  }
+
+  return client.json<ValseaClassroomArtifactResponse>(path, {
+    body: JSON.stringify({
+      language: payload.language,
+      outputType: payload.outputType,
+      targetLanguage: payload.targetLanguage,
+      transcript: payload.transcript,
+    }),
+    cache: 'no-store',
+    headers: {
+      'Content-Type': 'application/json',
+      ...byokHeaders,
+    },
+    method: 'POST',
+  });
 }
 
 export async function updateWorkspaceCourse(
