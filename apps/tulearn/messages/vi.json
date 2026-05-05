@@ -1,0 +1,116 @@
+{
+  "assignments": {
+    "empty": "Hiện chưa có bài tập cần làm.",
+    "markDone": "Đánh dấu xong",
+    "title": "Bài tập"
+  },
+  "auth": {
+    "bentoLead": "Khóa học, bài tập, báo cáo và điểm số luôn kết nối để mỗi học viên biết bước tiếp theo cần làm.",
+    "bentoTitle": "Một lộ trình nhẹ nhàng hơn từ luyện tập đến tiến bộ",
+    "continueWithApple": "Tiếp tục với Apple",
+    "continueWithGithub": "Tiếp tục với GitHub",
+    "continueWithGoogle": "Tiếp tục với Google",
+    "continueWithMicrosoft": "Tiếp tục với Microsoft",
+    "email": "Email",
+    "footerLine": "Dùng cùng một tài khoản Tulearn cho bài học tập trung, chế độ phụ huynh và tiến độ lớp học.",
+    "formSubtitle": "Dùng email và mật khẩu của trường, hoặc yêu cầu mã đăng nhập một lần qua email.",
+    "formTitle": "Bắt đầu bài học hôm nay",
+    "heroLead": "Tulearn biến việc học trên lớp thành các vòng luyện tập ngắn, tiến độ dễ thấy và thông tin phù hợp cho phụ huynh mà không đưa học viên quay lại nền tảng quản trị.",
+    "heroWord1": "Học",
+    "heroWord2": "có",
+    "heroWord3": "đà",
+    "login": "Đăng nhập",
+    "logout": "Đăng xuất",
+    "navLearners": "Học viên",
+    "navParents": "Phụ huynh",
+    "otp": "Mã email",
+    "otpSent": "Hãy kiểm tra email để lấy mã.",
+    "or": "hoặc",
+    "parentAccess": "Phụ huynh",
+    "parentsCardBody": "Phụ huynh được liên kết có thể theo dõi tiến độ mà không thay đổi bài làm của học viên.",
+    "parentsCardTitle": "Chế độ gia đình chỉ đọc",
+    "password": "Mật khẩu",
+    "poweredByTuturuuu": "bởi Tuturuuu",
+    "practiceCardBody": "Các phiên luyện tập ngắn, tim, XP và chuỗi ngày giúp học viên tiến lên mà không làm việc học trở nên rối.",
+    "practiceCardTitle": "Luyện tập phản hồi tức thì",
+    "reportsCardBody": "Điểm và báo cáo đến từ cùng workspace giáo dục mà giáo viên đang quản lý.",
+    "reportsCardTitle": "Tiến độ khớp với lớp học",
+    "sendCode": "Gửi mã",
+    "signalHearts": "Tim",
+    "signalPractice": "Luyện tập",
+    "signalStreak": "Chuỗi ngày",
+    "socialLoginLead": "Đăng nhập mạng xã hội được xử lý an toàn trên tuturuuu.com rồi quay lại Tulearn.",
+    "startLearning": "Bắt đầu học",
+    "submitCode": "Xác minh mã",
+    "subtitle": "Luyện tập, bài học, bài tập và tiến độ trong một nơi thân thiện với người học.",
+    "title": "Chào mừng đến Tulearn",
+    "tuturuuuAccount": "Tài khoản Tuturuuu"
+  },
+  "common": {
+    "back": "Quay lại",
+    "completed": "Đã hoàn thành",
+    "continue": "Tiếp tục",
+    "empty": "Chưa có nội dung.",
+    "loading": "Đang tải",
+    "save": "Lưu",
+    "saving": "Đang lưu"
+  },
+  "courses": {
+    "empty": "Giáo viên chưa giao khóa học nào.",
+    "locked": "Đã khóa",
+    "modules": "Bài học",
+    "title": "Khóa học"
+  },
+  "home": {
+    "assignments": "Bài tập cần làm",
+    "dailyGoal": "Mục tiêu hôm nay",
+    "hearts": "Tim",
+    "marks": "Điểm gần đây",
+    "nextLesson": "Bài tiếp theo",
+    "streak": "Chuỗi ngày",
+    "title": "Trang chủ",
+    "xp": "XP"
+  },
+  "marks": {
+    "empty": "Điểm sẽ xuất hiện sau khi giáo viên nhập.",
+    "title": "Điểm"
+  },
+  "navigation": {
+    "assignments": "Bài tập",
+    "courses": "Khóa học",
+    "home": "Trang chủ",
+    "marks": "Điểm",
+    "practice": "Luyện tập",
+    "reports": "Báo cáo",
+    "settings": "Cài đặt"
+  },
+  "practice": {
+    "again": "Thử lại",
+    "correct": "Chính xác",
+    "empty": "Chưa có nội dung luyện tập.",
+    "incorrect": "Chưa đúng",
+    "submitCorrect": "Mình làm đúng",
+    "submitIncorrect": "Mình làm sai",
+    "title": "Luyện tập",
+    "xpAwarded": "XP nhận được"
+  },
+  "reports": {
+    "empty": "Báo cáo sẽ xuất hiện sau khi giáo viên phát hành.",
+    "title": "Báo cáo"
+  },
+  "settings": {
+    "dark": "Tối",
+    "displayName": "Tên hiển thị",
+    "email": "Email",
+    "language": "Ngôn ngữ",
+    "light": "Sáng",
+    "linkedStudents": "Học viên được liên kết",
+    "parentMode": "Chế độ phụ huynh",
+    "theme": "Giao diện",
+    "title": "Cài đặt"
+  },
+  "workspace": {
+    "empty": "Tài khoản này chưa có workspace giáo dục.",
+    "switcher": "Workspace"
+  }
+}

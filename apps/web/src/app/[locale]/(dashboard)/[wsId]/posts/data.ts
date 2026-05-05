@@ -2,10 +2,7 @@ import 'server-only';
 
 import { createAdminClient } from '@tuturuuu/supabase/next/server';
 import type { Database } from '@tuturuuu/types/db';
-import {
-  autoSkipOldPostEmails,
-  getPostEmailMaxAgeCutoff,
-} from '@/lib/post-email-queue';
+import { getPostEmailMaxAgeCutoff } from '@/lib/post-email-queue';
 import { normalizePostEmailQueueStatus } from './status-derivation';
 import type {
   PostApprovalStatus,
@@ -241,8 +238,6 @@ export async function getPostsPageData(
       : {}),
     ...(activeQueueStatus ? { p_queue_status: activeQueueStatus } : {}),
   };
-
-  await autoSkipOldPostEmails(sbAdmin, { wsId });
 
   const [rowsResult, summaryResult] = await Promise.all([
     sbAdmin.rpc('get_workspace_post_review_rows', rowsArgs),

@@ -310,7 +310,7 @@ class _DrivePageState extends State<DrivePage> {
   }
 
   Future<void> _uploadFiles() async {
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       allowMultiple: true,
       withData: true,
     );

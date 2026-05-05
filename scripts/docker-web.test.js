@@ -12,6 +12,7 @@ const {
   DOCKER_HOST_ALIAS,
   DOCKER_MARKITDOWN_ENDPOINT_URL,
   DOCKER_MARKITDOWN_SERVICE_URL,
+  DOCKER_PRONUNCIATION_ASSESSOR_URL,
   DOCKER_STORAGE_UNZIP_PROXY_URL,
   PROD_COMPOSE_FILE,
   WEB_ENV_FILE,
@@ -41,6 +42,7 @@ const {
   getStatusSnapshotHealth,
   shouldRestartWatcherExit,
 } = require('../apps/web/docker/blue-green-watcher-entrypoint.js');
+const { WATCHER_CONTAINER_ENV } = require('./watch-blue-green-deploy.js');
 
 function createFsStub({ envFileContent = '', hasEnvFile = true } = {}) {
   return {
@@ -472,6 +474,10 @@ test('getComposeEnvironment injects blue-green support service URLs when request
     assert.match(env.CRON_SECRET, /^[a-f0-9]{64}$/u);
     assert.equal(env.MARKITDOWN_ENDPOINT_URL, DOCKER_MARKITDOWN_ENDPOINT_URL);
     assert.match(env.MARKITDOWN_ENDPOINT_SECRET, /^[a-f0-9]{64}$/u);
+    assert.equal(
+      env.VALSEA_PRONUNCIATION_ASSESSOR_URL,
+      DOCKER_PRONUNCIATION_ASSESSOR_URL
+    );
     assert.equal(
       env.DRIVE_AUTO_EXTRACT_PROXY_URL,
       DOCKER_STORAGE_UNZIP_PROXY_URL
@@ -1028,6 +1034,7 @@ test('runDockerWebWorkflow auto-generates redis credentials for production docke
 
 test('runDockerWebWorkflow performs an initial blue-green deployment', async () => {
   const calls = [];
+  const watcherStarts = [];
   let webProxyPsCalls = 0;
   const tempDir = fs.mkdtempSync(
     path.join(os.tmpdir(), 'docker-web-bg-initial-')
@@ -1089,6 +1096,13 @@ test('runDockerWebWorkflow performs an initial blue-green deployment', async () 
         proxyDrainMs: 0,
         rootDir: tempDir,
         runCommand,
+        startWatcherContainer: async (argv, options = {}) => {
+          watcherStarts.push({
+            argv,
+            env: options.env,
+            rootDir: options.rootDir,
+          });
+        },
       }
     );
 
@@ -1141,6 +1155,86 @@ test('runDockerWebWorkflow performs an initial blue-green deployment', async () 
           args.includes('http://127.0.0.1:7803/__platform/drain-status')
       )
     );
+    assert.deepEqual(watcherStarts, [
+      {
+        argv: ['--resume-if-running'],
+        env: { PATH: 'test-path' },
+        rootDir: tempDir,
+      },
+    ]);
+  } finally {
+    fs.rmSync(tempDir, { force: true, recursive: true });
+  }
+});
+
+test('runDockerWebWorkflow does not recursively start watcher from watcher deploys', async () => {
+  const watcherStarts = [];
+  let webProxyPsCalls = 0;
+  const tempDir = fs.mkdtempSync(
+    path.join(os.tmpdir(), 'docker-web-bg-watcher-child-')
+  );
+  const envFilePath = path.join(tempDir, 'apps', 'web', '.env.local');
+
+  fs.mkdirSync(path.dirname(envFilePath), { recursive: true });
+  fs.writeFileSync(
+    envFilePath,
+    'NEXT_PUBLIC_SUPABASE_URL=http://localhost:8001\n'
+  );
+
+  const runCommand = async (_command, args) => {
+    if (args.includes('ps') && args.at(-1) === 'web') {
+      return { code: 0, signal: null, stderr: '', stdout: '' };
+    }
+
+    if (args.includes('ps') && args.at(-1) === BLUE_GREEN_PROXY_SERVICE) {
+      webProxyPsCalls += 1;
+      return {
+        code: 0,
+        signal: null,
+        stderr: '',
+        stdout: webProxyPsCalls === 1 ? '' : 'proxy-123\n',
+      };
+    }
+
+    if (args.includes('ps') && args.at(-1) === 'web-blue') {
+      return { code: 0, signal: null, stderr: '', stdout: 'container-blue\n' };
+    }
+
+    if (
+      args.includes('ps') &&
+      BLUE_GREEN_SUPPORT_SERVICES.includes(args.at(-1))
+    ) {
+      return {
+        code: 0,
+        signal: null,
+        stderr: '',
+        stdout: `container-${args.at(-1)}\n`,
+      };
+    }
+
+    if (args[0] === 'inspect') {
+      return { code: 0, signal: null, stderr: '', stdout: 'healthy\n' };
+    }
+
+    return { code: 0, signal: null, stderr: '', stdout: '' };
+  };
+
+  try {
+    await runDockerWebWorkflow(
+      parseArgs(['up', '--mode', 'prod', '--strategy', 'blue-green']),
+      {
+        env: { PATH: 'test-path', [WATCHER_CONTAINER_ENV]: '1' },
+        envFilePath,
+        proxyDrainMs: 0,
+        rootDir: tempDir,
+        runCommand,
+        startWatcherContainer: async (argv) => {
+          watcherStarts.push(argv);
+        },
+      }
+    );
+
+    assert.deepEqual(watcherStarts, []);
   } finally {
     fs.rmSync(tempDir, { force: true, recursive: true });
   }
@@ -1247,6 +1341,7 @@ test('runDockerWebWorkflow recovers from stale blue-green container name conflic
         proxyDrainMs: 0,
         rootDir: tempDir,
         runCommand,
+        startWatcherContainer: async () => {},
       }
     );
 
@@ -1414,7 +1509,12 @@ test('runComposeUpWithNameConflictRecovery removes stale Compose recreate temp c
       PATH: 'test-path',
     },
     runCommand,
-    services: ['web-green', 'markitdown', 'storage-unzip-proxy'],
+    services: [
+      'web-green',
+      'markitdown',
+      'pronunciation-assessor',
+      'storage-unzip-proxy',
+    ],
     upArgs: [
       'up',
       '--build',
@@ -1422,6 +1522,7 @@ test('runComposeUpWithNameConflictRecovery removes stale Compose recreate temp c
       '--remove-orphans',
       'web-green',
       'markitdown',
+      'pronunciation-assessor',
       'storage-unzip-proxy',
     ],
   });

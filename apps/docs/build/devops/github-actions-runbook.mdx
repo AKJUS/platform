@@ -1,7 +1,7 @@
 ---
 title: 'GitHub Actions Runbook'
 description: 'How the repository’s automation is organized, gated, and operated.'
-updatedAt: '2026-05-02'
+updatedAt: '2026-05-04'
 ---
 
 GitHub Actions is the primary automation plane for Tuturuuu.
@@ -15,6 +15,27 @@ The reusable workflow
 `ci-check.yml`
 reads that config and emits `should_run`, which downstream jobs use before doing
 real work.
+
+For Vercel deployments, `ci-check.yml` also performs affected-app gating before
+any install, build, or deploy step starts. It checks the current GitHub event's
+changed files against Vercel app metadata and workspace dependency closures from
+`tuturuuu.ts`.
+
+Affected Vercel rules:
+
+- `apps/<app>/**` runs that app's preview or production Vercel workflow.
+- `packages/<package>/**` runs every Vercel app whose transitive `workspace:*`
+  dependency closure includes that package.
+- `apps/*/package.json` and `packages/*/package.json` are dependency changes for
+  their owning workspaces.
+- `bun.lock`, root `package.json`, `turbo.json`, `tuturuuu.ts`, and
+  `.github/workflows/ci-check.yml` run every Vercel app workflow.
+- A Vercel workflow file change, such as
+  `.github/workflows/vercel-preview-calendar.yaml`, runs that specific workflow.
+- If changed files cannot be computed, the Vercel gate defaults open.
+
+`bun.lock`-only changes intentionally run all Vercel app deploys because ownership
+is ambiguous without a manifest or source path.
 
 ## Main Workflow Groups
 
@@ -30,6 +51,7 @@ real work.
 - `vercel-preview-shortener.yaml`
 - `vercel-preview-tasks.yaml`
 - `vercel-preview-track.yaml`
+- `vercel-preview-tulearn.yaml`
 - Matching `vercel-production-*.yaml` workflows for production
 
 CMS uses the same Vercel pattern as the other satellite apps:
@@ -96,6 +118,9 @@ Use `workflow_dispatch` when:
 - you need to promote a migration outside the normal trigger timing
 - you need to recover from a failed but otherwise understood automation path
 
+Manual dispatch bypasses affected-app gating when the workflow is enabled in
+`tuturuuu.ts`. Disabled `ci` entries still skip, even for manual dispatch.
+
 ### Newer-commit guards
 
 Vercel workflows intentionally skip if the branch already has a newer commit than the
@@ -109,10 +134,11 @@ current run. A skipped deployment may be correct rather than broken.
 ## Fast Triage Checklist
 
 1. Check whether `ci-check.yml` disabled the workflow through `tuturuuu.ts`.
-2. Check whether the workflow was skipped because a newer commit exists.
-3. Check path filters to confirm the workflow should have triggered.
-4. For database workflows, inspect the prerequisite evaluation job before the deploy job.
-5. For Docker changes, verify `docker-setup-check.yaml` specifically.
+2. For Vercel workflows, inspect the `ci-check.yml` decision reason and matched paths.
+3. Check whether the workflow was skipped because a newer commit exists.
+4. Check path filters to confirm GitHub should have started the lightweight workflow.
+5. For database workflows, inspect the prerequisite evaluation job before the deploy job.
+6. For Docker changes, verify `docker-setup-check.yaml` specifically.
 
 ## When You Add New Automation
 

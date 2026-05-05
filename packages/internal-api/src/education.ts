@@ -101,6 +101,119 @@ export interface WorkspaceEducationAttemptListQuery {
   status?: 'all' | 'completed' | 'incomplete';
 }
 
+export type ValseaClassroomOutputType =
+  | 'action_items'
+  | 'email_summary'
+  | 'interview_notes'
+  | 'key_quotes'
+  | 'meeting_minutes'
+  | 'service_log'
+  | 'subtitles';
+
+export interface ValseaClassroomPayload {
+  apiKey?: string;
+  file?: File;
+  language: string;
+  outputType: ValseaClassroomOutputType;
+  targetLanguage: string;
+  transcript?: string;
+}
+
+export interface ValseaClassroomScenarioPayload {
+  mode?: 'parent_update' | 'pronunciation_lab' | 'regional_classroom';
+  seed?: string;
+}
+
+export interface ValseaClassroomScenarioResponse {
+  classroomContext: string;
+  expectedConfusions: string[];
+  learnerPersona: string;
+  outputType: ValseaClassroomOutputType;
+  referencePhrase: string;
+  rubric: string[];
+  scenarioTags: string[];
+  sourceLanguage: string;
+  targetLanguage: string;
+  teacherGoal: string;
+  title: string;
+}
+
+export interface ValseaClassroomSemanticTag {
+  meaning?: string;
+  phrase?: string;
+  tag?: string;
+}
+
+export type ValseaVoiceGradeLevel = 'amber' | 'green' | 'orange' | 'red';
+
+export interface ValseaVoiceGradeCharacter {
+  character: string;
+  level: ValseaVoiceGradeLevel;
+  score: number;
+}
+
+export interface ValseaVoiceGradeWord {
+  characters: ValseaVoiceGradeCharacter[];
+  expected: string;
+  heard: string;
+  level: ValseaVoiceGradeLevel;
+  nativeScore: number;
+  score: number;
+}
+
+export interface ValseaVoiceGradeResult {
+  heardText: string;
+  nativeSimilarity: number;
+  overallScore: number;
+  provider: 'local-model' | 'valsea-heuristic';
+  raw?: unknown;
+  referenceText: string;
+  summary: string;
+  words: ValseaVoiceGradeWord[];
+}
+
+export interface ValseaClassroomArtifactResponse {
+  annotations: {
+    accentCorrections: unknown[];
+    annotatedText?: string;
+    raw: unknown;
+    semanticTags: ValseaClassroomSemanticTag[];
+  };
+  artifact: {
+    output: string;
+    outputType: ValseaClassroomOutputType;
+    raw: unknown;
+  };
+  clarification: {
+    explanations: unknown[];
+    raw: unknown;
+    text: string;
+  };
+  sentiment: {
+    confidence?: number;
+    emotions: string[];
+    raw: unknown;
+    reasoning?: string;
+    sentiment?: string;
+  };
+  source: {
+    detectedLanguages: unknown[];
+    rawTranscript: string;
+    transcript: string;
+  };
+  pronunciation: ValseaVoiceGradeResult | null;
+  translation: {
+    raw: unknown;
+    sourceLanguage?: string;
+    targetLanguage: string;
+    text: string;
+  };
+}
+
+export interface ValseaClassroomConfigResponse {
+  hasServerKey: boolean;
+}
+
 export async function createWorkspaceCourse(
   workspaceId: string,
   payload: UpsertWorkspaceCoursePayload,
@@ -116,6 +229,81 @@ export async function createWorkspaceCourse(
       cache: 'no-store',
     }
   );
+}
+
+export async function getValseaClassroomConfig(
+  workspaceId: string,
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  return client.json<ValseaClassroomConfigResponse>(
+    `/api/v1/workspaces/${encodePathSegment(workspaceId)}/education/valsea`,
+    { cache: 'no-store' }
+  );
+}
+
+export async function generateValseaClassroomScenario(
+  workspaceId: string,
+  payload: ValseaClassroomScenarioPayload = {},
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  return client.json<ValseaClassroomScenarioResponse>(
+    `/api/v1/workspaces/${encodePathSegment(workspaceId)}/education/valsea/scenario`,
+    {
+      body: JSON.stringify(payload),
+      cache: 'no-store',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      method: 'POST',
+    }
+  );
+}
+
+export async function generateValseaClassroomArtifact(
+  workspaceId: string,
+  payload: ValseaClassroomPayload,
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  const path = `/api/v1/workspaces/${encodePathSegment(workspaceId)}/education/valsea`;
+  const byokHeaders = payload.apiKey
+    ? { 'X-Valsea-Api-Key': payload.apiKey }
+    : undefined;
+
+  if (payload.file) {
+    const formData = new FormData();
+    formData.set('file', payload.file);
+    formData.set('language', payload.language);
+    formData.set('outputType', payload.outputType);
+    formData.set('targetLanguage', payload.targetLanguage);
+    if (payload.transcript) {
+      formData.set('transcript', payload.transcript);
+    }
+
+    return client.json<ValseaClassroomArtifactResponse>(path, {
+      body: formData,
+      cache: 'no-store',
+      headers: byokHeaders,
+      method: 'POST',
+    });
+  }
+
+  return client.json<ValseaClassroomArtifactResponse>(path, {
+    body: JSON.stringify({
+      language: payload.language,
+      outputType: payload.outputType,
+      targetLanguage: payload.targetLanguage,
+      transcript: payload.transcript,
+    }),
+    cache: 'no-store',
+    headers: {
+      'Content-Type': 'application/json',
+      ...byokHeaders,
+    },
+    method: 'POST',
+  });
 }
 
 export async function updateWorkspaceCourse(

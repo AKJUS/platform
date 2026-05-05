@@ -15,7 +15,7 @@ CREATE INDEX IF NOT EXISTS idx_user_workspace_configs_ws_id
 
 ALTER TABLE public.user_workspace_configs ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can manage their own workspace configs" ON public.user_workspace_configs
+CREATE POLICY users_can_manage_their_own_workspace_configs ON public.user_workspace_configs
     FOR ALL USING (
         user_id = auth.uid()
         AND ws_id IN (

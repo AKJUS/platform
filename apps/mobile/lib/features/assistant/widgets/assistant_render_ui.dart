@@ -1,6 +1,6 @@
 // Assistant feature parity module: the generic render_ui catalog renderer is
 // intentionally broad, so some style lints are deferred here.
-// ignore_for_file: always_use_package_imports, lines_longer_than_80_chars, deprecated_member_use, always_put_required_named_parameters_first, unnecessary_raw_strings, avoid_redundant_argument_values, prefer_const_constructors
+// ignore_for_file: always_use_package_imports, lines_longer_than_80_chars, deprecated_member_use, always_put_required_named_parameters_first, unnecessary_raw_strings, prefer_const_constructors
 
 import 'dart:convert';
 import 'dart:math' as math;
@@ -651,9 +651,8 @@ class _AssistantRenderUiState extends State<AssistantRenderUi> {
         const SizedBox(height: 8),
         shad.SecondaryButton(
           onPressed: () async {
-            final result = await FilePicker.platform.pickFiles(
+            final result = await FilePicker.pickFiles(
               allowMultiple: true,
-              type: FileType.any,
             );
             final paths =
                 result?.files

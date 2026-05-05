@@ -1,4 +1,7 @@
-import { updateInfrastructureProject } from '@/lib/infrastructure/projects';
+import {
+  deleteInfrastructureProject,
+  updateInfrastructureProject,
+} from '@/lib/infrastructure/projects';
 import {
   handleInfrastructureProjectRequest,
   readJsonObject,
@@ -43,5 +46,17 @@ export async function PATCH(request: Request, { params }: { params: Params }) {
         }),
       };
     }
+  );
+}
+
+export async function DELETE(request: Request, { params }: { params: Params }) {
+  const { projectId } = await params;
+
+  return handleInfrastructureProjectRequest(
+    request,
+    `/api/v1/infrastructure/projects/${projectId}`,
+    async () => ({
+      project: await deleteInfrastructureProject(projectId),
+    })
   );
 }

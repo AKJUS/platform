@@ -231,6 +231,19 @@ test('validateDockerProdCompose reports missing watcher host workspace wiring', 
   assert.match(errors.join('\n'), /PLATFORM_HOST_WORKSPACE_DIR/);
 });
 
+test('validateDockerProdCompose reports missing watcher project registry wiring', () => {
+  const composeContent = fs
+    .readFileSync(WEB_PROD_COMPOSE_FILE_PATH, 'utf8')
+    .replaceAll(
+      '      - PLATFORM_LOG_DRAIN_DATABASE_URL=postgres://platform_log_drain:platform_log_drain@log-drain-postgres:5432/platform_log_drain\n',
+      ''
+    );
+
+  const errors = validateDockerProdCompose(composeContent);
+
+  assert.match(errors.join('\n'), /PLATFORM_LOG_DRAIN_DATABASE_URL/);
+});
+
 test('validateDockerProdCompose reports missing monitoring runtime mount', () => {
   const composeContent = fs
     .readFileSync(WEB_PROD_COMPOSE_FILE_PATH, 'utf8')

@@ -126,7 +126,7 @@
     "xlsx": "file:vendor/xlsx-0.20.3.tgz",
     "y-protocols": "^1.0.7",
     "yjs": "^13.6.30",
-    "zod": "^4.4.2"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.4",
@@ -148,7 +148,7 @@
     "@vitejs/plugin-react": "^6.0.1",
     "autoprefixer": "^10.5.0",
     "jsdom": "^29.1.1",
-    "postcss": "^8.5.13",
+    "postcss": "^8.5.14",
     "postcss-load-config": "^6.0.1",
     "tailwindcss": "^4.2.4",
     "typescript": "^6.0.3",

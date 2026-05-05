@@ -26,11 +26,13 @@ interface Workspace {
 
 interface DefaultWorkspaceSettingProps {
   defaultWorkspaceId?: string | null;
+  onSelectedWorkspaceChange?: (workspaceId: string | null) => void;
   user?: WorkspaceUser | null;
 }
 
 export default function DefaultWorkspaceSetting({
   defaultWorkspaceId,
+  onSelectedWorkspaceChange,
   user,
 }: DefaultWorkspaceSettingProps) {
   const t = useTranslations('common');
@@ -102,10 +104,17 @@ export default function DefaultWorkspaceSetting({
   useEffect(() => {
     if (defaultWorkspaceId) {
       setSelectedWorkspace(defaultWorkspaceId);
+      onSelectedWorkspaceChange?.(defaultWorkspaceId);
     } else {
       setSelectedWorkspace('none');
+      onSelectedWorkspaceChange?.(null);
     }
-  }, [defaultWorkspaceId]);
+  }, [defaultWorkspaceId, onSelectedWorkspaceChange]);
+
+  const handleSelectedWorkspaceChange = (workspaceId: string) => {
+    setSelectedWorkspace(workspaceId);
+    onSelectedWorkspaceChange?.(workspaceId === 'none' ? null : workspaceId);
+  };
 
   const handleUpdate = async () => {
     setIsUpdating(true);
@@ -143,7 +152,7 @@ export default function DefaultWorkspaceSetting({
     <div className="space-y-3">
       <Select
         value={selectedWorkspace}
-        onValueChange={setSelectedWorkspace}
+        onValueChange={handleSelectedWorkspaceChange}
         disabled={isUpdating}
       >
         <SelectTrigger className={isUpdating ? 'opacity-50' : ''}>

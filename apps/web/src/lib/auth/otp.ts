@@ -45,7 +45,7 @@ export const OTP_VERIFY_GENERIC_ERROR =
   'Verification failed. Please try again.';
 export const OTP_SPAM_BLOCK_ERROR = 'Unable to continue right now.';
 
-export type OtpClient = 'mobile' | 'web';
+export type OtpClient = 'mobile' | 'tulearn' | 'web';
 
 export const OtpSendRequestSchema = z
   .object({
@@ -53,7 +53,7 @@ export const OtpSendRequestSchema = z
     locale: z.string().max(MAX_CODE_LENGTH).optional(),
     deviceId: z.string().max(MAX_LONG_TEXT_LENGTH).optional(),
     captchaToken: z.string().max(MAX_LONG_TEXT_LENGTH).optional(),
-    client: z.enum(['web', 'mobile']),
+    client: z.enum(['web', 'mobile', 'tulearn']),
     platform: z.enum(['ios', 'android']).optional(),
   })
   .superRefine((value, ctx) => {
@@ -72,7 +72,7 @@ export const OtpVerifyRequestSchema = z
     otp: z.string().max(MAX_OTP_LENGTH),
     locale: z.string().max(MAX_CODE_LENGTH).optional(),
     deviceId: z.string().max(MAX_LONG_TEXT_LENGTH).optional(),
-    client: z.enum(['web', 'mobile']),
+    client: z.enum(['web', 'mobile', 'tulearn']),
     platform: z.enum(['ios', 'android']).optional(),
   })
   .superRefine((value, ctx) => {
@@ -135,7 +135,7 @@ function buildOtpMetadata(options: {
   const metadata: Record<string, string> = {
     auth_client: options.client,
     locale: options.locale,
-    origin: 'TUTURUUU',
+    origin: options.client === 'tulearn' ? 'TULEARN' : 'TUTURUUU',
   };
 
   if (options.deviceId) {
@@ -158,7 +158,7 @@ async function getOtpAvailability({
 }): Promise<OtpAvailabilityResult> {
   const policies = await getMobileVersionPolicies();
 
-  if (client === 'web') {
+  if (client !== 'mobile') {
     return { otpEnabled: policies.webOtpEnabled };
   }
 
@@ -481,7 +481,7 @@ export async function verifyOtp(
 
   const session =
     data.session ||
-    (input.client === 'web'
+    (input.client !== 'mobile'
       ? (await supabase.auth.getSession()).data.session
       : null);
 

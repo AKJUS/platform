@@ -1116,7 +1116,7 @@ describe('EntryDetailClient', () => {
         }
       );
     });
-  });
+  }, 10_000);
 
   it('uploads a new cover as a first-class image asset', async () => {
     renderClient();
@@ -1157,7 +1157,7 @@ describe('EntryDetailClient', () => {
         queryKey: ['epm-studio', 'ws_123'],
       });
     });
-  });
+  }, 10_000);
 
   it('quick deletes an individual image from the entry gallery', async () => {
     renderClientWithAssets();

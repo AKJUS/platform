@@ -21,11 +21,14 @@ import {
   RefreshCw,
   Search,
   Terminal,
+  Trash2,
 } from '@tuturuuu/icons';
 import {
   type CronExecutionRecord,
   createInfrastructureProject,
+  deleteInfrastructureProject,
   type GetObservabilityParams,
+  getBlueGreenMonitoringSnapshot,
   getCronMonitoringExecutionArchive,
   getCronMonitoringSnapshot,
   getInfrastructureProjects,
@@ -43,6 +46,7 @@ import {
   type ObservabilityResourceBucket,
   queueCronRun,
   queueInfrastructureProjectDeploy,
+  requestBlueGreenWatcherRecovery,
   syncInfrastructureProject,
   type UpdateInfrastructureProjectPayload,
   updateCronMonitoringControl,
@@ -1041,6 +1045,22 @@ function getProjectServiceNeedle(projectId: string) {
     .replace(/-{2,}/g, '-')}`;
 }
 
+function getWatcherTone(health: string | null | undefined): Tone {
+  if (health === 'live') {
+    return 'green';
+  }
+
+  if (health === 'stale') {
+    return 'amber';
+  }
+
+  if (health === 'offline') {
+    return 'orange';
+  }
+
+  return 'red';
+}
+
 function VirtualizedList<T>({
   empty,
   estimateRowHeight,
@@ -1191,6 +1211,8 @@ export function ObservabilityDashboardClient({
   const [now, setNow] = useState(() => Date.now());
   const [selectedExecution, setSelectedExecution] =
     useState<CronExecutionRecord | null>(null);
+  const [projectPendingDelete, setProjectPendingDelete] =
+    useState<InfrastructureProject | null>(null);
   const filters: GetObservabilityParams = useMemo(
     () => ({
       level: level as GetObservabilityParams['level'],
@@ -1206,6 +1228,13 @@ export function ObservabilityDashboardClient({
     queryFn: () => getInfrastructureProjects(),
     queryKey: ['infrastructure', 'projects'],
     refetchInterval: mode === 'projects' ? 10_000 : 30_000,
+  });
+  const watcherQuery = useQuery({
+    enabled:
+      mode === 'projects' || mode === 'overview' || mode === 'deployments',
+    queryFn: () => getBlueGreenMonitoringSnapshot({ watcherLogLimit: 4 }),
+    queryKey: ['infrastructure', 'monitoring', 'blue-green', 'watcher'],
+    refetchInterval: 5_000,
   });
   const overviewQuery = useQuery({
     queryFn: () => getObservabilityOverview({ projectId, timeframeHours }),
@@ -1390,6 +1419,22 @@ export function ObservabilityDashboardClient({
       });
     },
   });
+  const deleteProjectMutation = useMutation({
+    mutationFn: (project: InfrastructureProject) =>
+      deleteInfrastructureProject(project.id),
+    onSuccess: (response) => {
+      setProjectPendingDelete(null);
+      if (response.project.id === projectId) {
+        void setProjectId('platform');
+      }
+      queryClient.invalidateQueries({
+        queryKey: ['infrastructure', 'projects'],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ['infrastructure', 'observability'],
+      });
+    },
+  });
   const syncProjectMutation = useMutation({
     mutationFn: (project: InfrastructureProject) =>
       syncInfrastructureProject(project.id),
@@ -1428,9 +1473,52 @@ export function ObservabilityDashboardClient({
   const overview = overviewQuery.data;
   const analytics = analyticsQuery.data;
   const cronSnapshot = cronSnapshotQuery.data;
+  const watcher = watcherQuery.data?.watcher;
   const projects = projectsQuery.data?.projects ?? [];
   const selectedProject =
     projects.find((project) => project.id === projectId) ?? projects[0] ?? null;
+  const watcherTargetBranch = watcher?.target?.branch ?? null;
+  const selectedProjectWatcherBranchMismatch =
+    selectedProject?.id === 'platform' &&
+    selectedProject.deploymentStatus === 'queued' &&
+    watcher?.health === 'live' &&
+    typeof watcherTargetBranch === 'string' &&
+    watcherTargetBranch !== selectedProject.selectedBranch;
+  const selectedProjectWatcherUnhealthy =
+    selectedProject?.deploymentStatus === 'queued' &&
+    watcherQuery.isFetched &&
+    watcher?.health !== 'live';
+  const watcherRecoveryReason = selectedProjectWatcherBranchMismatch
+    ? 'branch-mismatch'
+    : selectedProjectWatcherUnhealthy
+      ? 'watcher-unhealthy'
+      : null;
+  const watcherRecoveryQuery = useQuery({
+    enabled: Boolean(selectedProject?.id && watcherRecoveryReason),
+    gcTime: 60_000,
+    queryFn: () =>
+      requestBlueGreenWatcherRecovery({
+        projectBranch: selectedProject?.selectedBranch ?? null,
+        projectId: selectedProject?.id ?? 'platform',
+        reason: watcherRecoveryReason ?? 'unknown',
+        watcherBranch: watcherTargetBranch,
+        watcherHealth: watcher?.health ?? null,
+      }),
+    queryKey: [
+      'infrastructure',
+      'monitoring',
+      'blue-green',
+      'watcher-recovery',
+      selectedProject?.id,
+      selectedProject?.selectedBranch,
+      watcherRecoveryReason,
+      watcherTargetBranch,
+      watcher?.health,
+    ],
+    refetchOnWindowFocus: false,
+    retry: 1,
+    staleTime: 60_000,
+  });
   const resources = resourcesQuery.data?.dockerResources;
   const logs = useMemo(
     () => logsQuery.data?.pages.flatMap((page) => page.items) ?? [],
@@ -1656,6 +1744,7 @@ export function ObservabilityDashboardClient({
               void cronExecutionsQuery.refetch();
               void resourcesQuery.refetch();
               void projectsQuery.refetch();
+              void watcherQuery.refetch();
             }}
             type="button"
           >
@@ -1713,6 +1802,11 @@ export function ObservabilityDashboardClient({
                 <ToneBadge tone="blue">
                   {selectedProject.selectedBranch}
                 </ToneBadge>
+                <ToneBadge tone={getWatcherTone(watcher?.health)}>
+                  {t('watcher.badge', {
+                    health: watcher?.health ?? 'missing',
+                  })}
+                </ToneBadge>
                 {selectedProject.isBuiltin ? (
                   <ToneBadge tone="green">{t('projects.builtin')}</ToneBadge>
                 ) : null}
@@ -1726,7 +1820,7 @@ export function ObservabilityDashboardClient({
                 })}
               </p>
             </div>
-            <div className="grid gap-2 text-xs sm:grid-cols-2 lg:min-w-[520px] lg:grid-cols-4">
+            <div className="grid gap-2 text-xs sm:grid-cols-2 lg:min-w-[650px] lg:grid-cols-5">
               <div className="rounded-md border border-border/60 bg-muted/20 p-3">
                 <p className="text-muted-foreground">
                   {t('projects.latest_commit')}
@@ -1762,8 +1856,44 @@ export function ObservabilityDashboardClient({
                     .join(', ')}
                 </p>
               </div>
+              <div className="rounded-md border border-border/60 bg-muted/20 p-3">
+                <p className="text-muted-foreground">{t('watcher.title')}</p>
+                <p className="mt-1 truncate">
+                  {watcher?.target?.branch ?? '-'} ·{' '}
+                  {formatTime(watcher?.lastCheckAt)}
+                </p>
+              </div>
             </div>
           </div>
+          {selectedProject.deploymentStatus === 'queued' &&
+          watcher?.health !== 'live' ? (
+            <div className="mt-4 rounded-md border border-dynamic-red/30 bg-dynamic-red/10 px-3 py-2 text-dynamic-red text-sm">
+              <p>
+                {t('watcher.not_live_queued', {
+                  health: watcher?.health ?? 'missing',
+                })}
+              </p>
+              <p className="mt-1 text-xs">
+                {watcherRecoveryQuery.isError
+                  ? t('watcher.recovery_failed')
+                  : t('watcher.recovery_requested')}
+              </p>
+            </div>
+          ) : selectedProjectWatcherBranchMismatch ? (
+            <div className="mt-4 rounded-md border border-dynamic-red/30 bg-dynamic-red/10 px-3 py-2 text-dynamic-red text-sm">
+              <p>
+                {t('watcher.branch_mismatch_queued', {
+                  projectBranch: selectedProject.selectedBranch,
+                  watcherBranch: watcherTargetBranch,
+                })}
+              </p>
+              <p className="mt-1 text-xs">
+                {watcherRecoveryQuery.isError
+                  ? t('watcher.recovery_failed')
+                  : t('watcher.recovery_requested')}
+              </p>
+            </div>
+          ) : null}
         </section>
       ) : null}
 
@@ -1926,8 +2056,39 @@ export function ObservabilityDashboardClient({
                           </div>
                         </div>
                         {project.deploymentStatus === 'queued' ? (
-                          <div className="rounded-md border border-dynamic-yellow/30 bg-dynamic-yellow/10 px-3 py-2 text-dynamic-yellow text-xs">
-                            {t('projects.queued_hint')}
+                          <div
+                            className={cn(
+                              'rounded-md border px-3 py-2 text-xs',
+                              watcher?.health === 'live' &&
+                                !(
+                                  project.id === 'platform' &&
+                                  watcherTargetBranch &&
+                                  watcherTargetBranch !== project.selectedBranch
+                                )
+                                ? 'border-dynamic-yellow/30 bg-dynamic-yellow/10 text-dynamic-yellow'
+                                : 'border-dynamic-red/30 bg-dynamic-red/10 text-dynamic-red'
+                            )}
+                          >
+                            {watcher?.health !== 'live'
+                              ? t('watcher.not_live_queued', {
+                                  health: watcher?.health ?? 'missing',
+                                })
+                              : project.id === 'platform' &&
+                                  watcherTargetBranch &&
+                                  watcherTargetBranch !== project.selectedBranch
+                                ? t('watcher.branch_mismatch_queued', {
+                                    projectBranch: project.selectedBranch,
+                                    watcherBranch: watcherTargetBranch,
+                                  })
+                                : t('projects.queued_hint')}
+                            {project.id === selectedProject?.id &&
+                            watcherRecoveryReason ? (
+                              <p className="mt-1">
+                                {watcherRecoveryQuery.isError
+                                  ? t('watcher.recovery_failed')
+                                  : t('watcher.recovery_requested')}
+                              </p>
+                            ) : null}
                           </div>
                         ) : null}
                       </div>
@@ -2086,6 +2247,18 @@ export function ObservabilityDashboardClient({
                             <Play className="h-4 w-4" />
                             {t('projects.deploy')}
                           </Button>
+                          {!project.isBuiltin ? (
+                            <Button
+                              disabled={deleteProjectMutation.isPending}
+                              onClick={() => setProjectPendingDelete(project)}
+                              size="sm"
+                              type="button"
+                              variant="destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              {t('projects.delete')}
+                            </Button>
+                          ) : null}
                         </div>
                       </div>
                     </article>
@@ -2096,6 +2269,62 @@ export function ObservabilityDashboardClient({
           </section>
         </div>
       )}
+
+      <Dialog
+        onOpenChange={(open) => {
+          if (!open) {
+            setProjectPendingDelete(null);
+          }
+        }}
+        open={Boolean(projectPendingDelete)}
+      >
+        <DialogContent>
+          {projectPendingDelete ? (
+            <div className="space-y-4">
+              <DialogHeader>
+                <DialogTitle>{t('projects.delete_title')}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-2 text-sm">
+                <p>
+                  {t('projects.delete_description', {
+                    name: projectPendingDelete.name,
+                  })}
+                </p>
+                <p className="text-muted-foreground">
+                  {t('projects.delete_meta')}
+                </p>
+                {deleteProjectMutation.error ? (
+                  <p className="rounded-md border border-dynamic-red/30 bg-dynamic-red/10 px-3 py-2 text-dynamic-red">
+                    {deleteProjectMutation.error.message}
+                  </p>
+                ) : null}
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button
+                  onClick={() => setProjectPendingDelete(null)}
+                  type="button"
+                  variant="outline"
+                >
+                  {t('projects.delete_cancel')}
+                </Button>
+                <Button
+                  disabled={deleteProjectMutation.isPending}
+                  onClick={() =>
+                    deleteProjectMutation.mutate(projectPendingDelete)
+                  }
+                  type="button"
+                  variant="destructive"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  {deleteProjectMutation.isPending
+                    ? t('projects.delete_pending')
+                    : t('projects.delete_confirm')}
+                </Button>
+              </div>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
 
       {mode === 'overview' &&
         (analyticsQuery.isLoading ? (

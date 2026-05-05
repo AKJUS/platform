@@ -3,6 +3,37 @@ begin;
 create extension if not exists pgtap with schema extensions;
 
 set local search_path = public, extensions;
+
+select plan(17);
+
+insert into auth.users (
+  id,
+  aud,
+  role,
+  email,
+  email_confirmed_at,
+  created_at,
+  updated_at
+)
+values (
+  '00000000-0000-0000-0000-00000000000A',
+  'authenticated',
+  'authenticated',
+  'local@example.com',
+  now(),
+  now(),
+  now()
+)
+on conflict (id) do nothing;
+
+insert into public.users (id)
+select '00000000-0000-0000-0000-00000000000A'
+where not exists (
+  select 1
+  from public.users
+  where id = '00000000-0000-0000-0000-00000000000A'
+);
+
 set local role service_role;
 
 select set_config(
@@ -12,16 +43,6 @@ select set_config(
     'role', 'service_role'
   )::text,
   true
-);
-
-select plan(17);
-
-insert into public.users (id, email)
-select '00000000-0000-0000-0000-00000000000A', 'local@example.com'
-where not exists (
-  select 1
-  from public.users
-  where id = '00000000-0000-0000-0000-00000000000A'
 );
 
 insert into public.workspaces (name, personal, creator_id)
@@ -101,7 +122,7 @@ select is(
   (select count(*)
    from public.platform_entity_creation_limits
    where table_name in ('workspaces', 'workspace_whiteboards', 'tasks')),
-  12,
+  12::bigint,
   'creates four tier rows per limit table'
 );
 
@@ -112,7 +133,7 @@ select is(
      'limit tests: metadata update',
      '00000000-0000-0000-0000-00000000000A'
    )),
-  4,
+  4::bigint,
   'updates limit metadata across all tiers'
 );
 
@@ -234,7 +255,7 @@ select throws_ok(
       '00000000-0000-0000-0000-00000000000A'
     )$$,
   'P0001',
-  'ENTITY_HOURLY_LIMIT_EXCEEDED',
+  'WHITEBOARD_CREATE_RATE_LIMIT_EXCEEDED',
   'blocks the sixth whiteboard created within the hour'
 );
 

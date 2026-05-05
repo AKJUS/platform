@@ -22,40 +22,60 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
         with:
+          fetch-depth: 0
           sparse-checkout: |
+            .github/workflows/*
+            apps/*/package.json
+            bun.lock
+            package.json
+            packages/*/package.json
+            scripts/ci/check-workflow-config.ts
+            turbo.json
             tuturuuu.ts
+          sparse-checkout-cone-mode: false
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
 
+      - name: Compute changed files
+        id: changed_files
+        shell: bash
+        env:
+          BEFORE_SHA: ${{ github.event.before || '' }}
+        run: |
+          CHANGED_FILES_PATH="${RUNNER_TEMP}/changed-files.txt"
+
+          if [ "${GITHUB_EVENT_NAME}" = "workflow_dispatch" ]; then
+            : > "$CHANGED_FILES_PATH"
+          elif [ -n "$BEFORE_SHA" ] && [[ ! "$BEFORE_SHA" =~ ^0+$ ]]; then
+            git diff --name-only "$BEFORE_SHA" "$GITHUB_SHA" > "$CHANGED_FILES_PATH" || rm -f "$CHANGED_FILES_PATH"
+          else
+            git diff-tree --no-commit-id --name-only -r "$GITHUB_SHA" > "$CHANGED_FILES_PATH" || rm -f "$CHANGED_FILES_PATH"
+          fi
+
+          if [ -f "$CHANGED_FILES_PATH" ]; then
+            echo "changed_files_path=$CHANGED_FILES_PATH" >> "$GITHUB_OUTPUT"
+            echo "Changed files:"
+            sed 's/^/- /' "$CHANGED_FILES_PATH"
+          else
+            echo "::warning::Unable to compute changed files. Affected Vercel gating will default open."
+          fi
+
       - name: Check Configuration
         id: check_config
         shell: bash
+        env:
+          CHANGED_FILES_FILE: ${{ steps.changed_files.outputs.changed_files_path }}
+          WORKFLOW_NAME: ${{ inputs.workflow_name }}
         run: |
           CONFIG_FILE="tuturuuu.ts"
-          WORKFLOW_NAME="${{ inputs.workflow_name }}"
 
           if [ ! -f "$CONFIG_FILE" ]; then
             echo "::warning::Configuration file $CONFIG_FILE not found. Defaulting to true."
-            echo "should_run=true" >> $GITHUB_OUTPUT
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          # Create a temporary script to read the config
-          cat << 'EOF' > check_config.ts
-          import { ci } from './tuturuuu.ts';
-
-          const workflowName = process.env.WORKFLOW_NAME || '';
-          // Default to true if key not found
-          const shouldRun = ci[workflowName as keyof typeof ci] ?? true;
-          console.log(String(shouldRun).toLowerCase());
-          EOF
-
-          # Run the script with Bun
-          # Use --silent to prevent bun version info from polluting output
-          SHOULD_RUN=$(WORKFLOW_NAME="$WORKFLOW_NAME" bun run --silent check_config.ts | tr -d '[:space:]')
-
-          echo "Workflow $WORKFLOW_NAME configured to run: $SHOULD_RUN"
-          echo "should_run=$SHOULD_RUN" >> $GITHUB_OUTPUT
+          bun run --silent scripts/ci/check-workflow-config.ts

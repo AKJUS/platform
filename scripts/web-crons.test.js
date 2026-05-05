@@ -7,6 +7,7 @@ const { getCronSyncDiff, syncWebCrons } = require('./web-crons.js');
 const {
   getCronPaths,
   getDueScheduledJobs,
+  processWatcherRecoveryRequest,
   runCronCycle,
 } = require('./watch-web-crons.js');
 
@@ -216,6 +217,85 @@ test('runCronCycle consumes enabled manual run requests', async () => {
     assert.equal(status.runs[0].executionId, result.executions[0].id);
     assert.equal(
       fs.existsSync(path.join(paths.runRequestsDir, 'request.json')),
+      false
+    );
+  } finally {
+    fs.rmSync(tempDir, { force: true, recursive: true });
+  }
+});
+
+test('processWatcherRecoveryRequest recreates the watcher and clears the request', async () => {
+  const tempDir = makeTempDir('web-crons-watcher-recovery-');
+  const paths = getCronPaths({
+    controlDir: path.join(tempDir, 'tmp', 'docker-web', 'watch', 'control'),
+    runtimeDir: path.join(tempDir, 'tmp', 'docker-web', 'cron'),
+  });
+  const calls = [];
+
+  try {
+    writeJson(paths.watcherRecoveryRequestFile, {
+      kind: 'watcher-recovery',
+      projectBranch: 'production',
+      projectId: 'platform',
+      reason: 'branch-mismatch',
+      requestedAt: '2026-05-04T08:00:00.000Z',
+      requestedBy: 'user-1',
+      requestedByEmail: null,
+      watcherBranch: 'main',
+      watcherHealth: 'live',
+    });
+    writeJson(
+      path.join(
+        tempDir,
+        'tmp',
+        'docker-web',
+        'watch',
+        'blue-green-auto-deploy.status.json'
+      ),
+      { status: 'live' }
+    );
+
+    const result = await processWatcherRecoveryRequest({
+      env: {},
+      paths,
+      rootDir: tempDir,
+      run: async (command, args, options) => {
+        calls.push({ args, command, env: options.env });
+        return { code: 0, stderr: '', stdout: '' };
+      },
+    });
+
+    assert.equal(result.status, 'recreated');
+    assert.deepEqual(calls, [
+      {
+        args: [
+          'compose',
+          '-f',
+          path.join(tempDir, 'docker-compose.web.prod.yml'),
+          '--profile',
+          'redis',
+          'up',
+          '--build',
+          '--detach',
+          '--force-recreate',
+          '--remove-orphans',
+          'web-blue-green-watcher',
+        ],
+        command: 'docker',
+        env: { PLATFORM_HOST_WORKSPACE_DIR: '/workspace-host' },
+      },
+    ]);
+    assert.equal(fs.existsSync(paths.watcherRecoveryRequestFile), false);
+    assert.equal(
+      fs.existsSync(
+        path.join(
+          tempDir,
+          'tmp',
+          'docker-web',
+          'watch',
+          'blue-green-auto-deploy.status.json'
+        )
+      ),
       false
     );
   } finally {

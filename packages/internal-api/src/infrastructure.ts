@@ -127,6 +127,18 @@ export interface BlueGreenInstantRolloutRequest {
   requestedByEmail: string | null;
 }
 
+export interface BlueGreenWatcherRecoveryRequest {
+  kind: 'watcher-recovery';
+  projectBranch: string | null;
+  projectId: string;
+  reason: string;
+  requestedAt: string;
+  requestedBy: string;
+  requestedByEmail: string | null;
+  watcherBranch: string | null;
+  watcherHealth: string | null;
+}
+
 export interface BlueGreenMonitoringPeriodMetric {
   averageLatencyMs: number | null;
   bucketLabel: string;
@@ -468,6 +480,19 @@ export interface BlueGreenMonitoringSnapshot {
 export interface RequestBlueGreenInstantRolloutResponse {
   message: string;
   request: BlueGreenInstantRolloutRequest;
+}
+
+export interface RequestBlueGreenWatcherRecoveryPayload {
+  projectBranch?: string | null;
+  projectId: string;
+  reason: string;
+  watcherBranch?: string | null;
+  watcherHealth?: string | null;
+}
+
+export interface RequestBlueGreenWatcherRecoveryResponse {
+  message: string;
+  request: BlueGreenWatcherRecoveryRequest;
 }
 
 export interface PinBlueGreenDeploymentPayload {
@@ -1174,6 +1199,20 @@ export async function updateInfrastructureProject(
   );
 }
 
+export async function deleteInfrastructureProject(
+  projectId: string,
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  return client.json<InfrastructureProjectResponse>(
+    `/api/v1/infrastructure/projects/${encodeURIComponent(projectId)}`,
+    {
+      cache: 'no-store',
+      method: 'DELETE',
+    }
+  );
+}
+
 export async function syncInfrastructureProject(
   projectId: string,
   options?: InternalApiClientOptions
@@ -1210,6 +1249,24 @@ export async function requestBlueGreenInstantRollout(
     '/api/v1/infrastructure/monitoring/blue-green/instant-rollout',
     {
       cache: 'no-store',
+      method: 'POST',
+    }
+  );
+}
+
+export async function requestBlueGreenWatcherRecovery(
+  payload: RequestBlueGreenWatcherRecoveryPayload,
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  return client.json<RequestBlueGreenWatcherRecoveryResponse>(
+    '/api/v1/infrastructure/monitoring/blue-green/watcher-recovery',
+    {
+      body: JSON.stringify(payload),
+      cache: 'no-store',
+      headers: {
+        'Content-Type': 'application/json',
+      },
       method: 'POST',
     }
   );

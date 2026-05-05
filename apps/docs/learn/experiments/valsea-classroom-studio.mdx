@@ -1,0 +1,101 @@
+---
+title: Valsea Classroom Studio
+description: Experiment notes for the Education Lab Valsea integration.
+---
+
+The Valsea Classroom Studio experiment lives in the web dashboard at
+`/:wsId/education/valsea`. It turns mixed-language classroom speech or pasted
+transcripts into teacher-ready learning artifacts.
+
+## Runtime Setup
+
+Set `VALSEA_API_KEY` in the web runtime environment. Do not commit Valsea keys
+to the repository.
+
+For hackathon demos, the page also supports BYOK. The authenticated route exposes
+a no-store `GET` status response that tells the client whether a server key is
+configured. If not, the page automatically opens the Valsea key dialog. A user
+can paste a Valsea key into the password field, and the client forwards it to the
+authenticated server route in the `X-Valsea-Api-Key` header for that request
+only. The key is not stored in local storage, cookies, Supabase, or the rendered
+response. The server falls back to `VALSEA_API_KEY` when the request does not
+include a BYOK header.
+
+The server route is:
+
+```txt
+POST /api/v1/workspaces/:wsId/education/valsea
+```
+
+The route is session-authenticated, verifies workspace membership, and calls
+Valsea from the server. The browser never receives the server provider key.
+
+```txt
+GET /api/v1/workspaces/:wsId/education/valsea
+```
+
+The `GET` route returns only `{ "hasServerKey": boolean }` and does not expose
+the configured key.
+
+```txt
+POST /api/v1/workspaces/:wsId/education/valsea/scenario
+```
+
+The scenario route uses Tuturuuu's internal AI stack to generate a classroom
+challenge for the studio: learner persona, classroom context, reference phrase,
+confusion tags, grading rubric, and the Valsea output mode to use. If the
+internal model runtime is unavailable, the route returns a curated local
+scenario so hackathon demos still work with only a valid Valsea API key.
+
+## Pipeline
+
+The experiment accepts either a JSON transcript payload or multipart audio file
+upload. Audio is capped at 10 MB before being forwarded to Valsea.
+
+For text and transcribed audio, the server runs this Valsea pipeline:
+
+1. Clarify colloquial classroom language with `/v1/clarifications`.
+2. Annotate semantic and accent cues with `/v1/annotations`.
+3. Translate the clarified learner-facing text with `/v1/translations`.
+4. Analyze learner mood with `/v1/sentiment`.
+5. Format a teacher artifact with `/v1/formatting`.
+
+## Voice Grading
+
+When the request includes both an audio file and a typed transcript, the typed
+transcript is treated as the reference phrase and the uploaded audio is treated
+as the learner reading that phrase aloud. The server uses the Valsea
+transcription result to compare expected words against what was heard and
+returns a `pronunciation` object with:
+
+- `overallScore`: word-level pronunciation match percentage.
+- `nativeSimilarity`: the pronunciation score adjusted for transcript
+  corrections, intended as a rough native-like delivery signal.
+- `words`: per-word expected/heard text, score, native score, and character
+  highlight levels (`green`, `amber`, `orange`, `red`).
+
+Valsea does not currently expose a dedicated pronunciation-assessment endpoint,
+so the deployed Docker workflow runs a local `pronunciation-assessor` helper
+container and sets:
+
+```txt
+VALSEA_PRONUNCIATION_ASSESSOR_URL=http://pronunciation-assessor:8010/assess
+```
+
+The helper uses a local Wav2Vec2 CTC speech model to produce an acoustic
+confidence and independent transcript, then blends that with Valsea's
+accent-aware transcript/corrections. This follows the current pronunciation
+assessment direction of CTC/GOP-style scoring with self-supervised speech
+models while keeping the product contract simple: a deployed stack only needs a
+valid Valsea API key, because the pronunciation model runs locally.
+
+The web route POSTs multipart form data to the assessor with `file`, `language`,
+`referenceText`, `valseaTranscript`, and `valseaResponse`. If the local assessor
+returns a compatible JSON object, the UI marks the provider as local model; if it
+fails or is not configured, the route falls back to the Valsea-backed heuristic.
+
+The client calls this route through `packages/internal-api` and renders the
+normalized response as classroom wording, translation, teacher artifact,
+sentiment, semantic tags, voice grading, and raw provider output for debugging.
+Raw provider JSON is collapsed by default; the primary UI visualizes the same
+data as badges, tags, cards, character heatmaps, and word-level score bars.

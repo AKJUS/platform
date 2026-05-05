@@ -2,7 +2,13 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { Loader2 } from '@tuturuuu/icons';
-import { getWorkspacePosts } from '@tuturuuu/internal-api';
+import {
+  type GetWorkspacePostsQuery,
+  getWorkspacePosts,
+  getWorkspacePostsBootstrap,
+  getWorkspacePostsPermissions,
+} from '@tuturuuu/internal-api/posts';
+import { Button } from '@tuturuuu/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@tuturuuu/ui/card';
 import FeatureSummary from '@tuturuuu/ui/custom/feature-summary';
 import { DataTable } from '@tuturuuu/ui/custom/tables/data-table';
@@ -12,7 +18,11 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getPostEmailColumns } from './columns';
 import PostsFilters from './filters';
 import { PostDisplay } from './post-display';
-import { postsSearchParamParsers } from './search-params';
+import {
+  applyDefaultPostStageFilter,
+  postsSearchParamParsers,
+  shouldApplyDefaultPostStageFilter,
+} from './search-params';
 import { PostStatusSummary } from './status-summary';
 import type {
   PostEmail,
@@ -24,31 +34,38 @@ import { createPostEmailKey, usePosts } from './use-posts';
 interface PostsClientProps {
   wsId: string;
   locale: string;
-  canApprovePosts: boolean;
-  canForceSendPosts: boolean;
-  defaultDateRange: {
-    start: string;
-    end: string;
-  };
   searchParams: PostsSearchParams;
 }
 
 export default function PostsClient({
   wsId,
   locale,
-  canApprovePosts,
-  canForceSendPosts,
-  defaultDateRange,
   searchParams,
 }: PostsClientProps) {
   const t = useTranslations();
   const [queryState, setQueryState] = useQueryStates(postsSearchParamParsers);
   const [posts, setPosts] = usePosts();
   const [selectedPost, setSelectedPost] = useState<PostEmail | null>(null);
-  const activeStage = queryState.stage ?? searchParams.stage ?? undefined;
   const currentPage = queryState.page ?? searchParams.page ?? 1;
   const currentPageSize = queryState.pageSize ?? searchParams.pageSize ?? 10;
-  const effectiveSearchParams = useMemo(
+  const {
+    data: bootstrap,
+    error: bootstrapError,
+    isLoading: isBootstrapLoading,
+    refetch: refetchBootstrap,
+  } = useQuery({
+    queryKey: ['workspace-posts-bootstrap', wsId],
+    queryFn: () => getWorkspacePostsBootstrap(wsId),
+    staleTime: 60_000,
+  });
+  const resolvedWsId = bootstrap?.wsId;
+  const defaultDateRange = bootstrap?.defaultDateRange;
+  const { data: permissions } = useQuery({
+    queryKey: ['workspace-posts-permissions', resolvedWsId ?? wsId],
+    queryFn: () => getWorkspacePostsPermissions(resolvedWsId ?? wsId),
+    staleTime: 60_000,
+  });
+  const rawSearchParams = useMemo<PostsSearchParams>(
     () => ({
       approvalStatus:
         queryState.approvalStatus ?? searchParams.approvalStatus ?? undefined,
@@ -66,27 +83,101 @@ export default function PostsClient({
       queueStatus:
         queryState.queueStatus ?? searchParams.queueStatus ?? undefined,
       showAll: queryState.showAll ?? searchParams.showAll ?? undefined,
-      stage: activeStage,
+      stage: queryState.stage ?? searchParams.stage ?? undefined,
       start: queryState.start ?? searchParams.start ?? undefined,
       userId: queryState.userId ?? searchParams.userId ?? undefined,
     }),
-    [activeStage, currentPage, currentPageSize, queryState, searchParams]
+    [currentPage, currentPageSize, queryState, searchParams]
   );
+  const effectiveSearchParams = useMemo<PostsSearchParams>(() => {
+    const withDefaultStage = applyDefaultPostStageFilter(rawSearchParams);
+
+    return {
+      ...withDefaultStage,
+      end:
+        withDefaultStage.end ??
+        (withDefaultStage.start ? undefined : defaultDateRange?.end),
+      start: withDefaultStage.start ?? defaultDateRange?.start,
+    };
+  }, [defaultDateRange, rawSearchParams]);
+  const workspacePostsQuery = useMemo<GetWorkspacePostsQuery>(
+    () => ({
+      approvalStatus: effectiveSearchParams.approvalStatus ?? undefined,
+      cursor: effectiveSearchParams.cursor ?? undefined,
+      end: effectiveSearchParams.end ?? undefined,
+      excludedGroups: effectiveSearchParams.excludedGroups ?? undefined,
+      includedGroups: effectiveSearchParams.includedGroups ?? undefined,
+      page: effectiveSearchParams.page ?? undefined,
+      pageSize: effectiveSearchParams.pageSize ?? undefined,
+      queueStatus: effectiveSearchParams.queueStatus ?? undefined,
+      showAll: effectiveSearchParams.showAll ?? undefined,
+      stage: effectiveSearchParams.stage ?? undefined,
+      start: effectiveSearchParams.start ?? undefined,
+      userId: effectiveSearchParams.userId ?? undefined,
+    }),
+    [effectiveSearchParams]
+  );
+  const activeStage = effectiveSearchParams.stage ?? undefined;
+
+  useEffect(() => {
+    if (!defaultDateRange) {
+      return;
+    }
+
+    const nextSearchParams: Partial<PostsSearchParams> = {};
+
+    if (!queryState.start && !queryState.end) {
+      nextSearchParams.start = defaultDateRange.start;
+      nextSearchParams.end = defaultDateRange.end;
+    }
+
+    if (
+      shouldApplyDefaultPostStageFilter({
+        approvalStatus: queryState.approvalStatus,
+        queueStatus: queryState.queueStatus,
+        showAll: queryState.showAll,
+        stage: queryState.stage,
+      })
+    ) {
+      nextSearchParams.stage = 'pending_approval';
+    }
+
+    if (Object.keys(nextSearchParams).length > 0) {
+      void setQueryState(nextSearchParams);
+    }
+  }, [
+    defaultDateRange,
+    queryState.approvalStatus,
+    queryState.end,
+    queryState.queueStatus,
+    queryState.showAll,
+    queryState.stage,
+    queryState.start,
+    setQueryState,
+  ]);
+
+  const canFetchPosts = Boolean(resolvedWsId && defaultDateRange);
+  const canApprovePosts = permissions?.canApprovePosts ?? false;
+  const canForceSendPosts = permissions?.canForceSendPosts ?? false;
   const {
     data: postsResponse,
+    error: postsError,
     isFetching,
     isLoading,
     refetch,
   } = useQuery({
-    queryKey: ['workspace-posts', wsId, effectiveSearchParams],
+    queryKey: ['workspace-posts', resolvedWsId, workspacePostsQuery],
     queryFn: () =>
       getWorkspacePosts<PostEmail, PostEmailStatusSummary>(
-        wsId,
-        effectiveSearchParams
+        resolvedWsId as string,
+        workspacePostsQuery
       ),
+    enabled: canFetchPosts,
     placeholderData: (previousData) => previousData,
   });
-  const isInitialLoading = isLoading && !postsResponse;
+  const loadError = bootstrapError ?? postsError;
+  const isInitialLoading =
+    isBootstrapLoading || (isLoading && !postsResponse) || !canFetchPosts;
   const postsData = postsResponse
     ? { count: postsResponse.count, data: postsResponse.data }
     : { count: 0, data: [] as PostEmail[] };
@@ -175,15 +266,17 @@ export default function PostsClient({
         filteredCount={postsData?.count || 0}
         summary={postsStatus}
         toolbar={
-          <PostsFilters
-            wsId={wsId}
-            statusSummary={postsStatus}
-            defaultDateRange={defaultDateRange}
-            onRefreshPosts={() => {
-              void refetch();
-            }}
-            isRefreshing={isFetching}
-          />
+          resolvedWsId && defaultDateRange ? (
+            <PostsFilters
+              wsId={resolvedWsId}
+              statusSummary={postsStatus}
+              defaultDateRange={defaultDateRange}
+              onRefreshPosts={() => {
+                void refetch();
+              }}
+              isRefreshing={isFetching}
+            />
+          ) : null
         }
       />
 
@@ -199,7 +292,23 @@ export default function PostsClient({
           </CardHeader>
           <CardContent className="min-w-0">
             <div className="relative min-h-144 overflow-y-auto">
-              {isInitialLoading ? (
+              {loadError && !postsResponse ? (
+                <div className="flex min-h-72 flex-col items-center justify-center gap-3 text-muted-foreground">
+                  <p>{t('common.error_loading_data')}</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      void refetchBootstrap();
+                      if (canFetchPosts) {
+                        void refetch();
+                      }
+                    }}
+                  >
+                    {t('common.refresh')}
+                  </Button>
+                </div>
+              ) : isInitialLoading ? (
                 <div className="flex min-h-72 items-center justify-center text-muted-foreground">
                   <Loader2 className="h-5 w-5 animate-spin" />
                 </div>
@@ -253,7 +362,7 @@ export default function PostsClient({
         </Card>
         <div className="xl:sticky xl:top-6 xl:h-[calc(100vh-3rem)] xl:self-start xl:overflow-y-auto">
           <PostDisplay
-            wsId={wsId}
+            wsId={resolvedWsId ?? wsId}
             postEmail={selectedPost}
             canApprovePosts={canApprovePosts}
             canForceSendPosts={canForceSendPosts}

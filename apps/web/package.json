@@ -40,8 +40,8 @@
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.67",
-    "@aws-sdk/client-s3": "^3.1041.0",
-    "@aws-sdk/s3-request-presigner": "^3.1041.0",
+    "@aws-sdk/client-s3": "^3.1042.0",
+    "@aws-sdk/s3-request-presigner": "^3.1042.0",
     "@deepgram/sdk": "^5.1.0",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
@@ -50,7 +50,7 @@
     "@emotion/server": "^11.11.0",
     "@excalidraw/excalidraw": "^0.18.1",
     "@formatjs/intl-localematcher": "^0.8.5",
-    "@google/genai": "^1.51.0",
+    "@google/genai": "^1.52.0",
     "@google/generative-ai": "^0.24.1",
     "@hookform/resolvers": "^5.2.2",
     "@json-render/core": "^0.18.0",
@@ -106,7 +106,7 @@
     "@upstash/qstash": "^2.10.1",
     "@upstash/ratelimit": "^2.0.8",
     "@upstash/redis": "^1.37.0",
-    "ai": "^6.0.174",
+    "ai": "^6.0.175",
     "bcrypt": "^6.0.0",
     "browser-image-compression": "^2.0.2",
     "canvas-confetti": "^1.9.4",
@@ -169,8 +169,8 @@
     "use-debounce": "^10.1.1",
     "uuid": "^14.0.0",
     "vega-embed": "^7.1.0",
-    "zod": "^4.4.2",
-    "zustand": "^5.0.12"
+    "zod": "^4.4.3",
+    "zustand": "^5.0.13"
   },
   "devDependencies": {
     "@next/bundle-analyzer": "^16.2.4",
@@ -196,7 +196,7 @@
     "autoprefixer": "^10.5.0",
     "babel-plugin-react-compiler": "^1.0.0",
     "jsdom": "^29.1.1",
-    "postcss": "^8.5.13",
+    "postcss": "^8.5.14",
     "postcss-preset-mantine": "^1.18.0",
     "postcss-simple-vars": "^7.0.1",
     "typescript": "^6.0.3",

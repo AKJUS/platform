@@ -1,5 +1,5 @@
 begin;
-select plan(18);
+select plan(16);
 
 -- Check table existence
 select has_table('public', 'workspace_guests', 'Table workspace_guests should exist');
@@ -18,8 +18,6 @@ select has_column('public', 'workspace_guests', 'user_id', 'Column user_id shoul
 select col_type_is('public', 'workspace_guests', 'user_id', 'uuid', 'Column user_id should be of type uuid');
 
 -- Check foreign keys
-select has_fk('public', 'workspace_guests', 'workspace_guests_ws_id_fkey', 'Should have foreign key to workspaces');
-select has_fk('public', 'workspace_guests', 'workspace_guests_user_id_fkey', 'Should have foreign key to users');
 select ok(
   exists (
     select 1
@@ -105,7 +103,21 @@ select ok(
 );
 
 -- Check unique constraint
-select has_unique('public', 'workspace_guests', ARRAY['ws_id', 'user_id'], 'Should have unique constraint on (ws_id, user_id)');
+select ok(
+  exists (
+    select 1
+    from pg_constraint con
+    join pg_class cls
+      on cls.oid = con.conrelid
+    join pg_namespace ns
+      on ns.oid = cls.relnamespace
+    where ns.nspname = 'public'
+      and cls.relname = 'workspace_guests'
+      and con.contype = 'u'
+      and con.conname = 'workspace_guests_ws_id_user_id_key'
+  ),
+  'Should have unique constraint on (ws_id, user_id)'
+);
 
 select * from finish();
 rollback;
