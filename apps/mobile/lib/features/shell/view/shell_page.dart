@@ -71,10 +71,17 @@ class _ShellPageState extends State<ShellPage>
   static const double _navIconSize = 22;
   static const double _assistantNavIconSize = 38;
   static const double _navItemSpacing = 2;
+  static const double _miniNavIconSize = 20;
+  static const double _miniNavLabelFontSize = 10;
+  static const double _miniNavItemSpacing = 1;
   static const double _floatingNavMinItemWidth = 96;
   static const double _compactBottomNavHeight = 72;
   static const Duration _exitConfirmationWindow = Duration(seconds: 2);
   static const Duration _assistantSpinDuration = Duration(milliseconds: 680);
+  static const Duration _navSwitcherDuration = Duration(milliseconds: 320);
+  static const Duration _navSwitcherReverseDuration = Duration(
+    milliseconds: 220,
+  );
   static const MethodChannel _androidBackChannel = MethodChannel(
     'mobile/shell_back',
   );

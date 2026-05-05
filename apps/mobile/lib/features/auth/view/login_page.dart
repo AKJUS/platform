@@ -9,6 +9,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mobile/core/config/env.dart';
 import 'package:mobile/core/input/platform_text_context_menu.dart';
+import 'package:mobile/core/router/routes.dart';
 import 'package:mobile/features/app_version/cubit/app_version_cubit.dart';
 import 'package:mobile/features/auth/cubit/auth_cubit.dart';
 import 'package:mobile/features/auth/cubit/auth_state.dart';
@@ -307,6 +308,10 @@ class _LoginPageState extends State<LoginPage> {
     return context.read<AuthCubit>().signInWithGithub();
   }
 
+  void _handleQrLogin() {
+    unawaited(context.push(Routes.qrLogin));
+  }
+
   void _syncAndroidBackState() {
     if (!widget.addAccountMode ||
         defaultTargetPlatform != TargetPlatform.android) {
@@ -440,6 +445,10 @@ class _LoginPageState extends State<LoginPage> {
             AuthMethodDivider(label: l10n.authContinueWithSocial),
             const shad.Gap(18),
             _buildSocialSection(),
+            const shad.Gap(24),
+            AuthMethodDivider(label: l10n.authContinueWithQr),
+            const shad.Gap(18),
+            _buildQrLoginSection(),
           ],
           BlocBuilder<AuthCubit, AuthState>(
             buildWhen: (prev, curr) =>
@@ -761,6 +770,23 @@ class _LoginPageState extends State<LoginPage> {
             onMicrosoftPressed: _handleMicrosoftSignIn,
             onApplePressed: _handleAppleSignIn,
             onGithubPressed: _handleGithubSignIn,
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildQrLoginSection() {
+    return AuthSectionCard(
+      padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+      child: BlocBuilder<AuthCubit, AuthState>(
+        buildWhen: (prev, curr) => prev.isLoading != curr.isLoading,
+        builder: (context, state) {
+          return AuthSecondaryButton(
+            label: context.l10n.qrLoginMobileButton,
+            isLoading: state.isLoading,
+            onPressed: _handleQrLogin,
+            leading: const Icon(Icons.qr_code_2_rounded, size: 20),
           );
         },
       ),

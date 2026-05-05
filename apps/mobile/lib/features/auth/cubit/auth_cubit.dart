@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:mobile/core/cache/cache_store.dart';
 import 'package:mobile/data/models/auth_action_result.dart';
+import 'package:mobile/data/models/auth_session.dart';
 import 'package:mobile/data/models/stored_auth_account.dart';
 import 'package:mobile/data/repositories/auth_repository.dart';
 import 'package:mobile/features/auth/cubit/auth_state.dart';
@@ -298,6 +299,50 @@ class AuthCubit extends Cubit<AuthState> {
       action: _repo.signInWithGithub,
       fallbackErrorCode: AuthErrorCode.githubBrowserLaunchFailed,
     );
+  }
+
+  Future<bool> signInWithQrLoginSession(AuthSessionPayload session) async {
+    emit(state.copyWith(isLoading: true, error: null, errorCode: null));
+    final result = await _repo.signInWithSession(session);
+    if (isClosed) return false;
+
+    if (result.success) {
+      if (state.isAddAccountFlow) {
+        final addResult = await _repo.completeAddAccountFlow();
+        if (isClosed) return false;
+        if (!addResult.success) {
+          emit(
+            state.copyWith(
+              isLoading: false,
+              error: addResult.error,
+              errorCode: null,
+            ),
+          );
+          return false;
+        }
+      }
+
+      final user = await _repo.getCurrentUser();
+      if (isClosed) return false;
+      if (user != null) {
+        if (_repo.checkMfaRequired()) {
+          emit(AuthState.mfaRequired(user));
+        } else {
+          emit(AuthState.authenticated(user));
+        }
+        await _reloadStoredAccounts();
+        return true;
+      }
+    }
+
+    emit(
+      state.copyWith(
+        isLoading: false,
+        error: result.error,
+        errorCode: null,
+      ),
+    );
+    return false;
   }
 
   Future<void> _signInWithExternalProvider({

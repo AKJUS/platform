@@ -217,6 +217,12 @@ abstract class AppLocalizations {
   /// **'or continue with email'**
   String get authContinueWithEmail;
 
+  /// No description provided for @authContinueWithQr.
+  ///
+  /// In en, this message translates to:
+  /// **'or'**
+  String get authContinueWithQr;
+
   /// No description provided for @authContinueWithSocial.
   ///
   /// In en, this message translates to:
@@ -580,31 +586,31 @@ abstract class AppLocalizations {
   /// No description provided for @qrLoginApproveDescription.
   ///
   /// In en, this message translates to:
-  /// **'Approve web sign-in from {origin} using {userEmail}.'**
+  /// **'Approve QR sign-in from {origin} using {userEmail}.'**
   String qrLoginApproveDescription(Object origin, Object userEmail);
 
   /// No description provided for @qrLoginApproveFailed.
   ///
   /// In en, this message translates to:
-  /// **'Couldn\'t approve this web login.'**
+  /// **'Couldn\'t approve this QR login.'**
   String get qrLoginApproveFailed;
 
   /// No description provided for @qrLoginApproveTitle.
   ///
   /// In en, this message translates to:
-  /// **'Approve web sign-in'**
+  /// **'Approve QR sign-in'**
   String get qrLoginApproveTitle;
 
   /// No description provided for @qrLoginApprovedDescription.
   ///
   /// In en, this message translates to:
-  /// **'The browser can now finish signing in.'**
+  /// **'The other device can now finish signing in.'**
   String get qrLoginApprovedDescription;
 
   /// No description provided for @qrLoginApprovedTitle.
   ///
   /// In en, this message translates to:
-  /// **'Web sign-in approved'**
+  /// **'QR sign-in approved'**
   String get qrLoginApprovedTitle;
 
   /// No description provided for @qrLoginCameraUnavailable.
@@ -616,7 +622,7 @@ abstract class AppLocalizations {
   /// No description provided for @qrLoginInvalidCode.
   ///
   /// In en, this message translates to:
-  /// **'Point the camera at a Tuturuuu web login QR code.'**
+  /// **'Point the camera at a Tuturuuu login QR code.'**
   String get qrLoginInvalidCode;
 
   /// No description provided for @qrLoginLocalAuthFailed.
@@ -628,8 +634,56 @@ abstract class AppLocalizations {
   /// No description provided for @qrLoginLocalAuthReason.
   ///
   /// In en, this message translates to:
-  /// **'Approve Tuturuuu web sign-in.'**
+  /// **'Approve Tuturuuu QR sign-in.'**
   String get qrLoginLocalAuthReason;
+
+  /// No description provided for @qrLoginMobileApproved.
+  ///
+  /// In en, this message translates to:
+  /// **'QR approved. Signing you in...'**
+  String get qrLoginMobileApproved;
+
+  /// No description provided for @qrLoginMobileButton.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in with mobile QR'**
+  String get qrLoginMobileButton;
+
+  /// No description provided for @qrLoginMobileDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Open Tuturuuu on a signed-in phone and scan this code.'**
+  String get qrLoginMobileDescription;
+
+  /// No description provided for @qrLoginMobileExpired.
+  ///
+  /// In en, this message translates to:
+  /// **'QR code expired. Generate a new code.'**
+  String get qrLoginMobileExpired;
+
+  /// No description provided for @qrLoginMobileLoading.
+  ///
+  /// In en, this message translates to:
+  /// **'Generating QR code...'**
+  String get qrLoginMobileLoading;
+
+  /// No description provided for @qrLoginMobileRetry.
+  ///
+  /// In en, this message translates to:
+  /// **'Generate new QR code'**
+  String get qrLoginMobileRetry;
+
+  /// No description provided for @qrLoginMobileTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Sign in with mobile QR'**
+  String get qrLoginMobileTitle;
+
+  /// No description provided for @qrLoginMobileWaiting.
+  ///
+  /// In en, this message translates to:
+  /// **'Waiting for approval...'**
+  String get qrLoginMobileWaiting;
 
   /// No description provided for @qrLoginRequiresAppLock.
   ///
@@ -646,31 +700,31 @@ abstract class AppLocalizations {
   /// No description provided for @qrLoginScannerDescription.
   ///
   /// In en, this message translates to:
-  /// **'Scan the QR code shown on the Tuturuuu web login page.'**
+  /// **'Scan a QR code shown on another Tuturuuu sign-in screen.'**
   String get qrLoginScannerDescription;
 
   /// No description provided for @qrLoginScannerTitle.
   ///
   /// In en, this message translates to:
-  /// **'Scan web login QR'**
+  /// **'Scan login QR'**
   String get qrLoginScannerTitle;
 
   /// No description provided for @qrLoginSettingsDescription.
   ///
   /// In en, this message translates to:
-  /// **'Scan a QR code on the web login page and approve it with app lock.'**
+  /// **'Scan a QR code on another sign-in screen and approve it with app lock.'**
   String get qrLoginSettingsDescription;
 
   /// No description provided for @qrLoginSettingsDisabledDescription.
   ///
   /// In en, this message translates to:
-  /// **'Turn on app lock before scanning web login QR codes.'**
+  /// **'Turn on app lock before scanning QR login codes.'**
   String get qrLoginSettingsDisabledDescription;
 
   /// No description provided for @qrLoginSettingsTitle.
   ///
   /// In en, this message translates to:
-  /// **'Scan web login QR'**
+  /// **'Scan login QR'**
   String get qrLoginSettingsTitle;
 
   /// No description provided for @loginForgotPassword.

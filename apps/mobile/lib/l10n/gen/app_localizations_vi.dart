@@ -78,6 +78,9 @@ class AppLocalizationsVi extends AppLocalizations {
   String get authContinueWithEmail => 'hoặc tiếp tục với email';
 
   @override
+  String get authContinueWithQr => 'hoặc';
+
+  @override
   String get authContinueWithSocial => 'hoặc dùng tài khoản mạng xã hội';
 
   @override
@@ -263,32 +266,56 @@ class AppLocalizationsVi extends AppLocalizations {
 
   @override
   String qrLoginApproveDescription(Object origin, Object userEmail) {
-    return 'Phê duyệt đăng nhập web từ $origin bằng $userEmail.';
+    return 'Phê duyệt đăng nhập QR từ $origin bằng $userEmail.';
   }
 
   @override
-  String get qrLoginApproveFailed => 'Không thể phê duyệt lần đăng nhập web này.';
+  String get qrLoginApproveFailed => 'Không thể phê duyệt lần đăng nhập QR này.';
 
   @override
-  String get qrLoginApproveTitle => 'Phê duyệt đăng nhập web';
+  String get qrLoginApproveTitle => 'Phê duyệt đăng nhập QR';
 
   @override
-  String get qrLoginApprovedDescription => 'Trình duyệt hiện có thể hoàn tất đăng nhập.';
+  String get qrLoginApprovedDescription => 'Thiết bị còn lại hiện có thể hoàn tất đăng nhập.';
 
   @override
-  String get qrLoginApprovedTitle => 'Đã phê duyệt đăng nhập web';
+  String get qrLoginApprovedTitle => 'Đã phê duyệt đăng nhập QR';
 
   @override
   String get qrLoginCameraUnavailable => 'Máy ảnh không khả dụng.';
 
   @override
-  String get qrLoginInvalidCode => 'Hướng máy ảnh vào mã QR đăng nhập web của Tuturuuu.';
+  String get qrLoginInvalidCode => 'Hướng máy ảnh vào mã QR đăng nhập Tuturuuu.';
 
   @override
   String get qrLoginLocalAuthFailed => 'Xác thực cục bộ đã bị hủy hoặc thất bại.';
 
   @override
-  String get qrLoginLocalAuthReason => 'Phê duyệt đăng nhập web Tuturuuu.';
+  String get qrLoginLocalAuthReason => 'Phê duyệt đăng nhập QR Tuturuuu.';
+
+  @override
+  String get qrLoginMobileApproved => 'QR đã được phê duyệt. Đang đăng nhập...';
+
+  @override
+  String get qrLoginMobileButton => 'Đăng nhập bằng QR di động';
+
+  @override
+  String get qrLoginMobileDescription => 'Mở Tuturuuu trên điện thoại đã đăng nhập và quét mã này.';
+
+  @override
+  String get qrLoginMobileExpired => 'Mã QR đã hết hạn. Hãy tạo mã mới.';
+
+  @override
+  String get qrLoginMobileLoading => 'Đang tạo mã QR...';
+
+  @override
+  String get qrLoginMobileRetry => 'Tạo mã QR mới';
+
+  @override
+  String get qrLoginMobileTitle => 'Đăng nhập bằng QR di động';
+
+  @override
+  String get qrLoginMobileWaiting => 'Đang chờ phê duyệt...';
 
   @override
   String get qrLoginRequiresAppLock => 'Bật khóa ứng dụng trước khi phê duyệt đăng nhập QR.';
@@ -297,19 +324,19 @@ class AppLocalizationsVi extends AppLocalizations {
   String get qrLoginScanAgain => 'Quét lại';
 
   @override
-  String get qrLoginScannerDescription => 'Quét mã QR hiển thị trên trang đăng nhập web Tuturuuu.';
+  String get qrLoginScannerDescription => 'Quét mã QR hiển thị trên một màn hình đăng nhập Tuturuuu khác.';
 
   @override
-  String get qrLoginScannerTitle => 'Quét QR đăng nhập web';
+  String get qrLoginScannerTitle => 'Quét QR đăng nhập';
 
   @override
-  String get qrLoginSettingsDescription => 'Quét mã QR trên trang đăng nhập web và phê duyệt bằng khóa ứng dụng.';
+  String get qrLoginSettingsDescription => 'Quét mã QR trên màn hình đăng nhập khác và phê duyệt bằng khóa ứng dụng.';
 
   @override
-  String get qrLoginSettingsDisabledDescription => 'Bật khóa ứng dụng trước khi quét mã QR đăng nhập web.';
+  String get qrLoginSettingsDisabledDescription => 'Bật khóa ứng dụng trước khi quét mã QR đăng nhập.';
 
   @override
-  String get qrLoginSettingsTitle => 'Quét QR đăng nhập web';
+  String get qrLoginSettingsTitle => 'Quét QR đăng nhập';
 
   @override
   String get loginForgotPassword => 'Quên mật khẩu?';

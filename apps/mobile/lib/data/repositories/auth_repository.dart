@@ -669,6 +669,19 @@ class AuthRepository {
     return _client.auth.currentSession;
   }
 
+  Future<({bool success, String? error})> signInWithSession(
+    AuthSessionPayload payload,
+  ) async {
+    try {
+      await _client.auth.setSession(payload.refreshToken);
+      return (success: true, error: null);
+    } on AuthException catch (error) {
+      return (success: false, error: error.message);
+    } on Exception catch (error) {
+      return (success: false, error: error.toString());
+    }
+  }
+
   Stream<AuthState> onAuthStateChange() {
     return _client.auth.onAuthStateChange;
   }

@@ -83,6 +83,7 @@ extension _ShellPageNavigation on _ShellPageState {
     required String label,
     required TextStyle style,
     required int itemIndex,
+    double iconSize = _ShellPageState._navIconSize,
   }) {
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -91,7 +92,7 @@ extension _ShellPageNavigation on _ShellPageState {
         _buildAnimatedNavElement(
           itemIndex: itemIndex,
           slotDelay: 0,
-          child: Icon(icon, size: _ShellPageState._navIconSize),
+          child: Icon(icon, size: iconSize),
         ),
         const SizedBox(width: 6),
         _buildAnimatedNavElement(
@@ -164,16 +165,11 @@ extension _ShellPageNavigation on _ShellPageState {
     );
     final l10n = context.l10n;
     final isCompact = context.isCompact;
-    final useDenseCompactLabels = isCompact && miniNavItems.length >= 4;
-    final miniLabelStyle = useDenseCompactLabels
-        ? labelStyle.copyWith(fontSize: 10)
-        : labelStyle;
-    final miniItemSpacing = useDenseCompactLabels
-        ? 1.0
-        : _ShellPageState._navItemSpacing;
-    final miniIconSize = useDenseCompactLabels
-        ? 20.0
-        : _ShellPageState._navIconSize;
+    final miniLabelStyle = labelStyle.copyWith(
+      fontSize: _ShellPageState._miniNavLabelFontSize,
+    );
+    const miniItemSpacing = _ShellPageState._miniNavItemSpacing;
+    const miniIconSize = _ShellPageState._miniNavIconSize;
 
     return [
       shad.NavigationItem(
@@ -192,13 +188,14 @@ extension _ShellPageNavigation on _ShellPageState {
             ? _buildAnimatedNavElement(
                 itemIndex: 0,
                 slotDelay: 0,
-                child: Icon(Icons.chevron_left, size: miniIconSize),
+                child: const Icon(Icons.chevron_left, size: miniIconSize),
               )
             : _buildHorizontalNavItem(
                 icon: Icons.chevron_left,
                 label: l10n.navBack,
-                style: labelStyle,
+                style: miniLabelStyle,
                 itemIndex: 0,
+                iconSize: miniIconSize,
               ),
       ),
       ...miniNavItems.indexed.map(
@@ -227,8 +224,9 @@ extension _ShellPageNavigation on _ShellPageState {
               : _buildHorizontalNavItem(
                   icon: entry.$2.icon,
                   label: entry.$2.label(l10n),
-                  style: labelStyle,
+                  style: miniLabelStyle,
                   itemIndex: entry.$1 + 1,
+                  iconSize: miniIconSize,
                 ),
         ),
       ),
@@ -240,7 +238,11 @@ extension _ShellPageNavigation on _ShellPageState {
     required double slotDelay,
     required Widget child,
   }) {
-    return child;
+    return _StaggeredNavElement(
+      itemIndex: itemIndex,
+      slotDelay: slotDelay,
+      child: child,
+    );
   }
 
   ValueKey<String> _miniNavKey(String moduleId, String itemId) =>
@@ -288,16 +290,11 @@ extension _ShellPageNavigation on _ShellPageState {
       fontWeight: FontWeight.w600,
     );
     final isCompact = context.isCompact;
-    final useDenseCompactLabels = isCompact && registration.items.length >= 4;
-    final miniLabelStyle = useDenseCompactLabels
-        ? labelStyle.copyWith(fontSize: 10)
-        : labelStyle;
-    final miniItemSpacing = useDenseCompactLabels
-        ? 1.0
-        : _ShellPageState._navItemSpacing;
-    final miniIconSize = useDenseCompactLabels
-        ? 20.0
-        : _ShellPageState._navIconSize;
+    final miniLabelStyle = labelStyle.copyWith(
+      fontSize: _ShellPageState._miniNavLabelFontSize,
+    );
+    const miniItemSpacing = _ShellPageState._miniNavItemSpacing;
+    const miniIconSize = _ShellPageState._miniNavIconSize;
 
     return registration.items.indexed
         .map((entry) {
@@ -335,8 +332,9 @@ extension _ShellPageNavigation on _ShellPageState {
                 : _buildHorizontalNavItem(
                     icon: item.icon,
                     label: item.label,
-                    style: labelStyle,
+                    style: miniLabelStyle,
                     itemIndex: entry.$1,
+                    iconSize: miniIconSize,
                   ),
           );
         })
@@ -397,5 +395,97 @@ extension _ShellPageNavigation on _ShellPageState {
     return location == Routes.home ||
         location == Routes.assistant ||
         location == Routes.apps;
+  }
+}
+
+class _StaggeredNavElement extends StatefulWidget {
+  const _StaggeredNavElement({
+    required this.itemIndex,
+    required this.slotDelay,
+    required this.child,
+  });
+
+  static const _duration = Duration(milliseconds: 220);
+  static const _baseDelayMs = 90;
+  static const _itemDelayMs = 65;
+
+  final int itemIndex;
+  final double slotDelay;
+  final Widget child;
+
+  @override
+  State<_StaggeredNavElement> createState() => _StaggeredNavElementState();
+}
+
+class _StaggeredNavElementState extends State<_StaggeredNavElement>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _curvedAnimation;
+  late final Animation<Offset> _offsetAnimation;
+  late final Animation<double> _scaleAnimation;
+  Timer? _startTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: _StaggeredNavElement._duration,
+    );
+    _curvedAnimation = _controller.drive(
+      CurveTween(curve: Curves.easeOutCubic),
+    );
+    _offsetAnimation = _curvedAnimation.drive(
+      Tween<Offset>(begin: const Offset(0, 0.18), end: Offset.zero),
+    );
+    _scaleAnimation = _curvedAnimation.drive(
+      Tween<double>(begin: 0.98, end: 1),
+    );
+    _scheduleEntrance();
+  }
+
+  Duration get _delay => Duration(
+    milliseconds:
+        _StaggeredNavElement._baseDelayMs +
+        (widget.itemIndex * _StaggeredNavElement._itemDelayMs) +
+        (widget.slotDelay * 1000).round(),
+  );
+
+  void _scheduleEntrance() {
+    _startTimer?.cancel();
+    _controller.value = 0;
+    _startTimer = Timer(_delay, () {
+      if (!mounted) {
+        return;
+      }
+      unawaited(_controller.forward(from: 0));
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _StaggeredNavElement oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.itemIndex != widget.itemIndex ||
+        oldWidget.slotDelay != widget.slotDelay) {
+      _scheduleEntrance();
+    }
+  }
+
+  @override
+  void dispose() {
+    _startTimer?.cancel();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _curvedAnimation,
+      child: SlideTransition(
+        position: _offsetAnimation,
+        child: ScaleTransition(scale: _scaleAnimation, child: widget.child),
+      ),
+    );
   }
 }

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:bloc_test/bloc_test.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mobile/data/models/auth_action_result.dart';
+import 'package:mobile/data/models/auth_session.dart';
 import 'package:mobile/data/models/stored_auth_account.dart';
 import 'package:mobile/data/repositories/auth_repository.dart';
 import 'package:mobile/features/auth/cubit/auth_cubit.dart';
@@ -125,6 +126,38 @@ void main() {
           error: null,
           errorCode: AuthErrorCode.googleBrowserLaunchFailed,
         ),
+      ],
+    );
+
+    blocTest<AuthCubit, AuthState>(
+      'authenticates after a QR login session is accepted',
+      build: () {
+        when(
+          () => authRepository.signInWithSession(
+            const AuthSessionPayload(
+              accessToken: 'access-token',
+              refreshToken: 'refresh-token',
+            ),
+          ),
+        ).thenAnswer((_) async => (success: true, error: null));
+        when(() => authRepository.getCurrentUser()).thenAnswer(
+          (_) async => _user(),
+        );
+        return AuthCubit(authRepository: authRepository);
+      },
+      act: (cubit) => cubit.signInWithQrLoginSession(
+        const AuthSessionPayload(
+          accessToken: 'access-token',
+          refreshToken: 'refresh-token',
+        ),
+      ),
+      expect: () => <AuthState>[
+        const AuthState.unauthenticated().copyWith(
+          isLoading: true,
+          error: null,
+          errorCode: null,
+        ),
+        AuthState.authenticated(_user()),
       ],
     );
 

@@ -100,6 +100,7 @@ void main() {
       expect(find.text('Continue with Microsoft'), findsOneWidget);
       expect(find.text('Continue with Apple'), findsOneWidget);
       expect(find.text('Continue with GitHub'), findsOneWidget);
+      expect(find.text('Sign in with mobile QR'), findsOneWidget);
       expect(find.text('Sign in to continue'), findsNothing);
       expect(
         find.widgetWithText(shad.PrimaryButton, 'Continue with email'),
@@ -178,7 +179,9 @@ void main() {
       }
     });
 
-    testWidgets('disables social buttons while auth is busy', (tester) async {
+    testWidgets('disables alternate auth buttons while auth is busy', (
+      tester,
+    ) async {
       final state = const AuthState.unauthenticated().copyWith(isLoading: true);
       when(() => authCubit.state).thenReturn(state);
       whenListen(
@@ -194,9 +197,10 @@ void main() {
       expect(find.text('Continue with Google'), findsNothing);
       expect(find.text('Continue with Microsoft'), findsNothing);
       expect(find.text('Continue with GitHub'), findsNothing);
-      expect(find.byType(shad.OutlineButton), findsNWidgets(4));
+      expect(find.text('Sign in with mobile QR'), findsNothing);
+      expect(find.byType(shad.OutlineButton), findsNWidgets(5));
 
-      for (var index = 0; index < 4; index++) {
+      for (var index = 0; index < 5; index++) {
         final button = find.byType(shad.OutlineButton).at(index);
         await tester.ensureVisible(button);
         await tester.tap(button, warnIfMissed: false);

@@ -1,4 +1,5 @@
 import 'package:bloc_test/bloc_test.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -98,7 +99,10 @@ Widget _buildTestApp({
   );
 }
 
-GoRouter _buildRouter({required String initialLocation}) {
+GoRouter _buildRouter({
+  required String initialLocation,
+  WidgetBuilder? taskPlanningBuilder,
+}) {
   return GoRouter(
     initialLocation: initialLocation,
     routes: [
@@ -140,9 +144,9 @@ GoRouter _buildRouter({required String initialLocation}) {
           ),
           GoRoute(
             path: Routes.taskPlanning,
-            builder: (context, state) => const _RoutePage(
-              label: 'task-planning',
-            ),
+            builder: (context, state) =>
+                taskPlanningBuilder?.call(context) ??
+                const _RoutePage(label: 'task-planning'),
           ),
           GoRoute(
             path: Routes.taskEstimates,
@@ -300,6 +304,63 @@ class _TaskPortfolioRoutePage extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+class _MutableMiniNavRoutePage extends StatelessWidget {
+  const _MutableMiniNavRoutePage({required this.showAlternateItems});
+
+  final ValueListenable<bool> showAlternateItems;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<bool>(
+      valueListenable: showAlternateItems,
+      builder: (context, showAlternate, child) {
+        return Stack(
+          children: [
+            child!,
+            ShellMiniNav(
+              ownerId: 'mutable-mini-nav',
+              locations: const {Routes.taskPlanning},
+              deepLinkBackRoute: Routes.tasks,
+              items: showAlternate
+                  ? const [
+                      ShellMiniNavItemSpec(
+                        id: 'beta',
+                        icon: Icons.bolt_outlined,
+                        label: 'Beta nav',
+                        selected: true,
+                        callbackToken: 'beta',
+                      ),
+                      ShellMiniNavItemSpec(
+                        id: 'gamma',
+                        icon: Icons.insights_outlined,
+                        label: 'Gamma nav',
+                        callbackToken: 'gamma',
+                      ),
+                      ShellMiniNavItemSpec(
+                        id: 'delta',
+                        icon: Icons.layers_outlined,
+                        label: 'Delta nav',
+                        callbackToken: 'delta',
+                      ),
+                    ]
+                  : const [
+                      ShellMiniNavItemSpec(
+                        id: 'alpha',
+                        icon: Icons.auto_awesome_outlined,
+                        label: 'Alpha nav',
+                        selected: true,
+                        callbackToken: 'alpha',
+                      ),
+                    ],
+            ),
+          ],
+        );
+      },
+      child: const _RoutePage(label: 'mutable-mini-nav'),
     );
   }
 }
@@ -1104,5 +1165,156 @@ void main() {
       final prefs = await SharedPreferences.getInstance();
       expect(prefs.getString('last-tab-route'), Routes.home);
     });
+
+    testWidgets('animates same-owner mini nav item set updates', (
+      tester,
+    ) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(390, 844);
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      final showAlternateItems = ValueNotifier<bool>(false);
+      addTearDown(showAlternateItems.dispose);
+      final router = _buildRouter(
+        initialLocation: Routes.taskPlanning,
+        taskPlanningBuilder: (context) => _MutableMiniNavRoutePage(
+          showAlternateItems: showAlternateItems,
+        ),
+      );
+      addTearDown(router.dispose);
+
+      await tester.pumpWidget(
+        _buildTestApp(
+          router: router,
+          appTabCubit: appTabCubit,
+          authCubit: authCubit,
+          workspaceCubit: workspaceCubit,
+        ),
+      );
+      await _pumpForTransitions(tester);
+      await tester.pumpAndSettle();
+
+      expect(_textDataCount(tester, 'Alpha nav'), 1);
+      expect(_textDataCount(tester, 'Beta nav'), 0);
+      expect(_textDataFontSizes(tester, 'Alpha nav'), contains(10));
+
+      showAlternateItems.value = true;
+      await tester.pump();
+      await tester.pump();
+
+      expect(_textDataCount(tester, 'Alpha nav'), 1);
+      expect(_textDataCount(tester, 'Beta nav'), 1);
+      expect(_textDataCount(tester, 'Gamma nav'), 1);
+      expect(_textDataCount(tester, 'Delta nav'), 1);
+      expect(
+        _nearestFadeOpacitiesForIcon(
+          tester,
+          Icons.bolt_outlined,
+        ).any((opacity) => opacity < 0.1),
+        isTrue,
+      );
+
+      await tester.pump(const Duration(milliseconds: 80));
+
+      expect(
+        _nearestFadeOpacitiesForIcon(
+          tester,
+          Icons.bolt_outlined,
+        ).any((opacity) => opacity < 0.1),
+        isTrue,
+      );
+      expect(
+        _nearestFadeOpacitiesForIcon(
+          tester,
+          Icons.insights_outlined,
+        ).any((opacity) => opacity < 0.1),
+        isTrue,
+      );
+      expect(
+        _nearestFadeOpacitiesForIcon(
+          tester,
+          Icons.layers_outlined,
+        ).any((opacity) => opacity < 0.1),
+        isTrue,
+      );
+
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(const Duration(milliseconds: 45));
+      }
+
+      expect(
+        _maxNearestFadeOpacityForIcon(tester, Icons.bolt_outlined) >
+            _maxNearestFadeOpacityForIcon(tester, Icons.insights_outlined),
+        isTrue,
+      );
+      expect(
+        _maxNearestFadeOpacityForIcon(tester, Icons.layers_outlined) < 0.1,
+        isTrue,
+      );
+
+      await _pumpForTransitions(tester);
+
+      expect(_textDataCount(tester, 'Alpha nav'), 0);
+      expect(_textDataCount(tester, 'Beta nav'), 1);
+      expect(_textDataCount(tester, 'Gamma nav'), 1);
+      expect(_textDataCount(tester, 'Delta nav'), 1);
+    });
   });
+}
+
+int _textDataCount(WidgetTester tester, String value) {
+  return tester
+      .widgetList<Text>(find.byType(Text, skipOffstage: false))
+      .where((widget) => widget.data == value)
+      .length;
+}
+
+List<double?> _textDataFontSizes(WidgetTester tester, String value) {
+  return tester
+      .widgetList<Text>(find.byType(Text, skipOffstage: false))
+      .where((widget) => widget.data == value)
+      .map((widget) => widget.style?.fontSize)
+      .toList(growable: false);
+}
+
+List<double> _nearestFadeOpacitiesForIcon(
+  WidgetTester tester,
+  IconData icon,
+) {
+  final opacities = <double>[];
+  for (final element in tester.elementList(
+    find.byType(Icon, skipOffstage: false),
+  )) {
+    final widget = element.widget;
+    if (widget is! Icon || !_sameIconData(widget.icon, icon)) {
+      continue;
+    }
+    element.visitAncestorElements((ancestor) {
+      final ancestorWidget = ancestor.widget;
+      if (ancestorWidget is FadeTransition) {
+        opacities.add(ancestorWidget.opacity.value);
+        return false;
+      }
+      return true;
+    });
+  }
+  return opacities;
+}
+
+double _maxNearestFadeOpacityForIcon(WidgetTester tester, IconData icon) {
+  final opacities = _nearestFadeOpacitiesForIcon(tester, icon);
+  if (opacities.isEmpty) {
+    return 0;
+  }
+  return opacities.reduce((a, b) => a > b ? a : b);
+}
+
+bool _sameIconData(IconData? left, IconData right) {
+  return left?.codePoint == right.codePoint &&
+      left?.fontFamily == right.fontFamily &&
+      left?.fontPackage == right.fontPackage &&
+      left?.matchTextDirection == right.matchTextDirection;
 }

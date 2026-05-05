@@ -78,6 +78,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get authContinueWithEmail => 'or continue with email';
 
   @override
+  String get authContinueWithQr => 'or';
+
+  @override
   String get authContinueWithSocial => 'or use a social account';
 
   @override
@@ -263,32 +266,56 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String qrLoginApproveDescription(Object origin, Object userEmail) {
-    return 'Approve web sign-in from $origin using $userEmail.';
+    return 'Approve QR sign-in from $origin using $userEmail.';
   }
 
   @override
-  String get qrLoginApproveFailed => 'Couldn\'t approve this web login.';
+  String get qrLoginApproveFailed => 'Couldn\'t approve this QR login.';
 
   @override
-  String get qrLoginApproveTitle => 'Approve web sign-in';
+  String get qrLoginApproveTitle => 'Approve QR sign-in';
 
   @override
-  String get qrLoginApprovedDescription => 'The browser can now finish signing in.';
+  String get qrLoginApprovedDescription => 'The other device can now finish signing in.';
 
   @override
-  String get qrLoginApprovedTitle => 'Web sign-in approved';
+  String get qrLoginApprovedTitle => 'QR sign-in approved';
 
   @override
   String get qrLoginCameraUnavailable => 'Camera is unavailable.';
 
   @override
-  String get qrLoginInvalidCode => 'Point the camera at a Tuturuuu web login QR code.';
+  String get qrLoginInvalidCode => 'Point the camera at a Tuturuuu login QR code.';
 
   @override
   String get qrLoginLocalAuthFailed => 'Local authentication was cancelled or failed.';
 
   @override
-  String get qrLoginLocalAuthReason => 'Approve Tuturuuu web sign-in.';
+  String get qrLoginLocalAuthReason => 'Approve Tuturuuu QR sign-in.';
+
+  @override
+  String get qrLoginMobileApproved => 'QR approved. Signing you in...';
+
+  @override
+  String get qrLoginMobileButton => 'Sign in with mobile QR';
+
+  @override
+  String get qrLoginMobileDescription => 'Open Tuturuuu on a signed-in phone and scan this code.';
+
+  @override
+  String get qrLoginMobileExpired => 'QR code expired. Generate a new code.';
+
+  @override
+  String get qrLoginMobileLoading => 'Generating QR code...';
+
+  @override
+  String get qrLoginMobileRetry => 'Generate new QR code';
+
+  @override
+  String get qrLoginMobileTitle => 'Sign in with mobile QR';
+
+  @override
+  String get qrLoginMobileWaiting => 'Waiting for approval...';
 
   @override
   String get qrLoginRequiresAppLock => 'Turn on app lock before approving QR sign-ins.';
@@ -297,19 +324,19 @@ class AppLocalizationsEn extends AppLocalizations {
   String get qrLoginScanAgain => 'Scan again';
 
   @override
-  String get qrLoginScannerDescription => 'Scan the QR code shown on the Tuturuuu web login page.';
+  String get qrLoginScannerDescription => 'Scan a QR code shown on another Tuturuuu sign-in screen.';
 
   @override
-  String get qrLoginScannerTitle => 'Scan web login QR';
+  String get qrLoginScannerTitle => 'Scan login QR';
 
   @override
-  String get qrLoginSettingsDescription => 'Scan a QR code on the web login page and approve it with app lock.';
+  String get qrLoginSettingsDescription => 'Scan a QR code on another sign-in screen and approve it with app lock.';
 
   @override
-  String get qrLoginSettingsDisabledDescription => 'Turn on app lock before scanning web login QR codes.';
+  String get qrLoginSettingsDisabledDescription => 'Turn on app lock before scanning QR login codes.';
 
   @override
-  String get qrLoginSettingsTitle => 'Scan web login QR';
+  String get qrLoginSettingsTitle => 'Scan login QR';
 
   @override
   String get loginForgotPassword => 'Forgot password?';

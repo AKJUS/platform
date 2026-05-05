@@ -35,6 +35,7 @@ import 'package:mobile/features/mobile_versions/view/mobile_version_settings_pag
 import 'package:mobile/features/notifications/view/notifications_page.dart';
 import 'package:mobile/features/profile/view/profile_page.dart';
 import 'package:mobile/features/security/qr_login/view/qr_login_scanner_page.dart';
+import 'package:mobile/features/security/qr_login/view/qr_login_sign_in_page.dart';
 import 'package:mobile/features/settings/view/settings_page.dart';
 import 'package:mobile/features/settings/view/settings_workspace_members_page.dart';
 import 'package:mobile/features/settings/view/settings_workspace_page.dart';
@@ -120,6 +121,7 @@ bool isAppLockExcludedRoute(String matchedLocation) {
       matchedLocation == Routes.addAccount ||
       matchedLocation == Routes.signUp ||
       matchedLocation == Routes.forgotPassword ||
+      matchedLocation == Routes.qrLogin ||
       matchedLocation == Routes.mfaVerify;
 }
 
@@ -198,6 +200,7 @@ GoRouter createAppRouter(
           state.matchedLocation == Routes.addAccount ||
           state.matchedLocation == Routes.signUp ||
           state.matchedLocation == Routes.forgotPassword ||
+          state.matchedLocation == Routes.qrLogin ||
           state.matchedLocation == Routes.mfaVerify;
       final isMfaRoute = state.matchedLocation == Routes.mfaVerify;
       final isWsSelectRoute = state.matchedLocation == Routes.workspaceSelect;
@@ -303,6 +306,10 @@ GoRouter createAppRouter(
       GoRoute(
         path: Routes.mfaVerify,
         builder: (context, state) => const MfaVerifyPage(),
+      ),
+      GoRoute(
+        path: Routes.qrLogin,
+        builder: (context, state) => const QrLoginSignInPage(),
       ),
       // ── Workspace selection ──────────────────────
       GoRoute(

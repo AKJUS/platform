@@ -273,6 +273,17 @@ extension _ShellPageLayout on _ShellPageState {
           ? 'mini-nav-${activeModule.id}'
           : 'global-nav',
     );
+    final navTransitionKey = ValueKey<String>(
+      useInjectedMiniNav
+          ? 'injected-mini-nav-${injectedMiniNavRegistration.ownerId}-'
+                '${_injectedMiniNavTransitionSignature(
+                  injectedMiniNavRegistration,
+                )}'
+          : activeModule != null
+          ? 'mini-nav-${activeModule.id}-'
+                '${_miniAppNavTransitionSignature(activeMiniNavItems)}'
+          : 'global-nav',
+    );
     final navContent = isCompact
         ? shad.NavigationBar(
             key: navVariantKey,
@@ -333,9 +344,8 @@ extension _ShellPageLayout on _ShellPageState {
           onPointerUp: isMiniAppRoute ? null : _handlePointerUp,
           onPointerCancel: isMiniAppRoute ? null : _stopLongPressTimer,
           child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 220),
-            switchInCurve: Curves.easeOutCubic,
-            switchOutCurve: Curves.easeInCubic,
+            duration: _ShellPageState._navSwitcherDuration,
+            reverseDuration: _ShellPageState._navSwitcherReverseDuration,
             layoutBuilder: (currentChild, previousChildren) => Stack(
               alignment: Alignment.center,
               fit: StackFit.passthrough,
@@ -345,16 +355,28 @@ extension _ShellPageLayout on _ShellPageState {
               ],
             ),
             transitionBuilder: (child, animation) {
+              final curvedAnimation = CurvedAnimation(
+                parent: animation,
+                curve: Curves.easeOutCubic,
+                reverseCurve: Curves.easeInCubic,
+              );
               final slideAnimation = Tween<Offset>(
-                begin: const Offset(0.05, 0),
+                begin: const Offset(0, 0.18),
                 end: Offset.zero,
-              ).animate(animation);
+              ).animate(curvedAnimation);
+              final scaleAnimation = Tween<double>(
+                begin: 0.98,
+                end: 1,
+              ).animate(curvedAnimation);
               return FadeTransition(
-                opacity: animation,
-                child: SlideTransition(position: slideAnimation, child: child),
+                opacity: curvedAnimation,
+                child: SlideTransition(
+                  position: slideAnimation,
+                  child: ScaleTransition(scale: scaleAnimation, child: child),
+                ),
               );
             },
-            child: RepaintBoundary(child: navContent),
+            child: RepaintBoundary(key: navTransitionKey, child: navContent),
           ),
         ),
       ),
@@ -377,6 +399,38 @@ extension _ShellPageLayout on _ShellPageState {
             )
           : globalBody,
     );
+  }
+
+  String _miniAppNavTransitionSignature(List<MiniAppNavItem> items) {
+    return items
+        .map((item) {
+          final icon = item.icon;
+          return [
+            item.id,
+            item.route,
+            icon.codePoint,
+            icon.fontFamily,
+            icon.fontPackage,
+          ].join(':');
+        })
+        .join('|');
+  }
+
+  String _injectedMiniNavTransitionSignature(
+    ShellMiniNavRegistration registration,
+  ) {
+    return registration.items
+        .map((item) {
+          final icon = item.icon;
+          return [
+            item.id,
+            item.label,
+            icon.codePoint,
+            icon.fontFamily,
+            icon.fontPackage,
+          ].join(':');
+        })
+        .join('|');
   }
 
   // Retained while the layered compact-shell variant is still under review.
