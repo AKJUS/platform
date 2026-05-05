@@ -1,4 +1,4 @@
-# Tuturuuu Monorepo
+# Tuturuuu Platform
 
 [![Vercel Platform Production Deployment](https://github.com/tutur3u/platform/actions/workflows/vercel-production-platform.yaml/badge.svg)](https://github.com/tutur3u/platform/actions/workflows/vercel-production-platform.yaml)
 [![CodeQL](https://github.com/tutur3u/platform/actions/workflows/codeql.yml/badge.svg)](https://github.com/tutur3u/platform/actions/workflows/codeql.yml)
@@ -6,306 +6,305 @@
 
 ![Tuturuuu Cover](/public/cover.png)
 
-A Turborepo-powered monorepo containing the applications and services that make up the Tuturuuu ecosystem. For full documentation, visit [**docs.tuturuuu.com**](https://docs.tuturuuu.com).
+Tuturuuu is an open-source workspace platform for modern work and life. This
+repository contains the product apps, mobile app, infrastructure helpers,
+shared packages, SDK, documentation, and local development tooling that power
+the Tuturuuu ecosystem.
 
----
+The north star is simple: reduce digital friction so people can spend more
+time on meaningful work. The implementation is a Turborepo monorepo centered on
+Next.js, Supabase, Bun, Flutter, and a growing set of AI-powered product
+surfaces.
 
-## Our Vision
+## Start Here
 
-Tuturuuu is building the world's first **intelligent, open-source operating system for modern work and life**. We wage war on digital noise by creating a unified platform that automates administrative work and eliminates the friction of context-switching.
+| Need | Go to |
+| --- | --- |
+| Product and architecture docs | [docs.tuturuuu.com](https://docs.tuturuuu.com) |
+| Development workflow | [Development Guide](https://docs.tuturuuu.com/build/development-tools/development) |
+| Web Docker operations | [Web Docker Deployment](https://docs.tuturuuu.com/build/devops/web-docker-deployment) |
+| Agent instructions | [AGENTS.md](./AGENTS.md) |
+| Contribution rules | [CONTRIBUTING.md](./CONTRIBUTING.md) |
+| Security policy | [SECURITY.md](./SECURITY.md) |
 
-We believe we are entering the **Third Era of technology: the Age of Partners** - where AI acts as an intelligent partner to amplify human potential, not a cage for our attention.
+## Repository Map
 
-> *Read the full vision at [docs.tuturuuu.com/overview/vision](https://docs.tuturuuu.com/overview/vision)*
+### Applications
 
----
+| Path | Runtime | Purpose | Local entry |
+| --- | --- | --- | --- |
+| `apps/web` | Next.js, port 7803 | Main platform, dashboard, APIs, workspace modules | `bun dev:web` |
+| `apps/calendar` | Next.js, port 7806 | Calendar satellite app | `bun dev:calendar` |
+| `apps/cms` | Next.js, port 7811 | Content management satellite app | `bun dev:cms` |
+| `apps/finance` | Next.js, port 7808 | Finance satellite app | `bun dev:finance` |
+| `apps/meet` | Next.js, port 7807 | Meeting satellite app | `bun dev:meet` |
+| `apps/nova` | Next.js, port 7805 | Prompt engineering and AI challenge app | `bun dev:nova` |
+| `apps/rewise` | Next.js, port 7804 | Multi-model AI chat app | `bun dev:rewise` |
+| `apps/shortener` | Next.js, port 3002 | URL shortener | `bun dev:shortener` |
+| `apps/tasks` | Next.js, port 7809 | Task management satellite app | `bun dev:tasks` |
+| `apps/track` | Next.js, port 7810 | Time tracking satellite app | `bun dev:track` |
+| `apps/tulearn` | Next.js, port 7812 | Learning experience app | `bun dev:tulearn` |
+| `apps/external` | Next.js, port 3000 | SDK and integration demo app | `bun dev:external` |
+| `apps/playground` | Next.js, port 3003 | Experimentation sandbox | package-local `bun dev` |
+| `apps/mobile` | Flutter | Mobile workspace tools | `bun dev:mobile` |
+| `apps/docs` | Mintlify | Public documentation site | `bun dev:docs` |
+| `apps/database` | Supabase | Local schema, migrations, seeds, typegen | `bun sb:start` |
+| `apps/redis` | Docker | Local Redis and Serverless Redis HTTP proxy | `bun redis:start` |
+| `apps/discord` | Python, Modal | Discord bot and MarkItDown service | see `apps/discord/README.md` |
+| `apps/backend` | Rust, Axum | Rust backend learning project | see `apps/backend/README.md` |
+| `apps/storage-unzip-proxy` | Bun | Storage ZIP extraction helper | package-local `bun start` |
+| `apps/pronunciation-assessor` | Python | Pronunciation assessment helper service | Docker workflow |
 
-## Platform Applications
+### Shared Packages
 
-### Core Platform
-
-| App | Port | Description |
-|-----|------|-------------|
-| **web** | 7803 | Main platform with workspace management, AI integration, finance, inventory, and task management |
-| **calendar** | 3001 | Smart calendar with Google Calendar sync and AI-powered scheduling |
-| **finance** | 7808 | Finance management, wallet tracking, and budgeting |
-| **tasks** | 7809 | Hierarchical task management (Workspaces > Initiatives > Projects > Boards > Tasks) |
-
-### AI & Learning
-
-| App | Port | Description |
-|-----|------|-------------|
-| **nova** | 7805 | Prompt engineering platform to learn, practice, and compete with AI challenges |
-| **rewise** | 7804 | AI-powered chatbot with voice support and multi-model integration |
-
-### Collaboration
-
-| App | Port | Description |
-|-----|------|-------------|
-| **meet** | 7807 | Meeting management with AI transcription and summaries |
-| **shortener** | 3002 | URL shortener service with analytics |
-
-### Infrastructure & Utilities
-
-| App | Port | Description |
-|-----|------|-------------|
-| **docs** | - | Documentation website built with Mintlify |
-| **db** | - | Supabase database configuration, migrations, and type generation |
-| **external** | 3000 | SDK demonstration app showing secure integration patterns |
-| **playground** | 3003 | Development sandbox for experimentation |
-
-### Non-JavaScript Applications
-
-| App | Runtime | Description |
-|-----|---------|-------------|
-| **discord** | Python/Modal | Discord bot with API info, URL shortening, and daily reports |
-| **backend** | Rust/Axum | Educational Rust backend with REST APIs and WebSocket support |
-
----
-
-## Shared Packages
-
-### Core
-
-| Package | Description |
-|---------|-------------|
-| **@tuturuuu/ui** | Shared UI components and design system (Shadcn/Radix) |
-| **@tuturuuu/types** | Common TypeScript types and generated Supabase types |
-| **@tuturuuu/icons** | Icon wrapper for lucide-react with Tuturuuu branding |
-| **@tuturuuu/utils** | Shared utilities: dates, colors, permissions, feature flags |
-
-### Data & Authentication
-
-| Package | Description |
-|---------|-------------|
-| **@tuturuuu/supabase** | Supabase client with SSR support for Next.js |
-| **@tuturuuu/auth** | Authentication utilities and multi-session support |
-| **@tuturuuu/apis** | API clients for platform integrations |
-
-### AI & Integrations
-
-| Package | Description |
-|---------|-------------|
-| **@tuturuuu/ai** | Multi-provider AI integration (OpenAI, Anthropic, Google, 20+ providers) |
-| **@tuturuuu/google** | Google API integrations (Calendar, Analytics) |
-| **@tuturuuu/vercel** | Vercel Analytics and Speed Insights |
-| **@tuturuuu/trigger** | Trigger.dev background jobs and calendar sync |
-
-### Payments & Communication
-
-| Package | Description |
-|---------|-------------|
-| **@tuturuuu/payment** | Payment processing (Polar.sh, Dodo Payments) |
-| **@tuturuuu/transactional** | Transactional email templates with React Email |
-
-### Specialized
-
-| Package | Description |
-|---------|-------------|
-| **@tuturuuu/masonry** | High-performance Pinterest-style masonry grid |
-| **@tuturuuu/games** | Game mechanics for platform gamification |
-| **@tuturuuu/workflows** | Workflow automation SDK |
-
-### Public SDK
-
-| Package | Description |
-|---------|-------------|
-| **tuturuuu** | Official TypeScript SDK for the Tuturuuu API (storage, documents, analytics) |
-
----
-
-## Future Roadmap: AI Architecture
-
-Our vision for an integrated AI ecosystem:
-
-- **Mira** - The empathetic conversational interface acting as a warm, trustworthy AI partner
-- **Aurora** - The contextual engine linking emails, tasks, files, and events
-- **Rewise** - An aggregator of leading AI models *(partially implemented)*
-- **Nova** - Prompt-engineering and alignment platform *(implemented)*
-- **Crystal** - Multi-modal embodiment enabling real-time voice, video, and screen collaboration
-
----
+| Area | Packages |
+| --- | --- |
+| UI and product primitives | `@tuturuuu/ui`, `@tuturuuu/icons`, `@tuturuuu/hooks`, `@tuturuuu/utils`, `@tuturuuu/masonry`, `@tuturuuu/games`, `@tuturuuu/offline` |
+| Data, auth, and app boundaries | `@tuturuuu/types`, `@tuturuuu/supabase`, `@tuturuuu/auth`, `@tuturuuu/internal-api`, `@tuturuuu/satellite` |
+| AI and automation | `@tuturuuu/ai`, `@tuturuuu/trigger`, `@tuturuuu/workflows`, `tuturuuu` |
+| Integrations | `@tuturuuu/apis`, `@tuturuuu/google`, `@tuturuuu/microsoft`, `@tuturuuu/vercel`, `@tuturuuu/turnstile` |
+| Business systems | `@tuturuuu/payment`, `@tuturuuu/transactional`, `@tuturuuu/email-service` |
+| Tooling | `@tuturuuu/typescript-config` |
 
 ## Tech Stack
 
-| Category | Technologies |
-|----------|-------------|
-| **Runtime** | Node.js v22+, Bun v1.3+ |
-| **Framework** | Next.js 16 with App Router and Turbopack |
-| **Database** | Supabase (PostgreSQL) with RLS |
-| **Styling** | Tailwind CSS v4.1+ |
-| **State** | Jotai, TanStack Query |
-| **API** | tRPC, Vercel AI SDK |
-| **Testing** | Vitest |
-| **Monorepo** | Turborepo |
-
----
+| Layer | Choices |
+| --- | --- |
+| Runtime and package manager | Bun 1.3.x, Node.js 22+ |
+| Monorepo orchestration | Turborepo |
+| Web apps | Next.js 16 App Router, React 19, TypeScript |
+| UI | Tailwind CSS 4, Radix/Shadcn patterns, Tuturuuu UI package |
+| Data | Supabase PostgreSQL with RLS, generated database types |
+| Client state | TanStack Query, Jotai, nuqs |
+| APIs | Next.js Route Handlers, tRPC, internal API package |
+| AI | Vercel AI SDK and provider-specific packages |
+| Mobile | Flutter, Dart, BLoC/Cubit |
+| Tests and checks | Vitest, Playwright, Biome, tsgo, Flutter checks |
+| Deployment | Vercel, GitHub Actions, Docker blue/green workflow |
 
 ## Prerequisites
 
-- [Node.js](https://nodejs.org/) v22+
-- [Bun](https://bun.sh/) v1.3+
-- [Docker](https://www.docker.com/) (for local Supabase)
+- [Bun](https://bun.sh/) 1.3.x
+- [Node.js](https://nodejs.org/) 22 or newer
+- [Docker](https://www.docker.com/) for local Supabase, Redis, and Dockerized
+  web workflows
+- Flutter SDK for `apps/mobile`
+- Rust toolchain for `apps/backend`
+- Python and `uv` for `apps/discord`
 
----
+## Local Setup
 
-## Getting Started
+Clone the repository and install dependencies:
 
 ```bash
-# 1. Clone the repository
 git clone https://github.com/tutur3u/platform.git
 cd platform
-
-# 2. Install dependencies
 bun i
+```
 
-# 3. Start Supabase (requires Docker)
+Create environment files from the app-level examples you need. Most web work
+starts with:
+
+```bash
+cp apps/web/.env.example apps/web/.env.local
+```
+
+Then fill in Supabase, auth, AI, email, storage, and integration variables as
+needed. Keep secrets in local env files or deployment secret stores, never in
+git.
+
+## Development Workflows
+
+### Main Web App
+
+Run the main platform plus the packages it depends on:
+
+```bash
+bun dev:web
+```
+
+Start local Supabase first when you need a local database:
+
+```bash
 bun sb:start
-
-# 4. Set up environment files
-# Copy .env.example to .env.local in each app directory
-# Add Supabase URLs and keys from the sb:start output
-
-# 5. Run the development server
-bun dev
+bun dev:web
 ```
 
-## Optional local Redis
-
-If you need a real Redis backend outside the Dockerized web flow, there is still a standalone stack under `apps/redis`. Run `bun redis:start` from the repo root to boot Redis + the Serverless Redis HTTP proxy and point `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN` at `http://localhost:8079` plus your chosen token. The Dockerized web commands no longer require that manual setup because they generate and inject a local token automatically.
-
-## Docker web workflow
-
-The repo now includes a web-focused Docker workflow that preserves the existing root script contract instead of inventing a separate Docker-only task graph.
-
-- `bun dev:web:docker` runs the same filtered web dev workload as `bun dev:web`, but inside Docker.
-- `bun devx:web:docker` explicitly starts local Supabase first, then launches the Dockerized web dev stack.
-- `bun devrs:web:docker` explicitly starts and resets local Supabase first, then launches the Dockerized web dev stack.
-- `bun dev:web:docker:down` stops the Docker web stack.
-- `bun serve:web:docker` builds the production runner image and serves it through Docker Compose.
-- `bun serve:web:docker:bg` performs a blue/green production deployment with a proxy cutover after the new color passes health checks.
-- `bun serve:web:docker:down` stops the Dockerized production web stack.
-- `bun serve:web:docker:bg:down` stops the blue/green production stack and clears the local deployment state.
-
-The Docker service reads runtime values from `apps/web/.env.local`. By default it uses whatever Supabase URL is already configured there, which is expected to be the cloud project for normal Tuturuuu development and deployment. Only when that URL explicitly points at a host-run local Supabase instance does the Docker helper rewrite the server-side URL to `host.docker.internal` while leaving the browser-facing `NEXT_PUBLIC_SUPABASE_URL` unchanged.
-
-Redis is now enabled by default for the Dockerized web commands. The helper generates a stable local token under `tmp/docker-web/redis-token`, injects `UPSTASH_REDIS_REST_URL=http://serverless-redis-http:80` and the matching `UPSTASH_REDIS_REST_TOKEN` into the web container, and starts the bundled Redis + Serverless Redis HTTP proxy automatically.
-
-The Docker web flow does not require a host `bun install` just to boot. `apps/web/docker/dev-entrypoint.sh` installs dependencies into the container-managed `/workspace/node_modules` volume, and the compose stack also isolates package-local `node_modules` and `dist` directories so host installs cannot shadow container-managed workspace artifacts.
-
-Use `--without-redis` only when you explicitly want the old memory-only fallback. That opt-out also skips injecting the Docker-local Redis URL and token into the web container:
+Use the shortcut when you want the script to start Supabase for you:
 
 ```bash
-bun dev:web:docker -- --without-redis
+bun devx:web
 ```
 
-Production builds use `apps/web/Dockerfile`. Keep `apps/web/.env.local` present for both the build secret and runtime env file. The builder keeps secrets external by accepting a BuildKit secret sourced from that file:
+Use a clean, seeded database when debugging flows that depend on seed data:
 
 ```bash
-bun serve:web:docker
+bun devrs:web
 ```
 
-The production-style Docker commands now attach the same local Redis companion stack by default and inject the matching Upstash-compatible env values into `apps/web` automatically. Use `--without-redis` only when you want to verify the no-Redis fallback path without Docker injecting Redis env values.
+### Satellite Apps
 
-When you want rebuild-before-restart behavior on a server that receives new commits via `git pull`, use the blue/green production path instead of the in-place one:
+Satellite apps run through filtered Turborepo scripts and usually depend on
+`apps/web` for protected product APIs.
 
 ```bash
-bun serve:web:docker:bg
+bun dev:calendar
+bun dev:cms
+bun dev:finance
+bun dev:meet
+bun dev:nova
+bun dev:rewise
+bun dev:shortener
+bun dev:tasks
+bun dev:track
+bun dev:tulearn
 ```
 
-That command keeps a stable proxy on port `7803`, builds the inactive color (`web-blue` or `web-green`), waits for the new container to pass the image healthcheck, validates the generated nginx config with `nginx -t`, then reloads the proxy and stops the old color. The active color state and generated proxy config live under `tmp/docker-web/prod/`, which is intentionally local-only and survives normal `git pull` updates.
+### Mobile
 
 ```bash
-docker build \
-  --secret id=web_env,src=apps/web/.env.local \
-  -f apps/web/Dockerfile \
-  --target runner \
-  .
+bun dev:mobile
 ```
 
----
+For verification, prefer the mobile checker:
 
-## Key Commands
+```bash
+bun check:mobile
+```
 
-### Development
+### Documentation
 
-| Command | Description |
-|---------|-------------|
-| `bun dev` | Start all apps in development mode |
-| `bun dev:web` | Start main web app only |
-| `bun dev:web:docker` | Start the web dev workflow in Docker |
-| `bun devx:web:docker` | Start local Supabase, then the Docker web dev workflow |
-| `bun devrs:web:docker` | Start/reset local Supabase, then the Docker web dev workflow |
-| `bun dev:web:docker:down` | Stop the Docker web dev workflow |
-| `bun serve:web:docker` | Build and serve the production web image in Docker |
-| `bun serve:web:docker:bg` | Blue/green deploy the production web image in Docker |
-| `bun serve:web:docker:down` | Stop the Dockerized production web workflow |
-| `bun serve:web:docker:bg:down` | Stop the blue/green production web workflow |
-| `bun devx` | Start full stack with persisted database |
-| `bun devrs` | Start full stack with clean, seeded database |
+```bash
+bun dev:docs
+```
 
-### Database
+Documentation source lives in `apps/docs`. New docs pages must be registered in
+`apps/docs/docs.json`.
 
-| Command | Description |
-|---------|-------------|
-| `bun sb:start` | Start local Supabase (Studio at :8003, InBucket at :8004) |
+## Database Workflow
+
+Local Supabase is owned by `apps/database` and exposed through root scripts.
+
+| Command | Purpose |
+| --- | --- |
+| `bun sb:start` | Start local Supabase |
 | `bun sb:stop` | Stop local Supabase |
-| `bun sb:new` | Create new migration |
-| `bun sb:up` | Apply migrations locally |
-| `bun sb:reset` | Reset database to seed state |
-| `bun sb:typegen` | Generate TypeScript types from schema |
+| `bun sb:reset` | Reset local Supabase and regenerate types |
+| `bun sb:new` | Create a migration |
+| `bun sb:up` | Apply local migrations and regenerate types |
+| `bun sb:typegen` | Regenerate database types |
 
-### Local Redis
+Production Supabase pushes are intentionally not part of the normal contributor
+flow. Prepare migrations in the repo and let the release operator apply them.
 
-| Command | Description |
-|---------|-------------|
-| `bun redis:start` | Start local Redis + Serverless Redis HTTP proxy |
-| `bun redis:stop` | Stop local Redis stack |
+## Docker Web Workflow
 
-### Build & Test
+The web app has a Docker workflow for development, production-like local runs,
+and self-hosted blue/green deployments.
 
-| Command | Description |
-|---------|-------------|
-| `bun build` | Build all apps and packages |
-| `bun test` | Run all tests |
-| `bun lint` | Check linting |
-| `bun format` | Check formatting |
+| Command | Purpose |
+| --- | --- |
+| `bun dev:web:docker` | Run the web dev workflow inside Docker |
+| `bun devx:web:docker` | Start local Supabase, then run Docker web dev |
+| `bun devrs:web:docker` | Start and reset local Supabase, then run Docker web dev |
+| `bun dev:web:docker:down` | Stop the Docker dev stack |
+| `bun serve:web:docker` | Run production web image in place |
+| `bun serve:web:docker:bg` | Run blue/green production deployment |
+| `bun serve:web:docker:bg:watch` | Poll the tracked branch and deploy new fast-forwards |
+| `bun serve:web:docker:down` | Stop the production Docker stack |
+| `bun serve:web:docker:bg:down` | Stop blue/green runtime state |
 
-For a complete list of commands, see the [Development Guide](https://docs.tuturuuu.com/build/development-tools/development).
+Dockerized web commands read `apps/web/.env.local`. Redis is enabled by default
+inside the Docker web flow and can be disabled with `--without-redis` when
+testing the memory-only fallback path.
 
----
+See the [Web Docker Deployment](https://docs.tuturuuu.com/build/devops/web-docker-deployment)
+runbook for flags, lock recovery, BuildKit throttling, blue/green cutover, and
+runtime file details.
 
-## Documentation
+## Quality Gates
 
-### For Developers
+Use the narrowest focused check first, then the repo-level check when your
+change touches TypeScript, JavaScript, root scripts, or shared config.
 
-- [Platform Architecture](https://docs.tuturuuu.com/platform/architecture/routing) - System design, tRPC, authentication
-- [Database Reference](https://docs.tuturuuu.com/reference/database/schema-overview) - Schema and RLS policies
-- [Package Reference](https://docs.tuturuuu.com/reference/packages/supabase) - API documentation
-- [Development Tools](https://docs.tuturuuu.com/build/development-tools) - Monorepo setup, Supabase workflows
+| Command | Purpose |
+| --- | --- |
+| `bun format:fix <files>` | Format specific files with Biome |
+| `bun i18n:sort` | Sort message files after translation edits |
+| `bun test` | Run package test tasks through Turbo |
+| `bun test:scripts` | Run root script tests |
+| `bun type-check` | Run type-check tasks through Turbo |
+| `bun check` | Run the repository validation suite |
+| `bun check:docker` | Validate Docker web configuration |
+| `bun check:mobile` | Run Flutter mobile validation |
+| `git diff --check` | Catch whitespace issues before commit |
 
-### For AI Agents
+Do not use `bun build`, `bun run build`, or long-running dev servers in
+automation unless the task explicitly calls for them.
 
-- [Agent Operating Manual](https://docs.tuturuuu.com/overview/agent-operating-manual) - Guidelines for AI assistants
-- [CLAUDE.md](./CLAUDE.md) - Detailed operational instructions
+## Engineering Standards
 
----
+These are the rules most often needed while navigating the repo:
+
+- Default to Server Components in Next.js. Add client components only for state,
+  browser APIs, or interaction.
+- Use TanStack Query for client-side data fetching and mutations. Do not fetch
+  app data from `useEffect`.
+- Put authenticated app API access behind `packages/internal-api/src/*` instead
+  of scattering raw `fetch('/api/...')` calls.
+- Import shared database row shapes from `@tuturuuu/types/db` where possible.
+- Update both English and Vietnamese message bundles for user-facing strings.
+- Run `bun i18n:sort` after editing message JSON.
+- Add dashboard routes to the relevant `navigation.tsx` aliases, children,
+  icons, and permissions.
+- Use `@tuturuuu/icons` instead of emoji or ad-hoc icon code in UI.
+- Use `@tuturuuu/ui/dialog` instead of native browser dialogs.
+- Use `serverLogger.*` in `apps/web` server runtime code instead of raw
+  server-side `console.*`.
+- Keep durable workflow, deployment, architecture, and debugging knowledge in
+  `apps/docs`.
+
+Read [AGENTS.md](./AGENTS.md) before making broad or automated changes. It is
+the operational manual for this checkout and includes the full guardrail set.
+
+## Tuturuuu CLI
+
+The `tuturuuu` package in `packages/sdk` ships the public TypeScript SDK and the
+native `ttr` CLI.
+
+Run the repo-local CLI during development:
+
+```bash
+bun ttr --help
+bun ttr whoami --no-update-check
+bun ttr tasks --json --no-update-check
+```
+
+Use the globally installed `ttr` for normal user workflows, login, and upgrade
+management.
+
+## CI And Deployment
+
+GitHub Actions cover branch naming, Biome, type checks, tests, CodeQL, mobile
+builds, Supabase checks, Vercel preview and production deployments, package
+releases, Docker setup checks, and Discord Modal deployment.
+
+Production web deployments primarily target Vercel. The Docker workflow exists
+for local production simulation and self-hosted blue/green operation.
 
 ## Contributing
 
-We welcome contributions! Please read our [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines on submitting pull requests, reporting issues, and suggesting improvements.
+1. Read [CONTRIBUTING.md](./CONTRIBUTING.md) and [AGENTS.md](./AGENTS.md).
+2. Check `git status --short` before editing.
+3. Keep your write set scoped and avoid touching unrelated dirty files.
+4. Add or update tests and docs in the same change when behavior or workflow
+   changes.
+5. Run the focused verification for your area, then `bun check` when required.
+6. Use Conventional Commit style for commits.
 
-For security vulnerabilities, please follow our [security policy](./SECURITY.md).
-
----
-
-## Community & Support
-
-- Follow us on [X/Twitter](https://x.com/tutur3u) for updates
-- Join our [GitHub Discussions](https://github.com/orgs/tutur3u/discussions) for support
-
----
+Security issues should be reported through [SECURITY.md](./SECURITY.md).
 
 ## License
 
-This project is licensed under the Apache License, Version 2.0. See the [LICENSE](./LICENSE) file for details.
+This project is licensed under the Apache License, Version 2.0. See
+[LICENSE](./LICENSE) for details.
