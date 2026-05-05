@@ -20,6 +20,12 @@ import type {
   TulearnWorkspaceSummary,
 } from '@tuturuuu/internal-api';
 import { Button } from '@tuturuuu/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@tuturuuu/ui/tooltip';
 import { cn } from '@tuturuuu/utils/format';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -72,34 +78,47 @@ export function LearnerShell({
             </span>
           </div>
         </div>
-        <nav className="grid grid-cols-7 gap-1 p-2 md:grid-cols-1 md:px-3">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const href = makeHref(item.href);
-            const isActive =
-              item.href === ''
-                ? pathname === `/${wsId}`
-                : pathname.startsWith(`/${wsId}${item.href}`);
+        <TooltipProvider delayDuration={120} skipDelayDuration={80}>
+          <nav className="grid grid-cols-7 gap-2 p-2 md:grid-cols-1 md:gap-3 md:px-3">
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const href = makeHref(item.href);
+              const label = t(`navigation.${item.key}`);
+              const isActive =
+                item.href === ''
+                  ? pathname === `/${wsId}`
+                  : pathname.startsWith(`/${wsId}${item.href}`);
 
-            return (
-              <Link
-                aria-label={t(`navigation.${item.key}`)}
-                className={cn(
-                  'group flex h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-2xl text-muted-foreground transition duration-200 hover:-translate-y-0.5 hover:bg-dynamic-green/10 hover:text-dynamic-green md:h-16',
-                  isActive &&
-                    'bg-dynamic-green text-primary-foreground shadow-sm hover:bg-dynamic-green hover:text-primary-foreground'
-                )}
-                href={href}
-                key={item.key}
-              >
-                <Icon className="h-5 w-5 shrink-0" />
-                <span className="max-w-full truncate font-medium text-[0.62rem] md:hidden">
-                  {t(`navigation.${item.key}`)}
-                </span>
-              </Link>
-            );
-          })}
-        </nav>
+              return (
+                <Tooltip key={item.key}>
+                  <TooltipTrigger asChild>
+                    <Link
+                      aria-label={label}
+                      className={cn(
+                        'group flex h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-2xl text-muted-foreground transition duration-200 hover:-translate-y-0.5 hover:bg-dynamic-green/10 hover:text-dynamic-green md:h-16',
+                        isActive &&
+                          'bg-dynamic-green text-primary-foreground shadow-sm hover:bg-dynamic-green hover:text-primary-foreground'
+                      )}
+                      href={href}
+                    >
+                      <Icon className="h-5 w-5 shrink-0" />
+                      <span className="max-w-full truncate font-medium text-[0.62rem] md:hidden">
+                        {label}
+                      </span>
+                    </Link>
+                  </TooltipTrigger>
+                  <TooltipContent
+                    className="hidden rounded-2xl border border-dynamic-green/30 bg-dynamic-green/10 px-3 py-2 font-semibold text-dynamic-green text-xs shadow-xl backdrop-blur-xl md:block"
+                    side="right"
+                    sideOffset={12}
+                  >
+                    {label}
+                  </TooltipContent>
+                </Tooltip>
+              );
+            })}
+          </nav>
+        </TooltipProvider>
       </aside>
       <main className="min-h-screen pb-28 md:pb-8 md:pl-32">
         <header className="sticky top-0 z-10 px-4 py-3 md:px-8 md:pt-5">
