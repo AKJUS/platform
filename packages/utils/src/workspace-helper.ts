@@ -78,8 +78,7 @@ const logWorkspaceError = (
 
 function isDirectWorkspaceLookupIdentifier(id: string): boolean {
   const normalized = id.trim().toLowerCase();
-  const workspaceHandlePattern =
-    /^[a-z0-9](?:[a-z0-9_-]{0,62}[a-z0-9])?$/;
+  const workspaceHandlePattern = /^[a-z0-9](?:[a-z0-9_-]{0,62}[a-z0-9])?$/;
 
   return (
     normalized === PERSONAL_WORKSPACE_SLUG.toLowerCase() ||
