@@ -12713,14 +12713,24 @@
       "transcript_label": "Transcript hoặc ghi chú lớp học",
       "transcript_placeholder": "Dán câu hỏi lớp học đa ngôn ngữ, đoạn bài giảng, transcript lời nhắn của phụ huynh hoặc phản hồi của học viên...",
       "translation_title": "Bản dịch cho học viên",
+      "voice_grade_character_heard": "Nghe được",
+      "voice_grade_character_matched": "Khớp",
+      "voice_grade_character_missing": "Thiếu",
+      "voice_grade_character_substituted": "Thay âm",
+      "voice_grade_character_uncertain": "ASR chưa chắc",
+      "voice_grade_good_sounds": "Tốt",
       "voice_grade_heard": "Valsea nghe được",
+      "voice_grade_missing_sounds": "Thiếu",
       "voice_grade_missing_word": "Không nghe thấy từ khớp",
       "voice_grade_native": "Giống người bản xứ",
       "voice_grade_overall": "Phát âm",
       "voice_grade_provider_local": "Mô hình local",
       "voice_grade_provider_valsea": "Heuristic Valsea",
       "voice_grade_reference": "Cụm từ mẫu",
-      "voice_grade_title": "Chấm phát âm giọng nói"
+      "voice_grade_review_sounds": "Cần xem lại",
+      "voice_grade_score_hint": "75-78% nghĩa là phần căn chỉnh transcript chưa chắc chắn, thường do ASR bỏ qua từ đệm ngắn hoặc nghe thành âm gần giống. Hãy xem màu vàng là bằng chứng cần kiểm tra, không phải kết luận phát âm sai.",
+      "voice_grade_title": "Chấm phát âm giọng nói",
+      "voice_grade_uncertain_sounds": "Chưa chắc"
     }
   },
   "workspace-finance-tabs": {

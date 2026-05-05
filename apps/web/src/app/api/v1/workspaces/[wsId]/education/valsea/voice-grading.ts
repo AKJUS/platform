@@ -8,8 +8,11 @@ export type VoiceGradeLevel = 'amber' | 'green' | 'orange' | 'red';
 
 export interface VoiceGradeCharacter {
   character: string;
+  heard?: string;
+  hint?: string;
   level: VoiceGradeLevel;
   score: number;
+  status: 'matched' | 'missing' | 'substituted' | 'uncertain';
 }
 
 export interface VoiceGradeWord {
@@ -47,6 +50,12 @@ type AlignmentPair = {
 };
 
 type AlignmentDirection = 'delete' | 'insert' | 'match' | null;
+
+type CharacterAlignment = {
+  expected: string;
+  heard: string;
+  status: VoiceGradeCharacter['status'];
+};
 
 const SOFT_MISSING_TOKENS = new Set(['ah', 'lah', 'leh', 'lor', 'mah', 'one']);
 
@@ -141,6 +150,82 @@ function compareTokens(expected: string, heard: string) {
   return clampScore((1 - distance / maxLength) * 100);
 }
 
+function alignCharacters(expected: string, heard: string) {
+  const expectedCharacters = [...normalizeToken(expected)];
+  const heardCharacters = [...normalizeToken(heard)];
+  const rows = expectedCharacters.length + 1;
+  const columns = heardCharacters.length + 1;
+  const costs: number[][] = Array.from({ length: rows }, () =>
+    Array.from({ length: columns }, () => 0)
+  );
+  const directions: AlignmentDirection[][] = Array.from({ length: rows }, () =>
+    Array.from({ length: columns }, () => null)
+  );
+
+  for (let row = 1; row < rows; row += 1) {
+    costs[row]![0] = row;
+    directions[row]![0] = 'delete';
+  }
+
+  for (let column = 1; column < columns; column += 1) {
+    costs[0]![column] = column;
+    directions[0]![column] = 'insert';
+  }
+
+  for (let row = 1; row < rows; row += 1) {
+    for (let column = 1; column < columns; column += 1) {
+      const expectedCharacter = expectedCharacters[row - 1] ?? '';
+      const heardCharacter = heardCharacters[column - 1] ?? '';
+      const substitutionCost = expectedCharacter === heardCharacter ? 0 : 1;
+      const matchCost = (costs[row - 1]?.[column - 1] ?? 0) + substitutionCost;
+      const deleteCost = (costs[row - 1]?.[column] ?? 0) + 1;
+      const insertCost = (costs[row]?.[column - 1] ?? 0) + 1;
+
+      if (matchCost <= deleteCost && matchCost <= insertCost) {
+        costs[row]![column] = matchCost;
+        directions[row]![column] = 'match';
+      } else if (deleteCost <= insertCost) {
+        costs[row]![column] = deleteCost;
+        directions[row]![column] = 'delete';
+      } else {
+        costs[row]![column] = insertCost;
+        directions[row]![column] = 'insert';
+      }
+    }
+  }
+
+  const aligned: CharacterAlignment[] = [];
+  let row = expectedCharacters.length;
+  let column = heardCharacters.length;
+
+  while (row > 0 || column > 0) {
+    const direction = directions[row]?.[column];
+    if (direction === 'match') {
+      const expectedCharacter = expectedCharacters[row - 1] ?? '';
+      const heardCharacter = heardCharacters[column - 1] ?? '';
+      aligned.push({
+        expected: expectedCharacter,
+        heard: heardCharacter,
+        status:
+          expectedCharacter === heardCharacter ? 'matched' : 'substituted',
+      });
+      row -= 1;
+      column -= 1;
+    } else if (direction === 'delete') {
+      aligned.push({
+        expected: expectedCharacters[row - 1] ?? '',
+        heard: '',
+        status: 'missing',
+      });
+      row -= 1;
+    } else {
+      column -= 1;
+    }
+  }
+
+  return aligned.reverse();
+}
+
 function scoreAlignedToken(expected: string, heard: string) {
   if (heard) return compareTokens(expected, heard);
   return isSoftMissingToken(expected) ? 78 : 45;
@@ -224,26 +309,47 @@ function buildCharacterGrades(
   heard: string,
   wordScore: number
 ) {
-  const normalizedHeard = normalizeToken(heard);
-  let heardIndex = 0;
+  const characterAlignment = alignCharacters(expected, heard);
+  let normalizedIndex = 0;
+  const isSoftMissing = !heard && isSoftMissingToken(expected);
 
   return [...expected].map<VoiceGradeCharacter>((character) => {
     const normalizedCharacter = normalizeToken(character);
     if (!normalizedCharacter) {
-      return { character, level: 'green', score: 100 };
+      return {
+        character,
+        level: 'green',
+        score: 100,
+        status: 'matched',
+      };
     }
 
-    const heardCharacter = normalizedHeard[heardIndex] ?? '';
-    heardIndex += 1;
+    const aligned = characterAlignment[normalizedIndex];
+    normalizedIndex += 1;
+    const status = isSoftMissing ? 'uncertain' : aligned?.status || 'missing';
     const score =
-      normalizedCharacter === heardCharacter
-        ? Math.max(wordScore, 88)
-        : Math.max(0, wordScore - 25);
+      status === 'matched'
+        ? Math.max(wordScore, 92)
+        : status === 'uncertain'
+          ? 78
+          : status === 'substituted'
+            ? Math.min(72, Math.max(55, wordScore))
+            : Math.min(58, Math.max(35, wordScore));
 
     return {
       character,
+      heard: aligned?.heard,
+      hint:
+        status === 'matched'
+          ? 'Sound matched the expected phrase.'
+          : status === 'uncertain'
+            ? 'ASR did not hear this short filler clearly; review manually.'
+            : status === 'substituted'
+              ? `Expected ${normalizedCharacter}, heard ${aligned?.heard || 'another sound'}.`
+              : `Expected ${normalizedCharacter}, but ASR did not hear it.`,
       level: scoreToLevel(score),
       score: clampScore(score),
+      status,
     };
   });
 }
@@ -308,6 +414,29 @@ function buildHeuristicGrade(input: GradeVoiceInput): VoiceGradeResult {
   };
 }
 
+function scoreToCharacterStatus(score: number): VoiceGradeCharacter['status'] {
+  if (score >= 85) return 'matched';
+  if (score >= 70) return 'uncertain';
+  if (score >= 50) return 'substituted';
+  return 'missing';
+}
+
+function parseCharacterStatus(
+  value: string | undefined,
+  score: number
+): VoiceGradeCharacter['status'] {
+  if (
+    value === 'matched' ||
+    value === 'missing' ||
+    value === 'substituted' ||
+    value === 'uncertain'
+  ) {
+    return value;
+  }
+
+  return scoreToCharacterStatus(score);
+}
+
 function normalizeExternalWord(entry: ValseaRecord): VoiceGradeWord | null {
   const expected = getString(entry, 'expected');
   if (!expected) return null;
@@ -321,8 +450,11 @@ function normalizeExternalWord(entry: ValseaRecord): VoiceGradeWord | null {
     const rawScore = clampScore(getNumber(character, 'score') ?? score);
     return {
       character: getString(character, 'character') || '',
+      heard: getString(character, 'heard'),
+      hint: getString(character, 'hint'),
       level: scoreToLevel(rawScore),
       score: rawScore,
+      status: parseCharacterStatus(getString(character, 'status'), rawScore),
     };
   });
 

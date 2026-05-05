@@ -141,6 +141,12 @@ fails or is not configured, the route falls back to the Valsea-backed heuristic.
 The heuristic aligns expected and heard words with sequence alignment instead of
 matching by array index, so an omitted filler word such as "ah" or "lah" does not
 shift the rest of the sentence into false pronunciation failures.
+Amber scores around 75-78% mean "review this alignment" rather than "bad
+pronunciation"; they are used when ASR skipped a short filler or heard a nearby
+sound. Character feedback carries `matched`, `substituted`, `missing`, or
+`uncertain` status so the UI can distinguish sounds that were already good from
+sounds that need review. This avoids treating Valsea or local-model
+auto-corrections as direct proof of the speaker's pronunciation skill.
 
 The client calls this route through `packages/internal-api` and renders the
 normalized response as classroom wording, translation, teacher artifact,

@@ -160,8 +160,11 @@ export type ValseaVoiceGradeLevel = 'amber' | 'green' | 'orange' | 'red';
 
 export interface ValseaVoiceGradeCharacter {
   character: string;
+  heard?: string;
+  hint?: string;
   level: ValseaVoiceGradeLevel;
   score: number;
+  status?: 'matched' | 'missing' | 'substituted' | 'uncertain';
 }
 
 export interface ValseaVoiceGradeWord {

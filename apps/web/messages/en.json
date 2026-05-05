@@ -12713,14 +12713,24 @@
       "transcript_label": "Transcript or classroom note",
       "transcript_placeholder": "Paste a mixed-language classroom question, lecture snippet, parent voice-note transcript, or learner reflection...",
       "translation_title": "Learner translation",
+      "voice_grade_character_heard": "Heard",
+      "voice_grade_character_matched": "Matched",
+      "voice_grade_character_missing": "Missing",
+      "voice_grade_character_substituted": "Substituted",
+      "voice_grade_character_uncertain": "ASR uncertain",
+      "voice_grade_good_sounds": "Good",
       "voice_grade_heard": "Heard by Valsea",
+      "voice_grade_missing_sounds": "Missing",
       "voice_grade_missing_word": "No matching word heard",
       "voice_grade_native": "Native-like",
       "voice_grade_overall": "Pronunciation",
       "voice_grade_provider_local": "Local model",
       "voice_grade_provider_valsea": "Valsea heuristic",
       "voice_grade_reference": "Reference phrase",
-      "voice_grade_title": "Voice pronunciation grade"
+      "voice_grade_review_sounds": "Review",
+      "voice_grade_score_hint": "75-78% means the transcript alignment is uncertain, usually because ASR skipped a short filler or heard a nearby sound. Treat amber as review evidence, not proof of bad pronunciation.",
+      "voice_grade_title": "Voice pronunciation grade",
+      "voice_grade_uncertain_sounds": "Uncertain"
     }
   },
   "workspace-finance-tabs": {

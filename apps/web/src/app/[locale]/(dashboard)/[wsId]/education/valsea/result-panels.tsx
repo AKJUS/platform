@@ -389,10 +389,30 @@ function VoiceGradePanel({
       </CardHeader>
       <CardContent className="space-y-5">
         <p className="text-foreground/70 text-sm leading-6">{grade.summary}</p>
+        <p className="rounded-md border border-dynamic-yellow/20 bg-dynamic-yellow/5 p-3 text-dynamic-yellow text-sm leading-6">
+          {t('voice_grade_score_hint')}
+        </p>
 
         <div className="grid gap-3 rounded-md border border-foreground/10 bg-background/70 p-4">
-          <div className="font-mono text-foreground/45 text-xs uppercase tracking-[0.2em]">
-            {t('voice_grade_reference')}
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="font-mono text-foreground/45 text-xs uppercase tracking-[0.2em]">
+              {t('voice_grade_reference')}
+            </div>
+            <div className="flex flex-wrap gap-2 text-xs">
+              {[
+                ['green', t('voice_grade_character_matched')],
+                ['amber', t('voice_grade_character_uncertain')],
+                ['orange', t('voice_grade_character_substituted')],
+                ['red', t('voice_grade_character_missing')],
+              ].map(([level, label]) => (
+                <span
+                  className={`rounded-full px-2 py-1 ${getCharacterGradeClasses(level as ValseaVoiceGradeLevel)}`}
+                  key={level}
+                >
+                  {label}
+                </span>
+              ))}
+            </div>
           </div>
           <div className="flex flex-wrap gap-x-2 gap-y-3 text-lg leading-8">
             {grade.words.map((word, wordIndex) => (
@@ -404,7 +424,7 @@ function VoiceGradePanel({
                   <span
                     className={`rounded px-0.5 ${getCharacterGradeClasses(character.level)}`}
                     key={`${character.character}-${characterIndex}`}
-                    title={`${word.expected}: ${character.score}%`}
+                    title={getCharacterTitle(character, t)}
                   >
                     {character.character}
                   </span>
@@ -440,6 +460,41 @@ function VoiceGradePanel({
                 </div>
                 <div className="font-mono text-sm">{word.score}%</div>
               </div>
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {word.characters
+                  .filter((character) => character.character.trim())
+                  .map((character, characterIndex) => (
+                    <span
+                      className={`rounded px-1.5 py-1 font-mono text-xs ${getCharacterGradeClasses(character.level)}`}
+                      key={`${character.character}-${characterIndex}`}
+                      title={getCharacterTitle(character, t)}
+                    >
+                      {character.character}
+                    </span>
+                  ))}
+              </div>
+              <div className="mt-3 grid gap-1.5 text-xs">
+                <CharacterSummary
+                  characters={word.characters}
+                  status="matched"
+                  title={t('voice_grade_good_sounds')}
+                />
+                <CharacterSummary
+                  characters={word.characters}
+                  status="substituted"
+                  title={t('voice_grade_review_sounds')}
+                />
+                <CharacterSummary
+                  characters={word.characters}
+                  status="missing"
+                  title={t('voice_grade_missing_sounds')}
+                />
+                <CharacterSummary
+                  characters={word.characters}
+                  status="uncertain"
+                  title={t('voice_grade_uncertain_sounds')}
+                />
+              </div>
               <div className="mt-3 h-1.5 overflow-hidden rounded bg-background/80">
                 <div
                   className={getGradeBarClasses(word.level)}
@@ -451,6 +506,32 @@ function VoiceGradePanel({
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function CharacterSummary({
+  characters,
+  status,
+  title,
+}: {
+  characters: ValseaVoiceGradeResult['words'][number]['characters'];
+  status: NonNullable<
+    ValseaVoiceGradeResult['words'][number]['characters'][number]['status']
+  >;
+  title: string;
+}) {
+  const filtered = characters.filter(
+    (character) => character.status === status && character.character.trim()
+  );
+  if (!filtered.length) return null;
+
+  return (
+    <div className="flex flex-wrap gap-1.5 text-foreground/62">
+      <span>{title}:</span>
+      <span className="font-mono">
+        {filtered.map((character) => character.character).join(' ')}
+      </span>
+    </div>
   );
 }
 
@@ -495,6 +576,20 @@ function getCharacterGradeClasses(level: ValseaVoiceGradeLevel) {
   };
 
   return classes[level];
+}
+
+function getCharacterTitle(
+  character: ValseaVoiceGradeResult['words'][number]['characters'][number],
+  t: ReturnType<typeof useTranslations>
+) {
+  const status = character.status
+    ? t(`voice_grade_character_${character.status}`)
+    : `${character.score}%`;
+  const heard = character.heard
+    ? ` ${t('voice_grade_character_heard')}: ${character.heard}.`
+    : '';
+  const hint = character.hint ? ` ${character.hint}` : '';
+  return `${status}. ${character.score}%.${heard}${hint}`;
 }
 
 function getWordGradeClasses(level: ValseaVoiceGradeLevel) {
