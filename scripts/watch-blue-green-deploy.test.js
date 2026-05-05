@@ -2578,16 +2578,20 @@ test('runDeployWatchIteration refreshes a stale standby deployment after 15 minu
         createResult(''),
       ],
       [
-        `docker compose -f ${PROD_COMPOSE_FILE} --profile redis build web-blue markitdown storage-unzip-proxy web-cron-runner redis serverless-redis-http`,
+        `docker compose -f ${PROD_COMPOSE_FILE} --profile redis build web-blue markitdown pronunciation-assessor storage-unzip-proxy web-cron-runner redis serverless-redis-http`,
         createResult(''),
       ],
       [
-        `docker compose -f ${PROD_COMPOSE_FILE} --profile redis up --detach --no-build --remove-orphans web-blue markitdown storage-unzip-proxy web-cron-runner redis serverless-redis-http`,
+        `docker compose -f ${PROD_COMPOSE_FILE} --profile redis up --detach --no-build --remove-orphans web-blue markitdown pronunciation-assessor storage-unzip-proxy web-cron-runner redis serverless-redis-http`,
         createResult(''),
       ],
       [
         `docker compose -f ${PROD_COMPOSE_FILE} --profile redis ps -q markitdown`,
         createResult('markitdown-123\n'),
+      ],
+      [
+        `docker compose -f ${PROD_COMPOSE_FILE} --profile redis ps -q pronunciation-assessor`,
+        createResult('pronunciation-123\n'),
       ],
       [
         `docker compose -f ${PROD_COMPOSE_FILE} --profile redis ps -q storage-unzip-proxy`,
@@ -2607,6 +2611,10 @@ test('runDeployWatchIteration refreshes a stale standby deployment after 15 minu
       ],
       [
         `docker inspect -f {{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}} markitdown-123`,
+        createResult('healthy\n'),
+      ],
+      [
+        `docker inspect -f {{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}} pronunciation-123`,
         createResult('healthy\n'),
       ],
       [
@@ -2691,7 +2699,7 @@ test('runDeployWatchIteration refreshes a stale standby deployment after 15 minu
         `docker compose -f ${PROD_COMPOSE_FILE} --profile redis rm -f web-blue`
       ) <
         calls.indexOf(
-          `docker compose -f ${PROD_COMPOSE_FILE} --profile redis up --detach --no-build --remove-orphans web-blue markitdown storage-unzip-proxy web-cron-runner redis serverless-redis-http`
+          `docker compose -f ${PROD_COMPOSE_FILE} --profile redis up --detach --no-build --remove-orphans web-blue markitdown pronunciation-assessor storage-unzip-proxy web-cron-runner redis serverless-redis-http`
         )
     );
     assert.ok(
@@ -3056,16 +3064,20 @@ test('runDeployWatchIteration honors an instant standby sync request before the 
           createResult(''),
         ],
         [
-          `docker compose -f ${PROD_COMPOSE_FILE} --profile redis build web-blue markitdown storage-unzip-proxy web-cron-runner redis serverless-redis-http`,
+          `docker compose -f ${PROD_COMPOSE_FILE} --profile redis build web-blue markitdown pronunciation-assessor storage-unzip-proxy web-cron-runner redis serverless-redis-http`,
           createResult(''),
         ],
         [
-          `docker compose -f ${PROD_COMPOSE_FILE} --profile redis up --detach --no-build --remove-orphans web-blue markitdown storage-unzip-proxy web-cron-runner redis serverless-redis-http`,
+          `docker compose -f ${PROD_COMPOSE_FILE} --profile redis up --detach --no-build --remove-orphans web-blue markitdown pronunciation-assessor storage-unzip-proxy web-cron-runner redis serverless-redis-http`,
           createResult(''),
         ],
         [
           `docker compose -f ${PROD_COMPOSE_FILE} --profile redis ps -q markitdown`,
           createResult('markitdown-123\n'),
+        ],
+        [
+          `docker compose -f ${PROD_COMPOSE_FILE} --profile redis ps -q pronunciation-assessor`,
+          createResult('pronunciation-123\n'),
         ],
         [
           `docker compose -f ${PROD_COMPOSE_FILE} --profile redis ps -q storage-unzip-proxy`,
@@ -3085,6 +3097,10 @@ test('runDeployWatchIteration honors an instant standby sync request before the 
         ],
         [
           `docker inspect -f {{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}} markitdown-123`,
+          createResult('healthy\n'),
+        ],
+        [
+          `docker inspect -f {{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}} pronunciation-123`,
           createResult('healthy\n'),
         ],
         [

@@ -4,6 +4,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { type AuthorizedRequest, withSessionAuth } from '@/lib/api-auth';
 import { serverLogger } from '@/lib/infrastructure/log-drain';
+import { gradeVoicePronunciation } from './voice-grading';
 
 type Params = {
   wsId: string;
@@ -372,6 +373,15 @@ export const POST = withSessionAuth<Params>(
           transcript: clarifiedText,
         }),
       ]);
+      const pronunciation =
+        file && parsed.data.transcript
+          ? await gradeVoicePronunciation({
+              file,
+              language,
+              referenceText: parsed.data.transcript,
+              transcription,
+            })
+          : null;
 
       return NextResponse.json({
         annotations: {
@@ -393,6 +403,7 @@ export const POST = withSessionAuth<Params>(
           raw: clarification,
           text: clarifiedText,
         },
+        pronunciation,
         sentiment: {
           confidence: getNumber(sentiment, 'confidence'),
           emotions: getStringArray(sentiment, 'emotions'),

@@ -1,6 +1,8 @@
 'use client';
 
 import {
+  BookOpen,
+  Brain,
   FileAudio,
   KeyRound,
   Languages,
@@ -8,7 +10,10 @@ import {
   Sparkles,
   WandSparkles,
 } from '@tuturuuu/icons';
-import type { ValseaClassroomOutputType } from '@tuturuuu/internal-api';
+import type {
+  ValseaClassroomOutputType,
+  ValseaClassroomScenarioResponse,
+} from '@tuturuuu/internal-api';
 import { Badge } from '@tuturuuu/ui/badge';
 import { Button } from '@tuturuuu/ui/button';
 import { Card, CardContent } from '@tuturuuu/ui/card';
@@ -23,6 +28,7 @@ import {
 } from '@tuturuuu/ui/select';
 import { Textarea } from '@tuturuuu/ui/textarea';
 import type { useTranslations } from 'next-intl';
+import type { ReactNode } from 'react';
 import {
   INPUT_LANGUAGES,
   type LanguageOption,
@@ -75,9 +81,11 @@ export function StudioNav({
 
 export function HeroPanel({
   hasApiKey,
+  scenario,
   t,
 }: {
   hasApiKey: boolean;
+  scenario: ValseaClassroomScenarioResponse | null;
   t: ReturnType<typeof useTranslations>;
 }) {
   return (
@@ -105,8 +113,14 @@ export function HeroPanel({
             {t('provider_signal')}
           </div>
           <div className="mt-3 font-semibold text-2xl">
-            {hasApiKey ? t('key_state_ready') : t('key_state_missing')}
+            {scenario?.title ??
+              (hasApiKey ? t('key_state_ready') : t('key_state_missing'))}
           </div>
+          {scenario ? (
+            <p className="mt-3 text-foreground/65 text-sm leading-6">
+              {scenario.teacherGoal}
+            </p>
+          ) : null}
         </div>
         <div className="mt-8 grid grid-cols-2 gap-2 text-sm">
           <div className="rounded-md bg-background/80 p-3">
@@ -123,15 +137,123 @@ export function HeroPanel({
   );
 }
 
+export function ScenarioConsole({
+  isGenerating,
+  onGenerate,
+  scenario,
+  t,
+}: {
+  isGenerating: boolean;
+  onGenerate: () => void;
+  scenario: ValseaClassroomScenarioResponse | null;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  return (
+    <Card className="valsea-reveal overflow-hidden border-dynamic-cyan/20 bg-dynamic-cyan/5">
+      <CardContent className="grid gap-5 p-5 lg:grid-cols-[0.9fr_1.1fr] lg:p-6">
+        <div>
+          <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-md border border-dynamic-cyan/25 bg-dynamic-cyan/10 text-dynamic-cyan">
+            <Brain className="h-5 w-5" />
+          </div>
+          <h2 className="font-semibold text-2xl tracking-tight">
+            {t('scenario_console_title')}
+          </h2>
+          <p className="mt-3 text-foreground/66 text-sm leading-6">
+            {t('scenario_console_description')}
+          </p>
+          <Button
+            className="mt-5 min-h-11 gap-2"
+            disabled={isGenerating}
+            onClick={onGenerate}
+            type="button"
+          >
+            {isGenerating ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Sparkles className="h-4 w-4" />
+            )}
+            {isGenerating ? t('scenario_generating') : t('scenario_generate')}
+          </Button>
+        </div>
+
+        <div className="grid gap-3">
+          {scenario ? (
+            <>
+              <div className="rounded-md border border-foreground/10 bg-background/70 p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  {scenario.scenarioTags.map((tag) => (
+                    <Badge key={tag} variant="outline">
+                      {tag}
+                    </Badge>
+                  ))}
+                </div>
+                <div className="mt-4 font-semibold text-xl">
+                  {scenario.title}
+                </div>
+                <p className="mt-2 text-foreground/68 text-sm leading-6">
+                  {scenario.classroomContext}
+                </p>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <ScenarioMiniCard
+                  icon={<Languages className="h-4 w-4" />}
+                  label={t('scenario_learner')}
+                  value={scenario.learnerPersona}
+                />
+                <ScenarioMiniCard
+                  icon={<BookOpen className="h-4 w-4" />}
+                  label={t('scenario_rubric')}
+                  value={scenario.rubric.join(' / ')}
+                />
+              </div>
+            </>
+          ) : (
+            <div className="grid min-h-52 place-items-center rounded-md border border-foreground/10 bg-background/60 p-6 text-center">
+              <div>
+                <Sparkles className="mx-auto mb-4 h-6 w-6 text-dynamic-cyan" />
+                <p className="text-foreground/65 text-sm leading-6">
+                  {t('scenario_empty')}
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ScenarioMiniCard({
+  icon,
+  label,
+  value,
+}: {
+  icon: ReactNode;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-md border border-foreground/10 bg-background/70 p-3">
+      <div className="flex items-center gap-2 font-mono text-foreground/45 text-xs uppercase tracking-[0.18em]">
+        {icon}
+        {label}
+      </div>
+      <p className="mt-2 text-foreground/72 text-sm leading-6">{value}</p>
+    </div>
+  );
+}
+
 export function StudioComposer({
   apiKey,
   canGenerate,
   file,
   isGenerating,
+  isGeneratingScenario,
   language,
   onApiKeyChange,
   onFileChange,
   onGenerate,
+  onGenerateScenario,
   onLanguageChange,
   onOutputTypeChange,
   onTargetLanguageChange,
@@ -145,10 +267,12 @@ export function StudioComposer({
   canGenerate: boolean;
   file?: File;
   isGenerating: boolean;
+  isGeneratingScenario: boolean;
   language: string;
   onApiKeyChange: (value: string) => void;
   onFileChange: (value: File | undefined) => void;
   onGenerate: () => void;
+  onGenerateScenario: () => void;
   onLanguageChange: (value: string) => void;
   onOutputTypeChange: (value: string) => void;
   onTargetLanguageChange: (value: string) => void;
@@ -167,6 +291,23 @@ export function StudioComposer({
             {t('composer_description')}
           </p>
         </div>
+
+        <Button
+          className="min-h-11 w-full gap-2 border-dynamic-cyan/25 bg-dynamic-cyan/10 text-dynamic-cyan hover:bg-dynamic-cyan/15"
+          disabled={isGeneratingScenario}
+          onClick={onGenerateScenario}
+          type="button"
+          variant="outline"
+        >
+          {isGeneratingScenario ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <Brain className="h-4 w-4" />
+          )}
+          {isGeneratingScenario
+            ? t('scenario_generating')
+            : t('scenario_generate_short')}
+        </Button>
 
         <div className="space-y-2">
           <Label htmlFor="valsea-transcript">{t('transcript_label')}</Label>

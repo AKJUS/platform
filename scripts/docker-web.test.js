@@ -12,6 +12,7 @@ const {
   DOCKER_HOST_ALIAS,
   DOCKER_MARKITDOWN_ENDPOINT_URL,
   DOCKER_MARKITDOWN_SERVICE_URL,
+  DOCKER_PRONUNCIATION_ASSESSOR_URL,
   DOCKER_STORAGE_UNZIP_PROXY_URL,
   PROD_COMPOSE_FILE,
   WEB_ENV_FILE,
@@ -473,6 +474,10 @@ test('getComposeEnvironment injects blue-green support service URLs when request
     assert.match(env.CRON_SECRET, /^[a-f0-9]{64}$/u);
     assert.equal(env.MARKITDOWN_ENDPOINT_URL, DOCKER_MARKITDOWN_ENDPOINT_URL);
     assert.match(env.MARKITDOWN_ENDPOINT_SECRET, /^[a-f0-9]{64}$/u);
+    assert.equal(
+      env.VALSEA_PRONUNCIATION_ASSESSOR_URL,
+      DOCKER_PRONUNCIATION_ASSESSOR_URL
+    );
     assert.equal(
       env.DRIVE_AUTO_EXTRACT_PROXY_URL,
       DOCKER_STORAGE_UNZIP_PROXY_URL
@@ -1504,7 +1509,12 @@ test('runComposeUpWithNameConflictRecovery removes stale Compose recreate temp c
       PATH: 'test-path',
     },
     runCommand,
-    services: ['web-green', 'markitdown', 'storage-unzip-proxy'],
+    services: [
+      'web-green',
+      'markitdown',
+      'pronunciation-assessor',
+      'storage-unzip-proxy',
+    ],
     upArgs: [
       'up',
       '--build',
@@ -1512,6 +1522,7 @@ test('runComposeUpWithNameConflictRecovery removes stale Compose recreate temp c
       '--remove-orphans',
       'web-green',
       'markitdown',
+      'pronunciation-assessor',
       'storage-unzip-proxy',
     ],
   });

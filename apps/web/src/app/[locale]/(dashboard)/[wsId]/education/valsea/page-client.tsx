@@ -3,14 +3,21 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   generateValseaClassroomArtifact,
+  generateValseaClassroomScenario,
   getValseaClassroomConfig,
   type ValseaClassroomOutputType,
+  type ValseaClassroomScenarioResponse,
 } from '@tuturuuu/internal-api';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
 import { ValseaKeyDialog } from './key-dialog';
 import { EmptyState, PipelineStrip, ResultsGrid } from './result-panels';
-import { HeroPanel, StudioComposer, StudioNav } from './studio-layout';
+import {
+  HeroPanel,
+  ScenarioConsole,
+  StudioComposer,
+  StudioNav,
+} from './studio-layout';
 
 export function ValseaClassroomClient({ wsId }: { wsId: string }) {
   const t = useTranslations('workspace-education-tabs.valsea');
@@ -23,6 +30,8 @@ export function ValseaClassroomClient({ wsId }: { wsId: string }) {
   const [file, setFile] = useState<File | undefined>();
   const [apiKey, setApiKey] = useState('');
   const [keyDialogOpen, setKeyDialogOpen] = useState(false);
+  const [scenario, setScenario] =
+    useState<ValseaClassroomScenarioResponse | null>(null);
 
   const configQuery = useQuery({
     queryFn: () => getValseaClassroomConfig(wsId),
@@ -47,6 +56,21 @@ export function ValseaClassroomClient({ wsId }: { wsId: string }) {
       if (error.message.toLowerCase().includes('valsea api key')) {
         setKeyDialogOpen(true);
       }
+    },
+  });
+
+  const scenarioMutation = useMutation({
+    mutationFn: () =>
+      generateValseaClassroomScenario(wsId, {
+        seed: `${Date.now()}-${outputType}-${targetLanguage}`,
+      }),
+    onSuccess: (nextScenario) => {
+      setScenario(nextScenario);
+      setTranscript(nextScenario.referencePhrase);
+      setLanguage(nextScenario.sourceLanguage);
+      setTargetLanguage(nextScenario.targetLanguage);
+      setOutputType(nextScenario.outputType);
+      setFile(undefined);
     },
   });
 
@@ -141,10 +165,12 @@ export function ValseaClassroomClient({ wsId }: { wsId: string }) {
             apiKey={apiKey}
             file={file}
             isGenerating={mutation.isPending}
+            isGeneratingScenario={scenarioMutation.isPending}
             language={language}
             onApiKeyChange={setApiKey}
             onFileChange={setFile}
             onGenerate={handleGenerate}
+            onGenerateScenario={() => scenarioMutation.mutate()}
             onLanguageChange={setLanguage}
             onOutputTypeChange={(value) =>
               setOutputType(value as ValseaClassroomOutputType)
@@ -159,7 +185,18 @@ export function ValseaClassroomClient({ wsId }: { wsId: string }) {
           />
 
           <div className="grid gap-5">
-            <HeroPanel hasApiKey={hasApiKey} t={t} />
+            <HeroPanel hasApiKey={hasApiKey} scenario={scenario} t={t} />
+            <ScenarioConsole
+              isGenerating={scenarioMutation.isPending}
+              onGenerate={() => scenarioMutation.mutate()}
+              scenario={scenario}
+              t={t}
+            />
+            {scenarioMutation.error ? (
+              <div className="valsea-reveal rounded-md border border-dynamic-red/25 bg-dynamic-red/10 p-4 text-dynamic-red text-sm">
+                {scenarioMutation.error.message}
+              </div>
+            ) : null}
             <PipelineStrip
               hasApiKey={hasApiKey}
               isLoading={mutation.isPending}

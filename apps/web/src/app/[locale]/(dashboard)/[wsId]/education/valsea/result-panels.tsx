@@ -8,14 +8,25 @@ import {
   Loader2,
   Sparkles,
 } from '@tuturuuu/icons';
-import type { ValseaClassroomArtifactResponse } from '@tuturuuu/internal-api';
+import type {
+  ValseaClassroomArtifactResponse,
+  ValseaVoiceGradeLevel,
+  ValseaVoiceGradeResult,
+} from '@tuturuuu/internal-api';
 import { Badge } from '@tuturuuu/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@tuturuuu/ui/card';
 import type { useTranslations } from 'next-intl';
 import { useMemo } from 'react';
 import { STUDIO_STEPS } from './constants';
 
-const STEP_ICONS = [FileAudio, Sparkles, Languages, Brain, BookOpen] as const;
+const STEP_ICONS = [
+  FileAudio,
+  Brain,
+  Sparkles,
+  Languages,
+  Brain,
+  BookOpen,
+] as const;
 
 export function PipelineStrip({
   hasApiKey,
@@ -28,7 +39,7 @@ export function PipelineStrip({
 }) {
   return (
     <Card className="valsea-reveal overflow-hidden border-foreground/10 bg-foreground/4">
-      <CardContent className="grid gap-0 p-0 md:grid-cols-5">
+      <CardContent className="grid gap-0 p-0 md:grid-cols-3 xl:grid-cols-6">
         {STUDIO_STEPS.map((step, index) => {
           const Icon = STEP_ICONS[index] ?? Sparkles;
           return (
@@ -80,6 +91,7 @@ export function ResultsGrid({
           annotations: result.annotations.raw,
           artifact: result.artifact.raw,
           clarification: result.clarification.raw,
+          pronunciation: result.pronunciation?.raw,
           sentiment: result.sentiment.raw,
           translation: result.translation.raw,
         },
@@ -112,6 +124,9 @@ export function ResultsGrid({
         tone="orange"
         title={t('artifact_title')}
       />
+      {result.pronunciation ? (
+        <VoiceGradePanel grade={result.pronunciation} t={t} />
+      ) : null}
       <Card className="valsea-stack-card border-dynamic-pink/20 bg-dynamic-pink/5 lg:col-span-2">
         <CardHeader>
           <div className="flex flex-wrap items-center gap-2">
@@ -171,13 +186,182 @@ export function ResultsGrid({
           <CardTitle>{t('raw_title')}</CardTitle>
         </CardHeader>
         <CardContent>
-          <pre className="max-h-80 overflow-auto rounded-md border border-foreground/10 bg-foreground/5 p-4 text-xs leading-5">
-            {rawSummary}
-          </pre>
+          <details className="group rounded-md border border-foreground/10 bg-background/70">
+            <summary className="flex cursor-pointer items-center justify-between gap-3 p-4 font-medium text-sm">
+              <span>{t('raw_summary')}</span>
+              <Badge variant="outline">{t('raw_collapsed')}</Badge>
+            </summary>
+            <pre className="max-h-80 overflow-auto border-foreground/10 border-t bg-foreground/5 p-4 text-xs leading-5">
+              {rawSummary}
+            </pre>
+          </details>
         </CardContent>
       </Card>
     </div>
   );
+}
+
+function VoiceGradePanel({
+  grade,
+  t,
+}: {
+  grade: ValseaVoiceGradeResult;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  return (
+    <Card className="valsea-stack-card border-foreground/10 bg-foreground/4 lg:col-span-6">
+      <CardHeader>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge
+            className={getGradeBadgeClasses(scoreToLevel(grade.overallScore))}
+          >
+            {t('voice_grade_overall')}: {grade.overallScore}%
+          </Badge>
+          <Badge
+            className={getGradeBadgeClasses(
+              scoreToLevel(grade.nativeSimilarity)
+            )}
+          >
+            {t('voice_grade_native')}: {grade.nativeSimilarity}%
+          </Badge>
+          <Badge variant="outline">
+            {grade.provider === 'local-model'
+              ? t('voice_grade_provider_local')
+              : t('voice_grade_provider_valsea')}
+          </Badge>
+        </div>
+        <CardTitle>{t('voice_grade_title')}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <p className="text-foreground/70 text-sm leading-6">{grade.summary}</p>
+
+        <div className="grid gap-3 rounded-md border border-foreground/10 bg-background/70 p-4">
+          <div className="font-mono text-foreground/45 text-xs uppercase tracking-[0.2em]">
+            {t('voice_grade_reference')}
+          </div>
+          <div className="flex flex-wrap gap-x-2 gap-y-3 text-lg leading-8">
+            {grade.words.map((word, wordIndex) => (
+              <span
+                className="inline-flex flex-wrap"
+                key={`${word.expected}-${wordIndex}`}
+              >
+                {word.characters.map((character, characterIndex) => (
+                  <span
+                    className={`rounded px-0.5 ${getCharacterGradeClasses(character.level)}`}
+                    key={`${character.character}-${characterIndex}`}
+                    title={`${word.expected}: ${character.score}%`}
+                  >
+                    {character.character}
+                  </span>
+                ))}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <TranscriptBox
+            label={t('voice_grade_heard')}
+            value={grade.heardText}
+          />
+          <TranscriptBox
+            label={t('voice_grade_reference')}
+            value={grade.referenceText}
+          />
+        </div>
+
+        <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+          {grade.words.map((word, index) => (
+            <div
+              className={`rounded-md border p-3 ${getWordGradeClasses(word.level)}`}
+              key={`${word.expected}-${index}`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="font-semibold text-sm">{word.expected}</div>
+                  <div className="mt-1 text-foreground/60 text-xs">
+                    {word.heard || t('voice_grade_missing_word')}
+                  </div>
+                </div>
+                <div className="font-mono text-sm">{word.score}%</div>
+              </div>
+              <div className="mt-3 h-1.5 overflow-hidden rounded bg-background/80">
+                <div
+                  className={getGradeBarClasses(word.level)}
+                  style={{ width: `${word.score}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function TranscriptBox({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-md border border-foreground/10 bg-background/70 p-3">
+      <div className="font-mono text-foreground/45 text-xs uppercase tracking-[0.2em]">
+        {label}
+      </div>
+      <p className="mt-2 text-foreground/75 text-sm leading-6">{value}</p>
+    </div>
+  );
+}
+
+function scoreToLevel(score: number): ValseaVoiceGradeLevel {
+  if (score >= 85) return 'green';
+  if (score >= 70) return 'amber';
+  if (score >= 50) return 'orange';
+  return 'red';
+}
+
+function getGradeBadgeClasses(level: ValseaVoiceGradeLevel) {
+  const classes = {
+    amber:
+      'border-dynamic-yellow/25 bg-dynamic-yellow/10 text-dynamic-yellow hover:bg-dynamic-yellow/15',
+    green:
+      'border-dynamic-green/25 bg-dynamic-green/10 text-dynamic-green hover:bg-dynamic-green/15',
+    orange:
+      'border-dynamic-orange/25 bg-dynamic-orange/10 text-dynamic-orange hover:bg-dynamic-orange/15',
+    red: 'border-dynamic-red/25 bg-dynamic-red/10 text-dynamic-red hover:bg-dynamic-red/15',
+  };
+
+  return classes[level];
+}
+
+function getCharacterGradeClasses(level: ValseaVoiceGradeLevel) {
+  const classes = {
+    amber: 'bg-dynamic-yellow/15 text-dynamic-yellow',
+    green: 'bg-dynamic-green/15 text-dynamic-green',
+    orange: 'bg-dynamic-orange/15 text-dynamic-orange',
+    red: 'bg-dynamic-red/15 text-dynamic-red',
+  };
+
+  return classes[level];
+}
+
+function getWordGradeClasses(level: ValseaVoiceGradeLevel) {
+  const classes = {
+    amber: 'border-dynamic-yellow/20 bg-dynamic-yellow/5',
+    green: 'border-dynamic-green/20 bg-dynamic-green/5',
+    orange: 'border-dynamic-orange/20 bg-dynamic-orange/5',
+    red: 'border-dynamic-red/20 bg-dynamic-red/5',
+  };
+
+  return classes[level];
+}
+
+function getGradeBarClasses(level: ValseaVoiceGradeLevel) {
+  const classes = {
+    amber: 'h-full rounded bg-dynamic-yellow',
+    green: 'h-full rounded bg-dynamic-green',
+    orange: 'h-full rounded bg-dynamic-orange',
+    red: 'h-full rounded bg-dynamic-red',
+  };
+
+  return classes[level];
 }
 
 export function EmptyState({

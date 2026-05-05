@@ -33,8 +33,10 @@ No purple/blue neon, no pure black, no oversaturated accent palette.
 - **Cards:** Used for workbench hierarchy. Corners are 1.25rem to 2rem; borders carry structure more than shadows.
 - **Inputs:** Label above, helper text below, no floating labels. BYOK input uses password type and never persists.
 - **Dialog:** Opens automatically when no server key exists. Explains request-scoped BYOK forwarding and uses a single primary action.
+- **Scenario Console:** Mira-generated scenarios fill the composer directly and stay visible as a compact mission board.
 - **Loading:** Pipeline and generate button show local progress while preserving layout dimensions.
-- **Empty State:** A composed two-zone panel that directs the user to add a key or generate an artifact.
+- **Results:** Raw JSON is collapsed by default; the visible surface uses badges, tags, cards, character heatmaps, and score bars.
+- **Empty State:** A composed two-zone panel that directs the user to add a key, ask Mira for a scenario, or generate an artifact.
 
 ## 5. Layout Principles
 

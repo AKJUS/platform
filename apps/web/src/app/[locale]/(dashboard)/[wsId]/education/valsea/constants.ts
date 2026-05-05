@@ -37,12 +37,15 @@ export const OUTPUT_TYPES: OutputOption[] = [
   { labelKey: 'output_key_quotes', value: 'key_quotes' },
   { labelKey: 'output_subtitles', value: 'subtitles' },
   { labelKey: 'output_email_summary', value: 'email_summary' },
+  { labelKey: 'output_meeting_minutes', value: 'meeting_minutes' },
+  { labelKey: 'output_service_log', value: 'service_log' },
 ];
 
 export const SUGGESTED_PROMPTS = ['sample_1', 'sample_2', 'sample_3'] as const;
 
 export const STUDIO_STEPS = [
   'pipeline_capture',
+  'pipeline_grade',
   'pipeline_clarify',
   'pipeline_translate',
   'pipeline_understand',

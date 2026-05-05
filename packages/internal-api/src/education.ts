@@ -119,10 +119,57 @@ export interface ValseaClassroomPayload {
   transcript?: string;
 }
 
+export interface ValseaClassroomScenarioPayload {
+  mode?: 'parent_update' | 'pronunciation_lab' | 'regional_classroom';
+  seed?: string;
+}
+
+export interface ValseaClassroomScenarioResponse {
+  classroomContext: string;
+  expectedConfusions: string[];
+  learnerPersona: string;
+  outputType: ValseaClassroomOutputType;
+  referencePhrase: string;
+  rubric: string[];
+  scenarioTags: string[];
+  sourceLanguage: string;
+  targetLanguage: string;
+  teacherGoal: string;
+  title: string;
+}
+
 export interface ValseaClassroomSemanticTag {
   meaning?: string;
   phrase?: string;
   tag?: string;
+}
+
+export type ValseaVoiceGradeLevel = 'amber' | 'green' | 'orange' | 'red';
+
+export interface ValseaVoiceGradeCharacter {
+  character: string;
+  level: ValseaVoiceGradeLevel;
+  score: number;
+}
+
+export interface ValseaVoiceGradeWord {
+  characters: ValseaVoiceGradeCharacter[];
+  expected: string;
+  heard: string;
+  level: ValseaVoiceGradeLevel;
+  nativeScore: number;
+  score: number;
+}
+
+export interface ValseaVoiceGradeResult {
+  heardText: string;
+  nativeSimilarity: number;
+  overallScore: number;
+  provider: 'local-model' | 'valsea-heuristic';
+  raw?: unknown;
+  referenceText: string;
+  summary: string;
+  words: ValseaVoiceGradeWord[];
 }
 
 export interface ValseaClassroomArtifactResponse {
@@ -154,6 +201,7 @@ export interface ValseaClassroomArtifactResponse {
     rawTranscript: string;
     transcript: string;
   };
+  pronunciation: ValseaVoiceGradeResult | null;
   translation: {
     raw: unknown;
     sourceLanguage?: string;
@@ -191,6 +239,25 @@ export async function getValseaClassroomConfig(
   return client.json<ValseaClassroomConfigResponse>(
     `/api/v1/workspaces/${encodePathSegment(workspaceId)}/education/valsea`,
     { cache: 'no-store' }
+  );
+}
+
+export async function generateValseaClassroomScenario(
+  workspaceId: string,
+  payload: ValseaClassroomScenarioPayload = {},
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  return client.json<ValseaClassroomScenarioResponse>(
+    `/api/v1/workspaces/${encodePathSegment(workspaceId)}/education/valsea/scenario`,
+    {
+      body: JSON.stringify(payload),
+      cache: 'no-store',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      method: 'POST',
+    }
   );
 }
 

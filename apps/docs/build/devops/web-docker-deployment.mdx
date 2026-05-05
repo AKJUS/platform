@@ -132,12 +132,14 @@ Blue/green deploy does this:
 2. Ignores that state if the corresponding container no longer exists.
 3. Stops and removes the old inactive-color container, then builds and starts
    its fresh replacement.
-4. Builds and starts the shared `markitdown`, `storage-unzip-proxy`, and
-   `web-cron-runner` helper containers alongside the target color.
+4. Builds and starts the shared `markitdown`, `pronunciation-assessor`,
+   `storage-unzip-proxy`, and `web-cron-runner` helper containers alongside the
+   target color.
 5. Injects Docker-internal helper URLs into `apps/web`:
    `MARKITDOWN_ENDPOINT_URL=http://markitdown:8000/markitdown`,
    `DISCORD_APP_DEPLOYMENT_URL=http://markitdown:8000`,
    `DRIVE_AUTO_EXTRACT_PROXY_URL=http://storage-unzip-proxy:8788/extract`,
+   `VALSEA_PRONUNCIATION_ASSESSOR_URL=http://pronunciation-assessor:8010/assess`,
    and `INTERNAL_WEB_API_ORIGIN=http://web-proxy:7803`.
 6. Waits for the new web container and helper container healthchecks to pass.
 7. Keeps the stable `web-proxy` container running in place during ordinary
@@ -552,10 +554,11 @@ Behavior:
    routing through `/__platform/drain-status`, and only then starts the new
    blue/green build/promotion.
 14. If compose or helper-image wiring changed, including
-    `docker-compose.web.prod.yml`, MarkItDown service files, or
-    `apps/storage-unzip-proxy` package/source files, the containerized watcher
-    recreates its own compose service before the pending deploy handoff. That
-    lets a running watcher pull this update and then refresh `markitdown` plus
+    `docker-compose.web.prod.yml`, MarkItDown service files,
+    `apps/pronunciation-assessor` source files, or `apps/storage-unzip-proxy`
+    package/source files, the containerized watcher recreates its own compose
+    service before the pending deploy handoff. That lets a running watcher pull
+    this update and then refresh `markitdown`, `pronunciation-assessor`, and
     `storage-unzip-proxy` through the blue/green workflow instead of only
     replacing the web color.
 15. Retries recoverable Git command failures instead of exiting. The first retry

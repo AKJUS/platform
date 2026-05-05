@@ -31,6 +31,7 @@ x-web-service: &web-service
     - SUPABASE_SERVER_URL
     - UPSTASH_REDIS_REST_TOKEN
     - UPSTASH_REDIS_REST_URL
+    - VALSEA_PRONUNCIATION_ASSESSOR_URL=${VALSEA_PRONUNCIATION_ASSESSOR_URL:-http://pronunciation-assessor:8010/assess}
   extra_hosts:
     - "host.docker.internal:host-gateway"
   healthcheck:
@@ -129,6 +130,25 @@ services:
       start_period: 5s
       retries: 3
     init: true
+
+  pronunciation-assessor:
+    build:
+      context: apps/pronunciation-assessor
+    environment:
+      - PORT=8010
+      - PRONUNCIATION_ASSESSOR_MODEL=${PRONUNCIATION_ASSESSOR_MODEL:-facebook/wav2vec2-base-960h}
+      - PRONUNCIATION_ASSESSOR_PRELOAD=${PRONUNCIATION_ASSESSOR_PRELOAD:-true}
+    expose:
+      - "8010"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8010/health', timeout=3).read()\" || exit 1"]
+      interval: 30s
+      timeout: 5s
+      start_period: 120s
+      retries: 10
+    init: true
+    volumes:
+      - platform-pronunciation-assessor-cache:/root/.cache/huggingface
 
   log-drain-postgres:
     container_name: ${COMPOSE_PROJECT_NAME:-platform}-log-drain-postgres-1
@@ -249,3 +269,4 @@ volumes:
   platform-log-drain-postgres:
   platform-bun-install:
   platform-blue-green-watcher-node_modules:
+  platform-pronunciation-assessor-cache:

@@ -80,7 +80,13 @@ export type {
   ValseaClassroomConfigResponse,
   ValseaClassroomOutputType,
   ValseaClassroomPayload,
+  ValseaClassroomScenarioPayload,
+  ValseaClassroomScenarioResponse,
   ValseaClassroomSemanticTag,
+  ValseaVoiceGradeCharacter,
+  ValseaVoiceGradeLevel,
+  ValseaVoiceGradeResult,
+  ValseaVoiceGradeWord,
   WorkspaceEducationAttemptListQuery,
 } from './education';
 export {
@@ -97,6 +103,7 @@ export {
   deleteWorkspaceQuiz,
   deleteWorkspaceQuizSet,
   generateValseaClassroomArtifact,
+  generateValseaClassroomScenario,
   getValseaClassroomConfig,
   getWorkspaceEducationAttemptDetail,
   linkQuizSetModules,

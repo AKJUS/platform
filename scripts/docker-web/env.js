@@ -34,6 +34,8 @@ const DOCKER_MARKITDOWN_SERVICE_URL = 'http://markitdown:8000';
 const DOCKER_MARKITDOWN_ENDPOINT_URL = `${DOCKER_MARKITDOWN_SERVICE_URL}/markitdown`;
 const DOCKER_STORAGE_UNZIP_PROXY_URL =
   'http://storage-unzip-proxy:8788/extract';
+const DOCKER_PRONUNCIATION_ASSESSOR_URL =
+  'http://pronunciation-assessor:8010/assess';
 
 function stripUnquotedInlineComment(value) {
   const quote = value[0];
@@ -175,6 +177,11 @@ function getComposeEnvironment({
     composeEnv.DRIVE_AUTO_EXTRACT_PROXY_TOKEN = dockerStorageUnzipRuntime.token;
     composeEnv.DRIVE_AUTO_EXTRACT_PROXY_URL = dockerStorageUnzipRuntime.url;
     composeEnv.DRIVE_UNZIP_PROXY_SHARED_TOKEN = dockerStorageUnzipRuntime.token;
+    composeEnv.VALSEA_PRONUNCIATION_ASSESSOR_URL =
+      getFirstNonBlank([
+        baseEnv.DOCKER_VALSEA_PRONUNCIATION_ASSESSOR_URL,
+        baseEnv.VALSEA_PRONUNCIATION_ASSESSOR_URL,
+      ]) ?? DOCKER_PRONUNCIATION_ASSESSOR_URL;
     composeEnv.INTERNAL_WEB_API_ORIGIN =
       getFirstNonBlank([
         baseEnv.DOCKER_INTERNAL_WEB_API_ORIGIN,
@@ -441,6 +448,7 @@ function getDockerStorageUnzipRuntime({
 module.exports = {
   DOCKER_MARKITDOWN_ENDPOINT_URL,
   DOCKER_MARKITDOWN_SERVICE_URL,
+  DOCKER_PRONUNCIATION_ASSESSOR_URL,
   DOCKER_REDIS_SERVICE_URL,
   DOCKER_STORAGE_UNZIP_PROXY_URL,
   DOCKER_WEB_CRON_TOKEN_FILE,
