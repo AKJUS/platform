@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { homedir, platform } from 'node:os';
-import { dirname, join, win32 } from 'node:path';
+import { dirname, posix, win32 } from 'node:path';
 
 export interface CliSession {
   accessToken: string;
@@ -67,7 +67,7 @@ export function getDefaultConfigPath(
   }
 
   if (options.platform === 'darwin') {
-    return join(
+    return posix.join(
       options.homeDir,
       'Library',
       'Application Support',
@@ -77,8 +77,8 @@ export function getDefaultConfigPath(
   }
 
   const configHome =
-    options.env.XDG_CONFIG_HOME || join(options.homeDir, '.config');
-  return join(configHome, 'tuturuuu', 'config.json');
+    options.env.XDG_CONFIG_HOME || posix.join(options.homeDir, '.config');
+  return posix.join(configHome, 'tuturuuu', 'config.json');
 }
 
 export async function readCliConfig(
