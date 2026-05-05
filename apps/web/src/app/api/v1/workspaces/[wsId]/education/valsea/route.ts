@@ -2,7 +2,7 @@ import { resolveWorkspaceId } from '@tuturuuu/utils/constants';
 import { verifyWorkspaceMembershipType } from '@tuturuuu/utils/workspace-helper';
 import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
-import { withSessionAuth } from '@/lib/api-auth';
+import { type AuthorizedRequest, withSessionAuth } from '@/lib/api-auth';
 import { serverLogger } from '@/lib/infrastructure/log-drain';
 
 type Params = {
@@ -110,6 +110,34 @@ function getValseaApiKey(request: NextRequest) {
     request.headers.get('x-valsea-api-key')?.trim() ||
     process.env.VALSEA_API_KEY?.trim()
   );
+}
+
+async function verifyValseaWorkspaceAccess(
+  context: AuthorizedRequest,
+  wsId: string
+) {
+  const resolvedWsId = resolveWorkspaceId(wsId);
+  const membership = await verifyWorkspaceMembershipType({
+    supabase: context.supabase,
+    userId: context.user.id,
+    wsId: resolvedWsId,
+  });
+
+  if (membership.error === 'membership_lookup_failed') {
+    return NextResponse.json(
+      { message: 'Could not verify workspace membership' },
+      { status: 500 }
+    );
+  }
+
+  if (!membership.ok) {
+    return NextResponse.json(
+      { message: "You don't have access to this workspace" },
+      { status: 403 }
+    );
+  }
+
+  return null;
 }
 
 async function readJsonResponse(response: Response) {
@@ -254,29 +282,24 @@ async function parsePayload(request: NextRequest): Promise<ParsePayloadResult> {
   return { data: { ...parsed.data, file: undefined } };
 }
 
+export const GET = withSessionAuth<Params>(
+  async (_request, context, { wsId }) => {
+    const accessError = await verifyValseaWorkspaceAccess(context, wsId);
+    if (accessError) return accessError;
+
+    return NextResponse.json(
+      { hasServerKey: Boolean(process.env.VALSEA_API_KEY?.trim()) },
+      { headers: { 'Cache-Control': 'private, no-store' } }
+    );
+  },
+  { rateLimitKind: 'read' }
+);
+
 export const POST = withSessionAuth<Params>(
-  async (request, { supabase, user }, { wsId }) => {
+  async (request, context, { wsId }) => {
     try {
-      const resolvedWsId = resolveWorkspaceId(wsId);
-      const membership = await verifyWorkspaceMembershipType({
-        supabase,
-        userId: user.id,
-        wsId: resolvedWsId,
-      });
-
-      if (membership.error === 'membership_lookup_failed') {
-        return NextResponse.json(
-          { message: 'Could not verify workspace membership' },
-          { status: 500 }
-        );
-      }
-
-      if (!membership.ok) {
-        return NextResponse.json(
-          { message: "You don't have access to this workspace" },
-          { status: 403 }
-        );
-      }
+      const accessError = await verifyValseaWorkspaceAccess(context, wsId);
+      if (accessError) return accessError;
 
       const parsed = await parsePayload(request);
       if (parsed.error) return parsed.error;

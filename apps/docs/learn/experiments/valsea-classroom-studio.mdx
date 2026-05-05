@@ -12,11 +12,14 @@ transcripts into teacher-ready learning artifacts.
 Set `VALSEA_API_KEY` in the web runtime environment. Do not commit Valsea keys
 to the repository.
 
-For hackathon demos, the page also supports BYOK. A user can paste a Valsea key
-into the password field, and the client forwards it to the authenticated server
-route in the `X-Valsea-Api-Key` header for that request only. The key is not
-stored in local storage, cookies, Supabase, or the rendered response. The server
-falls back to `VALSEA_API_KEY` when the request does not include a BYOK header.
+For hackathon demos, the page also supports BYOK. The authenticated route exposes
+a no-store `GET` status response that tells the client whether a server key is
+configured. If not, the page automatically opens the Valsea key dialog. A user
+can paste a Valsea key into the password field, and the client forwards it to the
+authenticated server route in the `X-Valsea-Api-Key` header for that request
+only. The key is not stored in local storage, cookies, Supabase, or the rendered
+response. The server falls back to `VALSEA_API_KEY` when the request does not
+include a BYOK header.
 
 The server route is:
 
@@ -25,7 +28,14 @@ POST /api/v1/workspaces/:wsId/education/valsea
 ```
 
 The route is session-authenticated, verifies workspace membership, and calls
-Valsea from the server. The browser never receives the provider key.
+Valsea from the server. The browser never receives the server provider key.
+
+```txt
+GET /api/v1/workspaces/:wsId/education/valsea
+```
+
+The `GET` route returns only `{ "hasServerKey": boolean }` and does not expose
+the configured key.
 
 ## Pipeline
 

@@ -162,6 +162,10 @@ export interface ValseaClassroomArtifactResponse {
   };
 }
 
+export interface ValseaClassroomConfigResponse {
+  hasServerKey: boolean;
+}
+
 export async function createWorkspaceCourse(
   workspaceId: string,
   payload: UpsertWorkspaceCoursePayload,
@@ -176,6 +180,17 @@ export async function createWorkspaceCourse(
       body: JSON.stringify(payload),
       cache: 'no-store',
     }
+  );
+}
+
+export async function getValseaClassroomConfig(
+  workspaceId: string,
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  return client.json<ValseaClassroomConfigResponse>(
+    `/api/v1/workspaces/${encodePathSegment(workspaceId)}/education/valsea`,
+    { cache: 'no-store' }
   );
 }
 
