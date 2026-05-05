@@ -1,6 +1,6 @@
 begin;
 
-select plan(20);
+select plan(21);
 
 select has_table('public', 'tulearn_parent_student_links', 'parent student links table exists');
 select has_table('public', 'tulearn_parent_invites', 'parent invites table exists');
@@ -131,6 +131,32 @@ select results_eq(
   $$,
   $$ values (4::integer) $$,
   'lose_tulearn_heart decrements hearts atomically'
+);
+
+update public.tulearn_learner_state
+set
+  hearts = 4,
+  last_heart_refill_at = '2026-01-01 00:00:00+00'::timestamp with time zone
+where ws_id = '00000000-0000-0000-0000-000000000810'
+  and user_id = '00000000-0000-0000-0000-000000000801';
+
+select results_eq(
+  $$
+    with lost as (
+      select hearts
+      from public.lose_tulearn_heart(
+        '00000000-0000-0000-0000-000000000810',
+        '00000000-0000-0000-0000-000000000801'
+      )
+    )
+    select lost.hearts, state.last_heart_refill_at
+    from lost
+    cross join public.tulearn_learner_state state
+    where state.ws_id = '00000000-0000-0000-0000-000000000810'
+      and state.user_id = '00000000-0000-0000-0000-000000000801'
+  $$,
+  $$ values (3::integer, '2026-01-01 00:00:00+00'::timestamp with time zone) $$,
+  'repeated heart loss preserves the existing refill timer'
 );
 
 update public.tulearn_learner_state

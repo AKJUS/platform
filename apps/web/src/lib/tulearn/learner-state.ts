@@ -10,14 +10,6 @@ const LEARNER_STATE_SELECT =
 const LEARNER_STATE_PUBLIC_SELECT =
   'hearts, max_hearts, xp_total, current_streak, longest_streak, streak_freezes, last_activity_date';
 
-type LoseTulearnHeartRpc = (
-  fn: 'lose_tulearn_heart',
-  args: {
-    p_user_id: string;
-    p_ws_id: string;
-  }
-) => Promise<{ data: { hearts: number }[] | null; error: unknown | null }>;
-
 async function readPublicLearnerState({
   sbAdmin,
   userId,
@@ -118,16 +110,13 @@ export async function loseHeart({
   wsId: string;
 }) {
   const sbAdmin = await getAdmin(db);
-  const loseTulearnHeart = sbAdmin.rpc.bind(
-    sbAdmin
-  ) as unknown as LoseTulearnHeartRpc;
-  const { data, error } = await loseTulearnHeart('lose_tulearn_heart', {
+  const { data, error } = await sbAdmin.rpc('lose_tulearn_heart', {
     p_user_id: userId,
     p_ws_id: wsId,
   });
 
   if (error) throw error;
-  const [result] = (data ?? []) as { hearts: number }[];
+  const [result] = data ?? [];
   if (!result) throw new Error('lose_tulearn_heart returned no rows');
   return result.hearts;
 }
