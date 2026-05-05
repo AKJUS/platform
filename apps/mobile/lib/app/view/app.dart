@@ -42,6 +42,10 @@ import 'package:mobile/features/habits/cubit/habits_cubit.dart';
 import 'package:mobile/features/inventory/cubit/inventory_access_cubit.dart';
 import 'package:mobile/features/notifications/push/push_notification_service.dart';
 import 'package:mobile/features/profile/cubit/profile_cubit.dart';
+import 'package:mobile/features/security/cubit/app_lock_cubit.dart';
+import 'package:mobile/features/security/data/app_lock_settings_store.dart';
+import 'package:mobile/features/security/data/local_auth_service.dart';
+import 'package:mobile/features/security/view/app_lock_boundary.dart';
 import 'package:mobile/features/settings/cubit/calendar_settings_cubit.dart';
 import 'package:mobile/features/settings/cubit/experimental_apps_cubit.dart';
 import 'package:mobile/features/settings/cubit/finance_preferences_cubit.dart';
@@ -106,6 +110,7 @@ class _AppState extends State<App> {
   late final CalendarSettingsCubit _calendarSettingsCubit;
   late final ExperimentalAppsCubit _experimentalAppsCubit;
   late final FinancePreferencesCubit _financePreferencesCubit;
+  late final AppLockCubit _appLockCubit;
   late final HabitsAccessCubit _habitsAccessCubit;
   late final InventoryAccessCubit _inventoryAccessCubit;
   late final AppTabCubit _appTabCubit;
@@ -118,6 +123,7 @@ class _AppState extends State<App> {
   late final _AppLifecycleObserver _lifecycleObserver;
   StreamSubscription<Uri>? _appLinkSubscription;
   MobileDeepLink? _pendingDeepLink;
+  DateTime? _backgroundedAt;
 
   @override
   void initState() {
@@ -164,6 +170,10 @@ class _AppState extends State<App> {
     _financePreferencesCubit = FinancePreferencesCubit(
       settingsRepository: _settingsRepo,
     );
+    _appLockCubit = AppLockCubit(
+      localAuthService: DeviceLocalAuthService(),
+      settingsStore: SecureStorageAppLockSettingsStore(),
+    );
     _habitsAccessCubit = HabitsAccessCubit(repository: _habitsAccessRepository);
     _inventoryAccessCubit = InventoryAccessCubit(
       repository: _inventoryAccessRepository,
@@ -176,11 +186,7 @@ class _AppState extends State<App> {
     );
     _shellTitleOverrideCubit = ShellTitleOverrideCubit();
     _appLinks = AppLinks();
-    _lifecycleObserver = _AppLifecycleObserver(() {
-      unawaited(_appVersionCubit.checkVersion(background: true));
-      unawaited(CacheWarmupCoordinator.instance.prewarmHome());
-      unawaited(_shellProfileCubit.refreshIfStale(_authCubit.state.user));
-    });
+    _lifecycleObserver = _AppLifecycleObserver(_handleLifecycleState);
     WidgetsBinding.instance.addObserver(_lifecycleObserver);
     _registerWarmupTasks();
     unawaited(_appTabCubit.loadLastApp());
@@ -197,6 +203,11 @@ class _AppState extends State<App> {
     unawaited(_calendarSettingsCubit.loadUserPreference());
     unawaited(_experimentalAppsCubit.load());
     unawaited(_financePreferencesCubit.load());
+    unawaited(
+      _appLockCubit.load(
+        lockIfEnabled: _authCubit.state.status == AuthStatus.authenticated,
+      ),
+    );
     unawaited(_appVersionCubit.checkVersion());
     // If auth resolved synchronously to authenticated, load workspaces now.
     // BlocListener only fires on state *changes*, so it won't trigger for
@@ -213,6 +224,42 @@ class _AppState extends State<App> {
       );
       unawaited(_workspaceCubit.loadWorkspaces());
     }
+  }
+
+  void _handleLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive ||
+        state == AppLifecycleState.hidden) {
+      _backgroundedAt ??= DateTime.now();
+      return;
+    }
+
+    if (state != AppLifecycleState.resumed) {
+      return;
+    }
+
+    final backgroundedAt = _backgroundedAt;
+    _backgroundedAt = null;
+
+    if (backgroundedAt != null &&
+        DateTime.now().difference(backgroundedAt) >=
+            const Duration(seconds: 30) &&
+        _authCubit.state.status == AuthStatus.authenticated &&
+        !isAppLockExcludedRoute(_currentMatchedLocation())) {
+      _appLockCubit.lock();
+    }
+
+    unawaited(_appVersionCubit.checkVersion(background: true));
+    unawaited(CacheWarmupCoordinator.instance.prewarmHome());
+    unawaited(_shellProfileCubit.refreshIfStale(_authCubit.state.user));
+  }
+
+  String _currentMatchedLocation() {
+    final configuration = _router.routerDelegate.currentConfiguration;
+    if (configuration.matches.isEmpty) {
+      return configuration.uri.path;
+    }
+    return configuration.matches.last.matchedLocation;
   }
 
   void _initializeDeepLinks() {
@@ -548,6 +595,7 @@ class _AppState extends State<App> {
     unawaited(_calendarSettingsCubit.close());
     unawaited(_experimentalAppsCubit.close());
     unawaited(_financePreferencesCubit.close());
+    unawaited(_appLockCubit.close());
     unawaited(_habitsAccessCubit.close());
     unawaited(_inventoryAccessCubit.close());
     unawaited(_appTabCubit.close());
@@ -571,6 +619,7 @@ class _AppState extends State<App> {
         BlocProvider.value(value: _calendarSettingsCubit),
         BlocProvider.value(value: _experimentalAppsCubit),
         BlocProvider.value(value: _financePreferencesCubit),
+        BlocProvider.value(value: _appLockCubit),
         BlocProvider.value(value: _habitsAccessCubit),
         BlocProvider.value(value: _inventoryAccessCubit),
         BlocProvider.value(value: _appTabCubit),
@@ -598,9 +647,13 @@ class _AppState extends State<App> {
                     state.user!,
                   ),
                 );
+                unawaited(
+                  context.read<AppLockCubit>().load(lockIfEnabled: true),
+                );
                 unawaited(context.read<WorkspaceCubit>().loadWorkspaces());
                 unawaited(_openPendingDeepLinkIfReady());
               } else if (state.status == AuthStatus.unauthenticated) {
+                context.read<AppLockCubit>().resetLockState();
                 unawaited(context.read<ShellProfileCubit>().clear());
                 unawaited(context.read<WorkspaceCubit>().clearWorkspaces());
               }
@@ -671,7 +724,12 @@ class _AppState extends State<App> {
                       child: AuthSessionBoundary(
                         identity: authIdentity,
                         child: DismissKeyboardOnPointerDown(
-                          child: AppVersionGate(child: child!),
+                          child: AppLockBoundary(
+                            excluded: isAppLockExcludedRoute(
+                              _currentMatchedLocation(),
+                            ),
+                            child: AppVersionGate(child: child!),
+                          ),
                         ),
                       ),
                     );
@@ -687,15 +745,13 @@ class _AppState extends State<App> {
 }
 
 final class _AppLifecycleObserver extends WidgetsBindingObserver {
-  _AppLifecycleObserver(this._onResumed);
+  _AppLifecycleObserver(this._onStateChanged);
 
-  final VoidCallback _onResumed;
+  final ValueChanged<AppLifecycleState> _onStateChanged;
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) {
-      _onResumed();
-    }
+    _onStateChanged(state);
   }
 }
 

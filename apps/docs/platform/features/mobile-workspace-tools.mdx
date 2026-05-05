@@ -22,6 +22,26 @@ The mobile Apps hub now uses a single-column list of equal-priority app cards in
 
 Background warmups for optional products should also respect access state before fetching. Do not let Apps hub or boot-time cache warmups call product endpoints blindly; skip the warmup when the corresponding access cubit is not loaded and enabled, and fail soft on opportunistic `404` responses.
 
+## Mobile App Lock And Web QR Approval
+
+The mobile app supports a device-level app lock from Settings > Session. The
+setting is stored in secure storage and uses the OS local authentication prompt
+with device PIN/passcode fallback allowed. When enabled, the app locks on an
+authenticated cold launch and after at least 30 seconds in the background.
+
+Web QR sign-in approval is gated by this setting:
+
+- The scanner lives at `Routes.settingsQrLoginScan`.
+- The scanner only accepts `tuturuuu://auth/qr-login` payloads from trusted
+  Tuturuuu or local development origins.
+- The active mobile account is the account that approves the web login.
+- Before approval, mobile runs local authentication and then calls
+  `/api/v1/auth/qr-login/challenges/:id/approve` with the current Bearer
+  session.
+
+If a user wants to approve QR login for a different account, they must switch to
+that account in the mobile app before scanning.
+
 ## Mobile Drive Coverage
 
 The Drive screen in `apps/mobile` supports the main dashboard Drive flow:

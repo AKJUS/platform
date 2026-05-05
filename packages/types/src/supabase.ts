@@ -9472,6 +9472,86 @@ export type Database = {
           },
         ];
       };
+      qr_login_challenges: {
+        Row: {
+          approval_metadata: Json;
+          approved_at: string | null;
+          approver_device_id: string | null;
+          approver_email: string | null;
+          approver_platform: string | null;
+          approver_user_id: string | null;
+          consumed_at: string | null;
+          created_at: string;
+          expires_at: string;
+          id: string;
+          request_metadata: Json;
+          secret_hash: string;
+          status: string;
+          updated_at: string;
+        };
+        Insert: {
+          approval_metadata?: Json;
+          approved_at?: string | null;
+          approver_device_id?: string | null;
+          approver_email?: string | null;
+          approver_platform?: string | null;
+          approver_user_id?: string | null;
+          consumed_at?: string | null;
+          created_at?: string;
+          expires_at?: string;
+          id?: string;
+          request_metadata?: Json;
+          secret_hash: string;
+          status?: string;
+          updated_at?: string;
+        };
+        Update: {
+          approval_metadata?: Json;
+          approved_at?: string | null;
+          approver_device_id?: string | null;
+          approver_email?: string | null;
+          approver_platform?: string | null;
+          approver_user_id?: string | null;
+          consumed_at?: string | null;
+          created_at?: string;
+          expires_at?: string;
+          id?: string;
+          request_metadata?: Json;
+          secret_hash?: string;
+          status?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'qr_login_challenges_approver_user_id_fkey';
+            columns: ['approver_user_id'];
+            isOneToOne: false;
+            referencedRelation: 'nova_user_challenge_leaderboard';
+            referencedColumns: ['user_id'];
+          },
+          {
+            foreignKeyName: 'qr_login_challenges_approver_user_id_fkey';
+            columns: ['approver_user_id'];
+            isOneToOne: false;
+            referencedRelation: 'nova_user_leaderboard';
+            referencedColumns: ['user_id'];
+          },
+          {
+            foreignKeyName: 'qr_login_challenges_approver_user_id_fkey';
+            columns: ['approver_user_id'];
+            isOneToOne: false;
+            referencedRelation: 'shortened_links_creator_stats';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'qr_login_challenges_approver_user_id_fkey';
+            columns: ['approver_user_id'];
+            isOneToOne: false;
+            referencedRelation: 'users';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       quiz_options: {
         Row: {
           created_at: string;
@@ -26104,6 +26184,7 @@ export type Database = {
       cleanup_expired_notifications: { Args: never; Returns: number };
       cleanup_old_api_key_usage_logs: { Args: never; Returns: undefined };
       cleanup_old_typing_indicators: { Args: never; Returns: undefined };
+      cleanup_qr_login_challenges: { Args: never; Returns: undefined };
       cleanup_role_inconsistencies: { Args: never; Returns: undefined };
       commit_fixed_ai_credit_reservation: {
         Args: { p_metadata?: Json; p_reservation_id: string };

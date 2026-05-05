@@ -20,6 +20,7 @@ import 'package:mobile/features/settings/cubit/finance_preferences_cubit.dart';
 import 'package:mobile/features/settings/cubit/locale_cubit.dart';
 import 'package:mobile/features/settings/cubit/theme_cubit.dart';
 import 'package:mobile/features/settings/view/settings_dialogs.dart';
+import 'package:mobile/features/settings/view/settings_session_section.dart';
 import 'package:mobile/features/settings/view/settings_widgets.dart';
 import 'package:mobile/features/shell/cubit/shell_profile_cubit.dart';
 import 'package:mobile/features/workspace/cubit/workspace_cubit.dart';
@@ -250,7 +251,7 @@ class _SettingsViewState extends State<_SettingsView> {
           StaggeredEntry(
             index: 0,
             playOnceKey: 'settings-session',
-            child: _SessionSection(
+            child: SessionSettingsSection(
               onSignOut: () => unawaited(_showSignOutDialog()),
             ),
           ),
@@ -691,31 +692,6 @@ class _ExperimentalAppsSection extends StatelessWidget {
               ),
             ),
           ),
-      ],
-    );
-  }
-}
-
-class _SessionSection extends StatelessWidget {
-  const _SessionSection({required this.onSignOut});
-
-  final VoidCallback onSignOut;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = context.l10n;
-
-    return SettingsSection(
-      title: l10n.settingsDangerSectionTitle,
-      description: l10n.settingsDangerSectionDescription,
-      children: [
-        SettingsTile(
-          icon: Icons.logout_rounded,
-          title: l10n.authLogOutCurrent,
-          subtitle: l10n.authLogOutCurrentDescription,
-          isDestructive: true,
-          onTap: onSignOut,
-        ),
       ],
     );
   }

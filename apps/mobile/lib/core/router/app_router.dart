@@ -34,6 +34,7 @@ import 'package:mobile/features/inventory/view/inventory_sales_page.dart';
 import 'package:mobile/features/mobile_versions/view/mobile_version_settings_page.dart';
 import 'package:mobile/features/notifications/view/notifications_page.dart';
 import 'package:mobile/features/profile/view/profile_page.dart';
+import 'package:mobile/features/security/qr_login/view/qr_login_scanner_page.dart';
 import 'package:mobile/features/settings/view/settings_page.dart';
 import 'package:mobile/features/settings/view/settings_workspace_members_page.dart';
 import 'package:mobile/features/settings/view/settings_workspace_page.dart';
@@ -112,6 +113,14 @@ String? resolveAuthenticatedRedirect({
     return Routes.workspaceSelect;
   }
   return Routes.home;
+}
+
+bool isAppLockExcludedRoute(String matchedLocation) {
+  return matchedLocation == Routes.login ||
+      matchedLocation == Routes.addAccount ||
+      matchedLocation == Routes.signUp ||
+      matchedLocation == Routes.forgotPassword ||
+      matchedLocation == Routes.mfaVerify;
 }
 
 HistoryViewMode? _parseHistoryViewMode(String? value) {
@@ -484,6 +493,10 @@ GoRouter createAppRouter(
             builder: (context, state) => const SettingsPage(
               section: SettingsSectionDestination.session,
             ),
+          ),
+          GoRoute(
+            path: Routes.settingsQrLoginScan,
+            builder: (context, state) => const QrLoginScannerPage(),
           ),
           GoRoute(
             path: Routes.settingsWorkspace,

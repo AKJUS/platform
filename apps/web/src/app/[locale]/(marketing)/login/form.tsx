@@ -6,6 +6,7 @@ import { generateCrossAppToken, mapUrlToApp } from '@tuturuuu/auth/cross-app';
 import { ArrowLeft, Eye, EyeOff, Lock, Mail } from '@tuturuuu/icons';
 import {
   getOtpSettings,
+  type QrLoginSessionPayload,
   sendOtpWithInternalApi,
   verifyOtpWithInternalApi,
 } from '@tuturuuu/internal-api/auth';
@@ -43,6 +44,7 @@ import {
   getAuthOAuthProviderOptions,
 } from '@/lib/auth/oauth-providers';
 import { passwordLoginAction } from './actions';
+import { LoginQrCard } from './login-qr-card';
 import { SocialLoginButton } from './social-login-button';
 
 const CAPTCHA_ERROR_RETRY_DELAY = 3000;
@@ -187,6 +189,7 @@ export default function LoginForm() {
   const [showDomainPreview, setShowDomainPreview] = useState(false);
   const [otpRetryAfterSeconds, setOtpRetryAfterSeconds] = useState<number>(0);
   const [captchaToken, setCaptchaToken] = useState<string>();
+  const [captchaTokenVersion, setCaptchaTokenVersion] = useState(0);
   const [captchaError, setCaptchaError] = useState<string>();
   const autoOAuthProviderRef = useRef<AuthOAuthProvider | null>(null);
   const oauthErrorToastKeyRef = useRef<string | null>(null);
@@ -242,6 +245,12 @@ export default function LoginForm() {
   const resetCaptcha = useCallback(() => {
     captchaRefPassword.current?.reset();
     setCaptchaToken(undefined);
+  }, []);
+
+  const handleCaptchaSuccess = useCallback((token: string) => {
+    setCaptchaToken(token);
+    setCaptchaTokenVersion((value) => value + 1);
+    setCaptchaError(undefined);
   }, []);
 
   const handleCaptchaError = useCallback(
@@ -334,7 +343,7 @@ export default function LoginForm() {
   }, [router, searchParams, supabase]);
 
   const completePrimarySignIn = useCallback(
-    async (source: 'otp' | 'password') => {
+    async (source: 'otp' | 'password' | 'qr') => {
       router.refresh();
 
       if (await needsMFA()) {
@@ -367,6 +376,28 @@ export default function LoginForm() {
       window.location.reload();
     },
     [needsMFA, processNextUrl, router, searchParams]
+  );
+
+  const handleQrAuthenticated = useCallback(
+    async (session: QrLoginSessionPayload) => {
+      setLoading(true);
+
+      const { error } = await supabase.auth.setSession({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+      });
+
+      if (error) {
+        toast.error(t('login.qr_failed_title'), {
+          description: error.message,
+        });
+        setLoading(false);
+        return;
+      }
+
+      await completePrimarySignIn('qr');
+    },
+    [completePrimarySignIn, supabase.auth, t]
   );
 
   const sendOtpMutation = useMutation({
@@ -1023,7 +1054,6 @@ export default function LoginForm() {
                       />
 
                       {!isResolvingOtpEnablement &&
-                      webOtpEnabled &&
                       turnstileClientState.isRequired ? (
                         <div className="rounded-2xl border border-border/60 bg-muted/20 p-4">
                           {turnstileClientState.canRenderWidget &&
@@ -1032,10 +1062,7 @@ export default function LoginForm() {
                               <Turnstile
                                 ref={captchaRefPassword}
                                 siteKey={turnstileSiteKey}
-                                onSuccess={(token) => {
-                                  setCaptchaToken(token);
-                                  setCaptchaError(undefined);
-                                }}
+                                onSuccess={handleCaptchaSuccess}
                                 onExpire={() => setCaptchaToken(undefined)}
                                 onError={handleCaptchaError}
                                 onTimeout={handleCaptchaTimeout}
@@ -1075,6 +1102,15 @@ export default function LoginForm() {
                       </Button>
                     </form>
                   </Form>
+
+                  <LoginQrCard
+                    captchaToken={captchaToken}
+                    captchaTokenVersion={captchaTokenVersion}
+                    disabled={loading}
+                    locale={locale || 'en'}
+                    onAuthenticated={handleQrAuthenticated}
+                    requiresTurnstile={turnstileClientState.isRequired}
+                  />
 
                   <div className="relative py-0.5">
                     <Separator className="bg-border/60" />
@@ -1241,10 +1277,7 @@ export default function LoginForm() {
                               <Turnstile
                                 ref={captchaRefPassword}
                                 siteKey={turnstileSiteKey}
-                                onSuccess={(token) => {
-                                  setCaptchaToken(token);
-                                  setCaptchaError(undefined);
-                                }}
+                                onSuccess={handleCaptchaSuccess}
                                 onExpire={() => setCaptchaToken(undefined)}
                                 onError={handleCaptchaError}
                                 onTimeout={handleCaptchaTimeout}
@@ -1386,10 +1419,7 @@ export default function LoginForm() {
                               <Turnstile
                                 ref={captchaRefPassword}
                                 siteKey={turnstileSiteKey}
-                                onSuccess={(token) => {
-                                  setCaptchaToken(token);
-                                  setCaptchaError(undefined);
-                                }}
+                                onSuccess={handleCaptchaSuccess}
                                 onExpire={() => setCaptchaToken(undefined)}
                                 onError={handleCaptchaError}
                                 onTimeout={handleCaptchaTimeout}
