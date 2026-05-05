@@ -172,7 +172,7 @@ export function Structure({
           <div className="h-10 w-full animate-pulse rounded-lg bg-foreground/5" />
         }
       >
-        <WorkspaceSelect t={t} wsId={wsId} hideLeading={isCollapsed} />
+        <WorkspaceSelect wsId={wsId} hideLeading={isCollapsed} />
       </Suspense>
     </>
   );

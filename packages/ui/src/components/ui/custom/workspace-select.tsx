@@ -23,6 +23,7 @@ import { cn } from '@tuturuuu/utils/format';
 import { getInitials } from '@tuturuuu/utils/name-helper';
 import { WORKSPACE_LIMIT_ERROR_CODE } from '@tuturuuu/utils/workspace-limits';
 import { usePathname, useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -112,7 +113,6 @@ function WorkspaceIcon({
 }
 
 export function WorkspaceSelect({
-  t,
   wsId,
   hideLeading,
   customRedirectSuffix,
@@ -123,7 +123,6 @@ export function WorkspaceSelect({
   createWorkspaceDescription,
   resolveNextPathname,
 }: {
-  t: any;
   wsId: string;
   hideLeading?: boolean;
   customRedirectSuffix?: string;
@@ -137,6 +136,7 @@ export function WorkspaceSelect({
     nextSlug: string;
   }) => string;
 }) {
+  const t = useTranslations();
   const router = useRouter();
   const pathname = usePathname();
   const queryClient = useQueryClient();
