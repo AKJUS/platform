@@ -4,11 +4,15 @@ import {
   BarChart3,
   BookOpen,
   ClipboardCheck,
+  Flame,
   GraduationCap,
   HeartPulse,
   Home,
   LineChart,
+  LogOut,
+  Rocket,
   Settings,
+  Sparkles,
 } from '@tuturuuu/icons';
 import type {
   TulearnBootstrapResponse,
@@ -58,14 +62,17 @@ export function LearnerShell({
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <aside className="fixed inset-x-0 bottom-0 z-20 border-border border-t bg-background/95 backdrop-blur md:inset-y-0 md:right-auto md:left-0 md:w-24 md:border-t-0 md:border-r">
-        <div className="hidden h-20 items-center justify-center md:flex">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-dynamic-green text-white">
-            <GraduationCap className="h-6 w-6" />
+    <div className="min-h-screen overflow-x-hidden bg-muted/25">
+      <aside className="fixed inset-x-0 bottom-0 z-20 border-border border-t bg-background/95 shadow-2xl backdrop-blur-xl md:inset-y-4 md:right-auto md:left-4 md:w-24 md:rounded-[2rem] md:border">
+        <div className="hidden h-24 items-center justify-center md:flex">
+          <div className="relative flex h-14 w-14 items-center justify-center rounded-[1.35rem] bg-dynamic-green text-primary-foreground shadow-sm">
+            <GraduationCap className="h-7 w-7" />
+            <span className="absolute -right-1 -bottom-1 flex h-5 w-5 items-center justify-center rounded-full border border-background bg-dynamic-orange text-primary-foreground">
+              <Sparkles className="h-3 w-3" />
+            </span>
           </div>
         </div>
-        <nav className="grid grid-cols-7 gap-1 p-2 md:grid-cols-1">
+        <nav className="grid grid-cols-7 gap-1 p-2 md:grid-cols-1 md:px-3">
           {navItems.map((item) => {
             const Icon = item.icon;
             const href = makeHref(item.href);
@@ -78,69 +85,100 @@ export function LearnerShell({
               <Link
                 aria-label={t(`navigation.${item.key}`)}
                 className={cn(
-                  'flex h-14 items-center justify-center rounded-2xl text-muted-foreground transition hover:bg-dynamic-green/10 hover:text-dynamic-green',
-                  isActive && 'bg-dynamic-green/15 text-dynamic-green'
+                  'group flex h-14 min-w-0 flex-col items-center justify-center gap-1 rounded-2xl text-muted-foreground transition duration-200 hover:-translate-y-0.5 hover:bg-dynamic-green/10 hover:text-dynamic-green md:h-16',
+                  isActive &&
+                    'bg-dynamic-green text-primary-foreground shadow-sm hover:bg-dynamic-green hover:text-primary-foreground'
                 )}
                 href={href}
                 key={item.key}
               >
-                <Icon className="h-5 w-5" />
+                <Icon className="h-5 w-5 shrink-0" />
+                <span className="max-w-full truncate font-medium text-[0.62rem] md:hidden">
+                  {t(`navigation.${item.key}`)}
+                </span>
               </Link>
             );
           })}
         </nav>
       </aside>
-      <main className="min-h-screen pb-24 md:pb-0 md:pl-24">
-        <header className="sticky top-0 z-10 border-border border-b bg-background/90 px-4 py-3 backdrop-blur md:px-8">
-          <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="font-semibold text-xl">Tulearn</p>
-              <p className="text-muted-foreground text-sm">
-                {activeWorkspace?.name ?? t('workspace.empty')}
-              </p>
+      <main className="min-h-screen pb-28 md:pb-8 md:pl-32">
+        <header className="sticky top-0 z-10 px-4 py-3 md:px-8 md:pt-5">
+          <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 rounded-[1.75rem] border border-border/70 bg-background/90 p-3 shadow-sm backdrop-blur-xl">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-dynamic-green/15 text-dynamic-green">
+                <Rocket className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="font-bold text-xl tracking-normal">Tulearn</p>
+                <p className="text-muted-foreground text-sm">
+                  {activeWorkspace?.name ?? t('workspace.empty')}
+                </p>
+              </div>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <select
-                aria-label={t('workspace.switcher')}
-                className="h-10 rounded-xl border border-border bg-background px-3 text-sm"
-                onChange={(event) => router.push(`/${event.target.value}`)}
-                value={wsId}
-              >
-                {bootstrap.workspaces.map((workspace) => (
-                  <option key={workspace.id} value={workspace.id}>
-                    {workspace.name}
-                  </option>
-                ))}
-              </select>
-              {linkedStudents.length ? (
+              <label className="relative">
+                <span className="sr-only">{t('workspace.switcher')}</span>
                 <select
-                  aria-label={t('settings.linkedStudents')}
-                  className="h-10 rounded-xl border border-border bg-background px-3 text-sm"
-                  onChange={(event) => {
-                    const studentId = event.target.value;
-                    router.push(
-                      studentId ? `/${wsId}?studentId=${studentId}` : `/${wsId}`
-                    );
-                  }}
-                  value={selectedStudentId ?? ''}
+                  aria-label={t('workspace.switcher')}
+                  className="h-11 min-w-40 rounded-2xl border border-border bg-background px-4 font-medium text-sm shadow-sm"
+                  onChange={(event) => router.push(`/${event.target.value}`)}
+                  value={wsId}
                 >
-                  <option value="">{bootstrap.profile.display_name}</option>
-                  {linkedStudents.map((student: TulearnStudentSummary) => (
-                    <option key={student.id} value={student.id}>
-                      {student.name}
+                  {bootstrap.workspaces.map((workspace) => (
+                    <option key={workspace.id} value={workspace.id}>
+                      {workspace.name}
                     </option>
                   ))}
                 </select>
+              </label>
+              {linkedStudents.length ? (
+                <label>
+                  <span className="sr-only">
+                    {t('settings.linkedStudents')}
+                  </span>
+                  <select
+                    aria-label={t('settings.linkedStudents')}
+                    className="h-11 min-w-40 rounded-2xl border border-dynamic-blue/25 bg-dynamic-blue/10 px-4 font-medium text-dynamic-blue text-sm shadow-sm"
+                    onChange={(event) => {
+                      const studentId = event.target.value;
+                      router.push(
+                        studentId
+                          ? `/${wsId}?studentId=${studentId}`
+                          : `/${wsId}`
+                      );
+                    }}
+                    value={selectedStudentId ?? ''}
+                  >
+                    <option value="">{bootstrap.profile.display_name}</option>
+                    {linkedStudents.map((student: TulearnStudentSummary) => (
+                      <option key={student.id} value={student.id}>
+                        {student.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
               ) : null}
+              <div className="hidden items-center gap-2 rounded-2xl border border-dynamic-orange/25 bg-dynamic-orange/10 px-3 py-2 font-semibold text-dynamic-orange text-sm sm:flex">
+                <Flame className="h-4 w-4" />
+                {t('home.streak')}
+              </div>
               <form action="/api/auth/logout" method="post">
-                <Button size="sm" type="submit" variant="secondary">
+                <Button
+                  className="h-11 rounded-2xl"
+                  size="sm"
+                  type="submit"
+                  variant="secondary"
+                >
+                  <LogOut className="h-4 w-4" />
                   {t('auth.logout')}
                 </Button>
               </form>
             </div>
           </div>
         </header>
-        <div className="mx-auto max-w-7xl px-4 py-6 md:px-8">{children}</div>
+        <div className="mx-auto max-w-7xl px-4 py-6 md:px-8 md:py-8">
+          {children}
+        </div>
       </main>
     </div>
   );
@@ -149,11 +187,17 @@ export function LearnerShell({
 export function NoWorkspaceState() {
   const t = useTranslations();
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-6">
-      <div className="max-w-md rounded-3xl border border-dynamic-orange/25 bg-dynamic-orange/10 p-8 text-center">
-        <GraduationCap className="mx-auto mb-4 h-10 w-10 text-dynamic-orange" />
-        <h1 className="font-semibold text-2xl">{t('workspace.empty')}</h1>
-        <p className="mt-3 text-muted-foreground">{t('auth.subtitle')}</p>
+    <div className="flex min-h-screen items-center justify-center bg-muted/25 p-6">
+      <div className="max-w-lg rounded-[2rem] border border-dynamic-orange/25 bg-background p-8 text-center shadow-sm">
+        <div className="mx-auto mb-5 flex h-16 w-16 items-center justify-center rounded-[1.5rem] bg-dynamic-orange/15 text-dynamic-orange">
+          <GraduationCap className="h-8 w-8" />
+        </div>
+        <h1 className="font-bold text-3xl tracking-normal">
+          {t('workspace.empty')}
+        </h1>
+        <p className="mt-3 text-muted-foreground leading-7">
+          {t('auth.subtitle')}
+        </p>
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 {
   "assignments": {
+    "description": "{count, plural, =0 {Your quest board is clear.} one {One quest is waiting for you.} other {# quests are waiting for you.}}",
     "empty": "No assignments are due right now.",
     "markDone": "Mark done",
     "title": "Assignments"
@@ -58,20 +59,41 @@
   "courses": {
     "empty": "Your teacher has not assigned courses yet.",
     "locked": "Locked",
+    "mapDescription": "Follow the course path, unlock each checkpoint, and keep every lesson visible at a glance.",
     "modules": "Modules",
     "title": "Courses"
   },
   "home": {
     "assignments": "Due assignments",
+    "continueCourse": "Continue course",
     "dailyGoal": "Daily goal",
+    "dailyQuests": "Daily quests",
     "hearts": "Hearts",
+    "heroDescription": "Choose a tiny mission, protect your hearts, and keep your learning streak moving.",
+    "heroTitle": "Ready for today, {name}?",
+    "learningPath": "Learning path",
+    "learningPathDescription": "Every course becomes a path of checkpoints, current lessons, and wins you can see.",
     "marks": "Recent marks",
     "nextLesson": "Next lesson",
+    "openMap": "Open map",
+    "parentSnapshot": "Family view",
+    "questAssignments": "Clear your quest board",
+    "questAssignmentsCount": "{count, plural, one {One assignment needs attention.} other {# assignments need attention.}}",
+    "questBoard": "Quest board",
+    "questBoardDescription": "{count, plural, =0 {No open quests right now.} one {One open quest left.} other {# open quests left.}}",
+    "questPractice": "Warm up with practice",
+    "questPracticeDescription": "A short review keeps the next lesson easier.",
+    "questProgress": "Grow your course path",
+    "questProgressDescription": "Your course path is {progress}% complete.",
+    "recentWin": "Recent win",
+    "startPractice": "Start practice",
     "streak": "Streak",
+    "studentMode": "Student mode",
     "title": "Home",
     "xp": "XP"
   },
   "marks": {
+    "description": "Marks are grouped as friendly score cards so students and parents can spot growth quickly.",
     "empty": "Marks will appear after your teacher records them.",
     "title": "Marks"
   },
@@ -87,14 +109,21 @@
   "practice": {
     "again": "Try again",
     "correct": "Correct",
+    "description": "Answer one small challenge, get immediate feedback, and earn XP for the session.",
     "empty": "No practice is ready yet.",
     "incorrect": "Incorrect",
+    "keepHearts": "Protect them",
+    "resultSummary": "{xp} XP awarded. Hearts now: {hearts}.",
+    "retryHint": "A retry keeps the path warm.",
     "submitCorrect": "I got it",
     "submitIncorrect": "I missed it",
     "title": "Practice",
-    "xpAwarded": "XP awarded"
+    "xpAwarded": "XP awarded",
+    "xpAwardedValue": "+{xp} XP",
+    "xpHint": "Earn XP"
   },
   "reports": {
+    "description": "Read teacher feedback as simple progress notes for students and parents.",
     "empty": "Reports will appear after your teacher publishes them.",
     "title": "Reports"
   },
@@ -102,10 +131,18 @@
     "dark": "Dark",
     "displayName": "Display name",
     "email": "Email",
+    "focus": {
+      "balanced": "Balanced practice",
+      "challenge": "Challenge mode",
+      "light": "Light review"
+    },
+    "focusMode": "Focus mode",
     "language": "Language",
     "light": "Light",
     "linkedStudents": "Linked students",
     "parentMode": "Parent mode",
+    "profile": "Profile",
+    "description": "Personalize the learner profile, theme, and study rhythm for a calmer daily routine.",
     "theme": "Theme",
     "title": "Settings"
   },
