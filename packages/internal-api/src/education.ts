@@ -121,6 +121,8 @@ export type ValseaPronunciationAssessorModel =
 
 export interface ValseaClassroomPayload {
   apiKey?: string;
+  audioFileName?: string;
+  audioStoragePath?: string;
   file?: File;
   language: string;
   outputType: ValseaClassroomOutputType;
@@ -231,6 +233,22 @@ export interface ValseaClassroomKeyValidationResponse {
   ok: boolean;
 }
 
+export interface ValseaClassroomAudioUploadResult {
+  contentType: string;
+  fileName: string;
+  fileSize: number;
+  fullPath: string | null;
+  path: string;
+}
+
+interface ValseaClassroomAudioUploadUrlResponse {
+  fullPath?: string;
+  headers?: Record<string, string>;
+  path?: string;
+  signedUrl?: string;
+  token?: string;
+}
+
 export async function createWorkspaceCourse(
   workspaceId: string,
   payload: UpsertWorkspaceCoursePayload,
@@ -294,6 +312,86 @@ export async function validateValseaClassroomApiKey(
   );
 }
 
+export async function uploadValseaClassroomAudioToDrive(
+  workspaceId: string,
+  file: File,
+  options?: {
+    onUploadProgress?: (progress: {
+      loaded: number;
+      percent: number;
+      total: number;
+    }) => void;
+  },
+  clientOptions?: InternalApiClientOptions
+): Promise<ValseaClassroomAudioUploadResult> {
+  const client = getInternalApiClient(clientOptions);
+  const fetchImpl = clientOptions?.fetch ?? globalThis.fetch;
+  const uploadPayload =
+    await client.json<ValseaClassroomAudioUploadUrlResponse>(
+      `/api/v1/workspaces/${encodePathSegment(workspaceId)}/education/valsea/audio/upload-url`,
+      {
+        body: JSON.stringify({
+          contentType: file.type || 'application/octet-stream',
+          filename: file.name,
+          size: file.size,
+        }),
+        cache: 'no-store',
+        headers: { 'Content-Type': 'application/json' },
+        method: 'POST',
+      }
+    );
+
+  if (!uploadPayload.signedUrl || !uploadPayload.path) {
+    throw new Error('Missing Valsea audio upload URL payload');
+  }
+
+  const headers: Record<string, string> = {
+    ...(uploadPayload.headers ?? {}),
+  };
+  if (!headers['Content-Type']) {
+    headers['Content-Type'] = file.type || 'application/octet-stream';
+  }
+  if (uploadPayload.token) {
+    headers.Authorization = `Bearer ${uploadPayload.token}`;
+  }
+
+  const uploadWithHeaders = async (requestHeaders: HeadersInit) =>
+    fetchImpl(uploadPayload.signedUrl as string, {
+      body: file,
+      cache: 'no-store',
+      headers: requestHeaders,
+      method: 'PUT',
+    });
+
+  let uploadResponse = await uploadWithHeaders(headers);
+  if (!uploadResponse.ok) {
+    const fallbackHeaders = { ...headers };
+    delete fallbackHeaders['Content-Type'];
+    uploadResponse = await uploadWithHeaders(fallbackHeaders);
+  }
+
+  if (!uploadResponse.ok) {
+    const message = await uploadResponse.text().catch(() => '');
+    throw new Error(
+      `Failed to upload classroom audio (${uploadResponse.status})${message ? `: ${message}` : ''}`
+    );
+  }
+
+  options?.onUploadProgress?.({
+    loaded: file.size,
+    percent: 100,
+    total: file.size,
+  });
+
+  return {
+    contentType: file.type || 'application/octet-stream',
+    fileName: file.name,
+    fileSize: file.size,
+    fullPath: uploadPayload.fullPath ?? null,
+    path: uploadPayload.path,
+  };
+}
+
 export async function generateValseaClassroomArtifact(
   workspaceId: string,
   payload: ValseaClassroomPayload,
@@ -328,6 +426,8 @@ export async function generateValseaClassroomArtifact(
 
   return client.json<ValseaClassroomArtifactResponse>(path, {
     body: JSON.stringify({
+      audioFileName: payload.audioFileName,
+      audioStoragePath: payload.audioStoragePath,
       language: payload.language,
       outputType: payload.outputType,
       pronunciationModel: payload.pronunciationModel,

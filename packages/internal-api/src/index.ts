@@ -77,6 +77,7 @@ export type {
   UpsertWorkspaceQuizPayload,
   UpsertWorkspaceQuizSetPayload,
   ValseaClassroomArtifactResponse,
+  ValseaClassroomAudioUploadResult,
   ValseaClassroomConfigResponse,
   ValseaClassroomKeyValidationResponse,
   ValseaClassroomOutputType,
@@ -123,6 +124,7 @@ export {
   updateWorkspaceFlashcard,
   updateWorkspaceQuiz,
   updateWorkspaceQuizSet,
+  uploadValseaClassroomAudioToDrive,
   validateValseaClassroomApiKey,
 } from './education';
 export type {

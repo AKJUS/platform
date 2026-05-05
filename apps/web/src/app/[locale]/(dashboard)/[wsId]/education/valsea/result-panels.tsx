@@ -3,10 +3,14 @@
 import {
   BookOpen,
   Brain,
+  CheckCircle2,
   FileAudio,
+  Flame,
   Languages,
   Loader2,
+  Route,
   Sparkles,
+  Trophy,
 } from '@tuturuuu/icons';
 import type {
   ValseaClassroomArtifactResponse,
@@ -18,6 +22,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@tuturuuu/ui/card';
 import type { useTranslations } from 'next-intl';
 import { useMemo } from 'react';
 import { STUDIO_STEPS } from './constants';
+import {
+  getResultInsights,
+  getTeachingMoves,
+  type ValseaTranslate,
+} from './insights';
 
 const STEP_ICONS = [
   FileAudio,
@@ -38,7 +47,7 @@ export function PipelineStrip({
   t: ReturnType<typeof useTranslations>;
 }) {
   return (
-    <Card className="valsea-reveal overflow-hidden border-foreground/10 bg-foreground/4">
+    <Card className="valsea-reveal overflow-hidden border-foreground/10 bg-foreground/[0.03]">
       <CardContent className="grid gap-0 p-0 md:grid-cols-3 xl:grid-cols-6">
         {STUDIO_STEPS.map((step, index) => {
           const Icon = STEP_ICONS[index] ?? Sparkles;
@@ -79,6 +88,9 @@ export function ResultsGrid({
   t: ReturnType<typeof useTranslations>;
 }) {
   const confidence = result.sentiment.confidence;
+  const valseaT = t as unknown as ValseaTranslate;
+  const resultInsights = getResultInsights(result, valseaT);
+  const teachingMoves = getTeachingMoves(result, valseaT);
   const confidenceLabel =
     typeof confidence === 'number'
       ? `${Math.round(confidence * 100)}%`
@@ -103,6 +115,12 @@ export function ResultsGrid({
 
   return (
     <div className="grid grid-flow-dense gap-4 lg:grid-cols-6">
+      <OutcomeHero
+        confidenceLabel={confidenceLabel}
+        insights={resultInsights}
+        result={result}
+        t={t}
+      />
       <ResultCard
         className="lg:col-span-3"
         content={result.clarification.text}
@@ -127,6 +145,7 @@ export function ResultsGrid({
       {result.pronunciation ? (
         <VoiceGradePanel grade={result.pronunciation} t={t} />
       ) : null}
+      <TeachingMovesPanel moves={teachingMoves} t={t} />
       <Card className="valsea-stack-card border-dynamic-pink/20 bg-dynamic-pink/5 lg:col-span-2">
         <CardHeader>
           <div className="flex flex-wrap items-center gap-2">
@@ -198,6 +217,102 @@ export function ResultsGrid({
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function OutcomeHero({
+  confidenceLabel,
+  insights,
+  result,
+  t,
+}: {
+  confidenceLabel: string;
+  insights: ReturnType<typeof getResultInsights>;
+  result: ValseaClassroomArtifactResponse;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  return (
+    <Card className="valsea-stack-card overflow-hidden border-dynamic-green/20 bg-dynamic-green/5 lg:col-span-6">
+      <CardContent className="grid gap-5 p-5 lg:grid-cols-[1.15fr_0.85fr] lg:p-6">
+        <div>
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <Badge className="border-dynamic-green/25 bg-dynamic-green/10 text-dynamic-green hover:bg-dynamic-green/15">
+              <Trophy className="h-3.5 w-3.5" />
+              {t('outcome_ready')}
+            </Badge>
+            <Badge variant="outline">{confidenceLabel}</Badge>
+            <Badge variant="outline">
+              {t(`output_${result.artifact.outputType}`)}
+            </Badge>
+          </div>
+          <h2 className="max-w-3xl font-semibold text-4xl tracking-tight">
+            {t('outcome_title')}
+          </h2>
+          <p className="mt-3 max-w-2xl text-foreground/68 text-sm leading-6">
+            {t('outcome_description')}
+          </p>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {insights.map((insight) => (
+            <div
+              className="rounded-md border border-foreground/10 bg-background/70 p-3"
+              key={insight.label}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-semibold text-sm">{insight.label}</span>
+                <span className="rounded-full border border-foreground/10 px-2 py-0.5 font-mono text-foreground/70 text-xs">
+                  {insight.value}
+                </span>
+              </div>
+              <div className="mt-1 text-foreground/58 text-xs">
+                {insight.detail}
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function TeachingMovesPanel({
+  moves,
+  t,
+}: {
+  moves: ReturnType<typeof getTeachingMoves>;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  return (
+    <Card className="valsea-stack-card border-dynamic-yellow/20 bg-dynamic-yellow/5 lg:col-span-4">
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Route className="h-4 w-4 text-dynamic-yellow" />
+          <CardTitle>{t('teaching_moves_title')}</CardTitle>
+        </div>
+      </CardHeader>
+      <CardContent className="grid gap-3 md:grid-cols-3">
+        {moves.map((move, index) => (
+          <div
+            className="rounded-md border border-dynamic-yellow/20 bg-background/70 p-4"
+            key={move.label}
+          >
+            <div className="mb-4 flex h-9 w-9 items-center justify-center rounded-md bg-dynamic-yellow/10 text-dynamic-yellow">
+              {index === 0 ? (
+                <Flame className="h-4 w-4" />
+              ) : index === 1 ? (
+                <Brain className="h-4 w-4" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4" />
+              )}
+            </div>
+            <div className="font-semibold text-sm">{move.label}</div>
+            <p className="mt-2 text-foreground/65 text-sm leading-6">
+              {move.value}
+            </p>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
   );
 }
 

@@ -58,10 +58,23 @@ confusion tags, grading rubric, and the Valsea output mode to use. If the
 internal model runtime is unavailable, the route returns a curated local
 scenario so hackathon demos still work with only a valid Valsea API key.
 
+```txt
+POST /api/v1/workspaces/:wsId/education/valsea/audio/upload-url
+```
+
+The audio upload route is session-authenticated, verifies workspace membership,
+checks file type and size, applies workspace Drive capacity checks, and returns a
+short-lived signed upload URL for
+`education/valsea/audio/<timestamp>-<uuid>-<filename>` in workspace storage. The
+browser uploads selected files and live recordings there before generation.
+
 ## Pipeline
 
-The experiment accepts either a JSON transcript payload or multipart audio file
-upload. Audio is capped at 10 MB before being forwarded to Valsea.
+The experiment accepts a JSON transcript payload plus an optional Drive-backed
+audio storage path. The UI can record live audio through `MediaRecorder` or use a
+local file picker; either way, the audio is saved into workspace Drive storage
+first and then referenced as `audioStoragePath` when generation starts. Audio is
+capped at 10 MB before upload and again before being forwarded to Valsea.
 
 For text and transcribed audio, the server runs this Valsea pipeline:
 
@@ -73,11 +86,12 @@ For text and transcribed audio, the server runs this Valsea pipeline:
 
 ## Voice Grading
 
-When the request includes both an audio file and a typed transcript, the typed
-transcript is treated as the reference phrase and the uploaded audio is treated
-as the learner reading that phrase aloud. The server uses the Valsea
-transcription result to compare expected words against what was heard and
-returns a `pronunciation` object with:
+When the request includes both a Drive-backed audio path and a typed transcript,
+the typed transcript is treated as the reference phrase and the stored audio is
+treated as the learner reading that phrase aloud. The server downloads the audio
+object through the workspace storage provider, uses the Valsea transcription
+result to compare expected words against what was heard, and returns a
+`pronunciation` object with:
 
 - `overallScore`: word-level pronunciation match percentage.
 - `nativeSimilarity`: the pronunciation score adjusted for transcript

@@ -3,7 +3,8 @@
 import {
   BookOpen,
   Brain,
-  FileAudio,
+  ChevronsUp,
+  CircleDot,
   KeyRound,
   Languages,
   Loader2,
@@ -30,6 +31,7 @@ import {
 import { Textarea } from '@tuturuuu/ui/textarea';
 import type { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
+import { AudioCapturePanel } from './audio-capture-panel';
 import {
   INPUT_LANGUAGES,
   type LanguageOption,
@@ -40,6 +42,7 @@ import {
   SUGGESTED_PROMPTS,
   TARGET_LANGUAGES,
 } from './constants';
+import type { StudioInsight } from './insights';
 
 export function StudioNav({
   hasApiKey,
@@ -53,12 +56,15 @@ export function StudioNav({
   t: ReturnType<typeof useTranslations>;
 }) {
   return (
-    <div className="valsea-reveal flex flex-col gap-3 rounded-md border border-foreground/10 bg-background/80 p-2 shadow-sm backdrop-blur md:flex-row md:items-center md:justify-between">
+    <div className="valsea-reveal flex flex-col gap-3 rounded-md border border-foreground/10 bg-background/75 p-2 shadow-[0_18px_60px_-45px_hsl(var(--foreground))] backdrop-blur-xl md:flex-row md:items-center md:justify-between">
       <div className="flex items-center gap-2 px-2">
         <span className="flex h-9 w-9 items-center justify-center rounded-full bg-foreground text-background">
           <Languages className="h-4 w-4" />
         </span>
         <span className="font-semibold">{t('nav_title')}</span>
+        <span className="hidden rounded-full border border-dynamic-green/20 bg-dynamic-green/8 px-2.5 py-1 font-mono text-dynamic-green text-xs md:inline-flex">
+          {t('fullscreen_lab')}
+        </span>
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant={hasApiKey ? 'secondary' : 'outline'}>
@@ -92,52 +98,147 @@ export function HeroPanel({
   t: ReturnType<typeof useTranslations>;
 }) {
   return (
-    <section className="valsea-reveal grid gap-6 rounded-md border border-foreground/10 bg-background/70 p-6 backdrop-blur md:grid-cols-[1fr_18rem] md:p-8">
-      <div className="max-w-5xl">
-        <h1 className="text-[clamp(2.6rem,5vw,5.75rem)] leading-[0.95] tracking-tight">
-          {t('hero_title_before')}{' '}
-          <span
-            aria-hidden
-            className="inline-block h-[0.72em] w-[1.55em] rounded-md bg-center bg-cover align-middle contrast-125 grayscale"
-            style={{
-              backgroundImage:
-                'url(https://picsum.photos/seed/valsea-classroom/480/240)',
-            }}
-          />{' '}
-          {t('hero_title_after')}
-        </h1>
-        <p className="mt-5 max-w-2xl text-base text-foreground/66 leading-7">
-          {t('hero_description')}
-        </p>
-      </div>
-      <div className="grid content-between rounded-md border border-dynamic-green/20 bg-dynamic-green/8 p-5">
-        <div>
-          <div className="font-mono text-dynamic-green text-xs uppercase tracking-[0.24em]">
-            {t('provider_signal')}
+    <section className="valsea-reveal relative min-h-[34rem] overflow-hidden rounded-md border border-foreground/10 bg-foreground/[0.03] p-5 backdrop-blur md:p-7">
+      <div className="absolute inset-0 bg-[linear-gradient(90deg,hsl(var(--foreground)/0.05)_1px,transparent_1px),linear-gradient(180deg,hsl(var(--foreground)/0.05)_1px,transparent_1px)] bg-[size:48px_48px]" />
+      <div className="absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-dynamic-green/70 to-transparent" />
+      <div className="relative grid min-h-[31rem] content-between gap-8">
+        <div className="max-w-4xl">
+          <div className="mb-5 flex flex-wrap items-center gap-2">
+            <Badge className="border-dynamic-green/25 bg-dynamic-green/10 text-dynamic-green hover:bg-dynamic-green/15">
+              {t('badge')}
+            </Badge>
+            <Badge variant="outline">{t('powered_by')}</Badge>
           </div>
-          <div className="mt-3 font-semibold text-2xl">
-            {scenario?.title ??
-              (hasApiKey ? t('key_state_ready') : t('key_state_missing'))}
-          </div>
-          {scenario ? (
-            <p className="mt-3 text-foreground/65 text-sm leading-6">
-              {scenario.teacherGoal}
-            </p>
-          ) : null}
+          <h1 className="max-w-5xl text-[clamp(2.5rem,7vw,6.4rem)] leading-[0.9] tracking-tight">
+            {t('hero_title_before')}{' '}
+            <span className="text-dynamic-green">{t('hero_title_after')}</span>
+          </h1>
+          <p className="mt-5 max-w-2xl text-base text-foreground/66 leading-7">
+            {t('hero_description')}
+          </p>
         </div>
-        <div className="mt-8 grid grid-cols-2 gap-2 text-sm">
-          <div className="rounded-md bg-background/80 p-3">
-            <FileAudio className="mb-3 h-4 w-4 text-dynamic-green" />
-            {t('signal_audio')}
+
+        <div className="grid gap-3 md:grid-cols-[1fr_18rem]">
+          <div className="rounded-md border border-foreground/10 bg-background/70 p-4">
+            <div className="font-mono text-foreground/45 text-xs uppercase tracking-[0.22em]">
+              {t('provider_signal')}
+            </div>
+            <div className="mt-3 font-semibold text-2xl">
+              {scenario?.title ??
+                (hasApiKey ? t('key_state_ready') : t('key_state_missing'))}
+            </div>
+            {scenario ? (
+              <p className="mt-3 text-foreground/65 text-sm leading-6">
+                {scenario.teacherGoal}
+              </p>
+            ) : null}
           </div>
-          <div className="rounded-md bg-background/80 p-3">
-            <Sparkles className="mb-3 h-4 w-4 text-dynamic-green" />
-            {t('signal_text')}
+          <div className="grid grid-cols-2 gap-2 text-sm">
+            <div className="rounded-md border border-dynamic-green/20 bg-dynamic-green/8 p-4">
+              <Languages className="mb-4 h-5 w-5 text-dynamic-green" />
+              {t('signal_audio')}
+            </div>
+            <div className="rounded-md border border-dynamic-cyan/20 bg-dynamic-cyan/8 p-4">
+              <Sparkles className="mb-4 h-5 w-5 text-dynamic-cyan" />
+              {t('signal_text')}
+            </div>
           </div>
         </div>
       </div>
     </section>
   );
+}
+
+export function MissionBrief({
+  hasApiKey,
+  insights,
+  scenario,
+  t,
+}: {
+  hasApiKey: boolean;
+  insights: StudioInsight[];
+  scenario: ValseaClassroomScenarioResponse | null;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  return (
+    <section className="valsea-reveal grid gap-3 md:grid-cols-[1.25fr_0.75fr]">
+      <div className="rounded-md border border-dynamic-green/20 bg-dynamic-green/8 p-4">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <div className="font-mono text-dynamic-green text-xs uppercase tracking-[0.22em]">
+              {t('mission_brief')}
+            </div>
+            <h2 className="mt-2 font-semibold text-2xl tracking-tight">
+              {scenario?.title || t('mission_default_title')}
+            </h2>
+          </div>
+          <Badge variant={hasApiKey ? 'secondary' : 'outline'}>
+            {hasApiKey ? t('key_state_ready') : t('key_state_missing')}
+          </Badge>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+          {insights.map((insight) => (
+            <SignalBadge insight={insight} key={insight.label} />
+          ))}
+        </div>
+      </div>
+      <div className="grid gap-2 rounded-md border border-foreground/10 bg-background/70 p-4">
+        <div className="flex items-center gap-2 font-mono text-foreground/45 text-xs uppercase tracking-[0.18em]">
+          <CircleDot className="h-4 w-4 text-dynamic-cyan" />
+          {t('mission_rhythm')}
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {[t('rhythm_capture'), t('rhythm_infer'), t('rhythm_ship')].map(
+            (label, index) => (
+              <div
+                className="rounded-md border border-foreground/10 bg-foreground/[0.03] p-3"
+                key={label}
+              >
+                <div className="font-mono text-foreground/40 text-xs">
+                  {String(index + 1).padStart(2, '0')}
+                </div>
+                <div className="mt-2 font-medium text-sm leading-5">
+                  {label}
+                </div>
+              </div>
+            )
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function SignalBadge({ insight }: { insight: StudioInsight }) {
+  return (
+    <div
+      className={`rounded-md border p-3 ${getInsightToneClasses(insight.tone)}`}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-semibold text-sm">{insight.label}</span>
+        {insight.value ? (
+          <span className="rounded-full bg-background/70 px-2 py-0.5 font-mono text-[0.68rem]">
+            {insight.value}
+          </span>
+        ) : null}
+      </div>
+      {insight.detail ? (
+        <div className="mt-1 text-foreground/58 text-xs">{insight.detail}</div>
+      ) : null}
+    </div>
+  );
+}
+
+function getInsightToneClasses(tone: StudioInsight['tone']) {
+  const classes = {
+    cyan: 'border-dynamic-cyan/20 bg-dynamic-cyan/5 text-dynamic-cyan',
+    green: 'border-dynamic-green/20 bg-dynamic-green/5 text-dynamic-green',
+    orange: 'border-dynamic-orange/20 bg-dynamic-orange/5 text-dynamic-orange',
+    pink: 'border-dynamic-pink/20 bg-dynamic-pink/5 text-dynamic-pink',
+    yellow: 'border-dynamic-yellow/20 bg-dynamic-yellow/5 text-dynamic-yellow',
+  };
+
+  return classes[tone];
 }
 
 export function ScenarioConsole({
@@ -153,7 +254,7 @@ export function ScenarioConsole({
 }) {
   return (
     <Card className="valsea-reveal overflow-hidden border-dynamic-cyan/20 bg-dynamic-cyan/5">
-      <CardContent className="grid gap-5 p-5 lg:grid-cols-[0.9fr_1.1fr] lg:p-6">
+      <CardContent className="grid gap-5 p-5 lg:grid-cols-[0.75fr_1.25fr] lg:p-6">
         <div>
           <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-md border border-dynamic-cyan/25 bg-dynamic-cyan/10 text-dynamic-cyan">
             <Brain className="h-5 w-5" />
@@ -191,13 +292,13 @@ export function ScenarioConsole({
                   ))}
                 </div>
                 <div className="mt-4 font-semibold text-xl">
-                  {scenario.title}
+                  {scenario.referencePhrase}
                 </div>
                 <p className="mt-2 text-foreground/68 text-sm leading-6">
                   {scenario.classroomContext}
                 </p>
               </div>
-              <div className="grid gap-3 md:grid-cols-2">
+              <div className="grid gap-3 md:grid-cols-3">
                 <ScenarioMiniCard
                   icon={<Languages className="h-4 w-4" />}
                   label={t('scenario_learner')}
@@ -207,6 +308,11 @@ export function ScenarioConsole({
                   icon={<BookOpen className="h-4 w-4" />}
                   label={t('scenario_rubric')}
                   value={scenario.rubric.join(' / ')}
+                />
+                <ScenarioMiniCard
+                  icon={<ChevronsUp className="h-4 w-4" />}
+                  label={t('scenario_confusions')}
+                  value={scenario.expectedConfusions.join(' / ')}
                 />
               </div>
             </>
@@ -248,51 +354,71 @@ function ScenarioMiniCard({
 
 export function StudioComposer({
   apiKey,
+  audioPreviewUrl,
+  audioUploadProgress,
   canGenerate,
   file,
+  insights,
   isGenerating,
   isGeneratingScenario,
+  isRecording,
   language,
   onApiKeyChange,
+  onClearAudio,
   onFileChange,
   onGenerate,
   onGenerateScenario,
   onLanguageChange,
   onOutputTypeChange,
   onPronunciationModelChange,
+  onStartRecording,
+  onStopRecording,
   onTargetLanguageChange,
   onTranscriptChange,
   outputType,
   pronunciationModel,
+  recordingError,
   targetLanguage,
   t,
   transcript,
 }: {
   apiKey: string;
+  audioPreviewUrl?: string;
+  audioUploadProgress?: number | null;
   canGenerate: boolean;
   file?: File;
+  insights: StudioInsight[];
   isGenerating: boolean;
   isGeneratingScenario: boolean;
+  isRecording: boolean;
   language: string;
   onApiKeyChange: (value: string) => void;
+  onClearAudio: () => void;
   onFileChange: (value: File | undefined) => void;
   onGenerate: () => void;
   onGenerateScenario: () => void;
   onLanguageChange: (value: string) => void;
   onOutputTypeChange: (value: string) => void;
   onPronunciationModelChange: (value: string) => void;
+  onStartRecording: () => void;
+  onStopRecording: () => void;
   onTargetLanguageChange: (value: string) => void;
   onTranscriptChange: (value: string) => void;
   outputType: ValseaClassroomOutputType;
   pronunciationModel: ValseaPronunciationAssessorModel;
+  recordingError?: string;
   targetLanguage: string;
   t: ReturnType<typeof useTranslations>;
   transcript: string;
 }) {
   return (
-    <Card className="valsea-reveal overflow-hidden border-foreground/10 bg-background/80 backdrop-blur">
-      <CardContent className="space-y-6 p-5 md:p-6">
+    <Card className="valsea-reveal overflow-hidden border-foreground/10 bg-background/80 shadow-[0_24px_70px_-55px_hsl(var(--foreground))] backdrop-blur">
+      <CardContent className="space-y-5 p-4 md:p-5">
         <div>
+          <div className="mb-2 flex items-center gap-2 font-mono text-dynamic-green text-xs uppercase tracking-[0.2em]">
+            <CircleDot className="h-3.5 w-3.5" />
+            {t('live_composer')}
+          </div>
           <h2 className="text-2xl tracking-tight">{t('composer_title')}</h2>
           <p className="mt-2 text-foreground/60 text-sm leading-6">
             {t('composer_description')}
@@ -316,11 +442,19 @@ export function StudioComposer({
             : t('scenario_generate_short')}
         </Button>
 
+        <div className="grid gap-2">
+          <div className="grid gap-2 sm:grid-cols-2">
+            {insights.slice(0, 4).map((insight) => (
+              <SignalBadge insight={insight} key={insight.label} />
+            ))}
+          </div>
+        </div>
+
         <div className="space-y-2">
           <Label htmlFor="valsea-transcript">{t('transcript_label')}</Label>
           <Textarea
             id="valsea-transcript"
-            className="min-h-52 resize-y border-foreground/10 bg-foreground/4 text-base leading-7"
+            className="min-h-44 resize-y border-foreground/10 bg-foreground/4 text-base leading-7"
             onChange={(event) => onTranscriptChange(event.target.value)}
             placeholder={t('transcript_placeholder')}
             value={transcript}
@@ -364,20 +498,19 @@ export function StudioComposer({
           value={pronunciationModel}
         />
 
-        <div className="grid gap-3 sm:grid-cols-[1fr_0.8fr]">
-          <div className="space-y-2">
-            <Label htmlFor="valsea-audio">{t('audio_label')}</Label>
-            <Input
-              accept="audio/mp3,audio/mpeg,audio/mp4,audio/m4a,audio/ogg,audio/wav,audio/webm,audio/flac"
-              id="valsea-audio"
-              onChange={(event) => onFileChange(event.target.files?.[0])}
-              type="file"
-            />
-            <p className="text-foreground/60 text-xs">
-              {file ? file.name : t('audio_hint')}
-            </p>
-          </div>
-
+        <div className="grid gap-3 sm:grid-cols-[1.2fr_0.8fr]">
+          <AudioCapturePanel
+            audioPreviewUrl={audioPreviewUrl}
+            file={file}
+            isRecording={isRecording}
+            onClearAudio={onClearAudio}
+            onFileChange={onFileChange}
+            onStartRecording={onStartRecording}
+            onStopRecording={onStopRecording}
+            recordingError={recordingError}
+            t={t}
+            uploadProgress={audioUploadProgress}
+          />
           <div className="space-y-2">
             <Label htmlFor="valsea-api-key">{t('byok_label')}</Label>
             <Input
@@ -406,19 +539,21 @@ export function StudioComposer({
           ))}
         </div>
 
-        <Button
-          className="min-h-12 w-full gap-2 text-base"
-          disabled={!canGenerate || isGenerating}
-          onClick={onGenerate}
-          type="button"
-        >
-          {isGenerating ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <WandSparkles className="h-4 w-4" />
-          )}
-          {isGenerating ? t('generating') : t('generate')}
-        </Button>
+        <div className="rounded-md border border-dynamic-green/20 bg-dynamic-green/8 p-2">
+          <Button
+            className="min-h-12 w-full gap-2 text-base shadow-sm transition-transform duration-300 active:scale-[0.99]"
+            disabled={!canGenerate || isGenerating}
+            onClick={onGenerate}
+            type="button"
+          >
+            {isGenerating ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <WandSparkles className="h-4 w-4" />
+            )}
+            {isGenerating ? t('generating') : t('generate')}
+          </Button>
+        </div>
       </CardContent>
     </Card>
   );
