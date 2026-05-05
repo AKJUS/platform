@@ -4,6 +4,8 @@ import {
   BookOpen,
   Brain,
   CheckCircle2,
+  Download,
+  Eye,
   FileAudio,
   Flame,
   Languages,
@@ -18,6 +20,7 @@ import type {
   ValseaVoiceGradeResult,
 } from '@tuturuuu/internal-api';
 import { Badge } from '@tuturuuu/ui/badge';
+import { Button } from '@tuturuuu/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@tuturuuu/ui/card';
 import type { useTranslations } from 'next-intl';
 import { useMemo } from 'react';
@@ -173,6 +176,9 @@ export function ResultsGrid({
           ) : null}
         </CardContent>
       </Card>
+      {result.sentiment.layers?.mira ? (
+        <SentimentCompass result={result} t={t} />
+      ) : null}
 
       <Card className="valsea-stack-card border-foreground/10 bg-foreground/4 lg:col-span-3">
         <CardHeader>
@@ -201,6 +207,10 @@ export function ResultsGrid({
           )}
         </CardContent>
       </Card>
+
+      {result.observability?.stages?.length ? (
+        <ResearchObservabilityPanel result={result} t={t} />
+      ) : null}
 
       <Card className="valsea-stack-card border-foreground/10 bg-foreground/4 lg:col-span-3">
         <CardHeader>
@@ -353,6 +363,183 @@ function TeachingMovesPanel({
   );
 }
 
+function SentimentCompass({
+  result,
+  t,
+}: {
+  result: ValseaClassroomArtifactResponse;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  const mira = result.sentiment.layers?.mira;
+  if (!mira) return null;
+
+  const metrics = [
+    { label: t('sentiment_valence'), value: Math.round(mira.valence ?? 0) },
+    { label: t('sentiment_arousal'), value: Math.round(mira.arousal ?? 0) },
+    { label: t('sentiment_urgency'), value: Math.round(mira.urgency ?? 0) },
+    { label: t('sentiment_confusion'), value: Math.round(mira.confusion ?? 0) },
+  ];
+
+  return (
+    <Card className="valsea-stack-card border-dynamic-cyan/20 bg-dynamic-cyan/5 lg:col-span-4">
+      <CardHeader>
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge className="border-dynamic-cyan/25 bg-dynamic-cyan/10 text-dynamic-cyan hover:bg-dynamic-cyan/15">
+            {t('sentiment_mira_layer')}
+          </Badge>
+          <Badge variant="outline">
+            {t(
+              `sentiment_consensus_${result.sentiment.consensus || 'valsea_only'}`
+            )}
+          </Badge>
+        </div>
+        <CardTitle>{t('sentiment_compass_title')}</CardTitle>
+      </CardHeader>
+      <CardContent className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+        <div className="grid gap-2">
+          {metrics.map((metric) => (
+            <div
+              className="rounded-md border border-foreground/10 bg-background/70 p-3"
+              key={metric.label}
+            >
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span>{metric.label}</span>
+                <span className="font-mono">{metric.value}</span>
+              </div>
+              <div className="mt-2 h-1.5 overflow-hidden rounded bg-foreground/10">
+                <div
+                  className="h-full rounded bg-dynamic-cyan"
+                  style={{
+                    width: `${Math.min(100, Math.max(0, metric.value < 0 ? metric.value + 100 : metric.value))}%`,
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="rounded-md border border-foreground/10 bg-background/70 p-4">
+          <div className="font-semibold text-sm">{mira.intent}</div>
+          <p className="mt-2 text-foreground/70 text-sm leading-6">
+            {mira.parentSafeSummary || mira.teacherMove}
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {mira.emotions?.map((emotion) => (
+              <Badge key={emotion} variant="outline">
+                {emotion}
+              </Badge>
+            ))}
+          </div>
+          {mira.evidenceSpans?.length ? (
+            <div className="mt-4 grid gap-2">
+              {mira.evidenceSpans.slice(0, 4).map((span, index) => (
+                <div
+                  className="rounded-md border border-dynamic-cyan/20 bg-dynamic-cyan/5 p-2 text-xs"
+                  key={`${span.label}-${index}`}
+                >
+                  <span className="font-semibold text-dynamic-cyan">
+                    {span.label}
+                  </span>
+                  <span className="text-foreground/65"> {span.quote}</span>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function ResearchObservabilityPanel({
+  result,
+  t,
+}: {
+  result: ValseaClassroomArtifactResponse;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  const exportRun = () => {
+    const blob = new Blob([JSON.stringify(result, null, 2)], {
+      type: 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `valsea-mira-run-${Date.now()}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <Card className="valsea-stack-card border-dynamic-green/20 bg-dynamic-green/5 lg:col-span-6">
+      <CardHeader>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Eye className="h-4 w-4 text-dynamic-green" />
+            <CardTitle>{t('research_observability_title')}</CardTitle>
+          </div>
+          <Button className="gap-2" onClick={exportRun} size="sm" type="button">
+            <Download className="h-4 w-4" />
+            {t('research_export_json')}
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        {result.observability?.stages.map((stage) => (
+          <details
+            className="rounded-md border border-foreground/10 bg-background/70 p-3"
+            key={stage.id}
+          >
+            <summary className="cursor-pointer">
+              <div className="inline-flex w-full items-start justify-between gap-3">
+                <div>
+                  <div className="font-semibold text-sm">{stage.label}</div>
+                  <div className="mt-1 text-foreground/55 text-xs">
+                    {[
+                      stage.provider,
+                      stage.model,
+                      stage.durationMs ? `${stage.durationMs}ms` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(' / ')}
+                  </div>
+                </div>
+                <Badge
+                  variant={stage.status === 'success' ? 'secondary' : 'outline'}
+                >
+                  {stage.status}
+                </Badge>
+              </div>
+            </summary>
+            <div className="mt-3 grid gap-2 border-foreground/10 border-t pt-3 text-xs">
+              {stage.inputSummary ? (
+                <div>
+                  <span className="text-foreground/45">
+                    {t('research_stage_input')}:
+                  </span>{' '}
+                  {stage.inputSummary}
+                </div>
+              ) : null}
+              {stage.outputSummary ? (
+                <div>
+                  <span className="text-foreground/45">
+                    {t('research_stage_output')}:
+                  </span>{' '}
+                  {stage.outputSummary}
+                </div>
+              ) : null}
+              {stage.raw ? (
+                <pre className="max-h-44 overflow-auto rounded bg-foreground/5 p-2">
+                  {JSON.stringify(stage.raw, null, 2)}
+                </pre>
+              ) : null}
+            </div>
+          </details>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
 function VoiceGradePanel({
   grade,
   t,
@@ -360,6 +547,57 @@ function VoiceGradePanel({
   grade: ValseaVoiceGradeResult;
   t: ReturnType<typeof useTranslations>;
 }) {
+  const status = grade.status ?? 'graded';
+  const isSkipped = status !== 'graded';
+  const statusLevel = status === 'reference_mismatch' ? 'red' : 'amber';
+  const referenceCoverage =
+    typeof grade.referenceCoverage === 'number'
+      ? `${Math.round(grade.referenceCoverage * 100)}%`
+      : null;
+
+  if (isSkipped) {
+    return (
+      <Card className="valsea-stack-card border-dynamic-yellow/20 bg-dynamic-yellow/5 lg:col-span-6">
+        <CardHeader>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge className={getGradeBadgeClasses(statusLevel)}>
+              {getVoiceGradeStatusLabel(status, t)}
+            </Badge>
+            {referenceCoverage ? (
+              <Badge variant="outline">
+                {t('voice_grade_reference_coverage')}: {referenceCoverage}
+              </Badge>
+            ) : null}
+            <Badge variant="outline">
+              {grade.provider === 'local-model'
+                ? t('voice_grade_provider_local')
+                : t('voice_grade_provider_valsea')}
+            </Badge>
+            {grade.assessorModel ? (
+              <Badge variant="outline">{grade.assessorModel}</Badge>
+            ) : null}
+          </div>
+          <CardTitle>{t('voice_grade_title')}</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <p className="rounded-md border border-dynamic-yellow/20 bg-background/70 p-4 text-foreground/78 text-sm leading-6">
+            {grade.summary}
+          </p>
+          <div className="grid gap-3 md:grid-cols-2">
+            <TranscriptBox
+              label={t('voice_grade_heard')}
+              value={grade.heardText || t('not_available')}
+            />
+            <TranscriptBox
+              label={t('voice_grade_reference')}
+              value={grade.referenceText}
+            />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="valsea-stack-card border-foreground/10 bg-foreground/4 lg:col-span-6">
       <CardHeader>
@@ -507,6 +745,21 @@ function VoiceGradePanel({
       </CardContent>
     </Card>
   );
+}
+
+function getVoiceGradeStatusLabel(
+  status: NonNullable<ValseaVoiceGradeResult['status']>,
+  t: ReturnType<typeof useTranslations>
+) {
+  if (status === 'insufficient_speech') {
+    return t('voice_grade_status_insufficient_speech');
+  }
+
+  if (status === 'reference_mismatch') {
+    return t('voice_grade_status_reference_mismatch');
+  }
+
+  return t('voice_grade_status_graded');
 }
 
 function CharacterSummary({

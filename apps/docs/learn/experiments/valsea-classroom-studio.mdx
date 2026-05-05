@@ -3,9 +3,10 @@ title: Valsea Classroom Studio
 description: Experiment notes for the Education Lab Valsea integration.
 ---
 
-The Valsea Classroom Studio experiment lives in the web dashboard at
-`/:wsId/education/valsea`. It turns mixed-language classroom speech or pasted
-transcripts into teacher-ready learning artifacts.
+The Valsea Mira Voice Lab experiment lives in the web dashboard at
+`/:wsId/education/valsea`. It turns Mira-generated or user-provided classroom
+moments into local learner audio, Valsea speech intelligence, richer sentiment
+evidence, and teacher-ready learning artifacts.
 
 ## Runtime Setup
 
@@ -54,9 +55,22 @@ POST /api/v1/workspaces/:wsId/education/valsea/scenario
 
 The scenario route uses Tuturuuu's internal AI stack to generate a classroom
 challenge for the studio: learner persona, classroom context, reference phrase,
-confusion tags, grading rubric, and the Valsea output mode to use. If the
-internal model runtime is unavailable, the route returns a curated local
-scenario so hackathon demos still work with only a valid Valsea API key.
+learner line, sentiment hypothesis, Piper voice preset, research question,
+confusion tags, grading rubric, and the Valsea output mode to use. It accepts an
+optional `prompt` plus `mode` (`surprise`, `sentiment_lab`,
+`pronunciation_lab`, `regional_classroom`, or `parent_update`). If the internal
+model runtime is unavailable, the route returns a curated local scenario so
+hackathon demos still work with only a valid Valsea API key.
+
+```txt
+POST /api/v1/workspaces/:wsId/education/valsea/speech
+```
+
+The speech route is session-authenticated, verifies workspace membership, calls
+the local voice helper's Piper endpoint, writes the generated WAV file to the
+same workspace Drive audio folder, and returns a data URL preview plus the Drive
+path. The browser must explicitly select the generated audio before it is sent
+to Valsea, so preview audio is never silently submitted.
 
 ```txt
 POST /api/v1/workspaces/:wsId/education/valsea/audio/upload-url
@@ -71,20 +85,29 @@ browser uploads selected files and live recordings there before generation.
 ## Pipeline
 
 The experiment accepts a JSON reference note plus an optional Drive-backed audio
-storage path. The UI can record live audio through `MediaRecorder` or use a local
-file picker; either way, the audio is saved into workspace Drive storage first
-and then referenced as `audioStoragePath` when generation starts. Audio is capped
-at 10 MB before upload and again before being forwarded to Valsea. When audio is
-present, the Valsea transcription becomes the primary classroom source text, and
-the typed note remains visible as the pronunciation/reference phrase.
+storage path. The UI has three capture sources: generated Piper audio, live
+audio through `MediaRecorder`, and uploaded audio. Every audio source is saved
+into workspace Drive storage before generation and then referenced as
+`audioStoragePath` when generation starts. Audio is capped at 10 MB before upload
+and again before being forwarded to Valsea. When audio is present, the Valsea
+transcription becomes the primary classroom source text, and the typed note
+remains visible as the pronunciation/reference phrase.
 
 For text and transcribed audio, the server runs this Valsea pipeline:
 
-1. Clarify colloquial classroom language with `/v1/clarifications`.
-2. Annotate semantic and accent cues with `/v1/annotations`.
-3. Translate the clarified learner-facing text with `/v1/translations`.
-4. Analyze learner mood with `/v1/sentiment`.
-5. Format a teacher artifact with `/v1/formatting`.
+1. Optionally generate a scenario with Mira.
+2. Optionally synthesize learner audio through the local Piper helper.
+3. Transcribe audio with `/v1/audio/transcriptions`.
+4. Clarify colloquial classroom language with `/v1/clarifications`.
+5. Annotate semantic and accent cues with `/v1/annotations`.
+6. Translate the clarified learner-facing text with `/v1/translations`.
+7. Analyze learner mood with `/v1/sentiment` and Mira's internal sentiment lab.
+8. Format a teacher artifact with `/v1/formatting`.
+
+The response includes a session-only `observability.stages` array with provider,
+model, timing, summaries, and raw payloads for each layer. The client renders
+that data in a researcher drawer and can export the complete run as JSON. Runs
+are not persisted beyond browser session state.
 
 ## Voice Grading
 
@@ -134,6 +157,16 @@ and idle-unloaded after
 `PRONUNCIATION_ASSESSOR_MAX_LOADED_MODELS=1` on constrained hosts so switching
 models evicts the least recently used resident model.
 
+The same helper also exposes Piper text-to-speech endpoints:
+
+- `GET /tts/voices`: lists local Piper voices.
+- `POST /tts/synthesize`: returns a WAV payload for the selected voice.
+
+Piper voice models are cached under `PIPER_DATA_DIR` (`/root/.cache/piper` in
+Docker) and the default voice is controlled by `PIPER_DEFAULT_VOICE`
+(`en_US-lessac-medium`). The Compose files mount `platform-voice-lab-cache` so
+voice downloads survive container restarts.
+
 The web route POSTs multipart form data to the assessor with `file`, `language`,
 `referenceText`, `valseaTranscript`, and `valseaResponse`. If the local assessor
 returns a compatible JSON object, the UI marks the provider as local model; if it
@@ -141,6 +174,12 @@ fails or is not configured, the route falls back to the Valsea-backed heuristic.
 The heuristic aligns expected and heard words with sequence alignment instead of
 matching by array index, so an omitted filler word such as "ah" or "lah" does not
 shift the rest of the sentence into false pronunciation failures.
+Before rendering any word-level grade, the route checks that the actual spoken
+transcript covers enough of the reference phrase. If the recording only contains
+a short utterance such as "Haha." while the typed note is a full paragraph, the
+response is marked `insufficient_speech` or `reference_mismatch`, `words` is
+empty, and the UI shows the heard/reference transcripts instead of misleading
+red score cards.
 Amber scores around 75-78% mean "review this alignment" rather than "bad
 pronunciation"; they are used when ASR skipped a short filler or heard a nearby
 sound. Character feedback carries `matched`, `substituted`, `missing`, or

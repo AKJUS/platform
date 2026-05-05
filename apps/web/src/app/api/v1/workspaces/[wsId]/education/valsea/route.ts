@@ -1,6 +1,17 @@
+import { google } from '@ai-sdk/google';
+import {
+  checkAiCredits,
+  deductAiCredits,
+} from '@tuturuuu/ai/credits/check-credits';
+import { toBareModelName } from '@tuturuuu/ai/credits/model-mapping';
+import {
+  PlanModelResolutionError,
+  resolvePlanModel,
+} from '@tuturuuu/ai/credits/resolve-plan-model';
 import { resolveWorkspaceId } from '@tuturuuu/utils/constants';
 import { sanitizePath } from '@tuturuuu/utils/storage-path';
 import { verifyWorkspaceMembershipType } from '@tuturuuu/utils/workspace-helper';
+import { generateObject } from 'ai';
 import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { type AuthorizedRequest, withSessionAuth } from '@/lib/api-auth';
@@ -19,6 +30,42 @@ type SemanticTag = {
 };
 
 type ValseaRecord = Record<string, unknown>;
+
+type ObservabilityStage = {
+  durationMs?: number;
+  id: string;
+  inputSummary?: string;
+  label: string;
+  model?: string;
+  outputSummary?: string;
+  provider: string;
+  raw?: unknown;
+  status: 'error' | 'skipped' | 'success';
+};
+
+const SentimentEvidenceSpanSchema = z.object({
+  end: z.number().int().min(0).optional(),
+  label: z.string().min(2).max(48),
+  quote: z.string().min(1).max(240),
+  start: z.number().int().min(0).optional(),
+});
+
+const MiraSentimentSchema = z.object({
+  arousal: z.number().min(0).max(100),
+  confusion: z.number().min(0).max(100),
+  confidence: z.number().min(0).max(100),
+  emotions: z.array(z.string().min(2).max(32)).min(1).max(6),
+  engagement: z.number().min(0).max(100),
+  evidenceSpans: z.array(SentimentEvidenceSpanSchema).max(8),
+  intent: z.string().min(2).max(80),
+  parentSafeSummary: z.string().min(8).max(240),
+  politeness: z.number().min(0).max(100),
+  risk: z.string().min(2).max(80),
+  sentiment: z.string().min(2).max(64),
+  teacherMove: z.string().min(8).max(180),
+  urgency: z.number().min(0).max(100),
+  valence: z.number().min(-100).max(100),
+});
 
 const VALSEA_BASE_URL = 'https://api.valsea.ai/v1';
 const MAX_AUDIO_UPLOAD_BYTES = 10 * 1024 * 1024;
@@ -122,6 +169,97 @@ function parseValseaTextOutput(record: ValseaRecord | undefined) {
   }
 
   return JSON.stringify(record, null, 2);
+}
+
+function summarizeText(value: string | undefined, maxLength = 140) {
+  if (!value) return undefined;
+  const normalized = value.replace(/\s+/gu, ' ').trim();
+  return normalized.length > maxLength
+    ? `${normalized.slice(0, maxLength - 1)}…`
+    : normalized;
+}
+
+function getValseaSentimentLayer(sentiment: ValseaRecord) {
+  return {
+    confidence: getNumber(sentiment, 'confidence')
+      ? Math.round((getNumber(sentiment, 'confidence') ?? 0) * 100)
+      : undefined,
+    emotions: getStringArray(sentiment, 'emotions'),
+    provider: 'valsea' as const,
+    raw: sentiment,
+    sentiment: getString(sentiment, 'sentiment'),
+  };
+}
+
+function getSentimentConsensus({
+  mira,
+  valsea,
+}: {
+  mira?: z.infer<typeof MiraSentimentSchema> | null;
+  valsea: ValseaRecord;
+}) {
+  const miraSentiment = mira?.sentiment?.toLowerCase();
+  const valseaSentiment = getString(valsea, 'sentiment')?.toLowerCase();
+
+  if (miraSentiment && valseaSentiment && miraSentiment === valseaSentiment) {
+    return 'strong_agreement';
+  }
+
+  if (mira?.emotions?.some((emotion) => valseaSentiment?.includes(emotion))) {
+    return 'partial_agreement';
+  }
+
+  return mira ? 'needs_review' : 'valsea_only';
+}
+
+async function runObservedStage<T>({
+  id,
+  inputSummary,
+  label,
+  model,
+  operation,
+  outputSummary,
+  provider,
+  stages,
+}: {
+  id: string;
+  inputSummary?: string;
+  label: string;
+  model?: string;
+  operation: () => Promise<T>;
+  outputSummary?: (result: T) => string | undefined;
+  provider: string;
+  stages: ObservabilityStage[];
+}) {
+  const startedAt = performance.now();
+
+  try {
+    const result = await operation();
+    stages.push({
+      durationMs: Math.round(performance.now() - startedAt),
+      id,
+      inputSummary,
+      label,
+      model,
+      outputSummary: outputSummary?.(result),
+      provider,
+      raw: result,
+      status: 'success',
+    });
+    return result;
+  } catch (error) {
+    stages.push({
+      durationMs: Math.round(performance.now() - startedAt),
+      id,
+      inputSummary,
+      label,
+      model,
+      outputSummary: error instanceof Error ? error.message : 'Failed',
+      provider,
+      status: 'error',
+    });
+    throw error;
+  }
 }
 
 function getValseaApiKey(request: NextRequest) {
@@ -294,6 +432,106 @@ async function readDriveAudioFile({
   });
 }
 
+async function generateMiraSentimentLayer({
+  context,
+  sourceText,
+  stages,
+  wsId,
+}: {
+  context: AuthorizedRequest;
+  sourceText: string;
+  stages: ObservabilityStage[];
+  wsId: string;
+}) {
+  const startedAt = performance.now();
+  const resolvedWsId = resolveWorkspaceId(wsId);
+
+  try {
+    const resolvedModel = await resolvePlanModel({
+      capability: 'language',
+      wsId: resolvedWsId,
+    });
+    const modelId = resolvedModel.modelId;
+    const creditCheck = await checkAiCredits(
+      resolvedWsId,
+      modelId,
+      'generate',
+      { userId: context.user.id }
+    );
+
+    if (!creditCheck.allowed) {
+      stages.push({
+        durationMs: Math.round(performance.now() - startedAt),
+        id: 'mira-sentiment',
+        inputSummary: summarizeText(sourceText),
+        label: 'Mira sentiment lab',
+        model: modelId,
+        outputSummary: creditCheck.errorMessage || 'AI credits unavailable',
+        provider: 'mira',
+        status: 'skipped',
+      });
+      return null;
+    }
+
+    const { object, usage } = await generateObject({
+      model: google(toBareModelName(modelId)),
+      schema: MiraSentimentSchema,
+      prompt: `Analyze this classroom speech transcript for a teacher and a researcher.
+
+Transcript:
+"""
+${sourceText}
+"""
+
+Return observable sentiment dimensions, short evidence spans copied from the transcript, an intent label, a risk label, one parent-safe summary, and one next teacher move.`,
+      system:
+        'You are Mira, Tuturuuu’s internal education assistant. Analyze learner sentiment with classroom usefulness and research observability. Do not diagnose mental health.',
+    });
+
+    deductAiCredits({
+      wsId: resolvedWsId,
+      userId: context.user.id,
+      modelId,
+      inputTokens: usage.inputTokens ?? 0,
+      outputTokens: usage.outputTokens ?? 0,
+      reasoningTokens:
+        usage.outputTokenDetails?.reasoningTokens ?? usage.reasoningTokens ?? 0,
+      feature: 'generate',
+    }).catch((error: unknown) =>
+      serverLogger.warn('Failed to deduct Valsea sentiment credits', error)
+    );
+
+    stages.push({
+      durationMs: Math.round(performance.now() - startedAt),
+      id: 'mira-sentiment',
+      inputSummary: summarizeText(sourceText),
+      label: 'Mira sentiment lab',
+      model: modelId,
+      outputSummary: `${object.sentiment} / ${object.intent}`,
+      provider: 'mira',
+      raw: object,
+      status: 'success',
+    });
+
+    return object;
+  } catch (error) {
+    stages.push({
+      durationMs: Math.round(performance.now() - startedAt),
+      id: 'mira-sentiment',
+      inputSummary: summarizeText(sourceText),
+      label: 'Mira sentiment lab',
+      outputSummary:
+        error instanceof PlanModelResolutionError
+          ? error.message
+          : 'Mira sentiment layer unavailable',
+      provider: 'mira',
+      status: 'skipped',
+    });
+    serverLogger.warn('Mira sentiment layer unavailable', error);
+    return null;
+  }
+}
+
 async function parsePayload(request: NextRequest): Promise<ParsePayloadResult> {
   const contentType = request.headers.get('content-type') ?? '';
 
@@ -374,11 +612,22 @@ export const POST = withSessionAuth<Params>(
         pronunciationModel,
         targetLanguage,
       } = parsed.data;
+      const stages: ObservabilityStage[] = [];
       const driveFile = audioStoragePath
-        ? await readDriveAudioFile({
-            audioFileName,
-            audioStoragePath,
-            wsId,
+        ? await runObservedStage({
+            id: 'drive-audio',
+            inputSummary: audioStoragePath,
+            label: 'Drive audio fetch',
+            operation: () =>
+              readDriveAudioFile({
+                audioFileName,
+                audioStoragePath,
+                wsId,
+              }),
+            outputSummary: (result) =>
+              `${result.name} / ${Math.round(result.size / 1024)} KB`,
+            provider: 'tuturuuu-drive',
+            stages,
           })
         : undefined;
       const file = parsed.data.file ?? driveFile;
@@ -391,8 +640,30 @@ export const POST = withSessionAuth<Params>(
       }
 
       const transcription = file
-        ? await transcribeAudio(request, file, language)
+        ? await runObservedStage({
+            id: 'valsea-transcription',
+            inputSummary: `${file.name} / ${Math.round(file.size / 1024)} KB`,
+            label: 'Valsea transcription',
+            model: 'valsea-transcribe',
+            operation: () => transcribeAudio(request, file, language),
+            outputSummary: (result) =>
+              summarizeText(
+                getString(result, 'raw_transcript') || getString(result, 'text')
+              ),
+            provider: 'valsea',
+            stages,
+          })
         : null;
+      if (!file) {
+        stages.push({
+          id: 'valsea-transcription',
+          inputSummary: summarizeText(parsed.data.transcript),
+          label: 'Valsea transcription',
+          outputSummary: 'Text-only run',
+          provider: 'valsea',
+          status: 'skipped',
+        });
+      }
       const spokenTranscript =
         getString(transcription ?? undefined, 'raw_transcript') ||
         getString(transcription ?? undefined, 'text');
@@ -408,19 +679,41 @@ export const POST = withSessionAuth<Params>(
 
       const languageHint = language === 'auto' ? undefined : language;
       const [clarification, annotations] = await Promise.all([
-        postValseaJson(request, '/clarifications', {
-          language: languageHint,
+        runObservedStage({
+          id: 'valsea-clarification',
+          inputSummary: summarizeText(transcript),
+          label: 'Valsea clarification',
           model: 'valsea-clarify',
-          response_format: 'verbose_json',
-          text: transcript,
+          operation: () =>
+            postValseaJson(request, '/clarifications', {
+              language: languageHint,
+              model: 'valsea-clarify',
+              response_format: 'verbose_json',
+              text: transcript,
+            }),
+          outputSummary: (result) =>
+            summarizeText(getString(result, 'clarified_text')),
+          provider: 'valsea',
+          stages,
         }),
-        postValseaJson(request, '/annotations', {
-          enable_correction: true,
-          enable_tags: true,
-          language: languageHint,
+        runObservedStage({
+          id: 'valsea-annotations',
+          inputSummary: summarizeText(transcript),
+          label: 'Valsea annotations',
           model: 'valsea-annotate',
-          response_format: 'verbose_json',
-          text: transcript,
+          operation: () =>
+            postValseaJson(request, '/annotations', {
+              enable_correction: true,
+              enable_tags: true,
+              language: languageHint,
+              model: 'valsea-annotate',
+              response_format: 'verbose_json',
+              text: transcript,
+            }),
+          outputSummary: (result) =>
+            `${getSemanticTags(result).length} semantic cues`,
+          provider: 'valsea',
+          stages,
         }),
       ]);
 
@@ -432,37 +725,101 @@ export const POST = withSessionAuth<Params>(
       ];
 
       const [translation, formatting, sentiment] = await Promise.all([
-        postValseaJson(request, '/translations', {
+        runObservedStage({
+          id: 'valsea-translation',
+          inputSummary: summarizeText(clarifiedText),
+          label: 'Valsea translation',
           model: 'valsea-translate',
-          response_format: 'verbose_json',
-          source: 'auto',
-          target: targetLanguage,
-          text: clarifiedText,
+          operation: () =>
+            postValseaJson(request, '/translations', {
+              model: 'valsea-translate',
+              response_format: 'verbose_json',
+              source: 'auto',
+              target: targetLanguage,
+              text: clarifiedText,
+            }),
+          outputSummary: (result) =>
+            summarizeText(getString(result, 'translated_text')),
+          provider: 'valsea',
+          stages,
         }),
-        postValseaJson(request, '/formatting', {
+        runObservedStage({
+          id: 'valsea-artifact',
+          inputSummary: `${outputType} / ${semanticTags.length} cues`,
+          label: 'Valsea artifact',
           model: 'valsea-format',
-          output_type: outputType,
-          response_format: 'verbose_json',
-          semantic_tags: semanticTags,
-          transcript: clarifiedText,
+          operation: () =>
+            postValseaJson(request, '/formatting', {
+              model: 'valsea-format',
+              output_type: outputType,
+              response_format: 'verbose_json',
+              semantic_tags: semanticTags,
+              transcript: clarifiedText,
+            }),
+          outputSummary: (result) =>
+            summarizeText(parseValseaTextOutput(result)),
+          provider: 'valsea',
+          stages,
         }),
-        postValseaJson(request, '/sentiment', {
+        runObservedStage({
+          id: 'valsea-sentiment',
+          inputSummary: summarizeText(clarifiedText),
+          label: 'Valsea sentiment',
           model: 'valsea-sentiment',
-          response_format: 'verbose_json',
-          semantic_tags: semanticTags,
-          transcript: clarifiedText,
+          operation: () =>
+            postValseaJson(request, '/sentiment', {
+              model: 'valsea-sentiment',
+              response_format: 'verbose_json',
+              semantic_tags: semanticTags,
+              transcript: clarifiedText,
+            }),
+          outputSummary: (result) =>
+            [getString(result, 'sentiment'), getNumber(result, 'confidence')]
+              .filter(Boolean)
+              .join(' / '),
+          provider: 'valsea',
+          stages,
         }),
       ]);
+      const miraSentiment = await generateMiraSentimentLayer({
+        context,
+        sourceText: clarifiedText,
+        stages,
+        wsId,
+      });
       const pronunciation =
         file && referenceTranscript
-          ? await gradeVoicePronunciation({
-              assessorModel: pronunciationModel,
-              file,
-              language,
-              referenceText: referenceTranscript,
-              transcription,
+          ? await runObservedStage({
+              id: 'local-pronunciation',
+              inputSummary: summarizeText(referenceTranscript),
+              label: 'Local pronunciation',
+              model: pronunciationModel,
+              operation: () =>
+                gradeVoicePronunciation({
+                  assessorModel: pronunciationModel,
+                  file,
+                  language,
+                  referenceText: referenceTranscript,
+                  transcription,
+                }),
+              outputSummary: (result) =>
+                result.status === 'graded'
+                  ? `${result.overallScore}% / ${result.nativeSimilarity}% native-like`
+                  : result.status,
+              provider: 'local-model',
+              stages,
             })
           : null;
+      if (!pronunciation) {
+        stages.push({
+          id: 'local-pronunciation',
+          inputSummary: summarizeText(referenceTranscript),
+          label: 'Local pronunciation',
+          outputSummary: file ? 'No reference phrase' : 'No audio',
+          provider: 'local-model',
+          status: 'skipped',
+        });
+      }
 
       return NextResponse.json({
         annotations: {
@@ -487,10 +844,27 @@ export const POST = withSessionAuth<Params>(
         pronunciation,
         sentiment: {
           confidence: getNumber(sentiment, 'confidence'),
+          consensus: getSentimentConsensus({
+            mira: miraSentiment,
+            valsea: sentiment,
+          }),
           emotions: getStringArray(sentiment, 'emotions'),
+          layers: {
+            mira: miraSentiment
+              ? {
+                  ...miraSentiment,
+                  provider: 'mira',
+                  raw: miraSentiment,
+                }
+              : undefined,
+            valsea: getValseaSentimentLayer(sentiment),
+          },
           raw: sentiment,
           reasoning: getString(sentiment, 'reasoning'),
           sentiment: getString(sentiment, 'sentiment'),
+        },
+        observability: {
+          stages,
         },
         source: {
           audioStoragePath,

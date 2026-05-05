@@ -192,6 +192,8 @@ services:
       - PRONUNCIATION_ASSESSOR_WHISPER_MEDIUM_MODEL=${PRONUNCIATION_ASSESSOR_WHISPER_MEDIUM_MODEL:-openai/whisper-medium}
       - PRONUNCIATION_ASSESSOR_WHISPER_SMALL_MODEL=${PRONUNCIATION_ASSESSOR_WHISPER_SMALL_MODEL:-openai/whisper-small}
       - PRONUNCIATION_ASSESSOR_WHISPER_TINY_MODEL=${PRONUNCIATION_ASSESSOR_WHISPER_TINY_MODEL:-openai/whisper-tiny}
+      - PIPER_DATA_DIR=/root/.cache/piper
+      - PIPER_DEFAULT_VOICE=${PIPER_DEFAULT_VOICE:-en_US-lessac-medium}
     expose:
       - "8010"
     ports:
@@ -205,10 +207,12 @@ services:
     init: true
     volumes:
       - platform-pronunciation-assessor-cache:/root/.cache/huggingface
+      - platform-voice-lab-cache:/root/.cache/piper
 
 volumes:
   platform-buildkit-state:
   platform-pronunciation-assessor-cache:
+  platform-voice-lab-cache:
   platform-web-app-node_modules:
   platform-web-ai-node_modules:
   platform-web-ai-dist:

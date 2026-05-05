@@ -18,6 +18,16 @@ export type PronunciationModelOption = {
   value: ValseaPronunciationAssessorModel;
 };
 
+export type ScenarioModeOption = {
+  labelKey: string;
+  value:
+    | 'parent_update'
+    | 'pronunciation_lab'
+    | 'regional_classroom'
+    | 'sentiment_lab'
+    | 'surprise';
+};
+
 export const INPUT_LANGUAGES: LanguageOption[] = [
   { labelKey: 'language_auto', value: 'auto' },
   { labelKey: 'language_singlish', value: 'singlish' },
@@ -79,11 +89,19 @@ export const PRONUNCIATION_MODELS: PronunciationModelOption[] = [
 
 export const SUGGESTED_PROMPTS = ['sample_1', 'sample_2', 'sample_3'] as const;
 
+export const SCENARIO_MODES: ScenarioModeOption[] = [
+  { labelKey: 'scenario_mode_surprise', value: 'surprise' },
+  { labelKey: 'scenario_mode_sentiment_lab', value: 'sentiment_lab' },
+  { labelKey: 'scenario_mode_pronunciation_lab', value: 'pronunciation_lab' },
+  { labelKey: 'scenario_mode_regional_classroom', value: 'regional_classroom' },
+  { labelKey: 'scenario_mode_parent_update', value: 'parent_update' },
+];
+
 export const STUDIO_STEPS = [
-  'pipeline_capture',
-  'pipeline_grade',
-  'pipeline_clarify',
-  'pipeline_translate',
-  'pipeline_understand',
-  'pipeline_teach',
+  'pipeline_mira',
+  'pipeline_voice',
+  'pipeline_preview',
+  'pipeline_valsea',
+  'pipeline_sentiment',
+  'pipeline_artifact',
 ] as const;

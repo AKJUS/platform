@@ -150,6 +150,8 @@ services:
       - PRONUNCIATION_ASSESSOR_WHISPER_MEDIUM_MODEL=${PRONUNCIATION_ASSESSOR_WHISPER_MEDIUM_MODEL:-openai/whisper-medium}
       - PRONUNCIATION_ASSESSOR_WHISPER_SMALL_MODEL=${PRONUNCIATION_ASSESSOR_WHISPER_SMALL_MODEL:-openai/whisper-small}
       - PRONUNCIATION_ASSESSOR_WHISPER_TINY_MODEL=${PRONUNCIATION_ASSESSOR_WHISPER_TINY_MODEL:-openai/whisper-tiny}
+      - PIPER_DATA_DIR=/root/.cache/piper
+      - PIPER_DEFAULT_VOICE=${PIPER_DEFAULT_VOICE:-en_US-lessac-medium}
     expose:
       - "8010"
     healthcheck:
@@ -161,6 +163,7 @@ services:
     init: true
     volumes:
       - platform-pronunciation-assessor-cache:/root/.cache/huggingface
+      - platform-voice-lab-cache:/root/.cache/piper
 
   log-drain-postgres:
     container_name: ${COMPOSE_PROJECT_NAME:-platform}-log-drain-postgres-1
@@ -282,3 +285,4 @@ volumes:
   platform-bun-install:
   platform-blue-green-watcher-node_modules:
   platform-pronunciation-assessor-cache:
+  platform-voice-lab-cache:

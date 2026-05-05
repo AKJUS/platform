@@ -5,6 +5,10 @@ import { serverLogger } from '@/lib/infrastructure/log-drain';
 type ValseaRecord = Record<string, unknown>;
 
 export type VoiceGradeLevel = 'amber' | 'green' | 'orange' | 'red';
+export type VoiceGradeStatus =
+  | 'graded'
+  | 'insufficient_speech'
+  | 'reference_mismatch';
 
 export interface VoiceGradeCharacter {
   character: string;
@@ -31,7 +35,9 @@ export interface VoiceGradeResult {
   overallScore: number;
   provider: 'local-model' | 'valsea-heuristic';
   raw?: unknown;
+  referenceCoverage?: number;
   referenceText: string;
+  status: VoiceGradeStatus;
   summary: string;
   words: VoiceGradeWord[];
 }
@@ -103,6 +109,14 @@ function tokenizeWords(value: string) {
   return value.match(/\S+/g) ?? [];
 }
 
+function getHeardText(transcription: ValseaRecord | null) {
+  return (
+    getString(transcription ?? undefined, 'raw_transcript') ||
+    getString(transcription ?? undefined, 'text') ||
+    ''
+  );
+}
+
 function isSoftMissingToken(value: string) {
   const normalized = normalizeToken(value);
   return SOFT_MISSING_TOKENS.has(normalized) || normalized.length <= 2;
@@ -148,6 +162,99 @@ function compareTokens(expected: string, heard: string) {
 
   const distance = levenshteinDistance(normalizedExpected, normalizedHeard);
   return clampScore((1 - distance / maxLength) * 100);
+}
+
+function getReferenceCoverage(referenceText: string, heardText: string) {
+  const expectedWords = tokenizeWords(referenceText)
+    .map(normalizeToken)
+    .filter(Boolean);
+  const heardWords = tokenizeWords(heardText)
+    .map(normalizeToken)
+    .filter(Boolean);
+
+  if (expectedWords.length === 0) return 1;
+  if (heardWords.length === 0) return 0;
+
+  const matchedExpectedWords = expectedWords.filter((expected) =>
+    heardWords.some((heard) => compareTokens(expected, heard) >= 82)
+  );
+
+  return matchedExpectedWords.length / expectedWords.length;
+}
+
+function getPronunciationStatus(referenceText: string, heardText: string) {
+  const expectedWords = tokenizeWords(referenceText).filter(Boolean);
+  const heardWords = tokenizeWords(heardText).filter(Boolean);
+  const referenceCoverage = getReferenceCoverage(referenceText, heardText);
+
+  if (expectedWords.length >= 4 && heardWords.length < 2) {
+    return {
+      referenceCoverage,
+      status: 'insufficient_speech' as const,
+    };
+  }
+
+  if (
+    expectedWords.length >= 8 &&
+    heardWords.length < Math.max(3, expectedWords.length * 0.35)
+  ) {
+    return {
+      referenceCoverage,
+      status: 'insufficient_speech' as const,
+    };
+  }
+
+  if (expectedWords.length >= 6 && referenceCoverage < 0.35) {
+    return {
+      referenceCoverage,
+      status: 'reference_mismatch' as const,
+    };
+  }
+
+  return {
+    referenceCoverage,
+    status: 'graded' as const,
+  };
+}
+
+function getSkippedSummary(status: Exclude<VoiceGradeStatus, 'graded'>) {
+  if (status === 'insufficient_speech') {
+    return 'Pronunciation grading was skipped because the recording does not contain enough of the reference phrase. Record the full phrase or clear the reference note before grading.';
+  }
+
+  return 'Pronunciation grading was skipped because the spoken transcript does not match the reference phrase. Use the actual spoken phrase as the reference or record the intended reference again.';
+}
+
+function buildSkippedGrade({
+  assessorModel,
+  heardText,
+  provider,
+  raw,
+  referenceCoverage,
+  referenceText,
+  status,
+}: {
+  assessorModel?: string;
+  heardText: string;
+  provider: VoiceGradeResult['provider'];
+  raw?: unknown;
+  referenceCoverage: number;
+  referenceText: string;
+  status: Exclude<VoiceGradeStatus, 'graded'>;
+}): VoiceGradeResult {
+  return {
+    assessorModel,
+    heardText,
+    nativeSimilarity: 0,
+    overallScore: 0,
+    provider,
+    raw,
+    referenceCoverage: Math.round(referenceCoverage * 100) / 100,
+    referenceText,
+    status,
+    summary: getSkippedSummary(status),
+    words: [],
+  };
 }
 
 function alignCharacters(expected: string, heard: string) {
@@ -355,10 +462,24 @@ function buildCharacterGrades(
 }
 
 function buildHeuristicGrade(input: GradeVoiceInput): VoiceGradeResult {
-  const heardText =
-    getString(input.transcription ?? undefined, 'raw_transcript') ||
-    getString(input.transcription ?? undefined, 'text') ||
-    '';
+  const heardText = getHeardText(input.transcription);
+  const pronunciationStatus = getPronunciationStatus(
+    input.referenceText,
+    heardText
+  );
+
+  if (pronunciationStatus.status !== 'graded') {
+    return buildSkippedGrade({
+      assessorModel: input.assessorModel,
+      heardText,
+      provider: 'valsea-heuristic',
+      raw: input.transcription,
+      referenceCoverage: pronunciationStatus.referenceCoverage,
+      referenceText: input.referenceText,
+      status: pronunciationStatus.status,
+    });
+  }
+
   const expectedWords = tokenizeWords(input.referenceText);
   const heardWords = tokenizeWords(heardText);
   const corrections = Array.isArray(input.transcription?.corrections)
@@ -401,7 +522,9 @@ function buildHeuristicGrade(input: GradeVoiceInput): VoiceGradeResult {
     overallScore,
     provider: 'valsea-heuristic',
     raw: input.transcription,
+    referenceCoverage: pronunciationStatus.referenceCoverage,
     referenceText: input.referenceText,
+    status: 'graded',
     summary:
       nativeSimilarity >= 85
         ? 'Native-like delivery with only minor classroom-level differences.'
@@ -474,6 +597,25 @@ function normalizeExternalGrade(
   data: ValseaRecord,
   fallback: VoiceGradeResult
 ): VoiceGradeResult {
+  const heardText = getString(data, 'heardText') || fallback.heardText;
+  const referenceText =
+    getString(data, 'referenceText') || fallback.referenceText;
+  const pronunciationStatus = getPronunciationStatus(referenceText, heardText);
+  const assessorModel =
+    getString(data, 'assessorModel') || fallback.assessorModel;
+
+  if (pronunciationStatus.status !== 'graded') {
+    return buildSkippedGrade({
+      assessorModel,
+      heardText,
+      provider: 'local-model',
+      raw: data,
+      referenceCoverage: pronunciationStatus.referenceCoverage,
+      referenceText,
+      status: pronunciationStatus.status,
+    });
+  }
+
   const externalWords = getRecordArray(data, 'words')
     .map(normalizeExternalWord)
     .filter((entry): entry is VoiceGradeWord => Boolean(entry));
@@ -494,8 +636,8 @@ function normalizeExternalGrade(
     : undefined;
 
   return {
-    heardText: getString(data, 'heardText') || fallback.heardText,
-    assessorModel: getString(data, 'assessorModel') || fallback.assessorModel,
+    assessorModel,
+    heardText,
     nativeSimilarity: clampScore(
       fallbackNative ??
         getNumber(data, 'nativeSimilarity') ??
@@ -506,7 +648,9 @@ function normalizeExternalGrade(
     ),
     provider: 'local-model',
     raw: data,
-    referenceText: getString(data, 'referenceText') || fallback.referenceText,
+    referenceCoverage: pronunciationStatus.referenceCoverage,
+    referenceText,
+    status: 'graded',
     summary: getString(data, 'summary') || fallback.summary,
     words: words.length ? words : fallback.words,
   };

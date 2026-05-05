@@ -5,9 +5,11 @@ import {
   generateValseaClassroomArtifact,
   generateValseaClassroomScenario,
   getValseaClassroomConfig,
+  synthesizeValseaClassroomSpeech,
   uploadValseaClassroomAudioToDrive,
   type ValseaClassroomOutputType,
   type ValseaClassroomScenarioResponse,
+  type ValseaClassroomSpeechResponse,
   type ValseaPronunciationAssessorModel,
   validateValseaClassroomApiKey,
 } from '@tuturuuu/internal-api';
@@ -17,7 +19,7 @@ import { getTranscriptInsights, type ValseaTranslate } from './insights';
 import { ValseaKeyDialog } from './key-dialog';
 import { EmptyState, PipelineStrip, ResultsGrid } from './result-panels';
 import {
-  HeroPanel,
+  type AudioSource,
   MissionBrief,
   ScenarioConsole,
   StudioComposer,
@@ -37,6 +39,9 @@ export function ValseaClassroomClient({ wsId }: { wsId: string }) {
   const [pronunciationModel, setPronunciationModel] =
     useState<ValseaPronunciationAssessorModel>('local-whisper-large-v3-turbo');
   const [file, setFile] = useState<File | undefined>();
+  const [selectedAudioSource, setSelectedAudioSource] = useState<
+    AudioSource | undefined
+  >();
   const [audioPreviewUrl, setAudioPreviewUrl] = useState<string | undefined>();
   const [audioUploadProgress, setAudioUploadProgress] = useState<number | null>(
     null
@@ -44,10 +49,15 @@ export function ValseaClassroomClient({ wsId }: { wsId: string }) {
   const [draftApiKey, setDraftApiKey] = useState('');
   const [validatedApiKey, setValidatedApiKey] = useState('');
   const [keyDialogOpen, setKeyDialogOpen] = useState(false);
+  const [isBrowserKeyHydrated, setIsBrowserKeyHydrated] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingError, setRecordingError] = useState<string | undefined>();
   const [scenario, setScenario] =
     useState<ValseaClassroomScenarioResponse | null>(null);
+  const [scenarioMode, setScenarioMode] = useState('surprise');
+  const [scenarioPrompt, setScenarioPrompt] = useState('');
+  const [generatedSpeech, setGeneratedSpeech] =
+    useState<ValseaClassroomSpeechResponse | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordingChunksRef = useRef<Blob[]>([]);
   const recordingStreamRef = useRef<MediaStream | null>(null);
@@ -60,7 +70,10 @@ export function ValseaClassroomClient({ wsId }: { wsId: string }) {
 
   const hasApiKey =
     Boolean(validatedApiKey.trim()) || Boolean(configQuery.data?.hasServerKey);
-  const canGenerate = file || transcript.trim().length > 0;
+  const hasSelectedGeneratedAudio =
+    selectedAudioSource === 'generated' && Boolean(generatedSpeech);
+  const canGenerate =
+    file || hasSelectedGeneratedAudio || transcript.trim().length > 0;
   const transcriptInsights = useMemo(
     () =>
       getTranscriptInsights({
@@ -103,11 +116,17 @@ export function ValseaClassroomClient({ wsId }: { wsId: string }) {
               setAudioUploadProgress(progress.percent),
           })
         : null;
+      const generatedUpload = hasSelectedGeneratedAudio
+        ? {
+            fileName: generatedSpeech?.audioFileName,
+            path: generatedSpeech?.audioStoragePath,
+          }
+        : null;
 
       return generateValseaClassroomArtifact(wsId, {
         apiKey: validatedApiKey.trim() || undefined,
-        audioFileName: audioUpload?.fileName,
-        audioStoragePath: audioUpload?.path,
+        audioFileName: audioUpload?.fileName ?? generatedUpload?.fileName,
+        audioStoragePath: audioUpload?.path ?? generatedUpload?.path,
         language,
         outputType,
         pronunciationModel,
@@ -134,11 +153,18 @@ export function ValseaClassroomClient({ wsId }: { wsId: string }) {
   const scenarioMutation = useMutation({
     mutationFn: () =>
       generateValseaClassroomScenario(wsId, {
-        seed: `${Date.now()}-${outputType}-${targetLanguage}`,
+        mode: scenarioMode as
+          | 'parent_update'
+          | 'pronunciation_lab'
+          | 'regional_classroom'
+          | 'sentiment_lab'
+          | 'surprise',
+        prompt: scenarioPrompt.trim() || undefined,
+        seed: `${Date.now()}-${scenarioMode}-${outputType}-${targetLanguage}`,
       }),
     onSuccess: (nextScenario) => {
       setScenario(nextScenario);
-      setTranscript(nextScenario.referencePhrase);
+      setTranscript(nextScenario.learnerLine || nextScenario.referencePhrase);
       setLanguage(nextScenario.sourceLanguage);
       setTargetLanguage(nextScenario.targetLanguage);
       setOutputType(nextScenario.outputType);
@@ -149,6 +175,30 @@ export function ValseaClassroomClient({ wsId }: { wsId: string }) {
       setAudioUploadProgress(null);
       setRecordingError(undefined);
       setFile(undefined);
+      setGeneratedSpeech(null);
+      setSelectedAudioSource(undefined);
+    },
+  });
+
+  const speechMutation = useMutation({
+    mutationFn: () =>
+      synthesizeValseaClassroomSpeech(wsId, {
+        language: scenario?.voice.language || language,
+        pace: scenario?.voice.pace ?? 1,
+        speakerId: scenario?.voice.speakerId,
+        text: transcript.trim(),
+        voiceId: scenario?.voice.voiceId || 'en_US-lessac-medium',
+      }),
+    onSuccess: (speech) => {
+      setGeneratedSpeech(speech);
+      setSelectedAudioSource(undefined);
+      setAudioUploadProgress(100);
+      setRecordingError(undefined);
+      if (audioPreviewUrl) {
+        URL.revokeObjectURL(audioPreviewUrl);
+      }
+      setAudioPreviewUrl(undefined);
+      setFile(undefined);
     },
   });
 
@@ -157,7 +207,9 @@ export function ValseaClassroomClient({ wsId }: { wsId: string }) {
     if (cachedKey) {
       setDraftApiKey(cachedKey);
       setValidatedApiKey(cachedKey);
+      setKeyDialogOpen(false);
     }
+    setIsBrowserKeyHydrated(true);
   }, [apiKeyStorageKey]);
 
   useEffect(() => {
@@ -172,14 +224,18 @@ export function ValseaClassroomClient({ wsId }: { wsId: string }) {
   }, [audioPreviewUrl]);
 
   useEffect(() => {
+    if (!isBrowserKeyHydrated || !configQuery.data) {
+      return;
+    }
+
     if (
-      configQuery.data &&
       !configQuery.data.hasServerKey &&
-      !validatedApiKey.trim()
+      !validatedApiKey.trim() &&
+      !draftApiKey.trim()
     ) {
       setKeyDialogOpen(true);
     }
-  }, [configQuery.data, validatedApiKey]);
+  }, [configQuery.data, draftApiKey, isBrowserKeyHydrated, validatedApiKey]);
 
   useEffect(() => {
     let context: { revert: () => void } | undefined;
@@ -253,7 +309,10 @@ export function ValseaClassroomClient({ wsId }: { wsId: string }) {
     keyValidationMutation.mutate(trimmedKey);
   };
 
-  const handleAudioFileChange = (nextFile: File | undefined) => {
+  const handleAudioFileChange = (
+    nextFile: File | undefined,
+    source: AudioSource = 'uploaded'
+  ) => {
     if (audioPreviewUrl) {
       URL.revokeObjectURL(audioPreviewUrl);
     }
@@ -261,6 +320,7 @@ export function ValseaClassroomClient({ wsId }: { wsId: string }) {
     setAudioUploadProgress(null);
     setRecordingError(undefined);
     setFile(nextFile);
+    setSelectedAudioSource(nextFile ? source : undefined);
   };
 
   const handleStartRecording = async () => {
@@ -295,7 +355,7 @@ export function ValseaClassroomClient({ wsId }: { wsId: string }) {
           `valsea-live-${new Date().toISOString().replaceAll(':', '-')}.webm`,
           { type: blob.type || 'audio/webm' }
         );
-        handleAudioFileChange(recordedFile);
+        handleAudioFileChange(recordedFile, 'recorded');
         stream.getTracks().forEach((track) => {
           track.stop();
         });
@@ -326,6 +386,17 @@ export function ValseaClassroomClient({ wsId }: { wsId: string }) {
     }
   };
 
+  const handleUseGeneratedSpeech = () => {
+    if (!generatedSpeech) return;
+    setSelectedAudioSource('generated');
+    setFile(undefined);
+    if (audioPreviewUrl) {
+      URL.revokeObjectURL(audioPreviewUrl);
+    }
+    setAudioPreviewUrl(undefined);
+    setAudioUploadProgress(100);
+  };
+
   return (
     <main
       ref={shellRef}
@@ -350,7 +421,6 @@ export function ValseaClassroomClient({ wsId }: { wsId: string }) {
           t={t}
         />
 
-        <HeroPanel hasApiKey={hasApiKey} scenario={scenario} t={t} />
         <MissionBrief
           hasApiKey={hasApiKey}
           insights={transcriptInsights}
@@ -365,8 +435,10 @@ export function ValseaClassroomClient({ wsId }: { wsId: string }) {
               audioPreviewUrl={audioPreviewUrl}
               audioUploadProgress={audioUploadProgress}
               file={file}
+              generatedSpeech={generatedSpeech}
               isGenerating={mutation.isPending}
               isGeneratingScenario={scenarioMutation.isPending}
+              isSynthesizingSpeech={speechMutation.isPending}
               isRecording={isRecording}
               language={language}
               onApiKeyChange={handleApiKeyChange}
@@ -381,13 +453,20 @@ export function ValseaClassroomClient({ wsId }: { wsId: string }) {
               onPronunciationModelChange={(value) =>
                 setPronunciationModel(value as ValseaPronunciationAssessorModel)
               }
+              onScenarioModeChange={setScenarioMode}
+              onScenarioPromptChange={setScenarioPrompt}
               onStartRecording={handleStartRecording}
               onStopRecording={handleStopRecording}
+              onSynthesizeSpeech={() => speechMutation.mutate()}
               onTargetLanguageChange={setTargetLanguage}
               onTranscriptChange={setTranscript}
+              onUseGeneratedSpeech={handleUseGeneratedSpeech}
               outputType={outputType}
               pronunciationModel={pronunciationModel}
               recordingError={recordingError}
+              scenarioMode={scenarioMode}
+              scenarioPrompt={scenarioPrompt}
+              selectedAudioSource={selectedAudioSource}
               targetLanguage={targetLanguage}
               t={t}
               transcript={transcript}
@@ -405,6 +484,11 @@ export function ValseaClassroomClient({ wsId }: { wsId: string }) {
             {scenarioMutation.error ? (
               <div className="valsea-reveal rounded-md border border-dynamic-red/25 bg-dynamic-red/10 p-4 text-dynamic-red text-sm">
                 {scenarioMutation.error.message}
+              </div>
+            ) : null}
+            {speechMutation.error ? (
+              <div className="valsea-reveal rounded-md border border-dynamic-red/25 bg-dynamic-red/10 p-4 text-dynamic-red text-sm">
+                {speechMutation.error.message}
               </div>
             ) : null}
             <PipelineStrip

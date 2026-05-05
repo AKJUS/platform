@@ -93,6 +93,7 @@ export function getResultInsights(
   t: ValseaTranslate
 ): StudioInsight[] {
   const pronunciation = result.pronunciation;
+  const hasPronunciationGrade = pronunciation?.status === 'graded';
   const tagCount = result.annotations.semanticTags.length;
   const confidence =
     typeof result.sentiment.confidence === 'number'
@@ -120,17 +121,21 @@ export function getResultInsights(
     },
     {
       detail: pronunciation
-        ? t('insight_native_like', {
-            score: pronunciation.nativeSimilarity,
-          })
+        ? hasPronunciationGrade
+          ? t('insight_native_like', {
+              score: pronunciation.nativeSimilarity,
+            })
+          : pronunciation.status
         : t('insight_needs_audio_detail'),
       label: pronunciation
         ? t('insight_voice_evidence_label')
         : t('insight_text_evidence_label'),
       tone: pronunciation ? 'pink' : 'yellow',
-      value: pronunciation
+      value: hasPronunciationGrade
         ? `${pronunciation.overallScore}%`
-        : t('insight_skip_value'),
+        : pronunciation
+          ? t('insight_skip_value')
+          : t('insight_skip_value'),
     },
     {
       detail: result.sentiment.sentiment || t('insight_tone_unknown'),

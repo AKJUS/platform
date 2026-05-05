@@ -1,6 +1,8 @@
 import gc
+import base64
 import json
 import os
+import subprocess
 import tempfile
 import time
 from dataclasses import dataclass
@@ -10,7 +12,7 @@ from typing import Any
 import librosa
 import numpy as np
 import torch
-from fastapi import FastAPI, File, Form, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel
 from rapidfuzz.distance import Levenshtein
 from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
@@ -56,6 +58,19 @@ SUPPORTED_ASSESSOR_MODELS = {
     *LOCAL_WHISPER_MODEL_IDS.keys(),
     LOCAL_ASSESSOR_MODEL,
 }
+PIPER_DATA_DIR = os.getenv("PIPER_DATA_DIR", "/root/.cache/piper")
+PIPER_EXECUTABLE = os.getenv("PIPER_EXECUTABLE", "piper")
+PIPER_DEFAULT_VOICE = os.getenv("PIPER_DEFAULT_VOICE", "en_US-lessac-medium")
+PIPER_VOICES = {
+    "en_US-lessac-medium": {
+        "language": "english",
+        "label": "English classroom narrator",
+    },
+    "en_GB-alan-medium": {
+        "language": "english",
+        "label": "British English narrator",
+    },
+}
 
 app = FastAPI(title="Tuturuuu Pronunciation Assessor")
 
@@ -73,6 +88,14 @@ class LoadedLocalModel:
 
 class ModelRequest(BaseModel):
     model: str | None = None
+
+
+class TtsRequest(BaseModel):
+    language: str = "english"
+    pace: float = 1.0
+    speakerId: int | None = None
+    text: str
+    voiceId: str = PIPER_DEFAULT_VOICE
 
 
 loaded_local_models: dict[str, LoadedLocalModel] = {}
@@ -177,6 +200,74 @@ def get_loaded_model_snapshot() -> list[dict[str, Any]]:
         }
         for loaded in loaded_local_models.values()
     ]
+
+
+def get_piper_voice_id(voice_id: str | None) -> str:
+    if voice_id and voice_id in PIPER_VOICES:
+        return voice_id
+    if voice_id and voice_id.strip():
+        return voice_id.strip()
+    return PIPER_DEFAULT_VOICE
+
+
+def get_piper_length_scale(pace: float) -> str:
+    safe_pace = min(1.4, max(0.6, pace or 1.0))
+    return f"{1 / safe_pace:.3f}"
+
+
+def run_piper_tts(request: TtsRequest) -> dict[str, Any]:
+    voice_id = get_piper_voice_id(request.voiceId)
+    os.makedirs(PIPER_DATA_DIR, exist_ok=True)
+
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=True) as output_file:
+        command = [
+            PIPER_EXECUTABLE,
+            "--model",
+            voice_id,
+            "--download-dir",
+            PIPER_DATA_DIR,
+            "--output_file",
+            output_file.name,
+            "--length-scale",
+            get_piper_length_scale(request.pace),
+        ]
+        if request.speakerId is not None:
+            command.extend(["--speaker", str(request.speakerId)])
+
+        started_at = time.monotonic()
+        process = subprocess.run(
+            command,
+            input=request.text,
+            text=True,
+            capture_output=True,
+            timeout=90,
+            check=False,
+        )
+        duration_ms = int((time.monotonic() - started_at) * 1000)
+
+        if process.returncode != 0:
+            raise RuntimeError(
+                process.stderr.strip()
+                or f"Piper exited with status {process.returncode}"
+            )
+
+        output_file.seek(0)
+        audio = output_file.read()
+
+    return {
+        "audioBase64": base64.b64encode(audio).decode("ascii"),
+        "contentType": "audio/wav",
+        "durationMs": duration_ms,
+        "engine": "piper",
+        "model": voice_id,
+        "trace": {
+            "dataDir": PIPER_DATA_DIR,
+            "language": request.language,
+            "lengthScale": get_piper_length_scale(request.pace),
+            "speakerId": request.speakerId,
+        },
+        "voiceId": voice_id,
+    }
 
 
 def release_torch_memory() -> None:
@@ -465,6 +556,31 @@ def models() -> dict[str, Any]:
         "maxLoadedLocalModels": LOCAL_MODEL_MAX_LOADED,
         "supportedModels": sorted(SUPPORTED_ASSESSOR_MODELS),
     }
+
+
+@app.get("/tts/voices")
+def tts_voices() -> dict[str, Any]:
+    return {
+        "defaultVoice": PIPER_DEFAULT_VOICE,
+        "engine": "piper",
+        "voices": [
+            {
+                "id": voice_id,
+                **metadata,
+            }
+            for voice_id, metadata in PIPER_VOICES.items()
+        ],
+    }
+
+
+@app.post("/tts/synthesize")
+def synthesize_tts(request: TtsRequest) -> dict[str, Any]:
+    if not request.text.strip():
+        raise HTTPException(status_code=400, detail="text is required")
+    try:
+        return run_piper_tts(request)
+    except Exception as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
 
 
 @app.post("/models/load")

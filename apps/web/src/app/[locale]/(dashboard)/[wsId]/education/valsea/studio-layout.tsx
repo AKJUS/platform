@@ -8,12 +8,15 @@ import {
   KeyRound,
   Languages,
   Loader2,
+  Play,
   Sparkles,
+  Volume2,
   WandSparkles,
 } from '@tuturuuu/icons';
 import type {
   ValseaClassroomOutputType,
   ValseaClassroomScenarioResponse,
+  ValseaClassroomSpeechResponse,
   ValseaPronunciationAssessorModel,
 } from '@tuturuuu/internal-api';
 import { Badge } from '@tuturuuu/ui/badge';
@@ -39,10 +42,14 @@ import {
   type OutputOption,
   PRONUNCIATION_MODELS,
   type PronunciationModelOption,
+  SCENARIO_MODES,
+  type ScenarioModeOption,
   SUGGESTED_PROMPTS,
   TARGET_LANGUAGES,
 } from './constants';
 import type { StudioInsight } from './insights';
+
+export type AudioSource = 'generated' | 'recorded' | 'uploaded';
 
 export function StudioNav({
   hasApiKey,
@@ -365,8 +372,10 @@ export function StudioComposer({
   audioUploadProgress,
   canGenerate,
   file,
+  generatedSpeech,
   isGenerating,
   isGeneratingScenario,
+  isSynthesizingSpeech,
   isRecording,
   language,
   onApiKeyChange,
@@ -377,13 +386,20 @@ export function StudioComposer({
   onLanguageChange,
   onOutputTypeChange,
   onPronunciationModelChange,
+  onScenarioModeChange,
+  onScenarioPromptChange,
   onStartRecording,
   onStopRecording,
+  onSynthesizeSpeech,
   onTargetLanguageChange,
   onTranscriptChange,
+  onUseGeneratedSpeech,
   outputType,
   pronunciationModel,
   recordingError,
+  scenarioMode,
+  scenarioPrompt,
+  selectedAudioSource,
   targetLanguage,
   t,
   transcript,
@@ -393,8 +409,10 @@ export function StudioComposer({
   audioUploadProgress?: number | null;
   canGenerate: boolean;
   file?: File;
+  generatedSpeech?: ValseaClassroomSpeechResponse | null;
   isGenerating: boolean;
   isGeneratingScenario: boolean;
+  isSynthesizingSpeech: boolean;
   isRecording: boolean;
   language: string;
   onApiKeyChange: (value: string) => void;
@@ -405,13 +423,20 @@ export function StudioComposer({
   onLanguageChange: (value: string) => void;
   onOutputTypeChange: (value: string) => void;
   onPronunciationModelChange: (value: string) => void;
+  onScenarioModeChange: (value: string) => void;
+  onScenarioPromptChange: (value: string) => void;
   onStartRecording: () => void;
   onStopRecording: () => void;
+  onSynthesizeSpeech: () => void;
   onTargetLanguageChange: (value: string) => void;
   onTranscriptChange: (value: string) => void;
+  onUseGeneratedSpeech: () => void;
   outputType: ValseaClassroomOutputType;
   pronunciationModel: ValseaPronunciationAssessorModel;
   recordingError?: string;
+  scenarioMode: string;
+  scenarioPrompt: string;
+  selectedAudioSource?: AudioSource;
   targetLanguage: string;
   t: ReturnType<typeof useTranslations>;
   transcript: string;
@@ -430,22 +455,45 @@ export function StudioComposer({
           </p>
         </div>
 
-        <Button
-          className="min-h-11 w-full gap-2 border-dynamic-cyan/25 bg-dynamic-cyan/10 text-dynamic-cyan hover:bg-dynamic-cyan/15"
-          disabled={isGeneratingScenario}
-          onClick={onGenerateScenario}
-          type="button"
-          variant="outline"
-        >
-          {isGeneratingScenario ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Brain className="h-4 w-4" />
-          )}
-          {isGeneratingScenario
-            ? t('scenario_generating')
-            : t('scenario_generate_short')}
-        </Button>
+        <div className="rounded-md border border-dynamic-cyan/20 bg-dynamic-cyan/5 p-3">
+          <div className="grid gap-3 sm:grid-cols-[0.8fr_1.2fr]">
+            <SelectField
+              id="valsea-scenario-mode"
+              label={t('scenario_mode_label')}
+              onValueChange={onScenarioModeChange}
+              options={SCENARIO_MODES}
+              t={t}
+              value={scenarioMode}
+            />
+            <div className="space-y-2">
+              <Label htmlFor="valsea-scenario-prompt">
+                {t('scenario_prompt_label')}
+              </Label>
+              <Input
+                id="valsea-scenario-prompt"
+                onChange={(event) => onScenarioPromptChange(event.target.value)}
+                placeholder={t('scenario_prompt_placeholder')}
+                value={scenarioPrompt}
+              />
+            </div>
+          </div>
+          <Button
+            className="mt-3 min-h-11 w-full gap-2 border-dynamic-cyan/25 bg-dynamic-cyan/10 text-dynamic-cyan hover:bg-dynamic-cyan/15"
+            disabled={isGeneratingScenario}
+            onClick={onGenerateScenario}
+            type="button"
+            variant="outline"
+          >
+            {isGeneratingScenario ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Brain className="h-4 w-4" />
+            )}
+            {isGeneratingScenario
+              ? t('scenario_generating')
+              : t('scenario_generate_short')}
+          </Button>
+        </div>
 
         <div className="space-y-2">
           <Label htmlFor="valsea-transcript">{t('transcript_label')}</Label>
@@ -494,6 +542,64 @@ export function StudioComposer({
           t={t}
           value={pronunciationModel}
         />
+
+        <div className="rounded-md border border-dynamic-green/20 bg-dynamic-green/5 p-3">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <Label className="flex items-center gap-2">
+                <Volume2 className="h-4 w-4 text-dynamic-green" />
+                {t('generated_voice_title')}
+              </Label>
+              <p className="mt-1 text-foreground/58 text-xs leading-5">
+                {t('generated_voice_hint')}
+              </p>
+            </div>
+            <Badge variant="outline">
+              {selectedAudioSource === 'generated'
+                ? t('audio_source_selected')
+                : t('audio_source_generated')}
+            </Badge>
+          </div>
+          <div className="grid gap-3">
+            <Button
+              className="min-h-11 gap-2"
+              disabled={!transcript.trim() || isSynthesizingSpeech}
+              onClick={onSynthesizeSpeech}
+              type="button"
+              variant="outline"
+            >
+              {isSynthesizingSpeech ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Volume2 className="h-4 w-4" />
+              )}
+              {isSynthesizingSpeech
+                ? t('generated_voice_synthesizing')
+                : t('generated_voice_synthesize')}
+            </Button>
+            {generatedSpeech ? (
+              <div className="rounded-md border border-foreground/10 bg-background/70 p-3">
+                <WaveformPreview />
+                <audio
+                  aria-label={t('generated_voice_preview')}
+                  className="mt-3 w-full"
+                  controls
+                  src={generatedSpeech.previewDataUrl}
+                >
+                  <track kind="captions" />
+                </audio>
+                <Button
+                  className="mt-3 min-h-10 w-full gap-2"
+                  onClick={onUseGeneratedSpeech}
+                  type="button"
+                >
+                  <Play className="h-4 w-4" />
+                  {t('generated_voice_use')}
+                </Button>
+              </div>
+            ) : null}
+          </div>
+        </div>
 
         <div className="grid gap-3 sm:grid-cols-[1.2fr_0.8fr]">
           <AudioCapturePanel
@@ -567,7 +673,12 @@ function SelectField({
   id: string;
   label: string;
   onValueChange: (value: string) => void;
-  options: Array<LanguageOption | OutputOption | PronunciationModelOption>;
+  options: Array<
+    | LanguageOption
+    | OutputOption
+    | PronunciationModelOption
+    | ScenarioModeOption
+  >;
   t: ReturnType<typeof useTranslations>;
   value: string;
 }) {
@@ -586,6 +697,22 @@ function SelectField({
           ))}
         </SelectContent>
       </Select>
+    </div>
+  );
+}
+
+function WaveformPreview() {
+  return (
+    <div className="flex h-14 items-end gap-1 rounded-md border border-dynamic-green/20 bg-dynamic-green/5 p-2">
+      {Array.from({ length: 34 }, (_, index) => (
+        <span
+          className="w-full rounded-full bg-dynamic-green/80"
+          key={index}
+          style={{
+            height: `${22 + Math.abs(Math.sin(index * 0.74)) * 66}%`,
+          }}
+        />
+      ))}
     </div>
   );
 }

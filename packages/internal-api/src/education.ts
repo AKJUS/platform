@@ -132,22 +132,47 @@ export interface ValseaClassroomPayload {
 }
 
 export interface ValseaClassroomScenarioPayload {
-  mode?: 'parent_update' | 'pronunciation_lab' | 'regional_classroom';
+  mode?:
+    | 'parent_update'
+    | 'pronunciation_lab'
+    | 'regional_classroom'
+    | 'sentiment_lab'
+    | 'surprise';
+  prompt?: string;
   seed?: string;
+}
+
+export interface ValseaClassroomSentimentHypothesis {
+  emotions: string[];
+  intent: string;
+  mood: string;
+  risk: string;
+}
+
+export interface ValseaClassroomVoicePreset {
+  engine: 'piper';
+  language: string;
+  pace: number;
+  speakerId?: number;
+  voiceId: string;
 }
 
 export interface ValseaClassroomScenarioResponse {
   classroomContext: string;
   expectedConfusions: string[];
+  learnerLine: string;
   learnerPersona: string;
   outputType: ValseaClassroomOutputType;
   referencePhrase: string;
+  researchQuestion: string;
   rubric: string[];
   scenarioTags: string[];
+  sentimentHypothesis: ValseaClassroomSentimentHypothesis;
   sourceLanguage: string;
   targetLanguage: string;
   teacherGoal: string;
   title: string;
+  voice: ValseaClassroomVoicePreset;
 }
 
 export interface ValseaClassroomSemanticTag {
@@ -157,6 +182,10 @@ export interface ValseaClassroomSemanticTag {
 }
 
 export type ValseaVoiceGradeLevel = 'amber' | 'green' | 'orange' | 'red';
+export type ValseaVoiceGradeStatus =
+  | 'graded'
+  | 'insufficient_speech'
+  | 'reference_mismatch';
 
 export interface ValseaVoiceGradeCharacter {
   character: string;
@@ -183,9 +212,49 @@ export interface ValseaVoiceGradeResult {
   overallScore: number;
   provider: 'local-model' | 'valsea-heuristic';
   raw?: unknown;
+  referenceCoverage?: number;
   referenceText: string;
+  status: ValseaVoiceGradeStatus;
   summary: string;
   words: ValseaVoiceGradeWord[];
+}
+
+export interface ValseaSentimentEvidenceSpan {
+  end?: number;
+  label: string;
+  quote: string;
+  start?: number;
+}
+
+export interface ValseaSentimentLayer {
+  arousal?: number;
+  confusion?: number;
+  confidence?: number;
+  emotions?: string[];
+  engagement?: number;
+  evidenceSpans?: ValseaSentimentEvidenceSpan[];
+  intent?: string;
+  parentSafeSummary?: string;
+  politeness?: number;
+  provider: 'mira' | 'valsea';
+  raw?: unknown;
+  risk?: string;
+  sentiment?: string;
+  teacherMove?: string;
+  urgency?: number;
+  valence?: number;
+}
+
+export interface ValseaObservabilityStage {
+  durationMs?: number;
+  id: string;
+  inputSummary?: string;
+  label: string;
+  model?: string;
+  outputSummary?: string;
+  provider: string;
+  raw?: unknown;
+  status: 'error' | 'skipped' | 'success';
 }
 
 export interface ValseaClassroomArtifactResponse {
@@ -207,10 +276,18 @@ export interface ValseaClassroomArtifactResponse {
   };
   sentiment: {
     confidence?: number;
+    consensus?: string;
     emotions: string[];
+    layers?: {
+      mira?: ValseaSentimentLayer;
+      valsea?: ValseaSentimentLayer;
+    };
     raw: unknown;
     reasoning?: string;
     sentiment?: string;
+  };
+  observability?: {
+    stages: ValseaObservabilityStage[];
   };
   source: {
     audioStoragePath?: string;
@@ -245,6 +322,32 @@ export interface ValseaClassroomAudioUploadResult {
   fileSize: number;
   fullPath: string | null;
   path: string;
+}
+
+export interface ValseaClassroomSpeechPayload {
+  language: string;
+  pace?: number;
+  speakerId?: number;
+  text: string;
+  voiceId: string;
+}
+
+export interface ValseaClassroomSpeechResponse {
+  audioFileName: string;
+  audioStoragePath: string;
+  contentType: string;
+  engine: 'piper';
+  fileSize: number;
+  previewDataUrl: string;
+  trace: {
+    durationMs?: number;
+    engine: 'piper';
+    endpoint?: string;
+    model?: string;
+    provider: 'local-model';
+    voiceId: string;
+  };
+  voiceId: string;
 }
 
 interface ValseaClassroomAudioUploadUrlResponse {
@@ -291,6 +394,25 @@ export async function generateValseaClassroomScenario(
   const client = getInternalApiClient(options);
   return client.json<ValseaClassroomScenarioResponse>(
     `/api/v1/workspaces/${encodePathSegment(workspaceId)}/education/valsea/scenario`,
+    {
+      body: JSON.stringify(payload),
+      cache: 'no-store',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      method: 'POST',
+    }
+  );
+}
+
+export async function synthesizeValseaClassroomSpeech(
+  workspaceId: string,
+  payload: ValseaClassroomSpeechPayload,
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  return client.json<ValseaClassroomSpeechResponse>(
+    `/api/v1/workspaces/${encodePathSegment(workspaceId)}/education/valsea/speech`,
     {
       body: JSON.stringify(payload),
       cache: 'no-store',
