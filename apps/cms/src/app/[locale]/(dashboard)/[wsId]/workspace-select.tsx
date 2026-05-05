@@ -4,13 +4,11 @@ import { WorkspaceSelect as SharedWorkspaceSelect } from '@tuturuuu/ui/custom/wo
 import { fetchWorkspaces } from './actions';
 
 export function WorkspaceSelect({
-  t,
   wsId,
   hideLeading,
   customRedirectSuffix,
   disableCreateNewWorkspace,
 }: {
-  t: any;
   wsId: string;
   hideLeading?: boolean;
   customRedirectSuffix?: string;
@@ -18,7 +16,6 @@ export function WorkspaceSelect({
 }) {
   return (
     <SharedWorkspaceSelect
-      t={t}
       wsId={wsId}
       hideLeading={hideLeading}
       customRedirectSuffix={customRedirectSuffix}

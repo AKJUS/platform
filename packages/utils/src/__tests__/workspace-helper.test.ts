@@ -125,7 +125,32 @@ describe('workspace-helper tier lookup', () => {
     ]);
   });
 
-  it('returns null without querying when the workspace id is not a UUID or supported slug', async () => {
+  it('resolves workspace handles through direct lookup', async () => {
+    const workspaceQuery = createSingleWorkspaceQuery({
+      id: workspaceOneId,
+      name: 'Workspace Handle Match',
+      personal: false,
+      workspace_members: [{ user_id: 'user-1' }],
+    });
+    const subscriptionQuery = createSubscriptionLookupQuery([]);
+
+    mockCreateClient.mockResolvedValue(
+      createUserClient({
+        userId: 'user-1',
+        workspaceQuery,
+      })
+    );
+    mockCreateAdminClient.mockResolvedValue(
+      createAdminClient({ subscriptionQuery })
+    );
+
+    const workspace = await getWorkspace('traffic-advice');
+
+    expect(workspace?.id).toBe(workspaceOneId);
+    expect(workspaceQuery.eq).toHaveBeenCalledWith('handle', 'traffic-advice');
+  });
+
+  it('returns null without querying when the workspace id is malformed', async () => {
     const fromMock = vi.fn();
     const getUserMock = vi.fn();
 
@@ -134,7 +159,7 @@ describe('workspace-helper tier lookup', () => {
       from: fromMock,
     });
 
-    const workspace = await getWorkspace('traffic-advice');
+    const workspace = await getWorkspace('.well-known');
 
     expect(workspace).toBeNull();
     expect(getUserMock).not.toHaveBeenCalled();
@@ -224,6 +249,57 @@ describe('normalizeWorkspaceId', () => {
       'user-1'
     );
     expect(query.eq).toHaveBeenCalledWith('workspace_members.type', 'MEMBER');
+  });
+
+  it('resolves handle via admin fallback when request-scoped lookup cannot see workspace', async () => {
+    const requestScopedQuery = {
+      select: vi.fn(),
+      eq: vi.fn(),
+      maybeSingle: vi.fn(),
+    };
+    requestScopedQuery.select.mockReturnValue(requestScopedQuery);
+    requestScopedQuery.eq.mockReturnValue(requestScopedQuery);
+    requestScopedQuery.maybeSingle.mockResolvedValue({
+      data: null,
+      error: null,
+    });
+
+    const adminQuery = {
+      select: vi.fn(),
+      eq: vi.fn(),
+      maybeSingle: vi.fn(),
+    };
+    adminQuery.select.mockReturnValue(adminQuery);
+    adminQuery.eq.mockReturnValue(adminQuery);
+    adminQuery.maybeSingle.mockResolvedValue({
+      data: { id: '33333333-3333-4333-8333-333333333333' },
+      error: null,
+    });
+
+    mockCreateClient.mockResolvedValue({
+      auth: { getUser: vi.fn() },
+      from: vi.fn((table: string) => {
+        if (table !== 'workspaces') {
+          throw new Error(`Unexpected table lookup: ${table}`);
+        }
+        return requestScopedQuery;
+      }),
+    });
+
+    mockCreateAdminClient.mockResolvedValue({
+      from: vi.fn((table: string) => {
+        if (table !== 'workspaces') {
+          throw new Error(`Unexpected admin table lookup: ${table}`);
+        }
+        return adminQuery;
+      }),
+    });
+
+    const resolved = await normalizeWorkspaceId('triple-sss');
+
+    expect(resolved).toBe('33333333-3333-4333-8333-333333333333');
+    expect(requestScopedQuery.eq).toHaveBeenCalledWith('handle', 'triple-sss');
+    expect(adminQuery.eq).toHaveBeenCalledWith('handle', 'triple-sss');
   });
 });
 

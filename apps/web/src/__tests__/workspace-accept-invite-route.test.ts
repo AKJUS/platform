@@ -1,7 +1,12 @@
 import { NextRequest } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+const NORMALIZED_WS_ID = '11111111-1111-4111-8111-111111111111';
+
 const mocks = vi.hoisted(() => {
+  const normalizeWorkspaceId = vi.fn(
+    async () => '11111111-1111-4111-8111-111111111111'
+  );
   const authGetUser = vi.fn();
   const sessionInviteMaybeSingle = vi.fn();
   const sessionEmailInviteIn = vi.fn();
@@ -108,6 +113,7 @@ const mocks = vi.hoisted(() => {
     adminSupabase,
     adminWorkspaceSingle,
     authGetUser,
+    normalizeWorkspaceId,
     sessionEmailInviteIn,
     sessionInviteMaybeSingle,
     sessionSupabase,
@@ -120,6 +126,7 @@ vi.mock('@tuturuuu/supabase/next/server', () => ({
 }));
 
 vi.mock('@tuturuuu/utils/workspace-helper', () => ({
+  normalizeWorkspaceId: mocks.normalizeWorkspaceId,
   resolveGuestSelfJoinCandidate: vi.fn(() =>
     Promise.resolve({
       allowGuestSelfJoin: false,
@@ -154,6 +161,9 @@ describe('POST /api/workspaces/[wsId]/accept-invite', () => {
       data: { user: { id: 'user-1', email: 'auth@example.com' } },
       error: null,
     });
+    mocks.normalizeWorkspaceId.mockResolvedValue(
+      '11111111-1111-4111-8111-111111111111'
+    );
 
     mocks.adminWorkspaceSingle.mockResolvedValue({
       data: { personal: false },
@@ -211,6 +221,28 @@ describe('POST /api/workspaces/[wsId]/accept-invite', () => {
     expect(resolveGuestSelfJoinCandidate).toHaveBeenCalled();
   }, 20000);
 
+  it('returns 404 for unresolved non-UUID workspace id after auth check', async () => {
+    const { resolveGuestSelfJoinCandidate } = await import(
+      '@tuturuuu/utils/workspace-helper'
+    );
+    mocks.normalizeWorkspaceId.mockResolvedValueOnce('triple-sss');
+
+    const { POST } = await import(
+      '@/app/api/workspaces/[wsId]/accept-invite/route'
+    );
+
+    const response = await POST(new NextRequest('http://localhost/test'), {
+      params: Promise.resolve({ wsId: 'triple-sss' }),
+    });
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toMatchObject({
+      errorCode: 'WORKSPACE_NOT_FOUND',
+    });
+    expect(mocks.authGetUser).toHaveBeenCalled();
+    expect(resolveGuestSelfJoinCandidate).not.toHaveBeenCalled();
+  });
+
   it('joins as guest via RPC candidate when enabled', async () => {
     const { resolveGuestSelfJoinCandidate } = await import(
       '@tuturuuu/utils/workspace-helper'
@@ -237,7 +269,7 @@ describe('POST /api/workspaces/[wsId]/accept-invite', () => {
     expect(mocks.adminLinkedUsersUpsert).toHaveBeenCalledWith(
       expect.objectContaining({
         platform_user_id: 'user-1',
-        ws_id: 'ws-1',
+        ws_id: NORMALIZED_WS_ID,
         virtual_user_id: 'virtual-user-1',
       }),
       expect.objectContaining({
@@ -246,7 +278,7 @@ describe('POST /api/workspaces/[wsId]/accept-invite', () => {
     );
     expect(mocks.adminMembershipInsert).toHaveBeenCalledWith(
       expect.objectContaining({
-        ws_id: 'ws-1',
+        ws_id: NORMALIZED_WS_ID,
         user_id: 'user-1',
         type: 'GUEST',
       })

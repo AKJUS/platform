@@ -5,10 +5,12 @@ import {
   createClient,
 } from '@tuturuuu/supabase/next/server';
 import {
+  normalizeWorkspaceId,
   resolveGuestSelfJoinCandidate,
   verifyWorkspaceMembershipType,
 } from '@tuturuuu/utils/workspace-helper';
 import { NextResponse } from 'next/server';
+import { validate as validateUUID } from 'uuid';
 import {
   assignSeatToMember,
   revokeSeatFromMember,
@@ -45,15 +47,39 @@ function normalizeGuestJoinErrorCode(
 
 export async function POST(request: Request, { params }: Params) {
   const supabase = await createClient(request);
-  const sbAdmin = await createAdminClient();
-  const { wsId } = await params;
+  const { wsId: rawWsId } = await params;
 
-  // Get authenticated user
+  // Get authenticated user before workspace normalization.
   const { user, authError } = await resolveAuthenticatedSessionUser(supabase);
 
   if (authError || !user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  let wsId: string;
+  try {
+    wsId = await normalizeWorkspaceId(rawWsId, supabase);
+  } catch {
+    return NextResponse.json(
+      {
+        error: 'Workspace not found',
+        errorCode: 'WORKSPACE_NOT_FOUND',
+      },
+      { status: 404 }
+    );
+  }
+
+  if (!validateUUID(wsId)) {
+    return NextResponse.json(
+      {
+        error: 'Workspace not found',
+        errorCode: 'WORKSPACE_NOT_FOUND',
+      },
+      { status: 404 }
+    );
+  }
+
+  const sbAdmin = await createAdminClient();
 
   // Block accepting invites for personal workspaces
   const { data: wsData } = await sbAdmin

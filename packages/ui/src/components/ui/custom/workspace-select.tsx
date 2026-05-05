@@ -4,11 +4,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   CheckIcon,
   ChevronDown,
+  Link,
   Loader2,
   PlusCircle,
   Star,
 } from '@tuturuuu/icons';
 import { updateCurrentUserDefaultWorkspace } from '@tuturuuu/internal-api/users';
+import { acceptWorkspaceInvite } from '@tuturuuu/internal-api/workspaces';
+import type { InternalApiWorkspaceSummary } from '@tuturuuu/types';
 import type { WorkspaceUser } from '@tuturuuu/types/primitives/WorkspaceUser';
 import {
   PERSONAL_WORKSPACE_SLUG,
@@ -18,8 +21,10 @@ import {
 } from '@tuturuuu/utils/constants';
 import { cn } from '@tuturuuu/utils/format';
 import { getInitials } from '@tuturuuu/utils/name-helper';
+import { workspaceHandleSchema } from '@tuturuuu/utils/workspace-handle';
 import { WORKSPACE_LIMIT_ERROR_CODE } from '@tuturuuu/utils/workspace-limits';
 import { usePathname, useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -64,6 +69,10 @@ const FormSchema = z.object({
   name: z.string().min(1).max(100),
 });
 
+const JoinWorkspaceByHandleFormSchema = z.object({
+  handle: workspaceHandleSchema,
+});
+
 function WorkspaceIcon({
   name,
   avatarUrl,
@@ -100,7 +109,6 @@ function WorkspaceIcon({
 }
 
 export function WorkspaceSelect({
-  t,
   wsId,
   hideLeading,
   customRedirectSuffix,
@@ -111,12 +119,11 @@ export function WorkspaceSelect({
   createWorkspaceDescription,
   resolveNextPathname,
 }: {
-  t: any;
   wsId: string;
   hideLeading?: boolean;
   customRedirectSuffix?: string;
   disableCreateNewWorkspace?: boolean;
-  fetchWorkspaces: () => Promise<any[]>;
+  fetchWorkspaces: () => Promise<InternalApiWorkspaceSummary[]>;
   additionalFormFields?: ReactNode;
   showTierBadges?: boolean;
   createWorkspaceDescription?: ReactNode;
@@ -125,6 +132,7 @@ export function WorkspaceSelect({
     nextSlug: string;
   }) => string;
 }) {
+  const t = useTranslations();
   const router = useRouter();
   const pathname = usePathname();
   const queryClient = useQueryClient();
@@ -148,11 +156,19 @@ export function WorkspaceSelect({
       name: '',
     },
   });
+  const joinByHandleForm = useForm({
+    resolver: zodResolver(JoinWorkspaceByHandleFormSchema),
+    defaultValues: {
+      handle: '',
+    },
+  });
 
   const [open, setOpen] = useState(false);
   const [showNewWorkspaceDialog, setShowNewWorkspaceDialog] = useState(false);
+  const [showJoinWorkspaceDialog, setShowJoinWorkspaceDialog] = useState(false);
 
   const [loading, setLoading] = useState(false);
+  const [joiningByHandle, setJoiningByHandle] = useState(false);
 
   const updateDefaultWorkspaceMutation = useMutation({
     mutationFn: (workspaceId: string) =>
@@ -252,7 +268,7 @@ export function WorkspaceSelect({
           label: rootWorkspace.name || t('common.root'),
           value: ROOT_WORKSPACE_ID,
           avatarUrl: rootWorkspace.avatar_url || TUTURUUU_LOGO_URL,
-          tier: (rootWorkspace as any)?.tier as
+          tier: rootWorkspace.tier as
             | 'FREE'
             | 'PLUS'
             | 'PRO'
@@ -270,7 +286,7 @@ export function WorkspaceSelect({
           label: personalWorkspace.name || 'Personal',
           value: PERSONAL_WORKSPACE_SLUG,
           avatarUrl: personalWorkspace.avatar_url,
-          tier: (personalWorkspace as any)?.tier as
+          tier: personalWorkspace.tier as
             | 'FREE'
             | 'PLUS'
             | 'PRO'
@@ -283,14 +299,7 @@ export function WorkspaceSelect({
       id: 'workspaces',
       label: t('common.workspaces'),
       teams: nonPersonalWorkspaces.map(
-        (workspace: {
-          id: string;
-          name: string | null;
-          created_by_me?: boolean;
-          personal?: boolean;
-          avatar_url?: string | null;
-          tier?: 'FREE' | 'PLUS' | 'PRO' | 'ENTERPRISE' | null;
-        }) => ({
+        (workspace: InternalApiWorkspaceSummary) => ({
           id: workspace.id,
           label: workspace.name || 'Untitled',
           value: toWorkspaceSlug(workspace.id, {
@@ -338,14 +347,103 @@ export function WorkspaceSelect({
   const workspace =
     wsId === PERSONAL_WORKSPACE_SLUG
       ? personalWorkspace
-      : workspaces?.find((ws: { id: string }) => ws.id === resolvedWorkspaceId);
+      : workspaces?.find((ws) => ws.id === resolvedWorkspaceId);
   if (!wsId) return <div />;
+
+  async function onJoinByHandleSubmit(
+    formData: z.infer<typeof JoinWorkspaceByHandleFormSchema>
+  ) {
+    setJoiningByHandle(true);
+    const slug = formData.handle.trim().toLowerCase();
+
+    try {
+      await acceptWorkspaceInvite(slug);
+      toast.success(t('common.join_workspace_success'));
+      joinByHandleForm.reset({ handle: '' });
+      setShowJoinWorkspaceDialog(false);
+      setOpen(false);
+
+      void queryClient.invalidateQueries({ queryKey: ['workspaces'] });
+      void queryClient.invalidateQueries({ queryKey: ['user-workspaces'] });
+      void queryClient.invalidateQueries({ queryKey: ['workspace-user'] });
+
+      router.push(`/${slug}`);
+    } catch (error) {
+      console.error('Error accepting workspace invite:', error);
+      const message =
+        error instanceof Error ? error.message : t('common.error');
+      toast.error(t('common.error'), { description: message });
+    } finally {
+      setJoiningByHandle(false);
+    }
+  }
 
   return (
     <>
       {hideLeading || wsId === ROOT_WORKSPACE_ID || (
         <div className="mx-1 h-4 w-px flex-none rotate-30 bg-foreground/20" />
       )}
+      <Dialog
+        open={showJoinWorkspaceDialog}
+        onOpenChange={(open) => {
+          joinByHandleForm.reset({ handle: '' });
+          setShowJoinWorkspaceDialog(open);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t('common.join_workspace')}</DialogTitle>
+            <DialogDescription>
+              {t('common.join_workspace_by_slug_description')}
+            </DialogDescription>
+          </DialogHeader>
+          <Form {...joinByHandleForm}>
+            <form
+              onSubmit={joinByHandleForm.handleSubmit(onJoinByHandleSubmit)}
+              className="grid gap-2"
+            >
+              <FormField
+                control={joinByHandleForm.control}
+                name="handle"
+                disabled={joiningByHandle}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t('common.workspace_slug')}</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder={t('common.workspace_slug_placeholder')}
+                        {...field}
+                        onChange={(event) => {
+                          field.onChange(event.target.value.toLowerCase());
+                        }}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowJoinWorkspaceDialog(false)}
+                >
+                  {t('common.cancel')}
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={
+                    joiningByHandle || !joinByHandleForm.formState.isValid
+                  }
+                >
+                  {t('common.continue')}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
       <Dialog
         open={showNewWorkspaceDialog}
         onOpenChange={(open) => {
@@ -388,23 +486,22 @@ export function WorkspaceSelect({
                 <span className="line-clamp-1 min-w-0 flex-1 break-all text-xs">
                   {workspace?.name || `${t('common.loading')}...`}
                 </span>
-                {showTierBadges && (workspace as any)?.tier !== undefined && (
+                {showTierBadges && workspace?.tier !== undefined && (
                   <Badge
                     variant="outline"
                     className={cn(
                       'h-4 shrink-0 px-1 py-0 font-medium text-[10px]',
-                      (!(workspace as any)?.tier ||
-                        (workspace as any)?.tier === 'FREE') &&
+                      (!workspace?.tier || workspace?.tier === 'FREE') &&
                         'border-muted-foreground/30 bg-muted/50 text-muted-foreground',
-                      (workspace as any)?.tier === 'PLUS' &&
+                      workspace?.tier === 'PLUS' &&
                         'border-dynamic-blue/50 bg-dynamic-blue/10 text-dynamic-blue',
-                      (workspace as any)?.tier === 'PRO' &&
+                      workspace?.tier === 'PRO' &&
                         'border-dynamic-purple/50 bg-dynamic-purple/10 text-dynamic-purple',
-                      (workspace as any)?.tier === 'ENTERPRISE' &&
+                      workspace?.tier === 'ENTERPRISE' &&
                         'border-dynamic-amber/50 bg-dynamic-amber/10 text-dynamic-amber'
                     )}
                   >
-                    {(workspace as any)?.tier || 'FREE'}
+                    {workspace?.tier || 'FREE'}
                   </Badge>
                 )}
               </div>
@@ -544,6 +641,19 @@ export function WorkspaceSelect({
                   </CommandGroup>
                 ))}
               </CommandList>
+              <CommandSeparator />
+              <CommandGroup>
+                <CommandItem
+                  onSelect={() => {
+                    setOpen(false);
+                    setShowJoinWorkspaceDialog(true);
+                  }}
+                >
+                  <Link className="h-5 w-5" />
+                  {t('common.join_workspace')}
+                </CommandItem>
+              </CommandGroup>
+
               {!disableCreateNewWorkspace && (
                 <>
                   <CommandSeparator />

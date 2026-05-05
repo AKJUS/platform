@@ -7,6 +7,7 @@ import { Button } from '@tuturuuu/ui/button';
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -16,6 +17,7 @@ import { useForm } from '@tuturuuu/ui/hooks/use-form';
 import { Input } from '@tuturuuu/ui/input';
 import { zodResolver } from '@tuturuuu/ui/resolvers';
 import { toast } from '@tuturuuu/ui/sonner';
+import { workspaceHandleSchema } from '@tuturuuu/utils/workspace-handle';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef } from 'react';
@@ -23,16 +25,18 @@ import * as z from 'zod';
 
 interface Props {
   wsId: string;
+  defaultName?: string | null;
   defaultValue?: string | null;
   disabled?: boolean;
 }
 
 const FormSchema = z.object({
-  name: z.string().min(1).max(50).optional(),
+  handle: workspaceHandleSchema,
 });
 
-export default function NameInput({
+export default function HandleInput({
   wsId,
+  defaultName = '',
   defaultValue = '',
   disabled,
 }: Props) {
@@ -40,16 +44,17 @@ export default function NameInput({
   const router = useRouter();
 
   const updateWorkspaceMutation = useMutation({
-    mutationFn: async ({ name }: { name: string }) =>
+    mutationFn: async ({ handle }: { handle: string }) =>
       updateWorkspace(wsId, {
-        name,
+        name: defaultName ?? '',
+        handle,
       }),
   });
 
   const form = useForm({
     resolver: zodResolver(FormSchema),
     defaultValues: {
-      name: defaultValue || '',
+      handle: defaultValue || '',
     },
   });
 
@@ -57,7 +62,7 @@ export default function NameInput({
   useEffect(() => {
     if (Object.is(prevDefault.current, defaultValue)) return;
     prevDefault.current = defaultValue;
-    form.reset({ name: defaultValue ?? '' });
+    form.reset({ handle: defaultValue ?? '' });
   }, [defaultValue, form.reset]);
 
   const { isDirty } = form.formState;
@@ -65,16 +70,20 @@ export default function NameInput({
 
   async function onSubmit(data: z.infer<typeof FormSchema>) {
     try {
-      await updateWorkspaceMutation.mutateAsync({ name: data.name ?? '' });
-      toast.success(t('name_updated'), {
-        description: t('name_updated_description'),
+      await updateWorkspaceMutation.mutateAsync({ handle: data.handle });
+      toast.success(t('handle_updated'), {
+        description: t('handle_updated_description'),
       });
-
       router.refresh();
-      form.reset({ name: data.name });
-    } catch {
-      toast.error(t('name_update_error'), {
-        description: t('name_update_error_description'),
+      form.reset({ handle: data.handle.toLowerCase() });
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : t('handle_update_error_description');
+
+      toast.error(t('handle_update_error'), {
+        description: message,
       });
     }
   }
@@ -84,16 +93,19 @@ export default function NameInput({
       <form onSubmit={form.handleSubmit(onSubmit)} className="grid gap-4">
         <FormField
           control={form.control}
-          name="name"
+          name="handle"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{t('name')}</FormLabel>
+              <FormLabel>{t('handle')}</FormLabel>
               <div className="flex min-w-0 items-center gap-2">
                 <FormControl className="min-w-0 flex-1">
                   <Input
-                    placeholder={t('name_placeholder')}
+                    placeholder={t('handle_placeholder')}
                     disabled={disabled}
                     {...field}
+                    onChange={(event) => {
+                      field.onChange(event.target.value.toLowerCase());
+                    }}
                   />
                 </FormControl>
                 <Button
@@ -109,6 +121,9 @@ export default function NameInput({
                   )}
                 </Button>
               </div>
+              <FormDescription className="text-xs">
+                {t('handle_description')}
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}

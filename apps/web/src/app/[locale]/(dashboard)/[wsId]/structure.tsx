@@ -496,7 +496,6 @@ export function Structure({
         }
       >
         <WorkspaceSelect
-          t={t}
           wsId={wsId}
           hideLeading={isCollapsed}
           disableCreateNewWorkspace={disableCreateNewWorkspace}

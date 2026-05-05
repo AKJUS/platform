@@ -63,6 +63,8 @@ export default async function WorkspaceSettingsPage({ params }: Props) {
 
   const isRootWorkspace = ws?.id === ROOT_WORKSPACE_ID;
   const canManageWorkspace = containsPermission('manage_workspace_settings');
+  const allowWorkspaceBasicsEdit =
+    !isRootWorkspace && (Boolean(ws.personal) || canManageWorkspace);
 
   const enableSecurity =
     !isRootWorkspace &&
@@ -98,16 +100,14 @@ export default async function WorkspaceSettingsPage({ params }: Props) {
             ...ws,
             name: id === 'personal' ? 'Personal Workspace' : ws?.name,
           }}
-          allowEdit={
-            id !== 'personal' && !isRootWorkspace && canManageWorkspace
-          }
+          allowEdit={allowWorkspaceBasicsEdit}
           isPersonal={id === 'personal'}
         />
 
         <WorkspaceAvatarSettings
           user={user}
           workspace={ws}
-          allowEdit={id !== 'personal' && canManageWorkspace}
+          allowEdit={allowWorkspaceBasicsEdit}
         />
 
         {enableLogo && (

@@ -2,19 +2,24 @@
 
 import { ArrowRight, Loader2 } from '@tuturuuu/icons';
 import { Button } from '@tuturuuu/ui/button';
+import { Input } from '@tuturuuu/ui/input';
 import { motion } from 'framer-motion';
 import { useTranslations } from 'next-intl';
+import { useState } from 'react';
 
 interface WelcomeScreenProps {
   onGetStarted: () => void;
+  onJoinByHandle?: (handle: string) => void;
   loading?: boolean;
 }
 
 export function WelcomeScreen({
   onGetStarted,
+  onJoinByHandle,
   loading = false,
 }: WelcomeScreenProps) {
   const t = useTranslations('onboarding.welcome');
+  const [joinHandle, setJoinHandle] = useState('');
 
   return (
     <div className="flex min-h-screen items-center justify-center p-4">
@@ -66,6 +71,7 @@ export function WelcomeScreen({
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4, duration: 0.5 }}
+          className="space-y-4"
         >
           <Button
             onClick={onGetStarted}
@@ -94,6 +100,31 @@ export function WelcomeScreen({
           >
             {t('completion-time')}
           </motion.p>
+
+          <div className="mx-auto flex max-w-md flex-col gap-2">
+            <p className="text-muted-foreground text-sm">
+              {t('join-by-slug-label')}
+            </p>
+            <div className="flex gap-2">
+              <Input
+                aria-label={t('join-by-slug-label')}
+                value={joinHandle}
+                onChange={(event) =>
+                  setJoinHandle(event.target.value.toLowerCase())
+                }
+                placeholder={t('join-by-slug-placeholder')}
+                disabled={loading}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                disabled={loading || joinHandle.trim().length === 0}
+                onClick={() => onJoinByHandle?.(joinHandle.trim())}
+              >
+                {t('join-by-slug-action')}
+              </Button>
+            </div>
+          </div>
         </motion.div>
       </div>
     </div>

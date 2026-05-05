@@ -5,6 +5,7 @@ import { createClient } from '@tuturuuu/supabase/next/client';
 import type { WorkspaceUser } from '@tuturuuu/types/primitives/WorkspaceUser';
 import { LoadingIndicator } from '@tuturuuu/ui/custom/loading-indicator';
 import { toast } from '@tuturuuu/ui/sonner';
+import { workspaceHandleSchema } from '@tuturuuu/utils/workspace-handle';
 import { AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -225,6 +226,15 @@ export default function OnboardingFlow({
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleJoinWorkspaceByHandle = (handle: string) => {
+    const parsedHandle = workspaceHandleSchema.safeParse(
+      handle.trim().toLowerCase()
+    );
+    if (!parsedHandle.success) return;
+
+    router.push(`/${encodeURIComponent(parsedHandle.data)}`);
   };
 
   // Handle use case selection
@@ -516,6 +526,7 @@ export default function OnboardingFlow({
           <WelcomeScreen
             key="welcome"
             onGetStarted={handleWelcomeComplete}
+            onJoinByHandle={handleJoinWorkspaceByHandle}
             loading={loading}
           />
         );
@@ -595,6 +606,7 @@ export default function OnboardingFlow({
           <WelcomeScreen
             key="welcome-default"
             onGetStarted={handleWelcomeComplete}
+            onJoinByHandle={handleJoinWorkspaceByHandle}
             loading={loading}
           />
         );
