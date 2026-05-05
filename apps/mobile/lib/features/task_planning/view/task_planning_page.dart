@@ -12,7 +12,6 @@ import 'package:mobile/core/router/routes.dart';
 import 'package:mobile/data/models/task_initiative_summary.dart';
 import 'package:mobile/data/models/task_label.dart';
 import 'package:mobile/data/models/task_project_summary.dart';
-import 'package:mobile/data/models/workspace.dart';
 import 'package:mobile/data/repositories/task_repository.dart';
 import 'package:mobile/data/repositories/workspace_permissions_repository.dart';
 import 'package:mobile/data/sources/api_client.dart';
@@ -23,7 +22,6 @@ import 'package:mobile/features/task_portfolio/cubit/task_portfolio_cubit.dart';
 import 'package:mobile/features/task_portfolio/view/task_portfolio_actions.dart';
 import 'package:mobile/features/task_portfolio/widgets/task_portfolio_cards.dart';
 import 'package:mobile/features/task_portfolio/widgets/task_portfolio_feedback.dart';
-import 'package:mobile/features/tasks/utils/task_board_navigation.dart';
 import 'package:mobile/features/tasks_estimates/cubit/task_estimates_cubit.dart';
 import 'package:mobile/features/tasks_estimates/cubit/task_labels_cubit.dart';
 import 'package:mobile/features/tasks_estimates/widgets/task_estimate_boards_section.dart';
@@ -144,12 +142,9 @@ class _TaskPlanningViewState extends State<TaskPlanningView> {
   late final WorkspacePermissionsRepository _permissionsRepository;
   late final TaskRepository _taskRepository;
   String? _permissionsWorkspaceId;
-  String? _personalDefaultBoardWorkspaceId;
-  String? _personalDefaultBoardId;
   bool _canManageProjects = false;
   bool _isCheckingPermissions = false;
   bool _hasResolvedPermissions = false;
-  bool _isLoadingPersonalDefaultBoard = false;
 
   TaskPortfolioActions get _portfolioActions => TaskPortfolioActions(
     context: context,
@@ -177,22 +172,17 @@ class _TaskPlanningViewState extends State<TaskPlanningView> {
   void didChangeDependencies() {
     super.didChangeDependencies();
 
-    final workspace = context.read<WorkspaceCubit>().state.currentWorkspace;
-    final wsId = workspace?.id;
+    final wsId = context.read<WorkspaceCubit>().state.currentWorkspace?.id;
     if (wsId != _permissionsWorkspaceId) {
       _permissionsWorkspaceId = wsId;
       _canManageProjects = false;
       _hasResolvedPermissions = wsId == null;
       unawaited(_loadPermissions());
     }
-    unawaited(_loadPersonalDefaultBoardIfNeeded(workspace));
   }
 
   @override
   Widget build(BuildContext context) {
-    final workspace = context.watch<WorkspaceCubit>().state.currentWorkspace;
-    final isPersonalWorkspace = workspace?.personal ?? false;
-
     return shad.Scaffold(
       child: MultiBlocListener(
         listeners: [
@@ -200,13 +190,11 @@ class _TaskPlanningViewState extends State<TaskPlanningView> {
             listenWhen: (prev, curr) =>
                 prev.currentWorkspace?.id != curr.currentWorkspace?.id,
             listener: (context, state) {
-              final workspace = state.currentWorkspace;
-              final wsId = workspace?.id;
+              final wsId = state.currentWorkspace?.id;
               _permissionsWorkspaceId = wsId;
               _canManageProjects = false;
               _hasResolvedPermissions = wsId == null;
               unawaited(_loadPermissions());
-              unawaited(_loadPersonalDefaultBoardIfNeeded(workspace));
               if (wsId == null) return;
               unawaited(context.read<TaskEstimatesCubit>().loadBoards(wsId));
               unawaited(context.read<TaskLabelsCubit>().loadLabels(wsId));
@@ -217,16 +205,15 @@ class _TaskPlanningViewState extends State<TaskPlanningView> {
             listenWhen: (previous, current) =>
                 previous.user?.id != current.user?.id,
             listener: (context, state) {
-              final workspace = context
+              final wsId = context
                   .read<WorkspaceCubit>()
                   .state
-                  .currentWorkspace;
-              final wsId = workspace?.id;
+                  .currentWorkspace
+                  ?.id;
               _permissionsWorkspaceId = wsId;
               _canManageProjects = false;
               _hasResolvedPermissions = wsId == null;
               unawaited(_loadPermissions());
-              unawaited(_loadPersonalDefaultBoardIfNeeded(workspace));
               if (wsId == null) return;
               unawaited(context.read<TaskEstimatesCubit>().loadBoards(wsId));
               unawaited(
@@ -247,7 +234,7 @@ class _TaskPlanningViewState extends State<TaskPlanningView> {
         child: Stack(
           children: [
             _buildContent(context),
-            if (isPersonalWorkspace) _buildPersonalMiniNav(context),
+            _buildPlanningMiniNav(context),
             if (_canManageProjects && _activeTab == _TaskPlanningTab.labels)
               ExtendedFab(
                 label: context.l10n.taskLabelsCreate,

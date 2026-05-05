@@ -44,6 +44,10 @@ void main() {
       await cubit.close();
     });
 
+    test('defaults to agenda view', () {
+      expect(cubit.state.viewMode, CalendarViewMode.agenda);
+    });
+
     test('reuses fresh cached state across cubit instances', () async {
       when(
         () => repository.getEvents(

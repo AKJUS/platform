@@ -117,6 +117,24 @@ void main() {
       expect(labels, ['Overview', 'Activity', 'Wallets', 'Manage']);
     });
 
+    testWidgets('calendar nav defaults to agenda label', (tester) async {
+      late List<String> labels;
+
+      await tester.pumpApp(
+        Builder(
+          builder: (context) {
+            final calendar = AppRegistry.moduleById('calendar')!;
+            labels = calendar.miniAppNavItems
+                .map((item) => item.labelBuilder(context.l10n))
+                .toList(growable: false);
+            return const SizedBox.shrink();
+          },
+        ),
+      );
+
+      expect(labels, ['Agenda']);
+    });
+
     testWidgets('habits nav uses today, activity, and library labels', (
       tester,
     ) async {

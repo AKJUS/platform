@@ -11,7 +11,7 @@ class CalendarState extends Equatable {
     this.isFromCache = false,
     this.isRefreshing = false,
     this.lastUpdatedAt,
-    this.viewMode = CalendarViewMode.threeDays,
+    this.viewMode = CalendarViewMode.agenda,
     this.selectedDate,
     this.focusedMonth,
     this.events = const [],

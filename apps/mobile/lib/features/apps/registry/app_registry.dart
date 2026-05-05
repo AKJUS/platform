@@ -221,10 +221,10 @@ class AppRegistry {
 
   static const List<MiniAppNavItem> _calendarMiniNav = [
     MiniAppNavItem(
-      id: 'calendar_home',
+      id: 'calendar_agenda',
       route: Routes.calendar,
-      icon: Icons.calendar_today_outlined,
-      labelBuilder: _labelCalendar,
+      icon: Icons.view_agenda_outlined,
+      labelBuilder: _labelCalendarAgenda,
     ),
   ];
 
@@ -508,6 +508,8 @@ class AppRegistry {
       l10n.taskPlanningTitle;
   static String _labelTaskBoards(AppLocalizations l10n) => l10n.taskBoardsTitle;
   static String _labelCalendar(AppLocalizations l10n) => l10n.navCalendar;
+  static String _labelCalendarAgenda(AppLocalizations l10n) =>
+      l10n.calendarAgendaView;
   static String _labelFinance(AppLocalizations l10n) => l10n.navFinance;
   static String _labelDrive(AppLocalizations l10n) => l10n.driveTitle;
   static String _labelDocuments(AppLocalizations l10n) => l10n.documentsTitle;

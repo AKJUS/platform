@@ -86,7 +86,7 @@ class CalendarCubit extends Cubit<CalendarState> {
     final center = DateTime.now();
     final targetRange = _targetRangeFor(
       center,
-      CalendarViewMode.threeDays,
+      CalendarViewMode.agenda,
     );
     final start = targetRange.start;
     final end = targetRange.end;
@@ -105,7 +105,7 @@ class CalendarCubit extends Cubit<CalendarState> {
         return {
           'selectedDate': center.toIso8601String(),
           'focusedMonth': DateTime(center.year, center.month).toIso8601String(),
-          'viewMode': CalendarViewMode.threeDays.name,
+          'viewMode': CalendarViewMode.agenda.name,
           'events': events
               .map((event) => event.toJson())
               .toList(growable: false),
@@ -470,7 +470,7 @@ class CalendarCubit extends Cubit<CalendarState> {
 
     final viewMode = CalendarViewMode.values.firstWhere(
       (value) => value.name == json['viewMode'],
-      orElse: () => CalendarViewMode.threeDays,
+      orElse: () => CalendarViewMode.agenda,
     );
 
     return CalendarState(

@@ -61,11 +61,6 @@ extension _TaskPlanningContent on _TaskPlanningViewState {
                         listBottomPadding,
                       ),
                       children: [
-                        _TaskPlanningSegmentedControl(
-                          activeTab: _activeTab,
-                          onChanged: _selectTab,
-                        ),
-                        const shad.Gap(12),
                         ..._activeTabItems(
                           context,
                           estimatesState,
@@ -225,48 +220,5 @@ extension _TaskPlanningContent on _TaskPlanningViewState {
           );
         })
         .toList(growable: false);
-  }
-}
-
-class _TaskPlanningSegmentedControl extends StatelessWidget {
-  const _TaskPlanningSegmentedControl({
-    required this.activeTab,
-    required this.onChanged,
-  });
-
-  final _TaskPlanningTab activeTab;
-  final ValueChanged<_TaskPlanningTab> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: SegmentedButton<_TaskPlanningTab>(
-        segments: [
-          ButtonSegment(
-            value: _TaskPlanningTab.estimates,
-            icon: const Icon(Icons.calculate_outlined),
-            label: Text(context.l10n.taskEstimatesTitle),
-          ),
-          ButtonSegment(
-            value: _TaskPlanningTab.labels,
-            icon: const Icon(Icons.label_outline),
-            label: Text(context.l10n.taskLabelsTab),
-          ),
-          ButtonSegment(
-            value: _TaskPlanningTab.projects,
-            icon: const Icon(Icons.folder_open_outlined),
-            label: Text(context.l10n.taskPortfolioProjectsTab),
-          ),
-          ButtonSegment(
-            value: _TaskPlanningTab.initiatives,
-            icon: const Icon(Icons.account_tree_outlined),
-            label: Text(context.l10n.taskPortfolioInitiativesTab),
-          ),
-        ],
-        selected: {activeTab},
-        onSelectionChanged: (value) => onChanged(value.first),
-      ),
-    );
   }
 }

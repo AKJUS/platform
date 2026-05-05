@@ -1,113 +1,52 @@
 part of 'task_planning_page.dart';
 
 extension _TaskPlanningNavigation on _TaskPlanningViewState {
-  Widget _buildPersonalMiniNav(BuildContext context) {
+  Widget _buildPlanningMiniNav(BuildContext context) {
     return ShellMiniNav(
-      ownerId: 'personal-task-planning-mini-nav',
+      ownerId: 'task-planning-mini-nav',
       locations: const {Routes.taskPlanning},
-      deepLinkBackRoute: Routes.apps,
+      deepLinkBackRoute: Routes.tasks,
       items: [
         ShellMiniNavItemSpec(
           id: 'back',
           icon: Icons.chevron_left,
           label: context.l10n.navBack,
           callbackToken: 'back',
-          onPressed: () => context.go(Routes.apps),
+          onPressed: () => context.go(Routes.tasks),
         ),
         ShellMiniNavItemSpec(
-          id: 'tasks',
-          icon: shad.LucideIcons.userCheck,
-          label: context.l10n.navTasks,
-          enabled: !_isLoadingPersonalDefaultBoard,
-          callbackToken: 'tasks-${_personalDefaultBoardId ?? ''}',
-          onPressed: () => _openPersonalBoardView(taskBoardDetailViewList),
+          id: 'estimates',
+          icon: Icons.calculate_outlined,
+          label: context.l10n.taskEstimatesTitle,
+          selected: _activeTab == _TaskPlanningTab.estimates,
+          callbackToken: 'estimates-${_activeTab.name}',
+          onPressed: () => _selectTab(_TaskPlanningTab.estimates),
         ),
         ShellMiniNavItemSpec(
-          id: 'kanban',
-          icon: Icons.view_kanban_outlined,
-          label: context.l10n.taskBoardDetailKanbanView,
-          enabled: !_isLoadingPersonalDefaultBoard,
-          callbackToken: 'kanban-${_personalDefaultBoardId ?? ''}',
-          onPressed: () => _openPersonalBoardView(taskBoardDetailViewKanban),
+          id: 'labels',
+          icon: Icons.label_outline,
+          label: context.l10n.taskLabelsTab,
+          selected: _activeTab == _TaskPlanningTab.labels,
+          callbackToken: 'labels-${_activeTab.name}',
+          onPressed: () => _selectTab(_TaskPlanningTab.labels),
         ),
         ShellMiniNavItemSpec(
-          id: 'timeline',
-          icon: Icons.timeline_outlined,
-          label: context.l10n.taskBoardDetailTimelineView,
-          enabled: !_isLoadingPersonalDefaultBoard,
-          callbackToken: 'timeline-${_personalDefaultBoardId ?? ''}',
-          onPressed: () => _openPersonalBoardView(taskBoardDetailViewTimeline),
+          id: 'projects',
+          icon: Icons.folder_open_outlined,
+          label: context.l10n.taskPortfolioProjectsTab,
+          selected: _activeTab == _TaskPlanningTab.projects,
+          callbackToken: 'projects-${_activeTab.name}',
+          onPressed: () => _selectTab(_TaskPlanningTab.projects),
         ),
         ShellMiniNavItemSpec(
-          id: 'planning',
-          icon: Icons.route_outlined,
-          label: context.l10n.taskPlanningTitle,
-          selected: true,
-          callbackToken: 'planning',
+          id: 'initiatives',
+          icon: Icons.account_tree_outlined,
+          label: context.l10n.taskPortfolioInitiativesTab,
+          selected: _activeTab == _TaskPlanningTab.initiatives,
+          callbackToken: 'initiatives-${_activeTab.name}',
+          onPressed: () => _selectTab(_TaskPlanningTab.initiatives),
         ),
       ],
     );
-  }
-
-  Future<void> _loadPersonalDefaultBoardIfNeeded(Workspace? workspace) async {
-    if (workspace == null || !workspace.personal) {
-      if (!mounted) return;
-      _updateState(() {
-        _personalDefaultBoardWorkspaceId = workspace?.id;
-        _personalDefaultBoardId = null;
-        _isLoadingPersonalDefaultBoard = false;
-      });
-      return;
-    }
-    if (_personalDefaultBoardWorkspaceId == workspace.id &&
-        _personalDefaultBoardId != null) {
-      return;
-    }
-
-    final capturedWorkspaceId = workspace.id;
-    if (mounted) {
-      _updateState(() {
-        _personalDefaultBoardWorkspaceId = capturedWorkspaceId;
-        _isLoadingPersonalDefaultBoard = true;
-      });
-    }
-
-    try {
-      final page = await _taskRepository.getTaskBoards(
-        capturedWorkspaceId,
-        pageSize: 50,
-        status: 'active',
-      );
-      if (!mounted) return;
-      final currentWorkspace = context
-          .read<WorkspaceCubit>()
-          .state
-          .currentWorkspace;
-      if (currentWorkspace?.id != capturedWorkspaceId) return;
-      _updateState(() {
-        _personalDefaultBoardId = preferredPersonalTaskBoard(page.boards)?.id;
-        _isLoadingPersonalDefaultBoard = false;
-      });
-    } on Exception {
-      if (!mounted) return;
-      final currentWorkspace = context
-          .read<WorkspaceCubit>()
-          .state
-          .currentWorkspace;
-      if (currentWorkspace?.id != capturedWorkspaceId) return;
-      _updateState(() {
-        _personalDefaultBoardId = null;
-        _isLoadingPersonalDefaultBoard = false;
-      });
-    }
-  }
-
-  void _openPersonalBoardView(String view) {
-    final boardId = _personalDefaultBoardId;
-    if (boardId == null || boardId.isEmpty) {
-      context.go(Routes.tasks);
-      return;
-    }
-    context.go(taskBoardViewLocation(boardId: boardId, view: view));
   }
 }
