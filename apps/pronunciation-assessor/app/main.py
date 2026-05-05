@@ -5,6 +5,8 @@ import os
 import subprocess
 import tempfile
 import time
+import urllib.error
+import urllib.request
 from dataclasses import dataclass
 from threading import Lock
 from typing import Any
@@ -61,14 +63,20 @@ SUPPORTED_ASSESSOR_MODELS = {
 PIPER_DATA_DIR = os.getenv("PIPER_DATA_DIR", "/root/.cache/piper")
 PIPER_EXECUTABLE = os.getenv("PIPER_EXECUTABLE", "piper")
 PIPER_DEFAULT_VOICE = os.getenv("PIPER_DEFAULT_VOICE", "en_US-lessac-medium")
+PIPER_VOICE_REPOSITORY_URL = os.getenv(
+    "PIPER_VOICE_REPOSITORY_URL",
+    "https://huggingface.co/rhasspy/piper-voices/resolve/main",
+).rstrip("/")
 PIPER_VOICES = {
     "en_US-lessac-medium": {
         "language": "english",
         "label": "English classroom narrator",
+        "path": "en/en_US/lessac/medium",
     },
     "en_GB-alan-medium": {
         "language": "english",
         "label": "British English narrator",
+        "path": "en/en_GB/alan/medium",
     },
 }
 
@@ -100,6 +108,7 @@ class TtsRequest(BaseModel):
 
 loaded_local_models: dict[str, LoadedLocalModel] = {}
 model_lock = Lock()
+tts_lock = Lock()
 
 
 def clamp_score(value: float) -> int:
@@ -205,9 +214,80 @@ def get_loaded_model_snapshot() -> list[dict[str, Any]]:
 def get_piper_voice_id(voice_id: str | None) -> str:
     if voice_id and voice_id in PIPER_VOICES:
         return voice_id
-    if voice_id and voice_id.strip():
-        return voice_id.strip()
-    return PIPER_DEFAULT_VOICE
+
+    requested_voice = voice_id.strip() if voice_id else PIPER_DEFAULT_VOICE
+    local_model_path = os.path.join(PIPER_DATA_DIR, f"{requested_voice}.onnx")
+    if os.path.exists(local_model_path):
+        return requested_voice
+
+    if PIPER_DEFAULT_VOICE in PIPER_VOICES:
+        return PIPER_DEFAULT_VOICE
+
+    return "en_US-lessac-medium"
+
+
+def get_piper_voice_paths(voice_id: str) -> tuple[str, str]:
+    return (
+        os.path.join(PIPER_DATA_DIR, f"{voice_id}.onnx"),
+        os.path.join(PIPER_DATA_DIR, f"{voice_id}.onnx.json"),
+    )
+
+
+def download_piper_asset(url: str, destination: str) -> None:
+    os.makedirs(os.path.dirname(destination), exist_ok=True)
+    with tempfile.NamedTemporaryFile(
+        dir=os.path.dirname(destination),
+        delete=False,
+        suffix=".download",
+    ) as temp_file:
+        temp_path = temp_file.name
+
+    try:
+        with urllib.request.urlopen(url, timeout=120) as response:
+            with open(temp_path, "wb") as temp_file:
+                while True:
+                    chunk = response.read(1024 * 1024)
+                    if not chunk:
+                        break
+                    temp_file.write(chunk)
+        os.replace(temp_path, destination)
+    except (OSError, urllib.error.URLError) as error:
+        try:
+            os.unlink(temp_path)
+        except OSError:
+            pass
+        raise RuntimeError(f"Could not download Piper asset {url}: {error}") from error
+
+
+def ensure_piper_voice(voice_id: str) -> tuple[str, str, list[str]]:
+    model_path, config_path = get_piper_voice_paths(voice_id)
+    downloaded: list[str] = []
+
+    if os.path.exists(model_path) and os.path.exists(config_path):
+        return model_path, config_path, downloaded
+
+    metadata = PIPER_VOICES.get(voice_id)
+    if not metadata:
+        raise RuntimeError(
+            "Unsupported Piper voice. Available voices: "
+            + ", ".join(sorted(PIPER_VOICES))
+        )
+
+    remote_path = metadata["path"]
+    assets = [
+        (f"{voice_id}.onnx", model_path),
+        (f"{voice_id}.onnx.json", config_path),
+    ]
+
+    with tts_lock:
+        for filename, destination in assets:
+            if os.path.exists(destination):
+                continue
+            url = f"{PIPER_VOICE_REPOSITORY_URL}/{remote_path}/{filename}"
+            download_piper_asset(url, destination)
+            downloaded.append(filename)
+
+    return model_path, config_path, downloaded
 
 
 def get_piper_length_scale(pace: float) -> str:
@@ -218,18 +298,21 @@ def get_piper_length_scale(pace: float) -> str:
 def run_piper_tts(request: TtsRequest) -> dict[str, Any]:
     voice_id = get_piper_voice_id(request.voiceId)
     os.makedirs(PIPER_DATA_DIR, exist_ok=True)
+    model_path, config_path, downloaded_assets = ensure_piper_voice(voice_id)
 
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=True) as output_file:
         command = [
             PIPER_EXECUTABLE,
             "--model",
-            voice_id,
-            "--download-dir",
-            PIPER_DATA_DIR,
+            model_path,
+            "--config",
+            config_path,
             "--output_file",
             output_file.name,
             "--length-scale",
             get_piper_length_scale(request.pace),
+            "--data-dir",
+            PIPER_DATA_DIR,
         ]
         if request.speakerId is not None:
             command.extend(["--speaker", str(request.speakerId)])
@@ -262,8 +345,10 @@ def run_piper_tts(request: TtsRequest) -> dict[str, Any]:
         "model": voice_id,
         "trace": {
             "dataDir": PIPER_DATA_DIR,
+            "downloadedAssets": downloaded_assets,
             "language": request.language,
             "lengthScale": get_piper_length_scale(request.pace),
+            "modelPath": model_path,
             "speakerId": request.speakerId,
         },
         "voiceId": voice_id,

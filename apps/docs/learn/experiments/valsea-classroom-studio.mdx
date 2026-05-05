@@ -165,7 +165,12 @@ The same helper also exposes Piper text-to-speech endpoints:
 Piper voice models are cached under `PIPER_DATA_DIR` (`/root/.cache/piper` in
 Docker) and the default voice is controlled by `PIPER_DEFAULT_VOICE`
 (`en_US-lessac-medium`). The Compose files mount `platform-voice-lab-cache` so
-voice downloads survive container restarts.
+voice downloads survive container restarts. Each Piper voice must have both its
+`.onnx` model file and adjacent `.onnx.json` config file. The helper resolves
+known voice IDs such as `en_US-lessac-medium`, downloads missing assets from
+`PIPER_VOICE_REPOSITORY_URL` (defaulting to the Rhasspy Piper voices repository),
+and then calls Piper with the cached model path instead of passing a bare voice
+ID to the CLI.
 
 The web route POSTs multipart form data to the assessor with `file`, `language`,
 `referenceText`, `valseaTranscript`, and `valseaResponse`. If the local assessor

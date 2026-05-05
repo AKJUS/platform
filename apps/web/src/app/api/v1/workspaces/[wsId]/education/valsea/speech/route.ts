@@ -18,8 +18,10 @@ type Params = {
 type LocalSpeechResponse = {
   audioBase64?: string;
   contentType?: string;
+  detail?: string;
   durationMs?: number;
   engine?: 'piper';
+  message?: string;
   model?: string;
   trace?: unknown;
   voiceId?: string;
@@ -104,8 +106,13 @@ export const POST = withSessionAuth<Params>(
         .json()
         .catch(() => ({}))) as LocalSpeechResponse;
       if (!response.ok || !data.audioBase64) {
+        const detail = data.detail || data.message;
         return NextResponse.json(
-          { message: 'Local speech synthesis failed' },
+          {
+            message: detail
+              ? `Local speech synthesis failed: ${detail}`
+              : 'Local speech synthesis failed',
+          },
           { status: response.ok ? 502 : response.status }
         );
       }
