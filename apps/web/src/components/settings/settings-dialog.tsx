@@ -45,6 +45,7 @@ import { SettingsDialogShell } from '@tuturuuu/ui/custom/settings-dialog-shell';
 import { SettingItemTab } from '@tuturuuu/ui/custom/settings-item-tab';
 import { useWorkspaceConfigs } from '@tuturuuu/ui/hooks/use-workspace-config';
 import { Separator } from '@tuturuuu/ui/separator';
+import { ROOT_WORKSPACE_ID } from '@tuturuuu/utils/constants';
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 import { useUserBooleanConfig } from '@/hooks/use-user-config';
@@ -174,6 +175,10 @@ export function SettingsDialog({
     workspacePermissions?.manage_workspace_settings ?? false;
   const canManageWorkspaceMembers =
     workspacePermissions?.manage_workspace_members ?? false;
+  const isRootWorkspace = workspace?.id === ROOT_WORKSPACE_ID;
+  const allowWorkspaceBasicsEdit =
+    !isRootWorkspace &&
+    (Boolean(workspace?.personal) || canManageWorkspaceSettings);
   const autoAddNewGroupsToDefaultIncludedGroups =
     workspaceCustomConfigs[
       DATABASE_AUTO_ADD_NEW_GROUPS_TO_DEFAULT_INCLUDED_GROUPS_CONFIG_ID
@@ -776,13 +781,13 @@ export function SettingsDialog({
               <>
                 <BasicInfo
                   workspace={workspace}
-                  allowEdit={workspace.personal || canManageWorkspaceSettings}
+                  allowEdit={allowWorkspaceBasicsEdit}
                   isPersonal={workspace.personal}
                 />
                 <WorkspaceAvatarSettings
                   user={user}
                   workspace={workspace}
-                  allowEdit={workspace.personal || canManageWorkspaceSettings}
+                  allowEdit={allowWorkspaceBasicsEdit}
                 />
               </>
             ) : (

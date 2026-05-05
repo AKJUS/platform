@@ -372,7 +372,6 @@ export function WorkspaceSelect({
       void queryClient.invalidateQueries({ queryKey: ['workspace-user'] });
 
       router.push(`/${slug}`);
-      router.refresh();
     } catch (error) {
       console.error('Error accepting workspace invite:', error);
       const message =

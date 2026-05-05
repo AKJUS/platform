@@ -78,45 +78,46 @@ const logWorkspaceError = (
 
 function isDirectWorkspaceLookupIdentifier(id: string): boolean {
   const normalized = id.trim().toLowerCase();
-  const isPotentialHandle = /^[a-z0-9](?:[a-z0-9_-]{0,62}[a-z0-9])?$/.test(
-    normalized
-  );
+  const workspaceHandlePattern =
+    /^[a-z0-9](?:[a-z0-9_-]{0,62}[a-z0-9])?$/;
 
   return (
     normalized === PERSONAL_WORKSPACE_SLUG.toLowerCase() ||
     normalized === ROOT_WORKSPACE_ID.toLowerCase() ||
     normalized === 'internal' ||
     validateUUID(normalized) ||
-    isPotentialHandle
+    workspaceHandlePattern.test(normalized)
   );
 }
 
 async function resolveAuthenticatedPrincipal(
   supabase: TypedSupabaseClient
 ): Promise<{ id: string; email: string | null } | null> {
-  try {
-    const { data: claimsData, error: claimsError } =
-      await supabase.auth.getClaims();
+  if (typeof supabase.auth.getClaims === 'function') {
+    try {
+      const claimsResult = await supabase.auth.getClaims();
+      const claimsData = claimsResult?.data;
+      const claimsError = claimsResult?.error;
 
-    if (!claimsError && claimsData?.claims?.sub) {
-      return {
-        id: claimsData.claims.sub,
-        email:
-          typeof claimsData.claims.email === 'string'
-            ? claimsData.claims.email
-            : null,
-      };
+      if (!claimsError && claimsData?.claims?.sub) {
+        return {
+          id: claimsData.claims.sub,
+          email:
+            typeof claimsData.claims.email === 'string'
+              ? claimsData.claims.email
+              : null,
+        };
+      }
+    } catch {
+      console.warn(
+        '[resolveAuthenticatedPrincipal] getClaims is unavailable, falling back to getUser. This may be expected in testing environments or older Supabase clients.'
+      );
+      // Fall back to getUser when getClaims is unavailable in mocks/older clients.
     }
-  } catch {
-    console.warn(
-      '[resolveAuthenticatedPrincipal] getClaims is unavailable, falling back to getUser. This may be expected in testing environments or older Supabase clients.'
-    );
-    // Fall back to getUser when getClaims is unavailable in mocks/older clients.
   }
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const userResult = await supabase.auth.getUser();
+  const user = userResult?.data?.user ?? null;
 
   if (!user) {
     return null;

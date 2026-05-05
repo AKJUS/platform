@@ -125,7 +125,32 @@ describe('workspace-helper tier lookup', () => {
     ]);
   });
 
-  it('returns null without querying when the workspace id is not a UUID or supported slug', async () => {
+  it('resolves workspace handles through direct lookup', async () => {
+    const workspaceQuery = createSingleWorkspaceQuery({
+      id: workspaceOneId,
+      name: 'Workspace Handle Match',
+      personal: false,
+      workspace_members: [{ user_id: 'user-1' }],
+    });
+    const subscriptionQuery = createSubscriptionLookupQuery([]);
+
+    mockCreateClient.mockResolvedValue(
+      createUserClient({
+        userId: 'user-1',
+        workspaceQuery,
+      })
+    );
+    mockCreateAdminClient.mockResolvedValue(
+      createAdminClient({ subscriptionQuery })
+    );
+
+    const workspace = await getWorkspace('traffic-advice');
+
+    expect(workspace?.id).toBe(workspaceOneId);
+    expect(workspaceQuery.eq).toHaveBeenCalledWith('handle', 'traffic-advice');
+  });
+
+  it('returns null without querying when the workspace id is malformed', async () => {
     const fromMock = vi.fn();
     const getUserMock = vi.fn();
 
@@ -134,7 +159,7 @@ describe('workspace-helper tier lookup', () => {
       from: fromMock,
     });
 
-    const workspace = await getWorkspace('traffic-advice');
+    const workspace = await getWorkspace('.well-known');
 
     expect(workspace).toBeNull();
     expect(getUserMock).not.toHaveBeenCalled();
