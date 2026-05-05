@@ -161,43 +161,46 @@ export function MissionBrief({
   t: ReturnType<typeof useTranslations>;
 }) {
   return (
-    <section className="valsea-reveal grid gap-3 md:grid-cols-[1.25fr_0.75fr]">
-      <div className="rounded-md border border-dynamic-green/20 bg-dynamic-green/8 p-4">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <div>
+    <section className="valsea-reveal grid gap-3 rounded-md border border-foreground/10 bg-foreground/[0.03] p-3 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
+      <div className="grid gap-3 lg:grid-cols-[18rem_minmax(0,1fr)] lg:items-center">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
             <div className="font-mono text-dynamic-green text-xs uppercase tracking-[0.22em]">
               {t('mission_brief')}
             </div>
-            <h2 className="mt-2 font-semibold text-2xl tracking-tight">
+            <h2 className="mt-1 truncate font-semibold text-xl tracking-tight">
               {scenario?.title || t('mission_default_title')}
             </h2>
           </div>
-          <Badge variant={hasApiKey ? 'secondary' : 'outline'}>
+          <Badge
+            className="shrink-0"
+            variant={hasApiKey ? 'secondary' : 'outline'}
+          >
             {hasApiKey ? t('key_state_ready') : t('key_state_missing')}
           </Badge>
         </div>
-        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="flex flex-wrap gap-2">
           {insights.map((insight) => (
             <SignalBadge insight={insight} key={insight.label} />
           ))}
         </div>
       </div>
-      <div className="grid gap-2 rounded-md border border-foreground/10 bg-background/70 p-4">
+      <div className="grid gap-2 rounded-md border border-foreground/10 bg-background/60 p-3">
         <div className="flex items-center gap-2 font-mono text-foreground/45 text-xs uppercase tracking-[0.18em]">
           <CircleDot className="h-4 w-4 text-dynamic-cyan" />
           {t('mission_rhythm')}
         </div>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="flex gap-2">
           {[t('rhythm_capture'), t('rhythm_infer'), t('rhythm_ship')].map(
             (label, index) => (
               <div
-                className="rounded-md border border-foreground/10 bg-foreground/[0.03] p-3"
+                className="min-w-24 rounded-md border border-foreground/10 bg-foreground/[0.03] px-3 py-2"
                 key={label}
               >
-                <div className="font-mono text-foreground/40 text-xs">
+                <div className="font-mono text-[0.65rem] text-foreground/40">
                   {String(index + 1).padStart(2, '0')}
                 </div>
-                <div className="mt-2 font-medium text-sm leading-5">
+                <div className="mt-1 font-medium text-xs leading-4">
                   {label}
                 </div>
               </div>
@@ -212,18 +215,22 @@ export function MissionBrief({
 function SignalBadge({ insight }: { insight: StudioInsight }) {
   return (
     <div
-      className={`rounded-md border p-3 ${getInsightToneClasses(insight.tone)}`}
+      className={`min-w-0 rounded-full border px-3 py-1.5 ${getInsightToneClasses(insight.tone)}`}
     >
-      <div className="flex items-center justify-between gap-2">
-        <span className="font-semibold text-sm">{insight.label}</span>
+      <div className="flex items-center gap-2">
+        <span className="max-w-40 truncate font-semibold text-xs">
+          {insight.label}
+        </span>
         {insight.value ? (
-          <span className="rounded-full bg-background/70 px-2 py-0.5 font-mono text-[0.68rem]">
+          <span className="rounded-full bg-background/70 px-2 py-0.5 font-mono text-[0.65rem]">
             {insight.value}
           </span>
         ) : null}
       </div>
       {insight.detail ? (
-        <div className="mt-1 text-foreground/58 text-xs">{insight.detail}</div>
+        <div className="mt-0.5 truncate text-[0.68rem] text-foreground/58">
+          {insight.detail}
+        </div>
       ) : null}
     </div>
   );
@@ -358,7 +365,6 @@ export function StudioComposer({
   audioUploadProgress,
   canGenerate,
   file,
-  insights,
   isGenerating,
   isGeneratingScenario,
   isRecording,
@@ -387,7 +393,6 @@ export function StudioComposer({
   audioUploadProgress?: number | null;
   canGenerate: boolean;
   file?: File;
-  insights: StudioInsight[];
   isGenerating: boolean;
   isGeneratingScenario: boolean;
   isRecording: boolean;
@@ -441,14 +446,6 @@ export function StudioComposer({
             ? t('scenario_generating')
             : t('scenario_generate_short')}
         </Button>
-
-        <div className="grid gap-2">
-          <div className="grid gap-2 sm:grid-cols-2">
-            {insights.slice(0, 4).map((insight) => (
-              <SignalBadge insight={insight} key={insight.label} />
-            ))}
-          </div>
-        </div>
 
         <div className="space-y-2">
           <Label htmlFor="valsea-transcript">{t('transcript_label')}</Label>

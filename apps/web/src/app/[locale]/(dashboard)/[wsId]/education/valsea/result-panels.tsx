@@ -105,6 +105,7 @@ export function ResultsGrid({
           clarification: result.clarification.raw,
           pronunciation: result.pronunciation?.raw,
           sentiment: result.sentiment.raw,
+          source: result.source,
           translation: result.translation.raw,
         },
         null,
@@ -121,6 +122,7 @@ export function ResultsGrid({
         result={result}
         t={t}
       />
+      <SourceEvidencePanel result={result} t={t} />
       <ResultCard
         className="lg:col-span-3"
         content={result.clarification.text}
@@ -217,6 +219,41 @@ export function ResultsGrid({
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function SourceEvidencePanel({
+  result,
+  t,
+}: {
+  result: ValseaClassroomArtifactResponse;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  const spokenTranscript = result.source.spokenTranscript;
+  const referenceTranscript = result.source.referenceTranscript;
+
+  if (!spokenTranscript) return null;
+
+  return (
+    <Card className="valsea-stack-card border-dynamic-cyan/20 bg-dynamic-cyan/5 lg:col-span-6">
+      <CardHeader>
+        <CardTitle>{t('source_evidence_title')}</CardTitle>
+      </CardHeader>
+      <CardContent className="grid gap-3 md:grid-cols-2">
+        {spokenTranscript ? (
+          <TranscriptBox
+            label={t('source_spoken_transcript')}
+            value={spokenTranscript}
+          />
+        ) : null}
+        {referenceTranscript ? (
+          <TranscriptBox
+            label={t('source_reference_note')}
+            value={referenceTranscript}
+          />
+        ) : null}
+      </CardContent>
+    </Card>
   );
 }
 

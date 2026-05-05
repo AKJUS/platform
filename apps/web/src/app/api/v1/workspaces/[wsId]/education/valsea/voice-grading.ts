@@ -41,6 +41,15 @@ interface GradeVoiceInput {
   transcription: ValseaRecord | null;
 }
 
+type AlignmentPair = {
+  expected: string;
+  heard: string;
+};
+
+type AlignmentDirection = 'delete' | 'insert' | 'match' | null;
+
+const SOFT_MISSING_TOKENS = new Set(['ah', 'lah', 'leh', 'lor', 'mah', 'one']);
+
 function getString(record: ValseaRecord | undefined, key: string) {
   const value = record?.[key];
   return typeof value === 'string' ? value : undefined;
@@ -85,6 +94,11 @@ function tokenizeWords(value: string) {
   return value.match(/\S+/g) ?? [];
 }
 
+function isSoftMissingToken(value: string) {
+  const normalized = normalizeToken(value);
+  return SOFT_MISSING_TOKENS.has(normalized) || normalized.length <= 2;
+}
+
 function levenshteinDistance(left: string, right: string) {
   const previous = Array.from(
     { length: right.length + 1 },
@@ -125,6 +139,84 @@ function compareTokens(expected: string, heard: string) {
 
   const distance = levenshteinDistance(normalizedExpected, normalizedHeard);
   return clampScore((1 - distance / maxLength) * 100);
+}
+
+function scoreAlignedToken(expected: string, heard: string) {
+  if (heard) return compareTokens(expected, heard);
+  return isSoftMissingToken(expected) ? 78 : 45;
+}
+
+function alignWords(expectedWords: string[], heardWords: string[]) {
+  const rows = expectedWords.length + 1;
+  const columns = heardWords.length + 1;
+  const costs: number[][] = Array.from({ length: rows }, () =>
+    Array.from({ length: columns }, () => 0)
+  );
+  const directions: AlignmentDirection[][] = Array.from({ length: rows }, () =>
+    Array.from({ length: columns }, () => null)
+  );
+
+  for (let row = 1; row < rows; row += 1) {
+    const expected = expectedWords[row - 1] ?? '';
+    costs[row]![0] =
+      (costs[row - 1]?.[0] ?? 0) + (isSoftMissingToken(expected) ? 0.22 : 0.72);
+    directions[row]![0] = 'delete';
+  }
+
+  for (let column = 1; column < columns; column += 1) {
+    costs[0]![column] = (costs[0]?.[column - 1] ?? 0) + 0.34;
+    directions[0]![column] = 'insert';
+  }
+
+  for (let row = 1; row < rows; row += 1) {
+    for (let column = 1; column < columns; column += 1) {
+      const expected = expectedWords[row - 1] ?? '';
+      const heard = heardWords[column - 1] ?? '';
+      const similarity = compareTokens(expected, heard) / 100;
+      const matchCost = (costs[row - 1]?.[column - 1] ?? 0) + (1 - similarity);
+      const deleteCost =
+        (costs[row - 1]?.[column] ?? 0) +
+        (isSoftMissingToken(expected) ? 0.22 : 0.72);
+      const insertCost = (costs[row]?.[column - 1] ?? 0) + 0.34;
+
+      if (matchCost <= deleteCost && matchCost <= insertCost) {
+        costs[row]![column] = matchCost;
+        directions[row]![column] = 'match';
+      } else if (deleteCost <= insertCost) {
+        costs[row]![column] = deleteCost;
+        directions[row]![column] = 'delete';
+      } else {
+        costs[row]![column] = insertCost;
+        directions[row]![column] = 'insert';
+      }
+    }
+  }
+
+  const pairs: AlignmentPair[] = [];
+  let row = expectedWords.length;
+  let column = heardWords.length;
+
+  while (row > 0 || column > 0) {
+    const direction = directions[row]?.[column];
+    if (direction === 'match') {
+      pairs.push({
+        expected: expectedWords[row - 1] ?? '',
+        heard: heardWords[column - 1] ?? '',
+      });
+      row -= 1;
+      column -= 1;
+    } else if (direction === 'delete') {
+      pairs.push({
+        expected: expectedWords[row - 1] ?? '',
+        heard: '',
+      });
+      row -= 1;
+    } else {
+      column -= 1;
+    }
+  }
+
+  return pairs.reverse();
 }
 
 function buildCharacterGrades(
@@ -168,20 +260,21 @@ function buildHeuristicGrade(input: GradeVoiceInput): VoiceGradeResult {
     : 0;
   const correctionPenalty = Math.min(18, corrections * 3);
 
-  const words = expectedWords.map<VoiceGradeWord>((expected, index) => {
-    const heard = heardWords[index] ?? '';
-    const score = compareTokens(expected, heard);
-    const nativeScore = clampScore(score - correctionPenalty);
+  const words = alignWords(expectedWords, heardWords).map<VoiceGradeWord>(
+    ({ expected, heard }) => {
+      const score = scoreAlignedToken(expected, heard);
+      const nativeScore = clampScore(score - correctionPenalty);
 
-    return {
-      characters: buildCharacterGrades(expected, heard, score),
-      expected,
-      heard,
-      level: scoreToLevel(score),
-      nativeScore,
-      score,
-    };
-  });
+      return {
+        characters: buildCharacterGrades(expected, heard, score),
+        expected,
+        heard,
+        level: scoreToLevel(score),
+        nativeScore,
+        score,
+      };
+    }
+  );
 
   const average =
     words.length > 0
@@ -249,18 +342,35 @@ function normalizeExternalGrade(
   data: ValseaRecord,
   fallback: VoiceGradeResult
 ): VoiceGradeResult {
-  const words = getRecordArray(data, 'words')
+  const externalWords = getRecordArray(data, 'words')
     .map(normalizeExternalWord)
     .filter((entry): entry is VoiceGradeWord => Boolean(entry));
+  const externalAverage =
+    externalWords.length > 0
+      ? externalWords.reduce((total, word) => total + word.score, 0) /
+        externalWords.length
+      : 0;
+  const shouldUseAlignmentGuard =
+    externalWords.length === fallback.words.length &&
+    fallback.overallScore - externalAverage > 20;
+  const words = shouldUseAlignmentGuard ? fallback.words : externalWords;
+  const fallbackScore = shouldUseAlignmentGuard
+    ? fallback.overallScore
+    : undefined;
+  const fallbackNative = shouldUseAlignmentGuard
+    ? fallback.nativeSimilarity
+    : undefined;
 
   return {
     heardText: getString(data, 'heardText') || fallback.heardText,
     assessorModel: getString(data, 'assessorModel') || fallback.assessorModel,
     nativeSimilarity: clampScore(
-      getNumber(data, 'nativeSimilarity') ?? fallback.nativeSimilarity
+      fallbackNative ??
+        getNumber(data, 'nativeSimilarity') ??
+        fallback.nativeSimilarity
     ),
     overallScore: clampScore(
-      getNumber(data, 'overallScore') ?? fallback.overallScore
+      fallbackScore ?? getNumber(data, 'overallScore') ?? fallback.overallScore
     ),
     provider: 'local-model',
     raw: data,

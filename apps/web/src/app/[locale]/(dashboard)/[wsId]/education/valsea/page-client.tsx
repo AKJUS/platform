@@ -365,7 +365,6 @@ export function ValseaClassroomClient({ wsId }: { wsId: string }) {
               audioPreviewUrl={audioPreviewUrl}
               audioUploadProgress={audioUploadProgress}
               file={file}
-              insights={transcriptInsights}
               isGenerating={mutation.isPending}
               isGeneratingScenario={scenarioMutation.isPending}
               isRecording={isRecording}

@@ -393,8 +393,11 @@ export const POST = withSessionAuth<Params>(
       const transcription = file
         ? await transcribeAudio(request, file, language)
         : null;
-      const transcript =
-        parsed.data.transcript || getString(transcription ?? undefined, 'text');
+      const spokenTranscript =
+        getString(transcription ?? undefined, 'raw_transcript') ||
+        getString(transcription ?? undefined, 'text');
+      const referenceTranscript = parsed.data.transcript;
+      const transcript = spokenTranscript || referenceTranscript;
 
       if (!transcript) {
         return NextResponse.json(
@@ -451,12 +454,12 @@ export const POST = withSessionAuth<Params>(
         }),
       ]);
       const pronunciation =
-        file && parsed.data.transcript
+        file && referenceTranscript
           ? await gradeVoicePronunciation({
               assessorModel: pronunciationModel,
               file,
               language,
-              referenceText: parsed.data.transcript,
+              referenceText: referenceTranscript,
               transcription,
             })
           : null;
@@ -490,13 +493,16 @@ export const POST = withSessionAuth<Params>(
           sentiment: getString(sentiment, 'sentiment'),
         },
         source: {
+          audioStoragePath,
           detectedLanguages:
             transcription?.detected_languages ??
             translation.source_language ??
             [],
+          referenceTranscript,
           rawTranscript:
             getString(transcription ?? undefined, 'raw_transcript') ||
             transcript,
+          spokenTranscript,
           transcript,
         },
         translation: {

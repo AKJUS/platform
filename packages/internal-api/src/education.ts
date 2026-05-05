@@ -210,8 +210,11 @@ export interface ValseaClassroomArtifactResponse {
     sentiment?: string;
   };
   source: {
+    audioStoragePath?: string;
     detectedLanguages: unknown[];
     rawTranscript: string;
+    referenceTranscript?: string;
+    spokenTranscript?: string;
     transcript: string;
   };
   pronunciation: ValseaVoiceGradeResult | null;

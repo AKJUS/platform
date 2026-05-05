@@ -70,11 +70,13 @@ browser uploads selected files and live recordings there before generation.
 
 ## Pipeline
 
-The experiment accepts a JSON transcript payload plus an optional Drive-backed
-audio storage path. The UI can record live audio through `MediaRecorder` or use a
-local file picker; either way, the audio is saved into workspace Drive storage
-first and then referenced as `audioStoragePath` when generation starts. Audio is
-capped at 10 MB before upload and again before being forwarded to Valsea.
+The experiment accepts a JSON reference note plus an optional Drive-backed audio
+storage path. The UI can record live audio through `MediaRecorder` or use a local
+file picker; either way, the audio is saved into workspace Drive storage first
+and then referenced as `audioStoragePath` when generation starts. Audio is capped
+at 10 MB before upload and again before being forwarded to Valsea. When audio is
+present, the Valsea transcription becomes the primary classroom source text, and
+the typed note remains visible as the pronunciation/reference phrase.
 
 For text and transcribed audio, the server runs this Valsea pipeline:
 
@@ -136,6 +138,9 @@ The web route POSTs multipart form data to the assessor with `file`, `language`,
 `referenceText`, `valseaTranscript`, and `valseaResponse`. If the local assessor
 returns a compatible JSON object, the UI marks the provider as local model; if it
 fails or is not configured, the route falls back to the Valsea-backed heuristic.
+The heuristic aligns expected and heard words with sequence alignment instead of
+matching by array index, so an omitted filler word such as "ah" or "lah" does not
+shift the rest of the sentence into false pronunciation failures.
 
 The client calls this route through `packages/internal-api` and renders the
 normalized response as classroom wording, translation, teacher artifact,
