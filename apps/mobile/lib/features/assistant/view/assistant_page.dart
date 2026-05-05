@@ -835,7 +835,7 @@ class _AssistantPageState extends State<AssistantPage> {
   }
 
   Future<void> _pickFiles(String wsId) async {
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       allowMultiple: true,
     );
     if (result == null || result.files.isEmpty) {

@@ -563,7 +563,7 @@ class _CrmPageState extends State<CrmPage> {
     final wsId = _wsId;
     if (wsId == null) return;
 
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: const ['csv', 'tsv', 'txt'],
       withData: true,
