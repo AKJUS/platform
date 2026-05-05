@@ -98,6 +98,56 @@ export interface ApproveQrLoginChallengeResponse {
   success?: boolean;
 }
 
+export interface CreateMfaMobileApprovalChallengeResponse {
+  challenge?: {
+    expiresAt: string;
+    id: string;
+    pairCode: string;
+    status: QrLoginChallengeStatus;
+  };
+  error?: string;
+  expiresIn?: number;
+  secret?: string;
+  success?: boolean;
+}
+
+export interface PollMfaMobileApprovalChallengeResponse {
+  error?: string;
+  expiresAt?: string;
+  mobileMfaVerified?: boolean;
+  status?: QrLoginChallengeStatus;
+  success?: boolean;
+  validUntil?: string | null;
+}
+
+export interface PendingMfaMobileApproval {
+  createdAt: string;
+  expiresAt: string;
+  id: string;
+  pairCode: string;
+  status: QrLoginChallengeStatus;
+}
+
+export interface ListPendingMfaMobileApprovalsResponse {
+  approvals?: PendingMfaMobileApproval[];
+  error?: string;
+  requiresMobileMfa?: boolean;
+  success?: boolean;
+}
+
+export interface ApproveMfaMobileApprovalPayload {
+  deviceId?: string;
+  pairCode?: string;
+  platform?: InternalOtpPlatform;
+}
+
+export interface ApproveMfaMobileApprovalResponse {
+  error?: string;
+  expiresAt?: string;
+  status?: QrLoginChallengeStatus;
+  success?: boolean;
+}
+
 async function parseAuthResponse<T>(response: Response): Promise<T> {
   const payload = (await response.json().catch(() => null)) as T | null;
 
@@ -212,4 +262,72 @@ export async function approveQrLoginChallengeWithInternalApi(
     }
   );
   return parseAuthResponse<ApproveQrLoginChallengeResponse>(response);
+}
+
+export async function createMfaMobileApprovalChallengeWithInternalApi(
+  payload: {
+    locale?: string;
+  },
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  const response = await client.fetch('/api/v1/auth/mfa/mobile/challenges', {
+    body: JSON.stringify(payload),
+    cache: 'no-store',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    method: 'POST',
+  });
+  return parseAuthResponse<CreateMfaMobileApprovalChallengeResponse>(response);
+}
+
+export async function pollMfaMobileApprovalChallengeWithInternalApi(
+  payload: {
+    challengeId: string;
+    secret: string;
+  },
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  const response = await client.fetch(
+    `/api/v1/auth/mfa/mobile/challenges/${encodeURIComponent(payload.challengeId)}`,
+    {
+      cache: 'no-store',
+      query: {
+        secret: payload.secret,
+      },
+    }
+  );
+  return parseAuthResponse<PollMfaMobileApprovalChallengeResponse>(response);
+}
+
+export async function listPendingMfaMobileApprovalsWithInternalApi(
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  const response = await client.fetch('/api/v1/auth/mfa/mobile/approvals', {
+    cache: 'no-store',
+  });
+  return parseAuthResponse<ListPendingMfaMobileApprovalsResponse>(response);
+}
+
+export async function approveMfaMobileApprovalWithInternalApi(
+  challengeId: string,
+  payload: ApproveMfaMobileApprovalPayload,
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  const response = await client.fetch(
+    `/api/v1/auth/mfa/mobile/challenges/${encodeURIComponent(challengeId)}/approve`,
+    {
+      body: JSON.stringify(payload),
+      cache: 'no-store',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      method: 'POST',
+    }
+  );
+  return parseAuthResponse<ApproveMfaMobileApprovalResponse>(response);
 }

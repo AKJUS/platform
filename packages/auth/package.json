@@ -10,6 +10,7 @@
     "./cross-app": "./src/cross-app/index.ts",
     "./cross-app/server": "./src/cross-app/server.ts",
     "./cross-app/token-verifier": "./src/cross-app/token-verifier.tsx",
+    "./mfa-mobile-approval": "./src/mfa-mobile-approval.ts",
     "./identity-linking": "./src/identity-linking.ts",
     "./api-keys": "./src/api-keys.ts",
     "./multi-session": "./src/multi-session/index.ts"

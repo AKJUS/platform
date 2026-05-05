@@ -511,6 +511,54 @@ abstract class AppLocalizations {
   /// **'Unlock Tuturuuu.'**
   String get appLockUnlockReason;
 
+  /// No description provided for @mfaApprovalApproveAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Approve'**
+  String get mfaApprovalApproveAction;
+
+  /// No description provided for @mfaApprovalApprovedDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'The browser can now continue without an authenticator code.'**
+  String get mfaApprovalApprovedDescription;
+
+  /// No description provided for @mfaApprovalApprovedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Web MFA approved'**
+  String get mfaApprovalApprovedTitle;
+
+  /// No description provided for @mfaApprovalFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t approve this MFA request.'**
+  String get mfaApprovalFailed;
+
+  /// No description provided for @mfaApprovalPendingDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Pair code {pairCode} is waiting for approval.'**
+  String mfaApprovalPendingDescription(Object pairCode);
+
+  /// No description provided for @mfaApprovalRequiresMobileMfa.
+  ///
+  /// In en, this message translates to:
+  /// **'Verify MFA on this mobile session before approving web sign-ins.'**
+  String get mfaApprovalRequiresMobileMfa;
+
+  /// No description provided for @mfaApprovalSettingsIdle.
+  ///
+  /// In en, this message translates to:
+  /// **'Open this screen when the web MFA page shows a pair code. Pending requests refresh automatically.'**
+  String get mfaApprovalSettingsIdle;
+
+  /// No description provided for @mfaApprovalSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Approve web MFA'**
+  String get mfaApprovalSettingsTitle;
+
   /// No description provided for @qrLoginApproveAction.
   ///
   /// In en, this message translates to:

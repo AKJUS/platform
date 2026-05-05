@@ -227,6 +227,32 @@ class AppLocalizationsEn extends AppLocalizations {
   String get appLockUnlockReason => 'Unlock Tuturuuu.';
 
   @override
+  String get mfaApprovalApproveAction => 'Approve';
+
+  @override
+  String get mfaApprovalApprovedDescription => 'The browser can now continue without an authenticator code.';
+
+  @override
+  String get mfaApprovalApprovedTitle => 'Web MFA approved';
+
+  @override
+  String get mfaApprovalFailed => 'Couldn\'t approve this MFA request.';
+
+  @override
+  String mfaApprovalPendingDescription(Object pairCode) {
+    return 'Pair code $pairCode is waiting for approval.';
+  }
+
+  @override
+  String get mfaApprovalRequiresMobileMfa => 'Verify MFA on this mobile session before approving web sign-ins.';
+
+  @override
+  String get mfaApprovalSettingsIdle => 'Open this screen when the web MFA page shows a pair code. Pending requests refresh automatically.';
+
+  @override
+  String get mfaApprovalSettingsTitle => 'Approve web MFA';
+
+  @override
   String get qrLoginApproveAction => 'Approve';
 
   @override

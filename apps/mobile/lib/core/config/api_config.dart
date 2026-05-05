@@ -24,6 +24,10 @@ abstract final class AuthEndpoints {
   static const otpSend = '/api/v1/auth/otp/send';
   static const otpVerify = '/api/v1/auth/otp/verify';
   static const passwordLogin = '/api/v1/auth/password-login';
+  static const mfaMobileApprovals = '/api/v1/auth/mfa/mobile/approvals';
+
+  static String mfaMobileApprovalApprove(String challengeId) =>
+      '/api/v1/auth/mfa/mobile/challenges/$challengeId/approve';
 
   static String qrLoginApprove(String challengeId) =>
       '/api/v1/auth/qr-login/challenges/$challengeId/approve';

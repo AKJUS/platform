@@ -1,5 +1,6 @@
 'use client';
 
+import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
 import { useQuery } from '@tanstack/react-query';
 import { QrCode, RefreshCw, Smartphone } from '@tuturuuu/icons';
 import {
@@ -13,13 +14,15 @@ import { useTranslations } from 'next-intl';
 import { QRCodeSVG } from 'qrcode.react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+const CAPTCHA_ERROR_RETRY_DELAY = 3000;
+
 interface LoginQrCardProps {
-  captchaToken?: string;
-  captchaTokenVersion?: number;
+  canRenderTurnstile?: boolean;
   disabled?: boolean;
   locale: string;
   onAuthenticated: (session: QrLoginSessionPayload) => Promise<void>;
   requiresTurnstile?: boolean;
+  turnstileSiteKey?: string;
 }
 
 function readSecretFromPayload(payload?: string) {
@@ -35,17 +38,49 @@ function readSecretFromPayload(payload?: string) {
 }
 
 export function LoginQrCard({
-  captchaToken,
-  captchaTokenVersion = 0,
+  canRenderTurnstile = false,
   disabled = false,
   locale,
   onAuthenticated,
   requiresTurnstile = false,
+  turnstileSiteKey,
 }: LoginQrCardProps) {
   const t = useTranslations();
+  const [captchaToken, setCaptchaToken] = useState<string>();
+  const [captchaTokenVersion, setCaptchaTokenVersion] = useState(0);
+  const [captchaError, setCaptchaError] = useState<string>();
   const [refreshIndex, setRefreshIndex] = useState(0);
+  const turnstileRef = useRef<TurnstileInstance>(null);
   const handledSessionRef = useRef(false);
   const canCreateChallenge = !requiresTurnstile || Boolean(captchaToken);
+
+  const resetTurnstile = useCallback(() => {
+    setCaptchaToken(undefined);
+    turnstileRef.current?.reset();
+  }, []);
+
+  const handleCaptchaSuccess = useCallback((token: string) => {
+    setCaptchaToken(token);
+    setCaptchaTokenVersion((value) => value + 1);
+    setCaptchaError(undefined);
+  }, []);
+
+  const handleCaptchaError = useCallback(
+    (_errorCode?: string) => {
+      resetTurnstile();
+      setCaptchaError(t('login.captcha_error'));
+
+      window.setTimeout(() => {
+        resetTurnstile();
+        setCaptchaError(undefined);
+      }, CAPTCHA_ERROR_RETRY_DELAY);
+    },
+    [resetTurnstile, t]
+  );
+
+  const handleCaptchaTimeout = useCallback(() => {
+    resetTurnstile();
+  }, [resetTurnstile]);
 
   const challengeQuery = useQuery({
     enabled: canCreateChallenge && !disabled,
@@ -67,10 +102,10 @@ export function LoginQrCard({
       refreshIndex,
     ],
     refetchOnWindowFocus: false,
-    retry: 1,
+    retry: false,
   });
 
-  const challenge = canCreateChallenge ? challengeQuery.data?.challenge : null;
+  const challenge = challengeQuery.data?.challenge ?? null;
   const secret = useMemo(
     () => readSecretFromPayload(challenge?.payload),
     [challenge?.payload]
@@ -111,8 +146,15 @@ export function LoginQrCard({
 
   const refreshChallenge = useCallback(() => {
     handledSessionRef.current = false;
+    setCaptchaError(undefined);
+
+    if (requiresTurnstile) {
+      resetTurnstile();
+      return;
+    }
+
     setRefreshIndex((value) => value + 1);
-  }, []);
+  }, [requiresTurnstile, resetTurnstile]);
 
   const status = pollQuery.data?.status ?? challenge?.status;
   const isExpired = status === 'expired' || status === 'consumed';
@@ -125,7 +167,7 @@ export function LoginQrCard({
     pollQuery.data?.error;
 
   return (
-    <div className="rounded-2xl border border-border/60 bg-muted/20 p-4">
+    <div className="space-y-5">
       <div className="flex items-start gap-3">
         <div className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
           <QrCode className="size-5" />
@@ -137,6 +179,30 @@ export function LoginQrCard({
           </p>
         </div>
       </div>
+
+      {requiresTurnstile ? (
+        <div className="rounded-2xl border border-border/60 bg-muted/20 p-4">
+          {canRenderTurnstile && turnstileSiteKey ? (
+            <div className="flex flex-col items-center gap-2">
+              <Turnstile
+                ref={turnstileRef}
+                siteKey={turnstileSiteKey}
+                onSuccess={handleCaptchaSuccess}
+                onExpire={() => setCaptchaToken(undefined)}
+                onError={handleCaptchaError}
+                onTimeout={handleCaptchaTimeout}
+              />
+              {captchaError ? (
+                <p className="text-destructive text-sm">{captchaError}</p>
+              ) : null}
+            </div>
+          ) : (
+            <p className="text-destructive text-sm">
+              {t('login.captcha_not_configured')}
+            </p>
+          )}
+        </div>
+      ) : null}
 
       <div className="mt-4 flex flex-col items-center gap-3">
         <div className="flex size-48 items-center justify-center rounded-2xl border border-border/60 bg-background p-3">
@@ -159,6 +225,17 @@ export function LoginQrCard({
               <p className="text-muted-foreground text-xs">
                 {t('login.qr_unavailable_description')}
               </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="rounded-full"
+                onClick={refreshChallenge}
+                disabled={disabled}
+              >
+                <RefreshCw className="size-4" />
+                <span>{t('login.qr_refresh')}</span>
+              </Button>
             </div>
           ) : isExpired ? (
             <div className="space-y-2 text-center">

@@ -93,6 +93,19 @@
     "appLockUnavailableDescription": "Local authentication is unavailable or was cancelled.",
     "appLockUnlockAction": "Unlock",
     "appLockUnlockReason": "Unlock Tuturuuu.",
+    "mfaApprovalApproveAction": "Approve",
+    "mfaApprovalApprovedDescription": "The browser can now continue without an authenticator code.",
+    "mfaApprovalApprovedTitle": "Web MFA approved",
+    "mfaApprovalFailed": "Couldn't approve this MFA request.",
+    "mfaApprovalPendingDescription": "Pair code {pairCode} is waiting for approval.",
+    "@mfaApprovalPendingDescription": {
+        "placeholders": {
+            "pairCode": {}
+        }
+    },
+    "mfaApprovalRequiresMobileMfa": "Verify MFA on this mobile session before approving web sign-ins.",
+    "mfaApprovalSettingsIdle": "Open this screen when the web MFA page shows a pair code. Pending requests refresh automatically.",
+    "mfaApprovalSettingsTitle": "Approve web MFA",
     "qrLoginApproveAction": "Approve",
     "qrLoginApproveDescription": "Approve web sign-in from {origin} using {userEmail}.",
     "@qrLoginApproveDescription": {

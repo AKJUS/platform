@@ -227,6 +227,32 @@ class AppLocalizationsVi extends AppLocalizations {
   String get appLockUnlockReason => 'Mở khóa Tuturuuu.';
 
   @override
+  String get mfaApprovalApproveAction => 'Phê duyệt';
+
+  @override
+  String get mfaApprovalApprovedDescription => 'Trình duyệt có thể tiếp tục mà không cần mã từ ứng dụng xác thực.';
+
+  @override
+  String get mfaApprovalApprovedTitle => 'Đã phê duyệt MFA trên web';
+
+  @override
+  String get mfaApprovalFailed => 'Không thể phê duyệt yêu cầu MFA này.';
+
+  @override
+  String mfaApprovalPendingDescription(Object pairCode) {
+    return 'Mã ghép đôi $pairCode đang chờ phê duyệt.';
+  }
+
+  @override
+  String get mfaApprovalRequiresMobileMfa => 'Hãy xác minh MFA trong phiên di động này trước khi phê duyệt đăng nhập web.';
+
+  @override
+  String get mfaApprovalSettingsIdle => 'Mở màn hình này khi trang MFA trên web hiển thị mã ghép đôi. Yêu cầu đang chờ sẽ tự làm mới.';
+
+  @override
+  String get mfaApprovalSettingsTitle => 'Phê duyệt MFA web';
+
+  @override
   String get qrLoginApproveAction => 'Phê duyệt';
 
   @override

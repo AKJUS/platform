@@ -42,6 +42,21 @@ Web QR sign-in approval is gated by this setting:
 If a user wants to approve QR login for a different account, they must switch to
 that account in the mobile app before scanning.
 
+The same Settings > Session surface can approve web MFA challenges when the
+active mobile Supabase session is already at `aal2`:
+
+- The web MFA screen creates an `/api/v1/auth/mfa/mobile/challenges` request and
+  shows a pair code.
+- Mobile polls `/api/v1/auth/mfa/mobile/approvals` while the session settings
+  screen is mounted, shows matching pair codes, and approves through
+  `/api/v1/auth/mfa/mobile/challenges/:id/approve`.
+- The web poller consumes the approved challenge and sets an HTTP-only
+  `ttr_mfa_mobile_approval` cookie. The central auth proxy accepts that cookie
+  only for the same user, the hidden web challenge secret, and an unexpired
+  consumed `mfa_mobile_approval` challenge.
+- Mobile sessions that are still `aal1` may see pending state, but the API will
+  not approve a web MFA request until the mobile session has passed MFA.
+
 ## Mobile Drive Coverage
 
 The Drive screen in `apps/mobile` supports the main dashboard Drive flow:

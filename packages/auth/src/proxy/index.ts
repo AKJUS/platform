@@ -1,12 +1,22 @@
 import { updateSession } from '@tuturuuu/supabase/next/proxy';
-import { createClient } from '@tuturuuu/supabase/next/server';
+import {
+  createAdminClient,
+  createClient,
+} from '@tuturuuu/supabase/next/server';
 import type {
   AuthenticatorAssuranceLevels,
   SupabaseUser,
 } from '@tuturuuu/supabase/next/user';
+import type { Database } from '@tuturuuu/types/db';
 import { MAX_PAYLOAD_SIZE } from '@tuturuuu/utils/constants';
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
+import {
+  hashMfaMobileApprovalSecret,
+  MFA_MOBILE_APPROVAL_COOKIE_NAME,
+  MFA_MOBILE_APPROVAL_KIND,
+  parseMfaMobileApprovalCookie,
+} from '../mfa-mobile-approval';
 
 const INTERNAL_HOSTNAME_PATTERN =
   /^(?:0\.0\.0\.0|127(?:\.\d+){0,3}|localhost|::1|\[::1\]|host\.docker\.internal)$/u;
@@ -146,12 +156,70 @@ export function propagateAuthCookies(
   }
 }
 
+function asRecord(value: unknown): Record<string, unknown> {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+
+  return {};
+}
+
+async function hasValidMobileMfaApproval(
+  req: NextRequest,
+  userId: string | null | undefined
+): Promise<boolean> {
+  if (!userId) {
+    return false;
+  }
+
+  const cookiePayload = parseMfaMobileApprovalCookie(
+    req.cookies.get(MFA_MOBILE_APPROVAL_COOKIE_NAME)?.value
+  );
+
+  if (!cookiePayload) {
+    return false;
+  }
+
+  try {
+    const admin = await createAdminClient<Database>({ noCookie: true });
+    const secretHash = await hashMfaMobileApprovalSecret(cookiePayload.secret);
+    const { data, error } = await admin
+      .from('qr_login_challenges')
+      .select('approval_metadata, approver_user_id, request_metadata, status')
+      .eq('id', cookiePayload.challengeId)
+      .eq('secret_hash', secretHash)
+      .eq('approver_user_id', userId)
+      .maybeSingle();
+
+    if (error || !data || data.status !== 'consumed') {
+      return false;
+    }
+
+    const requestMetadata = asRecord(data.request_metadata);
+    if (requestMetadata.kind !== MFA_MOBILE_APPROVAL_KIND) {
+      return false;
+    }
+
+    const approvalMetadata = asRecord(data.approval_metadata);
+    const validUntil = approvalMetadata.mobileMfaValidUntil;
+
+    return (
+      typeof validUntil === 'string' &&
+      Number.isFinite(Date.parse(validUntil)) &&
+      Date.parse(validUntil) > Date.now()
+    );
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Handles MFA verification checks for authenticated users
  */
 async function handleMFACheck(
   req: NextRequest,
   aal: AuthenticatorAssuranceLevels | null,
+  userId: string | null | undefined,
   webAppUrl: string,
   protectedPaths: string[],
   excludedPaths: string[],
@@ -187,6 +255,10 @@ async function handleMFACheck(
     const requiresMFAVerification = hasVerifiedMFA && aal === 'aal1';
 
     if (requiresMFAVerification) {
+      if (await hasValidMobileMfaApproval(req, userId)) {
+        return null;
+      }
+
       const publicOrigin = resolveCanonicalRequestOrigin(req, webAppUrl);
       const centralOrigin = new URL(webAppUrl).origin;
 
@@ -381,6 +453,7 @@ export function createCentralizedAuthProxy(options: CentralizedAuthOptions) {
         const mfaRedirect = await handleMFACheck(
           req,
           claims.aal,
+          claims.sub,
           webAppUrl,
           mfaProtectedPaths,
           mfaExcludedPaths,

@@ -3,9 +3,19 @@
 import { Turnstile, type TurnstileInstance } from '@marsidev/react-turnstile';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { generateCrossAppToken, mapUrlToApp } from '@tuturuuu/auth/cross-app';
-import { ArrowLeft, Eye, EyeOff, Lock, Mail } from '@tuturuuu/icons';
 import {
+  ArrowLeft,
+  Eye,
+  EyeOff,
+  Lock,
+  Mail,
+  QrCode,
+  Smartphone,
+} from '@tuturuuu/icons';
+import {
+  createMfaMobileApprovalChallengeWithInternalApi,
   getOtpSettings,
+  pollMfaMobileApprovalChallengeWithInternalApi,
   type QrLoginSessionPayload,
   sendOtpWithInternalApi,
   verifyOtpWithInternalApi,
@@ -45,6 +55,7 @@ import {
 } from '@/lib/auth/oauth-providers';
 import { passwordLoginAction } from './actions';
 import { LoginQrCard } from './login-qr-card';
+import { completeVerifiedMfaSignIn } from './mfa-navigation';
 import { SocialLoginButton } from './social-login-button';
 
 const CAPTCHA_ERROR_RETRY_DELAY = 3000;
@@ -80,7 +91,14 @@ const authContainerTransition = {
   ease: [0.22, 1, 0.36, 1] as const,
 };
 
-type AuthStage = 'identify' | 'otp' | 'password';
+type AuthStage = 'identify' | 'otp' | 'password' | 'qr';
+
+interface MobileMfaApprovalChallenge {
+  expiresAt: string;
+  id: string;
+  pairCode: string;
+  secret: string;
+}
 
 function SocialLogoMask({ src, alt }: { src: string; alt: string }) {
   return (
@@ -139,7 +157,7 @@ export default function LoginForm() {
   });
 
   const totpFormSchema = z.object({
-    totp: z.string().length(6, 'TOTP code must be 6 digits'),
+    totp: z.string().length(6, t('login.invalid_verification_code')),
   });
 
   const defaultEmail = DEV_MODE ? 'local@tuturuuu.com' : '';
@@ -189,8 +207,10 @@ export default function LoginForm() {
   const [showDomainPreview, setShowDomainPreview] = useState(false);
   const [otpRetryAfterSeconds, setOtpRetryAfterSeconds] = useState<number>(0);
   const [captchaToken, setCaptchaToken] = useState<string>();
-  const [captchaTokenVersion, setCaptchaTokenVersion] = useState(0);
   const [captchaError, setCaptchaError] = useState<string>();
+  const [mobileMfaChallenge, setMobileMfaChallenge] =
+    useState<MobileMfaApprovalChallenge | null>(null);
+  const [mobileMfaHandled, setMobileMfaHandled] = useState(false);
   const autoOAuthProviderRef = useRef<AuthOAuthProvider | null>(null);
   const oauthErrorToastKeyRef = useRef<string | null>(null);
   const captchaRefPassword = useRef<TurnstileInstance>(null);
@@ -222,6 +242,59 @@ export default function LoginForm() {
       !turnstileSiteKey ||
       !captchaToken);
 
+  const createMobileMfaChallengeMutation = useMutation({
+    mutationFn: () =>
+      createMfaMobileApprovalChallengeWithInternalApi({
+        locale,
+      }),
+    onError: (error) => {
+      toast.error(t('login.mobile_mfa_failed'), {
+        description: error instanceof Error ? error.message : undefined,
+      });
+    },
+    onSuccess: (result) => {
+      if (result.error || !result.challenge || !result.secret) {
+        toast.error(t('login.mobile_mfa_failed'), {
+          description: result.error,
+        });
+        return;
+      }
+
+      setMobileMfaHandled(false);
+      setMobileMfaChallenge({
+        expiresAt: result.challenge.expiresAt,
+        id: result.challenge.id,
+        pairCode: result.challenge.pairCode,
+        secret: result.secret,
+      });
+    },
+  });
+
+  const mobileMfaPollQuery = useQuery({
+    enabled: requiresMFA && Boolean(mobileMfaChallenge) && !mobileMfaHandled,
+    queryFn: () =>
+      pollMfaMobileApprovalChallengeWithInternalApi({
+        challengeId: mobileMfaChallenge?.id || '',
+        secret: mobileMfaChallenge?.secret || '',
+      }),
+    queryKey: [
+      'auth',
+      'mfa-mobile-approval',
+      'poll',
+      mobileMfaChallenge?.id,
+      mobileMfaChallenge?.secret,
+    ],
+    refetchInterval: (query) => {
+      const status = query.state.data?.status;
+      if (!status || status === 'pending') {
+        return 2500;
+      }
+      return false;
+    },
+    refetchOnWindowFocus: true,
+    retry: false,
+  });
+
   const openOtpStage = useCallback(
     ({
       preserveOtpValue = false,
@@ -249,7 +322,6 @@ export default function LoginForm() {
 
   const handleCaptchaSuccess = useCallback((token: string) => {
     setCaptchaToken(token);
-    setCaptchaTokenVersion((value) => value + 1);
     setCaptchaError(undefined);
   }, []);
 
@@ -341,6 +413,30 @@ export default function LoginForm() {
 
     router.refresh();
   }, [router, searchParams, supabase]);
+
+  const completeMfaSignIn = useCallback(async () => {
+    await completeVerifiedMfaSignIn({
+      clearMfaRequirement: () => setRequiresMFA(false),
+      fallbackToHome: () => {
+        window.location.href = '/';
+      },
+      onNavigationError: (navigationError) => {
+        console.error(
+          '[login:mfa] Navigation error after successful MFA:',
+          navigationError
+        );
+      },
+      onSessionRefreshError: (refreshError) => {
+        console.error(
+          '[login:mfa] Session refresh failed after successful MFA:',
+          refreshError
+        );
+      },
+      processNextUrl,
+      refreshSession: () => supabase.auth.refreshSession(),
+      resetTotp: () => totpForm.reset({ totp: '' }),
+    });
+  }, [processNextUrl, supabase.auth, totpForm]);
 
   const completePrimarySignIn = useCallback(
     async (source: 'otp' | 'password' | 'qr') => {
@@ -607,22 +703,8 @@ export default function LoginForm() {
         throw lastError || new Error('Verification failed for all factors');
       }
 
-      const nextUrl = searchParams.get('nextUrl');
-      const returnUrl = searchParams.get('returnUrl');
-
-      if (nextUrl) {
-        router.push(decodeURIComponent(nextUrl));
-        router.refresh();
-        return;
-      }
-
-      if (returnUrl) {
-        await processNextUrl();
-        router.refresh();
-        return;
-      }
-
-      router.refresh();
+      await completeMfaSignIn();
+      setLoading(false);
     } catch (error) {
       console.error('Error verifying TOTP:', error);
 
@@ -744,6 +826,14 @@ export default function LoginForm() {
     setAuthStage('password');
   };
 
+  const advanceToQrStage = () => {
+    setTransitionDirection(1);
+    setShowDomainPreview(false);
+    setOtpRetryAfterSeconds(0);
+    setCaptchaError(undefined);
+    setAuthStage('qr');
+  };
+
   const returnToIdentifyStage = () => {
     const currentEmail = emailForm.getValues('email');
 
@@ -852,6 +942,39 @@ export default function LoginForm() {
   }, [initialized, processNextUrl, requiresMFA, searchParams, user]);
 
   useEffect(() => {
+    const result = mobileMfaPollQuery.data;
+    if (!requiresMFA || !result || mobileMfaHandled) {
+      return;
+    }
+
+    if (result.mobileMfaVerified) {
+      setMobileMfaHandled(true);
+      setLoading(true);
+      toast.success(t('login.mobile_mfa_approved'));
+      void completeMfaSignIn().finally(() => setLoading(false));
+      return;
+    }
+
+    if (
+      result.error ||
+      result.status === 'expired' ||
+      result.status === 'rejected' ||
+      result.status === 'consumed'
+    ) {
+      setMobileMfaChallenge(null);
+      toast.error(t('login.mobile_mfa_failed'), {
+        description: result.error,
+      });
+    }
+  }, [
+    completeMfaSignIn,
+    mobileMfaHandled,
+    mobileMfaPollQuery.data,
+    requiresMFA,
+    t,
+  ]);
+
+  useEffect(() => {
     if (!initialized || !readyForAuth || requiresMFA) {
       return;
     }
@@ -863,6 +986,10 @@ export default function LoginForm() {
 
     if (authStage === 'password') {
       passwordForm.setFocus('password');
+      return;
+    }
+
+    if (authStage === 'qr') {
       return;
     }
 
@@ -951,6 +1078,86 @@ export default function LoginForm() {
                 </Button>
               </form>
             </Form>
+
+            <div className="space-y-4">
+              <Separator />
+
+              <div className="rounded-2xl border border-border/70 bg-muted/20 p-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <Smartphone className="size-5" />
+                  </div>
+                  <div className="min-w-0 flex-1 space-y-3">
+                    <div className="space-y-1">
+                      <p className="font-medium text-sm">
+                        {t('login.mobile_mfa_title')}
+                      </p>
+                      <p className="text-muted-foreground text-xs leading-relaxed">
+                        {t('login.mobile_mfa_description')}
+                      </p>
+                    </div>
+
+                    {mobileMfaChallenge ? (
+                      <div className="space-y-3">
+                        <div className="rounded-xl border border-border/60 bg-background/70 px-3 py-2">
+                          <p className="text-muted-foreground text-xs">
+                            {t('login.mobile_mfa_pair_code_label')}
+                          </p>
+                          <p className="font-mono font-semibold text-2xl tracking-[0.18em]">
+                            {mobileMfaChallenge.pairCode}
+                          </p>
+                        </div>
+                        <div className="flex flex-col gap-2 sm:flex-row">
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            className="h-10 rounded-xl"
+                            disabled={
+                              createMobileMfaChallengeMutation.isPending ||
+                              loading
+                            }
+                            onClick={() =>
+                              createMobileMfaChallengeMutation.mutate()
+                            }
+                          >
+                            {createMobileMfaChallengeMutation.isPending ? (
+                              <LoadingIndicator className="size-4" />
+                            ) : (
+                              t('login.mobile_mfa_new_code')
+                            )}
+                          </Button>
+                          <div className="flex items-center gap-2 text-muted-foreground text-xs">
+                            <LoadingIndicator className="size-3.5" />
+                            <span>{t('login.mobile_mfa_waiting')}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        className="h-10 rounded-xl"
+                        disabled={
+                          createMobileMfaChallengeMutation.isPending || loading
+                        }
+                        onClick={() =>
+                          createMobileMfaChallengeMutation.mutate()
+                        }
+                      >
+                        {createMobileMfaChallengeMutation.isPending ? (
+                          <div className="flex items-center gap-2">
+                            <LoadingIndicator className="size-4" />
+                            <span>{t('common.loading')}...</span>
+                          </div>
+                        ) : (
+                          t('login.mobile_mfa_button')
+                        )}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </motion.div>
@@ -1103,14 +1310,16 @@ export default function LoginForm() {
                     </form>
                   </Form>
 
-                  <LoginQrCard
-                    captchaToken={captchaToken}
-                    captchaTokenVersion={captchaTokenVersion}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="h-12 w-full rounded-2xl font-medium"
+                    onClick={advanceToQrStage}
                     disabled={loading}
-                    locale={locale || 'en'}
-                    onAuthenticated={handleQrAuthenticated}
-                    requiresTurnstile={turnstileClientState.isRequired}
-                  />
+                  >
+                    <QrCode className="size-4" />
+                    <span>{t('login.qr_title')}</span>
+                  </Button>
 
                   <div className="relative py-0.5">
                     <Separator className="bg-border/60" />
@@ -1180,6 +1389,39 @@ export default function LoginForm() {
                       {t('login.continue_with_github')}
                     </SocialLoginButton>
                   </div>
+                </motion.div>
+              ) : authStage === 'qr' ? (
+                <motion.div
+                  key="qr-auth"
+                  custom={transitionDirection}
+                  variants={authStepVariants}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
+                  className="space-y-6"
+                >
+                  <div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="-ml-2 w-fit rounded-full px-2.5 text-muted-foreground hover:text-foreground"
+                      onClick={returnToIdentifyStage}
+                      disabled={loading}
+                    >
+                      <ArrowLeft className="size-4" />
+                      <span>{t('common.back')}</span>
+                    </Button>
+                  </div>
+
+                  <LoginQrCard
+                    canRenderTurnstile={turnstileClientState.canRenderWidget}
+                    disabled={loading}
+                    locale={locale || 'en'}
+                    onAuthenticated={handleQrAuthenticated}
+                    requiresTurnstile={turnstileClientState.isRequired}
+                    turnstileSiteKey={turnstileSiteKey}
+                  />
                 </motion.div>
               ) : authStage === 'otp' ? (
                 <motion.div
