@@ -5,7 +5,7 @@ import type {
   TulearnAssignmentSummary,
   TulearnMarkSummary,
 } from '@tuturuuu/internal-api';
-import { Link } from '@/i18n/routing';
+import { Link } from '@/i18n/navigation';
 import { AssignmentRow } from './assignment-row';
 import { MarkCard } from './mark-card';
 import { EmptyState } from './shared';

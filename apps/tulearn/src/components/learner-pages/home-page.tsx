@@ -16,7 +16,7 @@ import {
 } from '@tuturuuu/icons';
 import { getTulearnHome } from '@tuturuuu/internal-api';
 import { useTranslations } from 'next-intl';
-import { Link } from '@/i18n/routing';
+import { Link } from '@/i18n/navigation';
 import { CourseCard } from './course-card';
 import { FeatureList } from './feature-list';
 import {

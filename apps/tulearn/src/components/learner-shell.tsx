@@ -31,7 +31,7 @@ import { cn } from '@tuturuuu/utils/format';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
-import { Link, usePathname, useRouter } from '@/i18n/routing';
+import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import { LanguageSwitcher } from './language-switcher';
 
 const navItems = [
