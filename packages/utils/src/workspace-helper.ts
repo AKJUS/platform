@@ -945,6 +945,19 @@ export async function normalizeWorkspaceId(
     if (workspaceByHandle?.id) {
       return workspaceByHandle.id;
     }
+
+    // Handle resolution should not depend on caller membership because
+    // normalizeWorkspaceId is used by pre-membership flows (invite accept, etc.).
+    const sbAdmin = await createAdminClient();
+    const { data: workspaceByHandleAdmin } = await sbAdmin
+      .from('workspaces')
+      .select('id')
+      .eq('handle', handle)
+      .maybeSingle();
+
+    if (workspaceByHandleAdmin?.id) {
+      return workspaceByHandleAdmin.id;
+    }
   }
 
   return resolvedWorkspaceId;

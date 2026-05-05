@@ -51,7 +51,7 @@ export default function NameInput({
     if (Object.is(prevDefault.current, defaultValue)) return;
     prevDefault.current = defaultValue;
     form.reset({ name: defaultValue ?? '' });
-  }, [defaultValue]);
+  }, [defaultValue, form.reset]);
 
   const { isDirty } = form.formState;
 

@@ -10,6 +10,8 @@ import {
   Star,
 } from '@tuturuuu/icons';
 import { updateCurrentUserDefaultWorkspace } from '@tuturuuu/internal-api/users';
+import { acceptWorkspaceInvite } from '@tuturuuu/internal-api/workspaces';
+import type { InternalApiWorkspaceSummary } from '@tuturuuu/types';
 import type { WorkspaceUser } from '@tuturuuu/types/primitives/WorkspaceUser';
 import {
   PERSONAL_WORKSPACE_SLUG,
@@ -126,7 +128,7 @@ export function WorkspaceSelect({
   hideLeading?: boolean;
   customRedirectSuffix?: string;
   disableCreateNewWorkspace?: boolean;
-  fetchWorkspaces: () => Promise<any[]>;
+  fetchWorkspaces: () => Promise<InternalApiWorkspaceSummary[]>;
   additionalFormFields?: ReactNode;
   showTierBadges?: boolean;
   createWorkspaceDescription?: ReactNode;
@@ -270,7 +272,7 @@ export function WorkspaceSelect({
           label: rootWorkspace.name || t('common.root'),
           value: ROOT_WORKSPACE_ID,
           avatarUrl: rootWorkspace.avatar_url || TUTURUUU_LOGO_URL,
-          tier: (rootWorkspace as any)?.tier as
+          tier: rootWorkspace.tier as
             | 'FREE'
             | 'PLUS'
             | 'PRO'
@@ -288,7 +290,7 @@ export function WorkspaceSelect({
           label: personalWorkspace.name || 'Personal',
           value: PERSONAL_WORKSPACE_SLUG,
           avatarUrl: personalWorkspace.avatar_url,
-          tier: (personalWorkspace as any)?.tier as
+          tier: personalWorkspace.tier as
             | 'FREE'
             | 'PLUS'
             | 'PRO'
@@ -301,14 +303,7 @@ export function WorkspaceSelect({
       id: 'workspaces',
       label: t('common.workspaces'),
       teams: nonPersonalWorkspaces.map(
-        (workspace: {
-          id: string;
-          name: string | null;
-          created_by_me?: boolean;
-          personal?: boolean;
-          avatar_url?: string | null;
-          tier?: 'FREE' | 'PLUS' | 'PRO' | 'ENTERPRISE' | null;
-        }) => ({
+        (workspace: InternalApiWorkspaceSummary) => ({
           id: workspace.id,
           label: workspace.name || 'Untitled',
           value: toWorkspaceSlug(workspace.id, {
@@ -356,7 +351,7 @@ export function WorkspaceSelect({
   const workspace =
     wsId === PERSONAL_WORKSPACE_SLUG
       ? personalWorkspace
-      : workspaces?.find((ws: { id: string }) => ws.id === resolvedWorkspaceId);
+      : workspaces?.find((ws) => ws.id === resolvedWorkspaceId);
   if (!wsId) return <div />;
 
   async function onJoinByHandleSubmit(
@@ -364,11 +359,28 @@ export function WorkspaceSelect({
   ) {
     setJoiningByHandle(true);
     const slug = formData.handle.trim().toLowerCase();
-    setOpen(false);
-    setShowJoinWorkspaceDialog(false);
-    joinByHandleForm.reset({ handle: '' });
-    router.push(`/${slug}`);
-    setJoiningByHandle(false);
+
+    try {
+      await acceptWorkspaceInvite(slug);
+      toast.success(t('common.join_workspace_success'));
+      joinByHandleForm.reset({ handle: '' });
+      setShowJoinWorkspaceDialog(false);
+      setOpen(false);
+
+      void queryClient.invalidateQueries({ queryKey: ['workspaces'] });
+      void queryClient.invalidateQueries({ queryKey: ['user-workspaces'] });
+      void queryClient.invalidateQueries({ queryKey: ['workspace-user'] });
+
+      router.push(`/${slug}`);
+      router.refresh();
+    } catch (error) {
+      console.error('Error accepting workspace invite:', error);
+      const message =
+        error instanceof Error ? error.message : t('common.error');
+      toast.error(t('common.error'), { description: message });
+    } finally {
+      setJoiningByHandle(false);
+    }
   }
 
   return (
@@ -478,23 +490,22 @@ export function WorkspaceSelect({
                 <span className="line-clamp-1 min-w-0 flex-1 break-all text-xs">
                   {workspace?.name || `${t('common.loading')}...`}
                 </span>
-                {showTierBadges && (workspace as any)?.tier !== undefined && (
+                {showTierBadges && workspace?.tier !== undefined && (
                   <Badge
                     variant="outline"
                     className={cn(
                       'h-4 shrink-0 px-1 py-0 font-medium text-[10px]',
-                      (!(workspace as any)?.tier ||
-                        (workspace as any)?.tier === 'FREE') &&
+                      (!workspace?.tier || workspace?.tier === 'FREE') &&
                         'border-muted-foreground/30 bg-muted/50 text-muted-foreground',
-                      (workspace as any)?.tier === 'PLUS' &&
+                      workspace?.tier === 'PLUS' &&
                         'border-dynamic-blue/50 bg-dynamic-blue/10 text-dynamic-blue',
-                      (workspace as any)?.tier === 'PRO' &&
+                      workspace?.tier === 'PRO' &&
                         'border-dynamic-purple/50 bg-dynamic-purple/10 text-dynamic-purple',
-                      (workspace as any)?.tier === 'ENTERPRISE' &&
+                      workspace?.tier === 'ENTERPRISE' &&
                         'border-dynamic-amber/50 bg-dynamic-amber/10 text-dynamic-amber'
                     )}
                   >
-                    {(workspace as any)?.tier || 'FREE'}
+                    {workspace?.tier || 'FREE'}
                   </Badge>
                 )}
               </div>
@@ -645,7 +656,7 @@ export function WorkspaceSelect({
                       }}
                     >
                       <Link className="h-5 w-5" />
-                      {t('common.join_workspace_by_slug')}
+                      {t('common.join_workspace')}
                     </CommandItem>
                   </CommandGroup>
                   <CommandSeparator />

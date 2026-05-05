@@ -225,6 +225,57 @@ describe('normalizeWorkspaceId', () => {
     );
     expect(query.eq).toHaveBeenCalledWith('workspace_members.type', 'MEMBER');
   });
+
+  it('resolves handle via admin fallback when request-scoped lookup cannot see workspace', async () => {
+    const requestScopedQuery = {
+      select: vi.fn(),
+      eq: vi.fn(),
+      maybeSingle: vi.fn(),
+    };
+    requestScopedQuery.select.mockReturnValue(requestScopedQuery);
+    requestScopedQuery.eq.mockReturnValue(requestScopedQuery);
+    requestScopedQuery.maybeSingle.mockResolvedValue({
+      data: null,
+      error: null,
+    });
+
+    const adminQuery = {
+      select: vi.fn(),
+      eq: vi.fn(),
+      maybeSingle: vi.fn(),
+    };
+    adminQuery.select.mockReturnValue(adminQuery);
+    adminQuery.eq.mockReturnValue(adminQuery);
+    adminQuery.maybeSingle.mockResolvedValue({
+      data: { id: '33333333-3333-4333-8333-333333333333' },
+      error: null,
+    });
+
+    mockCreateClient.mockResolvedValue({
+      auth: { getUser: vi.fn() },
+      from: vi.fn((table: string) => {
+        if (table !== 'workspaces') {
+          throw new Error(`Unexpected table lookup: ${table}`);
+        }
+        return requestScopedQuery;
+      }),
+    });
+
+    mockCreateAdminClient.mockResolvedValue({
+      from: vi.fn((table: string) => {
+        if (table !== 'workspaces') {
+          throw new Error(`Unexpected admin table lookup: ${table}`);
+        }
+        return adminQuery;
+      }),
+    });
+
+    const resolved = await normalizeWorkspaceId('triple-sss');
+
+    expect(resolved).toBe('33333333-3333-4333-8333-333333333333');
+    expect(requestScopedQuery.eq).toHaveBeenCalledWith('handle', 'triple-sss');
+    expect(adminQuery.eq).toHaveBeenCalledWith('handle', 'triple-sss');
+  });
 });
 
 describe('getPermissions membership type gate', () => {

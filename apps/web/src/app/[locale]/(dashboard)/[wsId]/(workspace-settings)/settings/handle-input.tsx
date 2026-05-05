@@ -58,7 +58,7 @@ export default function HandleInput({
     if (Object.is(prevDefault.current, defaultValue)) return;
     prevDefault.current = defaultValue;
     form.reset({ handle: defaultValue ?? '' });
-  }, [defaultValue]);
+  }, [defaultValue, form.reset]);
 
   const { isDirty } = form.formState;
 

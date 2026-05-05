@@ -5,10 +5,12 @@ import {
   createClient,
 } from '@tuturuuu/supabase/next/server';
 import {
+  normalizeWorkspaceId,
   resolveGuestSelfJoinCandidate,
   verifyWorkspaceMembershipType,
 } from '@tuturuuu/utils/workspace-helper';
 import { NextResponse } from 'next/server';
+import { validate as validateUUID } from 'uuid';
 import {
   assignSeatToMember,
   revokeSeatFromMember,
@@ -46,7 +48,18 @@ function normalizeGuestJoinErrorCode(
 export async function POST(request: Request, { params }: Params) {
   const supabase = await createClient(request);
   const sbAdmin = await createAdminClient();
-  const { wsId } = await params;
+  const { wsId: rawWsId } = await params;
+  const wsId = await normalizeWorkspaceId(rawWsId, supabase);
+
+  if (!validateUUID(wsId)) {
+    return NextResponse.json(
+      {
+        error: 'Workspace not found',
+        errorCode: 'WORKSPACE_NOT_FOUND',
+      },
+      { status: 404 }
+    );
+  }
 
   // Get authenticated user
   const { user, authError } = await resolveAuthenticatedSessionUser(supabase);

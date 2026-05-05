@@ -917,8 +917,6 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
 
   const isRootWorkspaceSegment = (segment?: string) =>
     segment?.toLowerCase() === ROOT_WORKSPACE_ID.toLowerCase();
-  const isWorkspaceHandleSegment = (segment?: string) =>
-    !!segment && /^[a-z0-9](?:[a-z0-9_-]{0,62}[a-z0-9])?$/.test(segment);
 
   if (pathSegments.length >= 1) {
     // Check if first segment is a locale
