@@ -67,6 +67,11 @@
       "import": "./dist/promotions.js",
       "require": "./dist/promotions.js"
     },
+    "./posts": {
+      "types": "./dist/posts.d.ts",
+      "import": "./dist/posts.js",
+      "require": "./dist/posts.js"
+    },
     "./reports": {
       "types": "./dist/reports.d.ts",
       "import": "./dist/reports.js",
