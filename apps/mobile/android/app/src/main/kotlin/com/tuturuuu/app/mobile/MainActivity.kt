@@ -6,12 +6,12 @@ import android.util.Log
 import android.widget.Toast
 import android.window.OnBackInvokedCallback
 import android.window.OnBackInvokedDispatcher
-import io.flutter.embedding.android.FlutterActivity
+import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugins.videoplayer.VideoPlayerPlugin
 
-class MainActivity : FlutterActivity() {
+class MainActivity : FlutterFragmentActivity() {
     private var currentRoute: String? = null
     private var exitMessage: String = "Press back again to exit"
     private var exitHintMessage: String = "Tap back once more to close the app"

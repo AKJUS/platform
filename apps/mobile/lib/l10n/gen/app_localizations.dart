@@ -445,6 +445,174 @@ abstract class AppLocalizations {
   /// **'Account removed successfully.'**
   String get authRemoveAccountSuccess;
 
+  /// No description provided for @appLockDisableReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Authenticate to turn off app lock.'**
+  String get appLockDisableReason;
+
+  /// No description provided for @appLockEnableReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Authenticate to turn on app lock.'**
+  String get appLockEnableReason;
+
+  /// No description provided for @appLockLockedDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Use your device PIN, fingerprint, or Face ID to continue.'**
+  String get appLockLockedDescription;
+
+  /// No description provided for @appLockLockedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tuturuuu is locked'**
+  String get appLockLockedTitle;
+
+  /// No description provided for @appLockSettingsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Require Face ID, fingerprint, or device PIN before using the app.'**
+  String get appLockSettingsDescription;
+
+  /// No description provided for @appLockSettingsDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Off'**
+  String get appLockSettingsDisabled;
+
+  /// No description provided for @appLockSettingsEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'On'**
+  String get appLockSettingsEnabled;
+
+  /// No description provided for @appLockSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'App lock'**
+  String get appLockSettingsTitle;
+
+  /// No description provided for @appLockUnavailableDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Local authentication is unavailable or was cancelled.'**
+  String get appLockUnavailableDescription;
+
+  /// No description provided for @appLockUnlockAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock'**
+  String get appLockUnlockAction;
+
+  /// No description provided for @appLockUnlockReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Unlock Tuturuuu.'**
+  String get appLockUnlockReason;
+
+  /// No description provided for @qrLoginApproveAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Approve'**
+  String get qrLoginApproveAction;
+
+  /// No description provided for @qrLoginApproveDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Approve web sign-in from {origin} using {userEmail}.'**
+  String qrLoginApproveDescription(Object origin, Object userEmail);
+
+  /// No description provided for @qrLoginApproveFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Couldn\'t approve this web login.'**
+  String get qrLoginApproveFailed;
+
+  /// No description provided for @qrLoginApproveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Approve web sign-in'**
+  String get qrLoginApproveTitle;
+
+  /// No description provided for @qrLoginApprovedDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'The browser can now finish signing in.'**
+  String get qrLoginApprovedDescription;
+
+  /// No description provided for @qrLoginApprovedTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Web sign-in approved'**
+  String get qrLoginApprovedTitle;
+
+  /// No description provided for @qrLoginCameraUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Camera is unavailable.'**
+  String get qrLoginCameraUnavailable;
+
+  /// No description provided for @qrLoginInvalidCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Point the camera at a Tuturuuu web login QR code.'**
+  String get qrLoginInvalidCode;
+
+  /// No description provided for @qrLoginLocalAuthFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Local authentication was cancelled or failed.'**
+  String get qrLoginLocalAuthFailed;
+
+  /// No description provided for @qrLoginLocalAuthReason.
+  ///
+  /// In en, this message translates to:
+  /// **'Approve Tuturuuu web sign-in.'**
+  String get qrLoginLocalAuthReason;
+
+  /// No description provided for @qrLoginRequiresAppLock.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on app lock before approving QR sign-ins.'**
+  String get qrLoginRequiresAppLock;
+
+  /// No description provided for @qrLoginScanAgain.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan again'**
+  String get qrLoginScanAgain;
+
+  /// No description provided for @qrLoginScannerDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan the QR code shown on the Tuturuuu web login page.'**
+  String get qrLoginScannerDescription;
+
+  /// No description provided for @qrLoginScannerTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan web login QR'**
+  String get qrLoginScannerTitle;
+
+  /// No description provided for @qrLoginSettingsDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan a QR code on the web login page and approve it with app lock.'**
+  String get qrLoginSettingsDescription;
+
+  /// No description provided for @qrLoginSettingsDisabledDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn on app lock before scanning web login QR codes.'**
+  String get qrLoginSettingsDisabledDescription;
+
+  /// No description provided for @qrLoginSettingsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Scan web login QR'**
+  String get qrLoginSettingsTitle;
+
   /// No description provided for @loginForgotPassword.
   ///
   /// In en, this message translates to:

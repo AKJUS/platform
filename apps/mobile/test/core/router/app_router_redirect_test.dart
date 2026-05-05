@@ -185,4 +185,19 @@ void main() {
       },
     );
   });
+
+  group('isAppLockExcludedRoute', () {
+    test('excludes auth and MFA routes', () {
+      expect(isAppLockExcludedRoute(Routes.login), isTrue);
+      expect(isAppLockExcludedRoute(Routes.addAccount), isTrue);
+      expect(isAppLockExcludedRoute(Routes.signUp), isTrue);
+      expect(isAppLockExcludedRoute(Routes.forgotPassword), isTrue);
+      expect(isAppLockExcludedRoute(Routes.mfaVerify), isTrue);
+    });
+
+    test('does not exclude authenticated app routes', () {
+      expect(isAppLockExcludedRoute(Routes.home), isFalse);
+      expect(isAppLockExcludedRoute(Routes.settingsSession), isFalse);
+    });
+  });
 }

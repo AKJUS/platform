@@ -194,6 +194,92 @@ class AppLocalizationsEn extends AppLocalizations {
   String get authRemoveAccountSuccess => 'Account removed successfully.';
 
   @override
+  String get appLockDisableReason => 'Authenticate to turn off app lock.';
+
+  @override
+  String get appLockEnableReason => 'Authenticate to turn on app lock.';
+
+  @override
+  String get appLockLockedDescription => 'Use your device PIN, fingerprint, or Face ID to continue.';
+
+  @override
+  String get appLockLockedTitle => 'Tuturuuu is locked';
+
+  @override
+  String get appLockSettingsDescription => 'Require Face ID, fingerprint, or device PIN before using the app.';
+
+  @override
+  String get appLockSettingsDisabled => 'Off';
+
+  @override
+  String get appLockSettingsEnabled => 'On';
+
+  @override
+  String get appLockSettingsTitle => 'App lock';
+
+  @override
+  String get appLockUnavailableDescription => 'Local authentication is unavailable or was cancelled.';
+
+  @override
+  String get appLockUnlockAction => 'Unlock';
+
+  @override
+  String get appLockUnlockReason => 'Unlock Tuturuuu.';
+
+  @override
+  String get qrLoginApproveAction => 'Approve';
+
+  @override
+  String qrLoginApproveDescription(Object origin, Object userEmail) {
+    return 'Approve web sign-in from $origin using $userEmail.';
+  }
+
+  @override
+  String get qrLoginApproveFailed => 'Couldn\'t approve this web login.';
+
+  @override
+  String get qrLoginApproveTitle => 'Approve web sign-in';
+
+  @override
+  String get qrLoginApprovedDescription => 'The browser can now finish signing in.';
+
+  @override
+  String get qrLoginApprovedTitle => 'Web sign-in approved';
+
+  @override
+  String get qrLoginCameraUnavailable => 'Camera is unavailable.';
+
+  @override
+  String get qrLoginInvalidCode => 'Point the camera at a Tuturuuu web login QR code.';
+
+  @override
+  String get qrLoginLocalAuthFailed => 'Local authentication was cancelled or failed.';
+
+  @override
+  String get qrLoginLocalAuthReason => 'Approve Tuturuuu web sign-in.';
+
+  @override
+  String get qrLoginRequiresAppLock => 'Turn on app lock before approving QR sign-ins.';
+
+  @override
+  String get qrLoginScanAgain => 'Scan again';
+
+  @override
+  String get qrLoginScannerDescription => 'Scan the QR code shown on the Tuturuuu web login page.';
+
+  @override
+  String get qrLoginScannerTitle => 'Scan web login QR';
+
+  @override
+  String get qrLoginSettingsDescription => 'Scan a QR code on the web login page and approve it with app lock.';
+
+  @override
+  String get qrLoginSettingsDisabledDescription => 'Turn on app lock before scanning web login QR codes.';
+
+  @override
+  String get qrLoginSettingsTitle => 'Scan web login QR';
+
+  @override
   String get loginForgotPassword => 'Forgot password?';
 
   @override
