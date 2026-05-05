@@ -5,6 +5,7 @@ import { serverLogger } from '@/lib/infrastructure/log-drain';
 import {
   getLearnerCourseSummaries,
   resolveTulearnSubject,
+  tulearnAccessErrorResponse,
 } from '@/lib/tulearn/service';
 
 type Params = {
@@ -21,8 +22,6 @@ export const GET = withSessionAuth<Params>(
         wsId,
       });
 
-      if (subject instanceof Response) return subject as NextResponse;
-
       const courses = await getLearnerCourseSummaries({
         db: await createAdminClient(),
         studentPlatformUserId: subject.studentPlatformUserId,
@@ -32,6 +31,9 @@ export const GET = withSessionAuth<Params>(
 
       return NextResponse.json({ courses });
     } catch (error) {
+      const accessResponse = tulearnAccessErrorResponse(error);
+      if (accessResponse) return accessResponse;
+
       serverLogger.error('Failed to list Tulearn courses:', error);
       return NextResponse.json(
         { message: 'Failed to load courses' },

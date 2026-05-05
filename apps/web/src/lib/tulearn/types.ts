@@ -7,7 +7,7 @@ export type TulearnRole = 'student' | 'parent';
 
 export interface TulearnWorkspaceSummary {
   id: string;
-  name: string;
+  name: string | null;
   avatar_url: string | null;
   logo_url: string | null;
   roles: TulearnRole[];
@@ -18,7 +18,7 @@ export interface TulearnStudentSummary {
   platform_user_id: string;
   workspace_user_id: string;
   workspace_id: string;
-  name: string;
+  name: string | null;
   email: string | null;
   avatar_url: string | null;
 }
@@ -29,7 +29,7 @@ export interface TulearnSubject {
   wsId: string;
   studentPlatformUserId: string;
   studentWorkspaceUserId: string;
-  studentName: string;
+  studentName: string | null;
 }
 
 export interface TulearnState {

@@ -25993,6 +25993,24 @@ export type Database = {
           isSetofReturn: false;
         };
       };
+      award_tulearn_xp: {
+        Args: {
+          p_idempotency_key: string;
+          p_metadata?: Json;
+          p_source_id: string;
+          p_source_type: string;
+          p_user_id: string;
+          p_ws_id: string;
+          p_xp: number;
+        };
+        Returns: {
+          awarded: boolean;
+          current_streak: number;
+          longest_streak: number;
+          xp: number;
+          xp_total: number;
+        }[];
+      };
       backfill_workspace_user_status_changes: {
         Args: { p_dry_run?: boolean; p_limit?: number; p_ws_id: string };
         Returns: {
@@ -28933,6 +28951,12 @@ export type Database = {
           record: Json;
           ts: string;
           ws_id: string;
+        }[];
+      };
+      lose_tulearn_heart: {
+        Args: { p_user_id: string; p_ws_id: string };
+        Returns: {
+          hearts: number;
         }[];
       };
       match_memories: {

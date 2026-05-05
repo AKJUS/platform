@@ -50,6 +50,7 @@ export function HomePage({ wsId }: { wsId: string }) {
   if (!home.data) return <EmptyState label={t('common.empty')} />;
 
   const state = home.data.state;
+  const studentName = home.data.student.name ?? t('common.learner');
   const nextCourse = home.data.courses[0];
   const dueAssignments = home.data.assignments.filter(
     (assignment) => !assignment.is_completed
@@ -113,7 +114,7 @@ export function HomePage({ wsId }: { wsId: string }) {
               {t('home.dailyGoal')}
             </div>
             <h1 className="max-w-5xl text-balance font-bold text-[clamp(2.8rem,6vw,5.75rem)] leading-[0.92] tracking-normal">
-              {t('home.heroTitle', { name: home.data.student.name })}
+              {t('home.heroTitle', { name: studentName })}
             </h1>
             <p className="mt-6 max-w-2xl text-lg text-muted-foreground leading-8">
               {home.data.recommendedPractice?.title ??

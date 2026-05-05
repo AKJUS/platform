@@ -5,6 +5,7 @@ export {
   hasEducationEnabled,
   resolveStudentForPlatformUser,
   resolveTulearnSubject,
+  tulearnAccessErrorResponse,
 } from './access';
 export {
   getLearnerAssignments,

@@ -1,9 +1,25 @@
-import type { TablesInsert, TablesUpdate } from '@tuturuuu/types/supabase';
+import type { Json } from '@tuturuuu/types/supabase';
 
 import { getAdmin } from './db';
-import { getYesterdayKey, toDateKey } from './helpers';
-import { getLearnerState } from './learner-state';
 import type { Db, TulearnXpSourceType } from './types';
+
+type AwardTulearnXpRow = {
+  awarded: boolean;
+  xp: number;
+};
+
+type AwardTulearnXpRpc = (
+  fn: 'award_tulearn_xp',
+  args: {
+    p_idempotency_key: string;
+    p_metadata: Json;
+    p_source_id: string | null;
+    p_source_type: TulearnXpSourceType;
+    p_user_id: string;
+    p_ws_id: string;
+    p_xp: number;
+  }
+) => Promise<{ data: AwardTulearnXpRow[] | null; error: unknown | null }>;
 
 export async function awardTulearnXp({
   db,
@@ -24,51 +40,23 @@ export async function awardTulearnXp({
   wsId: string;
   xp: number;
 }) {
-  const admin = await getAdmin(db);
-  const eventPayload: TablesInsert<'tulearn_gamification_events'> = {
-    ws_id: wsId,
-    user_id: userId,
-    source_type: sourceType,
-    source_id: sourceId ?? null,
-    xp,
-    idempotency_key: idempotencyKey,
-    metadata:
-      metadata as TablesInsert<'tulearn_gamification_events'>['metadata'],
+  const sbAdmin = await getAdmin(db);
+  const awardXp = sbAdmin.rpc as unknown as AwardTulearnXpRpc;
+  const { data, error } = await awardXp('award_tulearn_xp', {
+    p_idempotency_key: idempotencyKey,
+    p_metadata: metadata as Json,
+    p_source_id: sourceId ?? null,
+    p_source_type: sourceType,
+    p_user_id: userId,
+    p_ws_id: wsId,
+    p_xp: xp,
+  });
+
+  if (error) throw error;
+
+  const [result] = (data ?? []) as AwardTulearnXpRow[];
+  return {
+    awarded: Boolean(result?.awarded),
+    xp: result?.xp ?? 0,
   };
-  const { error } = await admin
-    .from('tulearn_gamification_events')
-    .insert(eventPayload);
-
-  if (error) {
-    if (error.code === '23505') {
-      return { awarded: false, xp: 0 };
-    }
-    throw error;
-  }
-
-  const currentState = await getLearnerState({ db: admin, userId, wsId });
-  const today = toDateKey();
-  const yesterday = getYesterdayKey();
-  const nextStreak =
-    currentState.last_activity_date === today
-      ? currentState.current_streak
-      : currentState.last_activity_date === yesterday
-        ? currentState.current_streak + 1
-        : 1;
-
-  const stateUpdate: TablesUpdate<'tulearn_learner_state'> = {
-    xp_total: currentState.xp_total + xp,
-    current_streak: nextStreak,
-    longest_streak: Math.max(currentState.longest_streak, nextStreak),
-    last_activity_date: today,
-    updated_at: new Date().toISOString(),
-  };
-  const { error: updateError } = await admin
-    .from('tulearn_learner_state')
-    .update(stateUpdate)
-    .eq('ws_id', wsId)
-    .eq('user_id', userId);
-
-  if (updateError) throw updateError;
-  return { awarded: true, xp };
 }

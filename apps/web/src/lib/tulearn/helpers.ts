@@ -13,7 +13,7 @@ export function toDisplayName(user: {
   email?: string | null;
   full_name?: string | null;
 }) {
-  return user.display_name || user.full_name || user.email || 'Learner';
+  return user.display_name || user.full_name || user.email || null;
 }
 
 export function toDateKey(value = new Date()) {

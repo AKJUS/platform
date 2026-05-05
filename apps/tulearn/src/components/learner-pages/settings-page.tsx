@@ -144,7 +144,7 @@ export function SettingsPage() {
                 className="rounded-full border border-dynamic-blue/25 bg-background px-4 py-2 font-medium text-dynamic-blue text-sm"
                 key={student.id}
               >
-                {student.name}
+                {student.name ?? t('common.learner')}
               </span>
             ))
           ) : (

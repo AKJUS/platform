@@ -1,8 +1,9 @@
 import { normalizeWorkspaceId } from '@tuturuuu/utils/workspace-helper';
+import { NextResponse } from 'next/server';
 
 import { ENABLE_EDUCATION_SECRET } from './constants';
 import { getAdmin } from './db';
-import { toDisplayName, truthy } from './helpers';
+import { toDisplayName } from './helpers';
 import type {
   Db,
   ResolveTulearnSubjectInput,
@@ -12,9 +13,27 @@ import type {
   TulearnWorkspaceSummary,
 } from './types';
 
+export class TulearnAccessError extends Error {
+  constructor(
+    message: string,
+    public readonly status: 403 | 404
+  ) {
+    super(message);
+    this.name = 'TulearnAccessError';
+  }
+}
+
+export function tulearnAccessErrorResponse(error: unknown) {
+  if (!(error instanceof TulearnAccessError)) return null;
+  return NextResponse.json(
+    { message: error.message },
+    { status: error.status }
+  );
+}
+
 export async function hasEducationEnabled(wsId: string, db?: Db) {
-  const admin = await getAdmin(db);
-  const { data, error } = await admin
+  const sbAdmin = await getAdmin(db);
+  const { data, error } = await sbAdmin
     .from('workspace_secrets')
     .select('value')
     .eq('ws_id', wsId)
@@ -22,7 +41,7 @@ export async function hasEducationEnabled(wsId: string, db?: Db) {
     .maybeSingle();
 
   if (error) throw error;
-  return truthy(data?.value);
+  return data?.value?.trim().toLowerCase() === 'true';
 }
 
 export async function resolveStudentForPlatformUser({
@@ -34,8 +53,8 @@ export async function resolveStudentForPlatformUser({
   platformUserId: string;
   wsId: string;
 }) {
-  const admin = await getAdmin(db);
-  const { data, error } = await admin
+  const sbAdmin = await getAdmin(db);
+  const { data, error } = await sbAdmin
     .from('workspace_user_linked_users')
     .select(
       'virtual_user_id, workspace_users!inner(id, full_name, display_name, email, avatar_url, ws_id)'
@@ -67,19 +86,19 @@ export async function resolveTulearnSubject({
   studentId,
   user,
   wsId,
-}: ResolveTulearnSubjectInput): Promise<TulearnSubject | Response> {
+}: ResolveTulearnSubjectInput): Promise<TulearnSubject> {
   const normalizedWsId = await normalizeWorkspaceId(wsId, requestSupabase);
-  const admin = await getAdmin();
+  const sbAdmin = await getAdmin();
 
-  if (!(await hasEducationEnabled(normalizedWsId, admin))) {
-    return Response.json(
-      { message: 'Tulearn is not enabled for this workspace' },
-      { status: 404 }
+  if (!(await hasEducationEnabled(normalizedWsId, sbAdmin))) {
+    throw new TulearnAccessError(
+      'Tulearn is not enabled for this workspace',
+      404
     );
   }
 
   const selfStudent = await resolveStudentForPlatformUser({
-    db: admin,
+    db: sbAdmin,
     platformUserId: user.id,
     wsId: normalizedWsId,
   });
@@ -95,7 +114,7 @@ export async function resolveTulearnSubject({
     };
   }
 
-  let parentLinkQuery = admin
+  let parentLinkQuery = sbAdmin
     .from('tulearn_parent_student_links')
     .select('student_platform_user_id, student_workspace_user_id')
     .eq('ws_id', normalizedWsId)
@@ -116,13 +135,10 @@ export async function resolveTulearnSubject({
 
   if (error) throw error;
   if (!link) {
-    return Response.json(
-      { message: "You don't have access to this learner" },
-      { status: 403 }
-    );
+    throw new TulearnAccessError("You don't have access to this learner", 403);
   }
 
-  const { data: workspaceUser, error: workspaceUserError } = await admin
+  const { data: workspaceUser, error: workspaceUserError } = await sbAdmin
     .from('workspace_users')
     .select('id, full_name, display_name, email, avatar_url')
     .eq('id', link.student_workspace_user_id)
@@ -137,7 +153,7 @@ export async function resolveTulearnSubject({
     wsId: normalizedWsId,
     studentPlatformUserId: link.student_platform_user_id,
     studentWorkspaceUserId: link.student_workspace_user_id,
-    studentName: workspaceUser ? toDisplayName(workspaceUser) : 'Learner',
+    studentName: workspaceUser ? toDisplayName(workspaceUser) : null,
   };
 }
 
@@ -145,14 +161,14 @@ export async function getTulearnBootstrap({
   requestSupabase,
   user,
 }: TulearnBootstrapInput) {
-  const admin = await getAdmin();
+  const sbAdmin = await getAdmin();
   const [
     membershipWorkspacesResult,
     parentLinksResult,
     profileResult,
     privateDetailsResult,
   ] = await Promise.all([
-    admin
+    sbAdmin
       .from('workspaces')
       .select(
         'id, name, avatar_url, logo_url, workspace_members!inner(user_id), workspace_secrets!inner(name, value)'
@@ -160,7 +176,7 @@ export async function getTulearnBootstrap({
       .eq('workspace_members.user_id', user.id)
       .eq('workspace_secrets.name', ENABLE_EDUCATION_SECRET)
       .eq('workspace_secrets.value', 'true'),
-    admin
+    sbAdmin
       .from('tulearn_parent_student_links')
       .select('ws_id, student_platform_user_id, student_workspace_user_id')
       .eq('parent_user_id', user.id)
@@ -179,12 +195,14 @@ export async function getTulearnBootstrap({
 
   if (membershipWorkspacesResult.error) throw membershipWorkspacesResult.error;
   if (parentLinksResult.error) throw parentLinksResult.error;
+  if (profileResult.error) throw profileResult.error;
+  if (privateDetailsResult.error) throw privateDetailsResult.error;
 
   const workspaceMap = new Map<string, TulearnWorkspaceSummary>();
   for (const workspace of membershipWorkspacesResult.data ?? []) {
     workspaceMap.set(workspace.id, {
       id: workspace.id,
-      name: workspace.name ?? 'Education workspace',
+      name: workspace.name ?? null,
       avatar_url: workspace.avatar_url ?? null,
       logo_url: workspace.logo_url ?? null,
       roles: ['student'],
@@ -197,7 +215,7 @@ export async function getTulearnBootstrap({
   ];
   const [parentWorkspacesResult, parentStudentsResult] = await Promise.all([
     parentWorkspaceIds.length
-      ? admin
+      ? sbAdmin
           .from('workspaces')
           .select(
             'id, name, avatar_url, logo_url, workspace_secrets!inner(name, value)'
@@ -207,7 +225,7 @@ export async function getTulearnBootstrap({
           .eq('workspace_secrets.value', 'true')
       : Promise.resolve({ data: [], error: null }),
     parentLinks.length
-      ? admin
+      ? sbAdmin
           .from('workspace_users')
           .select('id, ws_id, full_name, display_name, email, avatar_url')
           .in(
@@ -228,7 +246,7 @@ export async function getTulearnBootstrap({
     }
     workspaceMap.set(workspace.id, {
       id: workspace.id,
-      name: workspace.name ?? 'Education workspace',
+      name: workspace.name ?? null,
       avatar_url: workspace.avatar_url ?? null,
       logo_url: workspace.logo_url ?? null,
       roles: ['parent'],
@@ -251,7 +269,7 @@ export async function getTulearnBootstrap({
       avatar_url: profileResult.data?.avatar_url ?? null,
     },
     workspaces: Array.from(workspaceMap.values()).sort((a, b) =>
-      a.name.localeCompare(b.name)
+      (a.name ?? '').localeCompare(b.name ?? '')
     ),
     linkedStudents: parentLinks
       .map((link) => {

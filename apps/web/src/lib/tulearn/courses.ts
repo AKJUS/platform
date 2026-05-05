@@ -4,7 +4,7 @@ import { getAdmin } from './db';
 import { firstOf } from './helpers';
 import type { Db } from './types';
 
-type ModuleIdOnly = Pick<Tables<'workspace_course_modules'>, 'id'>;
+type ModuleIdOnly = { module_id: string | null };
 
 interface CourseSummary {
   id: string;
@@ -63,8 +63,8 @@ export async function getAssignedCourseIds({
   studentWorkspaceUserId: string;
   wsId: string;
 }) {
-  const admin = await getAdmin(db);
-  const { data, error } = await admin
+  const sbAdmin = await getAdmin(db);
+  const { data, error } = await sbAdmin
     .from('workspace_user_groups_users')
     .select(
       'group_id, workspace_user_groups!inner(id, ws_id, archived, is_guest)'
@@ -89,9 +89,9 @@ export async function getLearnerCourseSummaries({
   studentWorkspaceUserId: string;
   wsId: string;
 }): Promise<CourseSummary[]> {
-  const admin = await getAdmin(db);
+  const sbAdmin = await getAdmin(db);
   const courseIds = await getAssignedCourseIds({
-    db: admin,
+    db: sbAdmin,
     studentWorkspaceUserId,
     wsId,
   });
@@ -99,18 +99,18 @@ export async function getLearnerCourseSummaries({
   if (!courseIds.length) return [];
 
   const [coursesResult, modulesResult, completionsResult] = await Promise.all([
-    admin
+    sbAdmin
       .from('workspace_user_groups')
       .select('id, name, description')
       .eq('ws_id', wsId)
       .in('id', courseIds)
       .order('name', { ascending: true }),
-    admin
+    sbAdmin
       .from('workspace_course_modules')
       .select('id, group_id')
       .in('group_id', courseIds)
       .eq('is_published', true),
-    admin
+    sbAdmin
       .from('course_module_completion_status')
       .select('module_id')
       .eq('user_id', studentPlatformUserId)
@@ -150,11 +150,18 @@ export async function getLearnerCourseSummaries({
   });
 }
 
+function emptyModuleIdResult() {
+  return {
+    data: [] as ModuleIdOnly[],
+    error: null,
+  };
+}
+
 function countByModule(rows: ModuleIdOnly[], moduleIds: Set<string>) {
   const map = new Map<string, number>();
   for (const row of rows) {
-    if (!moduleIds.has(row.id)) continue;
-    map.set(row.id, (map.get(row.id) ?? 0) + 1);
+    if (!row.module_id || !moduleIds.has(row.module_id)) continue;
+    map.set(row.module_id, (map.get(row.module_id) ?? 0) + 1);
   }
   return map;
 }
@@ -172,76 +179,74 @@ export async function getLearnerCourseDetail({
   studentWorkspaceUserId: string;
   wsId: string;
 }): Promise<CourseDetail | null> {
-  const admin = await getAdmin(db);
+  const sbAdmin = await getAdmin(db);
   const courseIds = await getAssignedCourseIds({
-    db: admin,
+    db: sbAdmin,
     studentWorkspaceUserId,
     wsId,
   });
   if (!courseIds.includes(courseId)) return null;
 
-  const [
-    courseResult,
-    modulesResult,
-    completionsResult,
-    flashcards,
-    quizzes,
-    quizSets,
-  ] = await Promise.all([
-    admin
+  const [courseResult, modulesResult] = await Promise.all([
+    sbAdmin
       .from('workspace_user_groups')
       .select('id, name, description')
       .eq('ws_id', wsId)
       .eq('id', courseId)
       .maybeSingle(),
-    admin
+    sbAdmin
       .from('workspace_course_modules')
       .select('id, name, sort_key, is_published')
       .eq('group_id', courseId)
       .order('sort_key', { ascending: true }),
-    admin
-      .from('course_module_completion_status')
-      .select('module_id')
-      .eq('user_id', studentPlatformUserId)
-      .eq('completion_status', true),
-    admin.from('course_module_flashcards').select('module_id'),
-    admin.from('course_module_quizzes').select('module_id'),
-    admin.from('course_module_quiz_sets').select('module_id'),
   ]);
 
   if (courseResult.error) throw courseResult.error;
   if (modulesResult.error) throw modulesResult.error;
+  if (!courseResult.data) return null;
+
+  const moduleIdList = (modulesResult.data ?? []).map((module) => module.id);
+  const moduleIds = new Set(moduleIdList);
+  const [completionsResult, flashcards, quizzes, quizSets] = await Promise.all([
+    moduleIdList.length
+      ? sbAdmin
+          .from('course_module_completion_status')
+          .select('module_id')
+          .eq('user_id', studentPlatformUserId)
+          .eq('completion_status', true)
+          .in('module_id', moduleIdList)
+      : emptyModuleIdResult(),
+    moduleIdList.length
+      ? sbAdmin
+          .from('course_module_flashcards')
+          .select('module_id')
+          .in('module_id', moduleIdList)
+      : emptyModuleIdResult(),
+    moduleIdList.length
+      ? sbAdmin
+          .from('course_module_quizzes')
+          .select('module_id')
+          .in('module_id', moduleIdList)
+      : emptyModuleIdResult(),
+    moduleIdList.length
+      ? sbAdmin
+          .from('course_module_quiz_sets')
+          .select('module_id')
+          .in('module_id', moduleIdList)
+      : emptyModuleIdResult(),
+  ]);
+
   if (completionsResult.error) throw completionsResult.error;
   if (flashcards.error) throw flashcards.error;
   if (quizzes.error) throw quizzes.error;
   if (quizSets.error) throw quizSets.error;
-  if (!courseResult.data) return null;
-
-  const moduleIds = new Set(
-    (modulesResult.data ?? []).map((module) => module.id)
-  );
   const completedModuleIds = new Set(
     (completionsResult.data ?? []).map((row) => row.module_id)
   );
 
-  const flashcardCounts = countByModule(
-    ((flashcards.data ?? []) as { module_id: string | null }[])
-      .filter((row): row is { module_id: string } => Boolean(row.module_id))
-      .map((row) => ({ id: row.module_id })),
-    moduleIds
-  );
-  const quizCounts = countByModule(
-    ((quizzes.data ?? []) as { module_id: string | null }[])
-      .filter((row): row is { module_id: string } => Boolean(row.module_id))
-      .map((row) => ({ id: row.module_id })),
-    moduleIds
-  );
-  const quizSetCounts = countByModule(
-    ((quizSets.data ?? []) as { module_id: string | null }[])
-      .filter((row): row is { module_id: string } => Boolean(row.module_id))
-      .map((row) => ({ id: row.module_id })),
-    moduleIds
-  );
+  const flashcardCounts = countByModule(flashcards.data ?? [], moduleIds);
+  const quizCounts = countByModule(quizzes.data ?? [], moduleIds);
+  const quizSetCounts = countByModule(quizSets.data ?? [], moduleIds);
 
   let priorIncomplete = false;
   const modules: CourseModuleSummary[] = (modulesResult.data ?? []).map(
@@ -305,26 +310,26 @@ export async function getLearnerModuleDetail({
   if (!course) return null;
 
   const summary = course.modules.find((module) => module.id === moduleId);
-  if (!summary) return null;
+  if (!summary || summary.locked) return null;
 
-  const admin = await getAdmin(db);
+  const sbAdmin = await getAdmin(db);
   const [moduleResult, flashcardsResult, quizzesResult, quizSetsResult] =
     await Promise.all([
-      admin
+      sbAdmin
         .from('workspace_course_modules')
         .select('content, extra_content, youtube_links')
         .eq('id', moduleId)
         .eq('group_id', courseId)
         .maybeSingle(),
-      admin
+      sbAdmin
         .from('course_module_flashcards')
         .select('workspace_flashcards(id, front, back)')
         .eq('module_id', moduleId),
-      admin
+      sbAdmin
         .from('course_module_quizzes')
         .select('workspace_quizzes(id, question, score)')
         .eq('module_id', moduleId),
-      admin
+      sbAdmin
         .from('course_module_quiz_sets')
         .select('workspace_quiz_sets(id, name)')
         .eq('module_id', moduleId),
@@ -374,28 +379,30 @@ export async function getRecommendedPracticeItem({
     studentWorkspaceUserId,
     wsId,
   });
-  const firstCourse = courses[0];
-  if (!firstCourse) return null;
+  for (const course of courses) {
+    const detail = await getLearnerCourseDetail({
+      courseId: course.id,
+      db,
+      studentPlatformUserId,
+      studentWorkspaceUserId,
+      wsId,
+    });
+    const module =
+      detail?.modules.find(
+        (candidate) => !candidate.completed && !candidate.locked
+      ) ?? detail?.modules.find((candidate) => !candidate.locked);
 
-  const detail = await getLearnerCourseDetail({
-    courseId: firstCourse.id,
-    db,
-    studentPlatformUserId,
-    studentWorkspaceUserId,
-    wsId,
-  });
-  const module =
-    detail?.modules.find(
-      (candidate) => !candidate.completed && !candidate.locked
-    ) ?? detail?.modules.find((candidate) => !candidate.locked);
-  if (!detail || !module) return null;
+    if (detail && module) {
+      return {
+        type: 'module' as const,
+        id: module.id,
+        title: module.name,
+        courseId: detail.id,
+        courseName: detail.name,
+        prompt: detail.description,
+      };
+    }
+  }
 
-  return {
-    type: 'module' as const,
-    id: module.id,
-    title: module.name,
-    courseId: detail.id,
-    courseName: detail.name,
-    prompt: detail.description,
-  };
+  return null;
 }

@@ -57,16 +57,16 @@ export async function getLearnerAssignments({
   studentWorkspaceUserId: string;
   wsId: string;
 }) {
-  const admin = await getAdmin(db);
+  const sbAdmin = await getAdmin(db);
   const courseIds = await getAssignedCourseIds({
-    db: admin,
+    db: sbAdmin,
     studentWorkspaceUserId,
     wsId,
   });
   if (!courseIds.length) return [];
 
   const [postsResult, checksResult] = await Promise.all([
-    admin
+    sbAdmin
       .from('user_group_posts')
       .select(
         'id, title, content, created_at, group_id, workspace_user_groups!inner(id, name, ws_id)'
@@ -75,7 +75,7 @@ export async function getLearnerAssignments({
       .eq('workspace_user_groups.ws_id', wsId)
       .order('created_at', { ascending: false })
       .limit(12),
-    admin
+    sbAdmin
       .from('user_group_post_checks')
       .select('post_id, is_completed, approval_status')
       .eq('user_id', studentWorkspaceUserId),
@@ -94,12 +94,12 @@ export async function getLearnerAssignments({
     const check = checksByPost.get(post.id);
     return {
       id: post.id,
-      title: post.title ?? 'Untitled assignment',
+      title: post.title ?? null,
       content: post.content ?? null,
       created_at: post.created_at,
       course: {
         id: post.group_id,
-        name: course?.name ?? 'Course',
+        name: course?.name ?? null,
       },
       is_completed: Boolean(check?.is_completed),
       approval_status: check?.approval_status ?? null,
@@ -116,15 +116,15 @@ export async function getLearnerReports({
   studentWorkspaceUserId: string;
   wsId: string;
 }) {
-  const admin = await getAdmin(db);
+  const sbAdmin = await getAdmin(db);
   const courseIds = await getAssignedCourseIds({
-    db: admin,
+    db: sbAdmin,
     studentWorkspaceUserId,
     wsId,
   });
   if (!courseIds.length) return [];
 
-  const { data, error } = await admin
+  const { data, error } = await sbAdmin
     .from('external_user_monthly_reports')
     .select(
       'id, title, content, feedback, score, created_at, group_id, workspace_user_groups!inner(id, name, ws_id)'
@@ -166,15 +166,15 @@ export async function getLearnerMarks({
   studentWorkspaceUserId: string;
   wsId: string;
 }) {
-  const admin = await getAdmin(db);
+  const sbAdmin = await getAdmin(db);
   const courseIds = await getAssignedCourseIds({
-    db: admin,
+    db: sbAdmin,
     studentWorkspaceUserId,
     wsId,
   });
   if (!courseIds.length) return [];
 
-  const { data, error } = await admin
+  const { data, error } = await sbAdmin
     .from('user_indicators')
     .select(
       'indicator_id, value, created_at, user_group_metrics!inner(id, name, unit, group_id, ws_id, workspace_user_groups(id, name))'
@@ -197,7 +197,7 @@ export async function getLearnerMarks({
       created_at: mark.created_at ?? null,
       metric: {
         id: metric?.id ?? mark.indicator_id,
-        name: metric?.name ?? 'Mark',
+        name: metric?.name ?? null,
         unit: metric?.unit ?? null,
       },
       course: course

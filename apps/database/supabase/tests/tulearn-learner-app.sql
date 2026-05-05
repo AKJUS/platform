@@ -1,6 +1,6 @@
 begin;
 
-select plan(14);
+select plan(16);
 
 select has_table('public', 'tulearn_parent_student_links', 'parent student links table exists');
 select has_table('public', 'tulearn_parent_invites', 'parent invites table exists');
@@ -52,6 +52,26 @@ select isnt_empty(
       and indexname = 'tulearn_parent_student_links_active_key'
   $$,
   'active parent student links are unique'
+);
+
+select isnt_empty(
+  $$
+    select 1
+    from pg_proc
+    where pronamespace = 'public'::regnamespace
+      and proname = 'award_tulearn_xp'
+  $$,
+  'Tulearn XP awards use an atomic RPC'
+);
+
+select isnt_empty(
+  $$
+    select 1
+    from pg_proc
+    where pronamespace = 'public'::regnamespace
+      and proname = 'lose_tulearn_heart'
+  $$,
+  'Tulearn heart loss uses an atomic RPC'
 );
 
 select * from finish();

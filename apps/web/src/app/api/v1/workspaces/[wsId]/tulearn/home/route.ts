@@ -9,6 +9,7 @@ import {
   getLearnerState,
   getRecommendedPracticeItem,
   resolveTulearnSubject,
+  tulearnAccessErrorResponse,
 } from '@/lib/tulearn/service';
 
 type Params = {
@@ -24,8 +25,6 @@ export const GET = withSessionAuth<Params>(
         user,
         wsId,
       });
-
-      if (subject instanceof Response) return subject as NextResponse;
 
       const sbAdmin = await createAdminClient();
       const [state, courses, assignments, marks, recommendedPractice] =
@@ -73,6 +72,9 @@ export const GET = withSessionAuth<Params>(
         recommendedPractice,
       });
     } catch (error) {
+      const accessResponse = tulearnAccessErrorResponse(error);
+      if (accessResponse) return accessResponse;
+
       serverLogger.error('Failed to load Tulearn home:', error);
       return NextResponse.json(
         { message: 'Failed to load learner home' },
