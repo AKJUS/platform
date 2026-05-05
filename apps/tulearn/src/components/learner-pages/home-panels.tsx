@@ -4,7 +4,7 @@ import { ArrowRight, CheckCircle2, Target } from '@tuturuuu/icons';
 import { Progress } from '@tuturuuu/ui/progress';
 import { cn } from '@tuturuuu/utils/format';
 import { useTranslations } from 'next-intl';
-import { Link } from '@/i18n/routing';
+import { Link } from '@/i18n/navigation';
 import type { IconComponent } from './shared';
 
 export function StatBubble({

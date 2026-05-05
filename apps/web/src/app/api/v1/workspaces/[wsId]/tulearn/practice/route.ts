@@ -11,6 +11,7 @@ import {
   getRecommendedPracticeItem,
   loseHeart,
   resolveTulearnSubject,
+  tulearnAccessErrorResponse,
 } from '@/lib/tulearn/service';
 
 type Params = {
@@ -40,8 +41,6 @@ export const GET = withSessionAuth<Params>(
         wsId,
       });
 
-      if (subject instanceof Response) return subject as NextResponse;
-
       const item = await getRecommendedPracticeItem({
         db: await createAdminClient(),
         studentPlatformUserId: subject.studentPlatformUserId,
@@ -51,6 +50,9 @@ export const GET = withSessionAuth<Params>(
 
       return NextResponse.json({ item });
     } catch (error) {
+      const accessResponse = tulearnAccessErrorResponse(error);
+      if (accessResponse) return accessResponse;
+
       serverLogger.error('Failed to load Tulearn practice:', error);
       return NextResponse.json(
         { message: 'Failed to load practice' },
@@ -70,7 +72,6 @@ export const POST = withSessionAuth<Params>(
         wsId,
       });
 
-      if (subject instanceof Response) return subject as NextResponse;
       if (subject.readOnly) {
         return NextResponse.json(
           { message: 'Parents can only review practice' },
@@ -154,6 +155,9 @@ export const POST = withSessionAuth<Params>(
         state,
       });
     } catch (error) {
+      const accessResponse = tulearnAccessErrorResponse(error);
+      if (accessResponse) return accessResponse;
+
       serverLogger.error('Failed to submit Tulearn practice:', error);
       return NextResponse.json(
         { message: 'Failed to submit practice' },

@@ -20,7 +20,7 @@ Tulearn also exposes a learner-focused AI Chat surface at `/[wsId]/ai-chat`. The
 Every Tulearn workspace API requires both:
 
 - the authenticated user has student access or an explicit active parent-student link; and
-- `workspace_secrets.name = ENABLE_EDUCATION` has a truthy value for that workspace.
+- `workspace_secrets.name = ENABLE_EDUCATION` is set to the canonical value `true` for that workspace.
 
 The bootstrap route only returns eligible education workspaces and linked students:
 
@@ -46,6 +46,8 @@ Tulearn-owned gamification tables are separate from teacher-owned course data:
 
 - `tulearn_gamification_events` stores XP events with an idempotency key per workspace and learner.
 - `tulearn_learner_state` stores hearts, max hearts, total XP, streaks, freezes, selected workspace, and UI preferences.
+
+XP awards and heart loss must go through the database RPCs `award_tulearn_xp` and `lose_tulearn_heart`. Those functions lock the learner state row and keep event insertion, streak updates, XP totals, heart decrements, and refill timer resets atomic under concurrent practice or assignment submissions. Streak dates currently use UTC day boundaries until Tulearn stores learner or workspace time zones.
 
 Courses, modules, quiz sets, flashcards, assignments, monthly reports, and marks continue to reuse existing education and user-group tables.
 

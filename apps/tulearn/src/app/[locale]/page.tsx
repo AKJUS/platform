@@ -3,7 +3,7 @@ import {
   withForwardedInternalApiAuth,
 } from '@tuturuuu/internal-api';
 import { headers } from 'next/headers';
-import { redirect } from '@/i18n/routing';
+import { redirect } from '@/i18n/navigation';
 
 export default async function IndexPage({
   params,

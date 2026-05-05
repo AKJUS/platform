@@ -3,6 +3,7 @@
 import { Trophy } from '@tuturuuu/icons';
 import type { TulearnMarkSummary } from '@tuturuuu/internal-api';
 import { cn } from '@tuturuuu/utils/format';
+import { useTranslations } from 'next-intl';
 import { courseThemes } from './shared';
 
 export function MarkCard({
@@ -12,6 +13,7 @@ export function MarkCard({
   index: number;
   mark: TulearnMarkSummary;
 }) {
+  const t = useTranslations();
   const theme = courseThemes[index % courseThemes.length] ?? courseThemes[0];
   return (
     <article
@@ -22,7 +24,9 @@ export function MarkCard({
       data-tulearn-reveal
     >
       <Trophy className={cn('mb-5 h-7 w-7', theme.text)} />
-      <p className="text-muted-foreground text-sm">{mark.metric.name}</p>
+      <p className="text-muted-foreground text-sm">
+        {mark.metric.name ?? t('marks.untitled')}
+      </p>
       <p className="mt-2 font-bold text-4xl tracking-normal">
         {mark.value ?? '-'}
         {mark.metric.unit ? (
@@ -31,7 +35,11 @@ export function MarkCard({
           </span>
         ) : null}
       </p>
-      <p className="mt-4 text-muted-foreground text-sm">{mark.course?.name}</p>
+      {mark.course ? (
+        <p className="mt-4 text-muted-foreground text-sm">
+          {mark.course.name ?? t('courses.untitled')}
+        </p>
+      ) : null}
     </article>
   );
 }

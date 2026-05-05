@@ -1,0 +1,3 @@
+export const ENABLE_EDUCATION_SECRET = 'ENABLE_EDUCATION';
+export const DEFAULT_HEARTS = 5;
+export const HEART_REFILL_MS = 4 * 60 * 60 * 1000;

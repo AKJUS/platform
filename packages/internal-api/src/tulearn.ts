@@ -8,7 +8,7 @@ export type TulearnRole = 'parent' | 'student';
 
 export interface TulearnWorkspaceSummary {
   id: string;
-  name: string;
+  name: string | null;
   avatar_url: string | null;
   logo_url: string | null;
   roles: TulearnRole[];
@@ -19,7 +19,7 @@ export interface TulearnStudentSummary {
   platform_user_id: string;
   workspace_user_id: string;
   workspace_id: string;
-  name: string;
+  name: string | null;
   email: string | null;
   avatar_url: string | null;
 }
@@ -56,12 +56,12 @@ export interface TulearnCourseSummary {
 
 export interface TulearnAssignmentSummary {
   id: string;
-  title: string;
+  title: string | null;
   content: string | null;
   created_at: string;
   course: {
     id: string;
-    name: string;
+    name: string | null;
   };
   is_completed: boolean;
   approval_status?: string | null;
@@ -73,7 +73,7 @@ export interface TulearnMarkSummary {
   created_at: string | null;
   metric: {
     id: string;
-    name: string;
+    name: string | null;
     unit: string | null;
   };
   course: {
@@ -100,7 +100,7 @@ export interface TulearnHomeResponse {
   readOnly: boolean;
   student: {
     id: string;
-    name: string;
+    name: string | null;
   };
   state: TulearnLearnerState;
   courses: TulearnCourseSummary[];

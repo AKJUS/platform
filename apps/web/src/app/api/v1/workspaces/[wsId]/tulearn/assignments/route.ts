@@ -8,6 +8,7 @@ import {
   getAssignedCourseIds,
   getLearnerAssignments,
   resolveTulearnSubject,
+  tulearnAccessErrorResponse,
 } from '@/lib/tulearn/service';
 
 type Params = {
@@ -28,8 +29,6 @@ export const GET = withSessionAuth<Params>(
         user,
         wsId,
       });
-      if (subject instanceof Response) return subject as NextResponse;
-
       const assignments = await getLearnerAssignments({
         db: await createAdminClient(),
         studentWorkspaceUserId: subject.studentWorkspaceUserId,
@@ -38,6 +37,9 @@ export const GET = withSessionAuth<Params>(
 
       return NextResponse.json({ assignments });
     } catch (error) {
+      const accessResponse = tulearnAccessErrorResponse(error);
+      if (accessResponse) return accessResponse;
+
       serverLogger.error('Failed to list Tulearn assignments:', error);
       return NextResponse.json(
         { message: 'Failed to load assignments' },
@@ -56,7 +58,6 @@ export const PATCH = withSessionAuth<Params>(
         user,
         wsId,
       });
-      if (subject instanceof Response) return subject as NextResponse;
       if (subject.readOnly) {
         return NextResponse.json(
           { message: 'Parents cannot update assignments' },
@@ -133,6 +134,9 @@ export const PATCH = withSessionAuth<Params>(
         xpAwarded: xpResult.xp,
       });
     } catch (error) {
+      const accessResponse = tulearnAccessErrorResponse(error);
+      if (accessResponse) return accessResponse;
+
       serverLogger.error('Failed to update Tulearn assignment:', error);
       return NextResponse.json(
         { message: 'Failed to update assignment' },

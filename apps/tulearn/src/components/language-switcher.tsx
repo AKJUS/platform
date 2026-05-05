@@ -4,7 +4,7 @@ import { Languages } from '@tuturuuu/icons';
 import { cn } from '@tuturuuu/utils/format';
 import { useSearchParams } from 'next/navigation';
 import { useLocale, useTranslations } from 'next-intl';
-import { Link, usePathname } from '@/i18n/routing';
+import { Link, usePathname } from '@/i18n/navigation';
 
 const localeOptions = [
   { label: 'English', shortLabel: 'EN', value: 'en' },

@@ -31,7 +31,7 @@ import { cn } from '@tuturuuu/utils/format';
 import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
-import { Link, usePathname, useRouter } from '@/i18n/routing';
+import { Link, usePathname, useRouter } from '@/i18n/navigation';
 import { LanguageSwitcher } from './language-switcher';
 
 const navItems = [
@@ -133,7 +133,7 @@ export function LearnerShell({
               <div>
                 <p className="font-bold text-xl tracking-normal">Tulearn</p>
                 <p className="text-muted-foreground text-sm">
-                  {activeWorkspace?.name ?? t('workspace.empty')}
+                  {activeWorkspace?.name ?? t('workspace.untitled')}
                 </p>
               </div>
             </div>
@@ -148,7 +148,7 @@ export function LearnerShell({
                 >
                   {bootstrap.workspaces.map((workspace) => (
                     <option key={workspace.id} value={workspace.id}>
-                      {workspace.name}
+                      {workspace.name ?? t('workspace.untitled')}
                     </option>
                   ))}
                 </select>
@@ -171,10 +171,12 @@ export function LearnerShell({
                     }}
                     value={selectedStudentId ?? ''}
                   >
-                    <option value="">{bootstrap.profile.display_name}</option>
+                    <option value="">
+                      {bootstrap.profile.display_name ?? t('common.learner')}
+                    </option>
                     {linkedStudents.map((student: TulearnStudentSummary) => (
                       <option key={student.id} value={student.id}>
-                        {student.name}
+                        {student.name ?? t('common.learner')}
                       </option>
                     ))}
                   </select>

@@ -21,7 +21,8 @@
     "description": "{count, plural, =0 {Your quest board is clear.} one {One quest is waiting for you.} other {# quests are waiting for you.}}",
     "empty": "No assignments are due right now.",
     "markDone": "Mark done",
-    "title": "Assignments"
+    "title": "Assignments",
+    "untitled": "Untitled assignment"
   },
   "auth": {
     "bentoLead": "Courses, assignments, reports, and marks stay connected so every learner knows the next useful step.",
@@ -70,6 +71,7 @@
     "completed": "Completed",
     "continue": "Continue",
     "empty": "Nothing here yet.",
+    "learner": "Learner",
     "loading": "Loading",
     "save": "Save",
     "saving": "Saving"
@@ -79,7 +81,8 @@
     "locked": "Locked",
     "mapDescription": "Follow the course path, unlock each checkpoint, and keep every lesson visible at a glance.",
     "modules": "Modules",
-    "title": "Courses"
+    "title": "Courses",
+    "untitled": "Course"
   },
   "home": {
     "assignments": "Due assignments",
@@ -113,7 +116,8 @@
   "marks": {
     "description": "Marks are grouped as friendly score cards so students and parents can spot growth quickly.",
     "empty": "Marks will appear after your teacher records them.",
-    "title": "Marks"
+    "title": "Marks",
+    "untitled": "Mark"
   },
   "navigation": {
     "aiChat": "AI Chat",
@@ -167,6 +171,7 @@
   },
   "workspace": {
     "empty": "No education workspace is available for this account.",
-    "switcher": "Workspace"
+    "switcher": "Workspace",
+    "untitled": "Education workspace"
   }
 }

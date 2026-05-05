@@ -2,7 +2,11 @@ import { createAdminClient } from '@tuturuuu/supabase/next/server';
 import { NextResponse } from 'next/server';
 import { withSessionAuth } from '@/lib/api-auth';
 import { serverLogger } from '@/lib/infrastructure/log-drain';
-import { getLearnerMarks, resolveTulearnSubject } from '@/lib/tulearn/service';
+import {
+  getLearnerMarks,
+  resolveTulearnSubject,
+  tulearnAccessErrorResponse,
+} from '@/lib/tulearn/service';
 
 type Params = {
   wsId: string;
@@ -17,8 +21,6 @@ export const GET = withSessionAuth<Params>(
         user,
         wsId,
       });
-      if (subject instanceof Response) return subject as NextResponse;
-
       const marks = await getLearnerMarks({
         db: await createAdminClient(),
         studentWorkspaceUserId: subject.studentWorkspaceUserId,
@@ -27,6 +29,9 @@ export const GET = withSessionAuth<Params>(
 
       return NextResponse.json({ marks });
     } catch (error) {
+      const accessResponse = tulearnAccessErrorResponse(error);
+      if (accessResponse) return accessResponse;
+
       serverLogger.error('Failed to list Tulearn marks:', error);
       return NextResponse.json(
         { message: 'Failed to load marks' },
