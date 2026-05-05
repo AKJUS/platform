@@ -64,7 +64,10 @@ This is the operational guide for the Docker-based `apps/web` runtime.
 ## Runtime Requirements
 
 - `apps/web/.env.local` must exist for both the build secret and the runtime env file.
-- Docker BuildKit must be available. The helper sets `COMPOSE_DOCKER_CLI_BUILD=1` and `DOCKER_BUILDKIT=1`.
+- Docker BuildKit must be available. The helper sets
+  `COMPOSE_DOCKER_CLI_BUILD=1`, `DOCKER_BUILDKIT=1`, and
+  `BUILDX_NO_DEFAULT_ATTESTATIONS=1` so local blue/green image exports do not
+  stall while resolving default provenance metadata.
 - The Docker web flow does not start local Supabase unless you explicitly choose `bun devx:web:docker` or `bun devrs:web:docker`.
 - By default the Docker container uses the Supabase URL already configured in `apps/web/.env.local`, which should stay pointed at the cloud project for normal Tuturuuu work.
 - If that configured URL explicitly points at host-run local Supabase, the helper rewrites the server-side Supabase URL to `host.docker.internal` while leaving `NEXT_PUBLIC_SUPABASE_URL` alone for browsers.
