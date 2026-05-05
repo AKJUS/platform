@@ -107,6 +107,7 @@ export function WelcomeScreen({
             </p>
             <div className="flex gap-2">
               <Input
+                aria-label={t('join-by-slug-label')}
                 value={joinHandle}
                 onChange={(event) =>
                   setJoinHandle(event.target.value.toLowerCase())

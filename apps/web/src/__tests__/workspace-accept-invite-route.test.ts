@@ -5,7 +5,7 @@ const NORMALIZED_WS_ID = '11111111-1111-4111-8111-111111111111';
 
 const mocks = vi.hoisted(() => {
   const normalizeWorkspaceId = vi.fn(
-    async (_wsId: string) => '11111111-1111-4111-8111-111111111111'
+    async () => '11111111-1111-4111-8111-111111111111'
   );
   const authGetUser = vi.fn();
   const sessionInviteMaybeSingle = vi.fn();
@@ -221,7 +221,7 @@ describe('POST /api/workspaces/[wsId]/accept-invite', () => {
     expect(resolveGuestSelfJoinCandidate).toHaveBeenCalled();
   }, 20000);
 
-  it('returns 404 for unresolved non-UUID workspace id before invite checks', async () => {
+  it('returns 404 for unresolved non-UUID workspace id after auth check', async () => {
     const { resolveGuestSelfJoinCandidate } = await import(
       '@tuturuuu/utils/workspace-helper'
     );
@@ -239,7 +239,7 @@ describe('POST /api/workspaces/[wsId]/accept-invite', () => {
     await expect(response.json()).resolves.toMatchObject({
       errorCode: 'WORKSPACE_NOT_FOUND',
     });
-    expect(mocks.authGetUser).not.toHaveBeenCalled();
+    expect(mocks.authGetUser).toHaveBeenCalled();
     expect(resolveGuestSelfJoinCandidate).not.toHaveBeenCalled();
   });
 

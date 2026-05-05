@@ -1,6 +1,8 @@
 'use client';
 
+import { useMutation } from '@tanstack/react-query';
 import { Check, Loader2 } from '@tuturuuu/icons';
+import { updateWorkspace } from '@tuturuuu/internal-api/workspaces';
 import { Button } from '@tuturuuu/ui/button';
 import {
   Form,
@@ -12,12 +14,13 @@ import {
   FormMessage,
 } from '@tuturuuu/ui/form';
 import { useForm } from '@tuturuuu/ui/hooks/use-form';
-import { toast } from '@tuturuuu/ui/hooks/use-toast';
 import { Input } from '@tuturuuu/ui/input';
 import { zodResolver } from '@tuturuuu/ui/resolvers';
+import { toast } from '@tuturuuu/ui/sonner';
+import { workspaceHandleSchema } from '@tuturuuu/utils/workspace-handle';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import * as z from 'zod';
 
 interface Props {
@@ -28,12 +31,7 @@ interface Props {
 }
 
 const FormSchema = z.object({
-  handle: z
-    .string()
-    .trim()
-    .min(1)
-    .max(64)
-    .regex(/^[a-z0-9](?:[a-z0-9_-]{0,62}[a-z0-9])?$/),
+  handle: workspaceHandleSchema,
 });
 
 export default function HandleInput({
@@ -44,7 +42,14 @@ export default function HandleInput({
 }: Props) {
   const t = useTranslations('ws-settings');
   const router = useRouter();
-  const [saving, setSaving] = useState(false);
+
+  const updateWorkspaceMutation = useMutation({
+    mutationFn: async ({ handle }: { handle: string }) =>
+      updateWorkspace(wsId, {
+        name: defaultName ?? '',
+        handle,
+      }),
+  });
 
   const form = useForm({
     resolver: zodResolver(FormSchema),
@@ -61,39 +66,26 @@ export default function HandleInput({
   }, [defaultValue, form.reset]);
 
   const { isDirty } = form.formState;
+  const saving = updateWorkspaceMutation.isPending;
 
   async function onSubmit(data: z.infer<typeof FormSchema>) {
-    setSaving(true);
-
-    const res = await fetch(`/api/workspaces/${wsId}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        name: defaultName,
-        handle: data.handle,
-      }),
-    });
-
-    if (res.ok) {
-      toast({
-        title: t('handle_updated'),
+    try {
+      await updateWorkspaceMutation.mutateAsync({ handle: data.handle });
+      toast.success(t('handle_updated'), {
         description: t('handle_updated_description'),
       });
       router.refresh();
       form.reset({ handle: data.handle.toLowerCase() });
-    } else {
-      const payload = (await res.json().catch(() => null)) as {
-        message?: string;
-      } | null;
-      toast({
-        title: t('handle_update_error'),
-        description: payload?.message || t('handle_update_error_description'),
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : t('handle_update_error_description');
+
+      toast.error(t('handle_update_error'), {
+        description: message,
       });
     }
-
-    setSaving(false);
   }
 
   return (

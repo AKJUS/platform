@@ -1,6 +1,8 @@
 'use client';
 
+import { useMutation } from '@tanstack/react-query';
 import { Check, Loader2 } from '@tuturuuu/icons';
+import { updateWorkspace } from '@tuturuuu/internal-api/workspaces';
 import { Button } from '@tuturuuu/ui/button';
 import {
   Form,
@@ -11,12 +13,12 @@ import {
   FormMessage,
 } from '@tuturuuu/ui/form';
 import { useForm } from '@tuturuuu/ui/hooks/use-form';
-import { toast } from '@tuturuuu/ui/hooks/use-toast';
 import { Input } from '@tuturuuu/ui/input';
 import { zodResolver } from '@tuturuuu/ui/resolvers';
+import { toast } from '@tuturuuu/ui/sonner';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import * as z from 'zod';
 
 interface Props {
@@ -37,7 +39,12 @@ export default function NameInput({
   const t = useTranslations('ws-settings');
   const router = useRouter();
 
-  const [saving, setSaving] = useState(false);
+  const updateWorkspaceMutation = useMutation({
+    mutationFn: async ({ name }: { name: string }) =>
+      updateWorkspace(wsId, {
+        name,
+      }),
+  });
 
   const form = useForm({
     resolver: zodResolver(FormSchema),
@@ -54,31 +61,22 @@ export default function NameInput({
   }, [defaultValue, form.reset]);
 
   const { isDirty } = form.formState;
+  const saving = updateWorkspaceMutation.isPending;
 
   async function onSubmit(data: z.infer<typeof FormSchema>) {
-    setSaving(true);
-
-    const res = await fetch(`/api/workspaces/${wsId}`, {
-      method: 'PUT',
-      body: JSON.stringify(data),
-    });
-
-    if (res.ok) {
-      toast({
-        title: 'Workspace updated',
-        description: 'The name of the workspace has been updated.',
+    try {
+      await updateWorkspaceMutation.mutateAsync({ name: data.name ?? '' });
+      toast.success(t('name_updated'), {
+        description: t('name_updated_description'),
       });
 
       router.refresh();
       form.reset({ name: data.name });
-    } else {
-      toast({
-        title: 'An error occurred',
-        description: 'Please try again.',
+    } catch {
+      toast.error(t('name_update_error'), {
+        description: t('name_update_error_description'),
       });
     }
-
-    setSaving(false);
   }
 
   return (

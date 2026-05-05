@@ -32,13 +32,13 @@ export default function BasicInfo({ workspace, allowEdit, isPersonal }: Props) {
             <NameInput
               wsId={workspace.id}
               defaultValue={workspace.name}
-              disabled={!workspace || allowEdit === false}
+              disabled={allowEdit === false}
             />
             <HandleInput
               wsId={workspace.id}
               defaultName={workspace.name}
               defaultValue={workspace.handle}
-              disabled={!workspace || allowEdit === false}
+              disabled={allowEdit === false}
             />
           </>
         )}

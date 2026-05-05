@@ -62,6 +62,34 @@ export async function getWorkspace(
   );
 }
 
+export async function updateWorkspace(
+  workspaceId: string,
+  payload: {
+    handle?: string;
+    name: string;
+  },
+  options?: InternalApiClientOptions
+) {
+  const client = getInternalApiClient(options);
+  const response = await client.fetch(
+    `/api/workspaces/${encodePathSegment(workspaceId)}`,
+    {
+      body: JSON.stringify(payload),
+      cache: 'no-store',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      method: 'PUT',
+    }
+  );
+
+  if (!response.ok) {
+    await parseAndThrowInternalApiError(response);
+  }
+
+  return (await response.json()) as { message: string };
+}
+
 export async function getWorkspaceExternalProjectMembersContext(
   workspaceId: string,
   options?: InternalApiClientOptions

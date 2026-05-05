@@ -21,6 +21,7 @@ import {
 } from '@tuturuuu/utils/constants';
 import { cn } from '@tuturuuu/utils/format';
 import { getInitials } from '@tuturuuu/utils/name-helper';
+import { workspaceHandleSchema } from '@tuturuuu/utils/workspace-handle';
 import { WORKSPACE_LIMIT_ERROR_CODE } from '@tuturuuu/utils/workspace-limits';
 import { usePathname, useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
@@ -69,12 +70,7 @@ const FormSchema = z.object({
 });
 
 const JoinWorkspaceByHandleFormSchema = z.object({
-  handle: z
-    .string()
-    .trim()
-    .min(1)
-    .max(64)
-    .regex(/^[a-z0-9](?:[a-z0-9_-]{0,62}[a-z0-9])?$/),
+  handle: workspaceHandleSchema,
 });
 
 function WorkspaceIcon({
@@ -429,6 +425,7 @@ export function WorkspaceSelect({
 
               <DialogFooter>
                 <Button
+                  type="button"
                   variant="outline"
                   onClick={() => setShowJoinWorkspaceDialog(false)}
                 >
@@ -644,20 +641,21 @@ export function WorkspaceSelect({
                   </CommandGroup>
                 ))}
               </CommandList>
+              <CommandSeparator />
+              <CommandGroup>
+                <CommandItem
+                  onSelect={() => {
+                    setOpen(false);
+                    setShowJoinWorkspaceDialog(true);
+                  }}
+                >
+                  <Link className="h-5 w-5" />
+                  {t('common.join_workspace')}
+                </CommandItem>
+              </CommandGroup>
+
               {!disableCreateNewWorkspace && (
                 <>
-                  <CommandSeparator />
-                  <CommandGroup>
-                    <CommandItem
-                      onSelect={() => {
-                        setOpen(false);
-                        setShowJoinWorkspaceDialog(true);
-                      }}
-                    >
-                      <Link className="h-5 w-5" />
-                      {t('common.join_workspace')}
-                    </CommandItem>
-                  </CommandGroup>
                   <CommandSeparator />
                   <DialogTrigger asChild>
                     <CommandGroup>

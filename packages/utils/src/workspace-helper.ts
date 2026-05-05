@@ -936,6 +936,10 @@ export async function normalizeWorkspaceId(
 
   if (!validateUUID(resolvedWorkspaceId)) {
     const handle = wsId.trim().toLowerCase();
+    if (!isDirectWorkspaceLookupIdentifier(handle)) {
+      return resolvedWorkspaceId;
+    }
+
     const { data: workspaceByHandle } = await sb
       .from('workspaces')
       .select('id')
