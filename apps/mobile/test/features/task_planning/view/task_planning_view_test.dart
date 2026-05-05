@@ -356,6 +356,19 @@ void main() {
 
       expect(tester.takeException(), isNull);
       expect(
+        find.byKey(
+          const ValueKey<String>(
+            'injected-mini-nav-task-planning-mini-nav-estimates',
+          ),
+        ),
+        findsOneWidget,
+      );
+      expect(find.text('Estimations'), findsOneWidget);
+      expect(find.text('Labels'), findsOneWidget);
+      expect(find.text('Projects'), findsOneWidget);
+      expect(find.text('Initiatives'), findsOneWidget);
+      expect(find.text('Boards'), findsNothing);
+      expect(
         shellMiniNavCubit.state
             .resolveForLocation(Routes.taskPlanning)
             ?.items

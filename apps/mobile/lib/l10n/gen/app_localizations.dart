@@ -9364,7 +9364,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsExperimentalAppsSectionTitle.
   ///
   /// In en, this message translates to:
-  /// **'Experimental'**
+  /// **'Experiments'**
   String get settingsExperimentalAppsSectionTitle;
 
   /// No description provided for @settingsExperimentalAppsTileDescription.

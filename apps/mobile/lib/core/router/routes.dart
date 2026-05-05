@@ -39,6 +39,11 @@ abstract final class Routes {
   static const meet = '/meet';
   static const timer = '/timer';
   static const settings = '/settings';
+  static const settingsPreferences = '/settings/preferences';
+  static const settingsExperiments = '/settings/experiments';
+  static const settingsInfrastructure = '/settings/infrastructure';
+  static const settingsAbout = '/settings/about';
+  static const settingsSession = '/settings/session';
   static const settingsWorkspace = '/settings/workspace';
   static const settingsWorkspaceSecrets = '/settings/workspace/secrets';
   static const settingsWorkspaceMembers = '/settings/workspace/members';

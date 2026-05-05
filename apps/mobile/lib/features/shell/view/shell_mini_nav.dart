@@ -30,6 +30,8 @@ class ShellMiniNav extends StatefulWidget {
 
 class _ShellMiniNavState extends State<ShellMiniNav> {
   ShellMiniNavCubit? _cubit;
+  bool _disposed = false;
+  bool _syncScheduled = false;
   late final String _registrationId =
       '${widget.ownerId}#${identityHashCode(this)}';
 
@@ -38,10 +40,10 @@ class _ShellMiniNavState extends State<ShellMiniNav> {
     super.didChangeDependencies();
     final nextCubit = lookupShellMiniNavCubit(context);
     if (_cubit != nextCubit) {
-      _cubit?.unregister(_registrationId);
+      _scheduleUnregister(_cubit);
       _cubit = nextCubit;
     }
-    _syncRegistration();
+    _scheduleSyncRegistration();
   }
 
   @override
@@ -51,8 +53,22 @@ class _ShellMiniNavState extends State<ShellMiniNav> {
         oldWidget.ownerId != widget.ownerId ||
         oldWidget.deepLinkBackRoute != widget.deepLinkBackRoute ||
         !listEquals(oldWidget.items, widget.items)) {
-      _syncRegistration();
+      _scheduleSyncRegistration();
     }
+  }
+
+  void _scheduleSyncRegistration() {
+    if (_syncScheduled) {
+      return;
+    }
+    _syncScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _syncScheduled = false;
+      if (_disposed || !mounted || (_cubit?.isClosed ?? true)) {
+        return;
+      }
+      _syncRegistration();
+    });
   }
 
   void _syncRegistration() {
@@ -65,9 +81,22 @@ class _ShellMiniNavState extends State<ShellMiniNav> {
     );
   }
 
+  void _scheduleUnregister(ShellMiniNavCubit? cubit) {
+    if (cubit == null) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (cubit.isClosed) {
+        return;
+      }
+      cubit.unregister(_registrationId);
+    });
+  }
+
   @override
   void dispose() {
-    _cubit?.unregister(_registrationId);
+    _disposed = true;
+    _scheduleUnregister(_cubit);
     super.dispose();
   }
 

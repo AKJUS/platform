@@ -4910,7 +4910,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsExperimentalAppsSectionDescription => 'Enable non-core apps in the Apps Hub. Tasks, Calendar, and Finance stay available by default.';
 
   @override
-  String get settingsExperimentalAppsSectionTitle => 'Experimental';
+  String get settingsExperimentalAppsSectionTitle => 'Experiments';
 
   @override
   String settingsExperimentalAppsTileDescription(String appName) {

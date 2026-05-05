@@ -30,8 +30,22 @@ import 'package:mobile/widgets/staggered_entry.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
+enum SettingsSectionDestination {
+  overview,
+  preferences,
+  experiments,
+  infrastructure,
+  about,
+  session,
+}
+
 class SettingsPage extends StatelessWidget {
-  const SettingsPage({super.key});
+  const SettingsPage({
+    super.key,
+    this.section = SettingsSectionDestination.overview,
+  });
+
+  final SettingsSectionDestination section;
 
   @override
   Widget build(BuildContext context) {
@@ -46,13 +60,15 @@ class SettingsPage extends StatelessWidget {
         unawaited(cubit.loadProfile());
         return cubit;
       },
-      child: const _SettingsView(),
+      child: _SettingsView(section: section),
     );
   }
 }
 
 class _SettingsView extends StatefulWidget {
-  const _SettingsView();
+  const _SettingsView({required this.section});
+
+  final SettingsSectionDestination section;
 
   @override
   State<_SettingsView> createState() => _SettingsViewState();
@@ -150,124 +166,128 @@ class _SettingsViewState extends State<_SettingsView> {
                     horizontalPadding,
                     32,
                   ),
-                  children: [
-                    StaggeredEntry(
-                      index: 0,
-                      playOnceKey: 'settings-hero',
-                      child: BlocBuilder<ProfileCubit, ProfileState>(
-                        builder: (context, profileState) {
-                          return _SettingsHeroCard(
-                            isRefreshing: profileState.isRefreshing,
-                          );
-                        },
-                      ),
-                    ),
-                    const shad.Gap(32),
-                    StaggeredEntry(
-                      index: 1,
-                      playOnceKey: 'settings-preferences',
-                      child: _PreferencesSection(
-                        themeLabel: _themeDisplayName(
-                          context.watch<ThemeCubit>().state.themeMode,
-                          context.l10n,
-                        ),
-                        showFinanceAmounts:
-                            financePreferencesCubit?.state.showAmounts ?? false,
-                        languageLabel: _localeDisplayName(
-                          Localizations.localeOf(context),
-                          context.read<LocaleCubit>().state.locale,
-                          context.l10n,
-                        ),
-                        calendarLabel: _calendarDisplayName(
-                          context.watch<CalendarSettingsCubit>().state,
-                          context.l10n,
-                        ),
-                        onChangeLanguage: () =>
-                            unawaited(_showLanguageDialog()),
-                        onToggleFinanceAmounts: () {
-                          if (financePreferencesCubit == null) {
-                            return;
-                          }
-                          unawaited(
-                            financePreferencesCubit.toggleShowAmounts(),
-                          );
-                        },
-                        disableDefaultTaskBoardNavigation:
-                            _disableDefaultTaskBoardNavigation,
-                        onToggleDefaultTaskBoardNavigation:
-                            _toggleDefaultTaskBoardNavigation,
-                        onChangeTheme: () => unawaited(_showThemeDialog()),
-                        onChangeFirstDayOfWeek: () =>
-                            unawaited(_showCalendarDialog()),
-                      ),
-                    ),
-                    const shad.Gap(32),
-                    StaggeredEntry(
-                      index: 2,
-                      playOnceKey: 'settings-experimental-apps',
-                      child: _ExperimentalAppsSection(
-                        enabledModuleIds:
-                            experimentalAppsState.enabledModuleIds,
-                        onToggleModule: _toggleExperimentalApp,
-                      ),
-                    ),
-                    if (_canManageMobileVersions) ...[
-                      const shad.Gap(32),
-                      StaggeredEntry(
-                        index: 3,
-                        playOnceKey: 'settings-infrastructure',
-                        child: SettingsSection(
-                          title:
-                              context.l10n.settingsInfrastructureSectionTitle,
-                          description: context
-                              .l10n
-                              .settingsInfrastructureSectionDescription,
-                          children: [
-                            SettingsTile(
-                              icon: Icons.system_update_alt_rounded,
-                              title: context.l10n.settingsMobileVersions,
-                              subtitle: context
-                                  .l10n
-                                  .settingsMobileVersionsTileDescription,
-                              onTap: () =>
-                                  context.push(Routes.settingsMobileVersions),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                    const shad.Gap(32),
-                    StaggeredEntry(
-                      index: _canManageMobileVersions ? 4 : 3,
-                      playOnceKey: 'settings-about',
-                      child: _AboutSection(packageInfo: packageInfo),
-                    ),
-                    const shad.Gap(32),
-                    StaggeredEntry(
-                      index: _canManageMobileVersions ? 5 : 4,
-                      playOnceKey: 'settings-danger',
-                      child: SettingsSection(
-                        title: context.l10n.settingsDangerSectionTitle,
-                        description:
-                            context.l10n.settingsDangerSectionDescription,
-                        children: [
-                          SettingsTile(
-                            icon: Icons.logout_rounded,
-                            title: context.l10n.authLogOutCurrent,
-                            subtitle: context.l10n.authLogOutCurrentDescription,
-                            isDestructive: true,
-                            onTap: () => unawaited(_showSignOutDialog()),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                  children: _buildSettingsChildren(
+                    context: context,
+                    packageInfo: packageInfo,
+                    financePreferencesCubit: financePreferencesCubit,
+                    experimentalAppsState: experimentalAppsState,
+                  ),
                 ),
               ),
             );
           },
         ),
       ),
+    );
+  }
+
+  List<Widget> _buildSettingsChildren({
+    required BuildContext context,
+    required PackageInfo? packageInfo,
+    required FinancePreferencesCubit? financePreferencesCubit,
+    required ExperimentalAppsState experimentalAppsState,
+  }) {
+    switch (widget.section) {
+      case SettingsSectionDestination.overview:
+        return [
+          StaggeredEntry(
+            index: 0,
+            playOnceKey: 'settings-hero',
+            child: BlocBuilder<ProfileCubit, ProfileState>(
+              builder: (context, profileState) {
+                return _SettingsHeroCard(
+                  isRefreshing: profileState.isRefreshing,
+                );
+              },
+            ),
+          ),
+          const shad.Gap(32),
+          StaggeredEntry(
+            index: 1,
+            playOnceKey: 'settings-section-overview',
+            child: _SettingsOverviewSection(
+              showInfrastructure: _canManageMobileVersions,
+            ),
+          ),
+        ];
+      case SettingsSectionDestination.preferences:
+        return [
+          StaggeredEntry(
+            index: 0,
+            playOnceKey: 'settings-preferences',
+            child: _buildPreferencesSection(context, financePreferencesCubit),
+          ),
+        ];
+      case SettingsSectionDestination.experiments:
+        return [
+          StaggeredEntry(
+            index: 0,
+            playOnceKey: 'settings-experimental-apps',
+            child: _ExperimentalAppsSection(
+              enabledModuleIds: experimentalAppsState.enabledModuleIds,
+              onToggleModule: _toggleExperimentalApp,
+            ),
+          ),
+        ];
+      case SettingsSectionDestination.infrastructure:
+        return [
+          const StaggeredEntry(
+            index: 0,
+            playOnceKey: 'settings-infrastructure',
+            child: _InfrastructureSection(),
+          ),
+        ];
+      case SettingsSectionDestination.about:
+        return [
+          StaggeredEntry(
+            index: 0,
+            playOnceKey: 'settings-about',
+            child: _AboutSection(packageInfo: packageInfo),
+          ),
+        ];
+      case SettingsSectionDestination.session:
+        return [
+          StaggeredEntry(
+            index: 0,
+            playOnceKey: 'settings-session',
+            child: _SessionSection(
+              onSignOut: () => unawaited(_showSignOutDialog()),
+            ),
+          ),
+        ];
+    }
+  }
+
+  Widget _buildPreferencesSection(
+    BuildContext context,
+    FinancePreferencesCubit? financePreferencesCubit,
+  ) {
+    return _PreferencesSection(
+      themeLabel: _themeDisplayName(
+        context.watch<ThemeCubit>().state.themeMode,
+        context.l10n,
+      ),
+      showFinanceAmounts: financePreferencesCubit?.state.showAmounts ?? false,
+      languageLabel: _localeDisplayName(
+        Localizations.localeOf(context),
+        context.read<LocaleCubit>().state.locale,
+        context.l10n,
+      ),
+      calendarLabel: _calendarDisplayName(
+        context.watch<CalendarSettingsCubit>().state,
+        context.l10n,
+      ),
+      onChangeLanguage: () => unawaited(_showLanguageDialog()),
+      onToggleFinanceAmounts: () {
+        if (financePreferencesCubit == null) {
+          return;
+        }
+        unawaited(financePreferencesCubit.toggleShowAmounts());
+      },
+      disableDefaultTaskBoardNavigation: _disableDefaultTaskBoardNavigation,
+      onToggleDefaultTaskBoardNavigation: _toggleDefaultTaskBoardNavigation,
+      onChangeTheme: () => unawaited(_showThemeDialog()),
+      onChangeFirstDayOfWeek: () => unawaited(_showCalendarDialog()),
     );
   }
 
@@ -541,6 +561,53 @@ class _SettingsViewState extends State<_SettingsView> {
   }
 }
 
+class _SettingsOverviewSection extends StatelessWidget {
+  const _SettingsOverviewSection({required this.showInfrastructure});
+
+  final bool showInfrastructure;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
+    return Column(
+      children: _spacedSettingsTiles([
+        SettingsTile(
+          icon: Icons.tune_rounded,
+          title: l10n.settingsPreferencesSectionTitle,
+          subtitle: l10n.settingsPreferencesSectionDescription,
+          onTap: () => context.push(Routes.settingsPreferences),
+        ),
+        SettingsTile(
+          icon: Icons.science_outlined,
+          title: l10n.settingsExperimentalAppsSectionTitle,
+          subtitle: l10n.settingsExperimentalAppsSectionDescription,
+          onTap: () => context.push(Routes.settingsExperiments),
+        ),
+        if (showInfrastructure)
+          SettingsTile(
+            icon: Icons.dns_outlined,
+            title: l10n.settingsInfrastructureSectionTitle,
+            subtitle: l10n.settingsInfrastructureSectionDescription,
+            onTap: () => context.push(Routes.settingsInfrastructure),
+          ),
+        SettingsTile(
+          icon: Icons.info_outline_rounded,
+          title: l10n.settingsAboutSectionTitle,
+          subtitle: l10n.settingsAboutSectionDescription,
+          onTap: () => context.push(Routes.settingsAbout),
+        ),
+        SettingsTile(
+          icon: Icons.logout_rounded,
+          title: l10n.settingsDangerSectionTitle,
+          subtitle: l10n.settingsDangerSectionDescription,
+          onTap: () => context.push(Routes.settingsSession),
+        ),
+      ]),
+    );
+  }
+}
+
 class _AboutSection extends StatelessWidget {
   const _AboutSection({required this.packageInfo});
 
@@ -560,6 +627,28 @@ class _AboutSection extends StatelessWidget {
           value: _formatVersionLabel(packageInfo),
           subtitle: l10n.settingsVersionTileDescription,
           showChevron: false,
+        ),
+      ],
+    );
+  }
+}
+
+class _InfrastructureSection extends StatelessWidget {
+  const _InfrastructureSection();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
+    return SettingsSection(
+      title: l10n.settingsInfrastructureSectionTitle,
+      description: l10n.settingsInfrastructureSectionDescription,
+      children: [
+        SettingsTile(
+          icon: Icons.system_update_alt_rounded,
+          title: l10n.settingsMobileVersions,
+          subtitle: l10n.settingsMobileVersionsTileDescription,
+          onTap: () => context.push(Routes.settingsMobileVersions),
         ),
       ],
     );
@@ -602,6 +691,31 @@ class _ExperimentalAppsSection extends StatelessWidget {
               ),
             ),
           ),
+      ],
+    );
+  }
+}
+
+class _SessionSection extends StatelessWidget {
+  const _SessionSection({required this.onSignOut});
+
+  final VoidCallback onSignOut;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
+    return SettingsSection(
+      title: l10n.settingsDangerSectionTitle,
+      description: l10n.settingsDangerSectionDescription,
+      children: [
+        SettingsTile(
+          icon: Icons.logout_rounded,
+          title: l10n.authLogOutCurrent,
+          subtitle: l10n.authLogOutCurrentDescription,
+          isDestructive: true,
+          onTap: onSignOut,
+        ),
       ],
     );
   }
@@ -783,6 +897,21 @@ class _SettingsHeroCard extends StatelessWidget {
       ),
     );
   }
+}
+
+List<Widget> _spacedSettingsTiles(List<Widget> children) {
+  if (children.isEmpty) {
+    return const [];
+  }
+
+  final widgets = <Widget>[];
+  for (var index = 0; index < children.length; index++) {
+    if (index > 0) {
+      widgets.add(const shad.Gap(12));
+    }
+    widgets.add(children[index]);
+  }
+  return widgets;
 }
 
 String _formatVersionLabel(PackageInfo? packageInfo) {

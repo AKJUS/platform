@@ -110,6 +110,21 @@ void main() {
       );
     });
 
+    test('maps settings section links to fullscreen section routes', () {
+      expect(
+        resolveMobileDeepLink(
+          Uri.parse('https://tuturuuu.com/workspace-1/settings/experiments'),
+        )?.location,
+        Routes.settingsExperiments,
+      );
+      expect(
+        resolveMobileDeepLink(
+          Uri.parse('https://tuturuuu.com/workspace-1/settings/preferences'),
+        )?.location,
+        Routes.settingsPreferences,
+      );
+    });
+
     test('marks native opt-out links for external opening', () {
       final link = resolveMobileDeepLink(
         Uri.parse(

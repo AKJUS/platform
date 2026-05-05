@@ -27,6 +27,8 @@ class ShellTitleOverride extends StatefulWidget {
 
 class _ShellTitleOverrideState extends State<ShellTitleOverride> {
   ShellTitleOverrideCubit? _cubit;
+  bool _disposed = false;
+  bool _syncScheduled = false;
   late final String _registrationId =
       '${widget.ownerId}#${identityHashCode(this)}';
 
@@ -35,10 +37,10 @@ class _ShellTitleOverrideState extends State<ShellTitleOverride> {
     super.didChangeDependencies();
     final nextCubit = lookupShellTitleOverrideCubit(context);
     if (_cubit != nextCubit) {
-      _cubit?.unregister(_registrationId);
+      _scheduleUnregister(_cubit);
       _cubit = nextCubit;
     }
-    _syncRegistration();
+    _scheduleSyncRegistration();
   }
 
   @override
@@ -50,8 +52,22 @@ class _ShellTitleOverrideState extends State<ShellTitleOverride> {
         oldWidget.showLeadingBrand != widget.showLeadingBrand ||
         oldWidget.showAvatar != widget.showAvatar ||
         oldWidget.onTitleSubmitted != widget.onTitleSubmitted) {
-      _syncRegistration();
+      _scheduleSyncRegistration();
     }
+  }
+
+  void _scheduleSyncRegistration() {
+    if (_syncScheduled) {
+      return;
+    }
+    _syncScheduled = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _syncScheduled = false;
+      if (_disposed || !mounted || (_cubit?.isClosed ?? true)) {
+        return;
+      }
+      _syncRegistration();
+    });
   }
 
   void _syncRegistration() {
@@ -66,9 +82,22 @@ class _ShellTitleOverrideState extends State<ShellTitleOverride> {
     );
   }
 
+  void _scheduleUnregister(ShellTitleOverrideCubit? cubit) {
+    if (cubit == null) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (cubit.isClosed) {
+        return;
+      }
+      cubit.unregister(_registrationId);
+    });
+  }
+
   @override
   void dispose() {
-    _cubit?.unregister(_registrationId);
+    _disposed = true;
+    _scheduleUnregister(_cubit);
     super.dispose();
   }
 

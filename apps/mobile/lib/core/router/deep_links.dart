@@ -301,6 +301,21 @@ String _timerLocation(Uri uri, List<String> segments) {
 }
 
 String _settingsLocation(List<String> segments) {
+  if (segments.length > 1 && segments[1] == 'preferences') {
+    return Routes.settingsPreferences;
+  }
+  if (segments.length > 1 && segments[1] == 'experiments') {
+    return Routes.settingsExperiments;
+  }
+  if (segments.length > 1 && segments[1] == 'infrastructure') {
+    return Routes.settingsInfrastructure;
+  }
+  if (segments.length > 1 && segments[1] == 'about') {
+    return Routes.settingsAbout;
+  }
+  if (segments.length > 1 && segments[1] == 'session') {
+    return Routes.settingsSession;
+  }
   if (segments.length > 1 && segments[1] == 'workspace') {
     if (segments.length > 2 && segments[2] == 'secrets') {
       return Routes.settingsWorkspaceSecrets;

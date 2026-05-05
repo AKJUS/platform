@@ -2033,7 +2033,7 @@
     "settingsExperimentalAppsDisabled": "Disabled",
     "settingsExperimentalAppsEnabled": "Enabled",
     "settingsExperimentalAppsSectionDescription": "Enable non-core apps in the Apps Hub. Tasks, Calendar, and Finance stay available by default.",
-    "settingsExperimentalAppsSectionTitle": "Experimental",
+    "settingsExperimentalAppsSectionTitle": "Experiments",
     "settingsExperimentalAppsTileDescription": "Show {appName} in the Apps Hub.",
     "@settingsExperimentalAppsTileDescription": {
         "placeholders": {

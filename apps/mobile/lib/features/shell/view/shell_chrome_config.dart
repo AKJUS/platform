@@ -44,10 +44,16 @@ class ShellChromeConfig {
       Routes.profileRoot => l10n.profileTitle,
       Routes.profileAccounts => l10n.authManageAccounts,
       Routes.settings => l10n.settingsTitle,
+      Routes.settingsPreferences => l10n.settingsPreferencesSectionTitle,
+      Routes.settingsExperiments => l10n.settingsExperimentalAppsSectionTitle,
+      Routes.settingsInfrastructure => l10n.settingsInfrastructureSectionTitle,
+      Routes.settingsAbout => l10n.settingsAboutSectionTitle,
+      Routes.settingsSession => l10n.settingsDangerSectionTitle,
       Routes.settingsWorkspace => l10n.settingsWorkspaceSectionTitle,
       Routes.settingsWorkspaceSecrets => l10n.settingsWorkspaceSecretsTitle,
       Routes.settingsWorkspaceMembers => l10n.settingsWorkspaceMembersTitle,
       Routes.settingsWorkspaceRoles => l10n.settingsWorkspaceRolesTitle,
+      Routes.settingsMobileVersions => l10n.settingsMobileVersionsTitle,
       _ => null,
     };
 

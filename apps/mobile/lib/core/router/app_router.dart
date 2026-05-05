@@ -34,6 +34,7 @@ import 'package:mobile/features/inventory/view/inventory_sales_page.dart';
 import 'package:mobile/features/mobile_versions/view/mobile_version_settings_page.dart';
 import 'package:mobile/features/notifications/view/notifications_page.dart';
 import 'package:mobile/features/profile/view/profile_page.dart';
+import 'package:mobile/features/settings/view/settings_page.dart';
 import 'package:mobile/features/settings/view/settings_workspace_members_page.dart';
 import 'package:mobile/features/settings/view/settings_workspace_page.dart';
 import 'package:mobile/features/settings/view/settings_workspace_roles_page.dart';
@@ -453,6 +454,36 @@ GoRouter createAppRouter(
               }
               return WalletDetailPage(walletId: walletId);
             },
+          ),
+          GoRoute(
+            path: Routes.settingsPreferences,
+            builder: (context, state) => const SettingsPage(
+              section: SettingsSectionDestination.preferences,
+            ),
+          ),
+          GoRoute(
+            path: Routes.settingsExperiments,
+            builder: (context, state) => const SettingsPage(
+              section: SettingsSectionDestination.experiments,
+            ),
+          ),
+          GoRoute(
+            path: Routes.settingsInfrastructure,
+            builder: (context, state) => const SettingsPage(
+              section: SettingsSectionDestination.infrastructure,
+            ),
+          ),
+          GoRoute(
+            path: Routes.settingsAbout,
+            builder: (context, state) => const SettingsPage(
+              section: SettingsSectionDestination.about,
+            ),
+          ),
+          GoRoute(
+            path: Routes.settingsSession,
+            builder: (context, state) => const SettingsPage(
+              section: SettingsSectionDestination.session,
+            ),
           ),
           GoRoute(
             path: Routes.settingsWorkspace,

@@ -165,6 +165,8 @@ void main() {
       expect(find.byType(StaggeredEntry), findsAtLeastNWidgets(2));
       expect(find.text('Settings'), findsOneWidget);
       expect(find.text('Preferences'), findsOneWidget);
+      expect(find.text('Experiments'), findsOneWidget);
+      expect(find.text('Open Tasks board by default'), findsNothing);
       await tester.scrollUntilVisible(
         find.text('About the app'),
         300,
@@ -177,6 +179,54 @@ void main() {
         scrollable: find.byType(Scrollable).first,
       );
       expect(find.text('Session'), findsOneWidget);
+    });
+
+    testWidgets('app settings section renders fullscreen section content', (
+      tester,
+    ) async {
+      const state = WorkspaceState(status: WorkspaceStatus.loaded);
+      when(() => workspaceCubit.state).thenReturn(state);
+      whenListen(
+        workspaceCubit,
+        const Stream<WorkspaceState>.empty(),
+        initialState: state,
+      );
+
+      await tester.pumpApp(
+        MultiBlocProvider(
+          providers: [
+            BlocProvider<WorkspaceCubit>.value(value: workspaceCubit),
+            BlocProvider(
+              create: (_) => ThemeCubit(
+                settingsRepository: SettingsRepository(),
+              ),
+            ),
+            BlocProvider(
+              create: (_) => LocaleCubit(
+                settingsRepository: SettingsRepository(),
+              ),
+            ),
+            BlocProvider(create: (_) => CalendarSettingsCubit()),
+            BlocProvider(
+              create: (_) => ShellProfileCubit(
+                profileRepository: ProfileRepository(),
+              ),
+            ),
+          ],
+          child: const SettingsPage(
+            section: SettingsSectionDestination.preferences,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(StaggeredEntry), findsOneWidget);
+      expect(find.text('Preferences'), findsOneWidget);
+      expect(find.text('Theme'), findsOneWidget);
+      expect(find.text('Language'), findsOneWidget);
+      expect(find.text('Open Tasks board by default'), findsOneWidget);
+      expect(find.text('About the app'), findsNothing);
+      expect(find.text('Session'), findsNothing);
     });
 
     testWidgets(
