@@ -236,7 +236,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get mfaApprovalApprovedTitle => 'Web MFA approved';
 
   @override
+  String get mfaApprovalDialogDescription => 'Confirm that the pair code matches the web MFA page before approving.';
+
+  @override
   String get mfaApprovalFailed => 'Couldn\'t approve this MFA request.';
+
+  @override
+  String get mfaApprovalPairCodeLabel => 'Pair code';
 
   @override
   String mfaApprovalPendingDescription(Object pairCode) {

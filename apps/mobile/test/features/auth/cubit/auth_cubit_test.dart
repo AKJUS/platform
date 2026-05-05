@@ -356,4 +356,48 @@ void main() {
       },
     );
   });
+
+  group('AuthCubit.verifyMfa', () {
+    late AuthRepository authRepository;
+
+    setUp(() {
+      authRepository = _MockAuthRepository();
+      when(() => authRepository.getCurrentUserSync()).thenReturn(_user());
+      when(() => authRepository.onAuthStateChange()).thenAnswer(
+        (_) => const Stream<supa.AuthState>.empty(),
+      );
+      when(() => authRepository.dispose()).thenReturn(null);
+      when(() => authRepository.checkMfaRequired()).thenReturn(true);
+      when(
+        () => authRepository.getStoredAccounts(),
+      ).thenAnswer((_) async => const <StoredAuthAccount>[]);
+      when(
+        () => authRepository.getActiveStoredAccountId(),
+      ).thenAnswer((_) async => 'user-1');
+      when(
+        () => authRepository.syncCurrentSessionToMultiAccountStore(
+          switchImmediately: any(named: 'switchImmediately'),
+        ),
+      ).thenAnswer((_) async {});
+      when(
+        () => authRepository.verifyMfaCode(any()),
+      ).thenAnswer((_) async => (success: true, error: null));
+      when(() => authRepository.getCurrentUser()).thenAnswer(
+        (_) async => _user(),
+      );
+    });
+
+    test('syncs the aal2 session after MFA verification succeeds', () async {
+      final cubit = AuthCubit(authRepository: authRepository);
+      addTearDown(cubit.close);
+
+      final verified = await cubit.verifyMfa('123456');
+
+      expect(verified, isTrue);
+      expect(cubit.state.status, AuthStatus.authenticated);
+      verify(
+        () => authRepository.syncCurrentSessionToMultiAccountStore(),
+      ).called(greaterThanOrEqualTo(1));
+    });
+  });
 }

@@ -236,7 +236,13 @@ class AppLocalizationsVi extends AppLocalizations {
   String get mfaApprovalApprovedTitle => 'Đã phê duyệt MFA trên web';
 
   @override
+  String get mfaApprovalDialogDescription => 'Xác nhận mã ghép đôi khớp với trang MFA trên web trước khi phê duyệt.';
+
+  @override
   String get mfaApprovalFailed => 'Không thể phê duyệt yêu cầu MFA này.';
+
+  @override
+  String get mfaApprovalPairCodeLabel => 'Mã ghép đôi';
 
   @override
   String mfaApprovalPendingDescription(Object pairCode) {

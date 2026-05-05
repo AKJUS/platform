@@ -96,7 +96,9 @@
     "mfaApprovalApproveAction": "Phê duyệt",
     "mfaApprovalApprovedDescription": "Trình duyệt có thể tiếp tục mà không cần mã từ ứng dụng xác thực.",
     "mfaApprovalApprovedTitle": "Đã phê duyệt MFA trên web",
+    "mfaApprovalDialogDescription": "Xác nhận mã ghép đôi khớp với trang MFA trên web trước khi phê duyệt.",
     "mfaApprovalFailed": "Không thể phê duyệt yêu cầu MFA này.",
+    "mfaApprovalPairCodeLabel": "Mã ghép đôi",
     "mfaApprovalPendingDescription": "Mã ghép đôi {pairCode} đang chờ phê duyệt.",
     "@mfaApprovalPendingDescription": {
         "placeholders": {

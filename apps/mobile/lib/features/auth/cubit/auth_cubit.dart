@@ -88,7 +88,8 @@ class AuthCubit extends Cubit<AuthState> {
         final session = authState.session;
 
         if ((event == supa.AuthChangeEvent.signedIn ||
-                event == supa.AuthChangeEvent.tokenRefreshed) &&
+                event == supa.AuthChangeEvent.tokenRefreshed ||
+                event == supa.AuthChangeEvent.mfaChallengeVerified) &&
             session?.user != null) {
           // Preserve the add-account flow flag so that an auto-refresh or
           // token rotation mid-flow does not silently clear isAddAccountFlow.
@@ -375,7 +376,16 @@ class AuthCubit extends Cubit<AuthState> {
       final user = await _repo.getCurrentUser();
       if (isClosed) return false;
       if (user != null) {
-        emit(AuthState.authenticated(user));
+        await _repo.syncCurrentSessionToMultiAccountStore();
+        if (isClosed) return false;
+        await _reloadStoredAccounts();
+        if (isClosed) return false;
+        emit(
+          AuthState.authenticated(user).copyWith(
+            accounts: state.accounts,
+            activeAccountId: state.activeAccountId,
+          ),
+        );
         return true;
       }
     }

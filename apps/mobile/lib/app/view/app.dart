@@ -45,6 +45,7 @@ import 'package:mobile/features/profile/cubit/profile_cubit.dart';
 import 'package:mobile/features/security/cubit/app_lock_cubit.dart';
 import 'package:mobile/features/security/data/app_lock_settings_store.dart';
 import 'package:mobile/features/security/data/local_auth_service.dart';
+import 'package:mobile/features/security/mfa_approval/view/mfa_approval_listener.dart';
 import 'package:mobile/features/security/view/app_lock_boundary.dart';
 import 'package:mobile/features/settings/cubit/calendar_settings_cubit.dart';
 import 'package:mobile/features/settings/cubit/experimental_apps_cubit.dart';
@@ -728,7 +729,9 @@ class _AppState extends State<App> {
                             excluded: isAppLockExcludedRoute(
                               _currentMatchedLocation(),
                             ),
-                            child: AppVersionGate(child: child!),
+                            child: MobileMfaApprovalListener(
+                              child: AppVersionGate(child: child!),
+                            ),
                           ),
                         ),
                       ),

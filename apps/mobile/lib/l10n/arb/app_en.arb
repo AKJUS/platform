@@ -96,7 +96,9 @@
     "mfaApprovalApproveAction": "Approve",
     "mfaApprovalApprovedDescription": "The browser can now continue without an authenticator code.",
     "mfaApprovalApprovedTitle": "Web MFA approved",
+    "mfaApprovalDialogDescription": "Confirm that the pair code matches the web MFA page before approving.",
     "mfaApprovalFailed": "Couldn't approve this MFA request.",
+    "mfaApprovalPairCodeLabel": "Pair code",
     "mfaApprovalPendingDescription": "Pair code {pairCode} is waiting for approval.",
     "@mfaApprovalPendingDescription": {
         "placeholders": {

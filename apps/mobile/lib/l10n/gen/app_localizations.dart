@@ -529,11 +529,23 @@ abstract class AppLocalizations {
   /// **'Web MFA approved'**
   String get mfaApprovalApprovedTitle;
 
+  /// No description provided for @mfaApprovalDialogDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Confirm that the pair code matches the web MFA page before approving.'**
+  String get mfaApprovalDialogDescription;
+
   /// No description provided for @mfaApprovalFailed.
   ///
   /// In en, this message translates to:
   /// **'Couldn\'t approve this MFA request.'**
   String get mfaApprovalFailed;
+
+  /// No description provided for @mfaApprovalPairCodeLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Pair code'**
+  String get mfaApprovalPairCodeLabel;
 
   /// No description provided for @mfaApprovalPendingDescription.
   ///
