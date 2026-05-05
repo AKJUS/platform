@@ -9,10 +9,16 @@ extension _ShellPageInteractions on _ShellPageState {
       return;
     }
 
-    final selected = registration.items.firstWhere(
-      (item) => _injectedMiniNavKey(registration.ownerId, item.id) == key,
-      orElse: () => registration.items.first,
-    );
+    ShellMiniNavItemSpec? selected;
+    for (final item in registration.items) {
+      if (_injectedMiniNavKey(registration.ownerId, item.id) == key) {
+        selected = item;
+        break;
+      }
+    }
+    if (selected == null) {
+      return;
+    }
 
     if (!selected.enabled) {
       return;

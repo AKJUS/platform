@@ -280,6 +280,7 @@ extension _ShellPageNavigation on _ShellPageState {
   List<shad.NavigationItem> _buildInjectedMiniNavItems(
     BuildContext context,
     ShellMiniNavRegistration registration,
+    bool useDirectCallbacks,
   ) {
     final theme = shad.Theme.of(context);
     final labelStyle = theme.typography.p.copyWith(
@@ -304,6 +305,14 @@ extension _ShellPageNavigation on _ShellPageState {
           return shad.NavigationItem(
             key: _injectedMiniNavKey(registration.ownerId, item.id),
             spacing: miniItemSpacing,
+            enabled: item.enabled,
+            onChanged: useDirectCallbacks
+                ? (selected) {
+                    if (selected && item.enabled) {
+                      item.onPressed?.call();
+                    }
+                  }
+                : null,
             label: isCompact
                 ? _buildAnimatedNavElement(
                     itemIndex: entry.$1,

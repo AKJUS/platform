@@ -233,6 +233,7 @@ extension _ShellPageLayout on _ShellPageState {
         ? activeModule?.miniAppNavItemsFor(context) ?? const <MiniAppNavItem>[]
         : const <MiniAppNavItem>[];
     final useInjectedMiniNav = injectedMiniNavRegistration != null;
+    final isCompact = context.isCompact;
     final selectedKey = useInjectedMiniNav
         ? _injectedMiniSelectedKey(injectedMiniNavRegistration)
         : isMiniAppRoute
@@ -243,6 +244,7 @@ extension _ShellPageLayout on _ShellPageState {
         ? _buildInjectedMiniNavItems(
             context,
             injectedMiniNavRegistration,
+            isCompact,
           )
         : activeModule != null
         ? _buildMiniAppNavItems(context, activeModule, activeMiniNavItems)
@@ -253,8 +255,7 @@ extension _ShellPageLayout on _ShellPageState {
         (!widget.matchedLocation.startsWith(Routes.assistant) ||
             !assistantChrome.isFullscreen) &&
         !keyboardVisible;
-    final isCompact = context.isCompact;
-    final compactMiniItems = isMiniAppRoute
+    final compactMiniItems = isMiniAppRoute && miniItems.isNotEmpty
         ? <Widget>[
             ConstrainedBox(
               constraints: const BoxConstraints(
@@ -280,22 +281,19 @@ extension _ShellPageLayout on _ShellPageState {
               horizontal: isMiniAppRoute ? 4 : 8,
               vertical: 4,
             ),
-            onSelected: (key) => useInjectedMiniNav
-                ? _onInjectedMiniNavItemTapped(
-                    key,
-                    injectedMiniNavRegistration,
-                  )
-                : isMiniAppRoute
-                ? _onMiniAppItemTapped(
-                    key,
-                    context,
-                    activeModule,
-                    activeMiniNavItems,
-                  )
-                : _onItemTapped(
-                    _ShellPageState._indexForKey(key),
-                    context,
-                  ),
+            onSelected: useInjectedMiniNav
+                ? null
+                : (key) => isMiniAppRoute
+                      ? _onMiniAppItemTapped(
+                          key,
+                          context,
+                          activeModule,
+                          activeMiniNavItems,
+                        )
+                      : _onItemTapped(
+                          _ShellPageState._indexForKey(key),
+                          context,
+                        ),
             children: isMiniAppRoute
                 ? compactMiniItems
                 : globalItems.map((item) => Expanded(child: item)).toList(),
