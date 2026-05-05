@@ -45,6 +45,36 @@ void main() {
       expect(link.location, Routes.taskBoardDetailPath('board-1'));
     });
 
+    test('preserves board view links', () {
+      final link = resolveMobileDeepLink(
+        Uri.parse(
+          'https://tuturuuu.com/workspace-1/tasks/boards/board-1?view=timeline',
+        ),
+      );
+
+      expect(link, isNotNull);
+      expect(link!.workspaceSlug, 'workspace-1');
+      expect(
+        link.location,
+        Routes.taskBoardDetailViewPath('board-1', 'timeline'),
+      );
+    });
+
+    test('maps legacy task estimates links to consolidated planning', () {
+      expect(
+        resolveMobileDeepLink(
+          Uri.parse('https://tuturuuu.com/workspace-1/tasks/estimates'),
+        )?.location,
+        Routes.taskPlanning,
+      );
+      expect(
+        resolveMobileDeepLink(
+          Uri.parse('https://tuturuuu.com/workspace-1/tasks/planning'),
+        )?.location,
+        Routes.taskPlanning,
+      );
+    });
+
     test('maps task app host board links', () {
       final link = resolveMobileDeepLink(
         Uri.parse('https://tasks.tuturuuu.com/workspace-1/boards/board-1'),

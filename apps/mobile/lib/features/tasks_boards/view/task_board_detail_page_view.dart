@@ -4,10 +4,12 @@ class _TaskBoardDetailPageView extends StatefulWidget {
   const _TaskBoardDetailPageView({
     required this.boardId,
     this.initialTaskId,
+    this.initialView,
   });
 
   final String boardId;
   final String? initialTaskId;
+  final TaskBoardDetailView? initialView;
 
   @override
   State<_TaskBoardDetailPageView> createState() =>
@@ -372,6 +374,11 @@ class _TaskBoardDetailPageViewState extends State<_TaskBoardDetailPageView> {
       _currentKanbanPageIndex = _savedKanbanPages[widget.boardId] ?? 0;
       _restoreScrollOffsetsForCurrentBoard();
     }
+
+    final nextView = widget.initialView;
+    if (nextView != null && oldWidget.initialView != nextView) {
+      _setBoardView(context, nextView);
+    }
   }
 
   @override
@@ -399,6 +406,8 @@ class _TaskBoardDetailPageViewState extends State<_TaskBoardDetailPageView> {
         builder: (context, state) {
           final detail = state.board;
           final boardRoute = Routes.taskBoardDetailPath(widget.boardId);
+          final isPersonalBoard =
+              detail != null && _isPersonalWorkspaceForBoard(context, detail);
           final selectedCount = state.selectedTaskIds.length;
           final shellActionRegistration = ShellChromeActions(
             ownerId: 'task-board-detail-${widget.boardId}',
@@ -469,43 +478,12 @@ class _TaskBoardDetailPageViewState extends State<_TaskBoardDetailPageView> {
           final shellMiniNavRegistration = ShellMiniNav(
             ownerId: 'task-board-mini-nav-${widget.boardId}',
             locations: {boardRoute},
-            deepLinkBackRoute: Routes.taskBoards,
-            items: [
-              ShellMiniNavItemSpec(
-                id: 'back',
-                icon: Icons.chevron_left,
-                label: context.l10n.navBack,
-                callbackToken: 'back',
-                onPressed: () => context.go(Routes.taskBoards),
-              ),
-              ShellMiniNavItemSpec(
-                id: 'kanban',
-                icon: Icons.view_kanban_outlined,
-                label: context.l10n.taskBoardDetailKanbanView,
-                selected: state.currentView == TaskBoardDetailView.kanban,
-                callbackToken: 'kanban',
-                onPressed: () =>
-                    _setBoardView(context, TaskBoardDetailView.kanban),
-              ),
-              ShellMiniNavItemSpec(
-                id: 'list',
-                icon: Icons.view_list_outlined,
-                label: context.l10n.taskBoardDetailListView,
-                selected: state.currentView == TaskBoardDetailView.list,
-                callbackToken: 'list',
-                onPressed: () =>
-                    _setBoardView(context, TaskBoardDetailView.list),
-              ),
-              ShellMiniNavItemSpec(
-                id: 'timeline',
-                icon: Icons.timeline_outlined,
-                label: context.l10n.taskBoardDetailTimelineView,
-                selected: state.currentView == TaskBoardDetailView.timeline,
-                callbackToken: 'timeline',
-                onPressed: () =>
-                    _setBoardView(context, TaskBoardDetailView.timeline),
-              ),
-            ],
+            deepLinkBackRoute: isPersonalBoard
+                ? Routes.apps
+                : Routes.taskBoards,
+            items: isPersonalBoard
+                ? _personalTaskBoardMiniNavItems(context, state)
+                : _workspaceTaskBoardMiniNavItems(context, state),
           );
           final shellTitleRegistration = detail == null
               ? const SizedBox.shrink()
@@ -877,6 +855,110 @@ class _TaskBoardDetailPageViewState extends State<_TaskBoardDetailPageView> {
         },
       ),
     );
+  }
+
+  List<ShellMiniNavItemSpec> _workspaceTaskBoardMiniNavItems(
+    BuildContext context,
+    TaskBoardDetailState state,
+  ) {
+    return [
+      ShellMiniNavItemSpec(
+        id: 'back',
+        icon: Icons.chevron_left,
+        label: context.l10n.navBack,
+        callbackToken: 'back',
+        onPressed: () => context.go(Routes.taskBoards),
+      ),
+      ShellMiniNavItemSpec(
+        id: 'kanban',
+        icon: Icons.view_kanban_outlined,
+        label: context.l10n.taskBoardDetailKanbanView,
+        selected: state.currentView == TaskBoardDetailView.kanban,
+        callbackToken: 'kanban',
+        onPressed: () => _setBoardView(context, TaskBoardDetailView.kanban),
+      ),
+      ShellMiniNavItemSpec(
+        id: 'list',
+        icon: Icons.view_list_outlined,
+        label: context.l10n.taskBoardDetailListView,
+        selected: state.currentView == TaskBoardDetailView.list,
+        callbackToken: 'list',
+        onPressed: () => _setBoardView(context, TaskBoardDetailView.list),
+      ),
+      ShellMiniNavItemSpec(
+        id: 'timeline',
+        icon: Icons.timeline_outlined,
+        label: context.l10n.taskBoardDetailTimelineView,
+        selected: state.currentView == TaskBoardDetailView.timeline,
+        callbackToken: 'timeline',
+        onPressed: () => _setBoardView(context, TaskBoardDetailView.timeline),
+      ),
+    ];
+  }
+
+  List<ShellMiniNavItemSpec> _personalTaskBoardMiniNavItems(
+    BuildContext context,
+    TaskBoardDetailState state,
+  ) {
+    return [
+      ShellMiniNavItemSpec(
+        id: 'back',
+        icon: Icons.chevron_left,
+        label: context.l10n.navBack,
+        callbackToken: 'back',
+        onPressed: () => context.go(Routes.apps),
+      ),
+      ShellMiniNavItemSpec(
+        id: 'tasks',
+        icon: shad.LucideIcons.userCheck,
+        label: context.l10n.navTasks,
+        selected: state.currentView == TaskBoardDetailView.list,
+        callbackToken: 'tasks',
+        onPressed: () => _openBoardViewRoute(
+          context,
+          TaskBoardDetailView.list,
+        ),
+      ),
+      ShellMiniNavItemSpec(
+        id: 'kanban',
+        icon: Icons.view_kanban_outlined,
+        label: context.l10n.taskBoardDetailKanbanView,
+        selected: state.currentView == TaskBoardDetailView.kanban,
+        callbackToken: 'kanban',
+        onPressed: () => _openBoardViewRoute(
+          context,
+          TaskBoardDetailView.kanban,
+        ),
+      ),
+      ShellMiniNavItemSpec(
+        id: 'timeline',
+        icon: Icons.timeline_outlined,
+        label: context.l10n.taskBoardDetailTimelineView,
+        selected: state.currentView == TaskBoardDetailView.timeline,
+        callbackToken: 'timeline',
+        onPressed: () => _openBoardViewRoute(
+          context,
+          TaskBoardDetailView.timeline,
+        ),
+      ),
+      ShellMiniNavItemSpec(
+        id: 'planning',
+        icon: Icons.route_outlined,
+        label: context.l10n.taskPlanningTitle,
+        callbackToken: 'planning',
+        onPressed: () => context.go(Routes.taskPlanning),
+      ),
+    ];
+  }
+
+  void _openBoardViewRoute(BuildContext context, TaskBoardDetailView view) {
+    final viewName = switch (view) {
+      TaskBoardDetailView.list => taskBoardDetailViewList,
+      TaskBoardDetailView.kanban => taskBoardDetailViewKanban,
+      TaskBoardDetailView.timeline => taskBoardDetailViewTimeline,
+    };
+    context.go(taskBoardViewLocation(boardId: widget.boardId, view: viewName));
+    _setBoardView(context, view);
   }
 
   bool _hasMoreTasksForLists(

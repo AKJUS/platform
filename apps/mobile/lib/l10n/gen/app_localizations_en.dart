@@ -4898,7 +4898,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsDefaultTaskBoardNavigationDefaultBoard => 'Tasks board';
 
   @override
-  String get settingsDefaultTaskBoardNavigationDescription => 'Open your personal Tasks board directly from Tasks and Boards. Turn this off to keep the board picker.';
+  String get settingsDefaultTaskBoardNavigationDescription => 'Open your personal Tasks board directly from Boards. Tasks always opens the board list view.';
 
   @override
   String get settingsDefaultWorkspace => 'Default workspace';

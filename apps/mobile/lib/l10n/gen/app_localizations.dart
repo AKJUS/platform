@@ -9340,7 +9340,7 @@ abstract class AppLocalizations {
   /// No description provided for @settingsDefaultTaskBoardNavigationDescription.
   ///
   /// In en, this message translates to:
-  /// **'Open your personal Tasks board directly from Tasks and Boards. Turn this off to keep the board picker.'**
+  /// **'Open your personal Tasks board directly from Boards. Tasks always opens the board list view.'**
   String get settingsDefaultTaskBoardNavigationDescription;
 
   /// No description provided for @settingsDefaultWorkspace.

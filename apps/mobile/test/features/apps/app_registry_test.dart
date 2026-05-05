@@ -65,7 +65,7 @@ void main() {
       expect(routes.length, greaterThanOrEqualTo(3));
     });
 
-    test('tasks module exposes estimates nav item', () {
+    test('tasks module consolidates planning nav item', () {
       final tasks = AppRegistry.moduleById('tasks');
 
       expect(tasks, isNotNull);
@@ -73,7 +73,9 @@ void main() {
 
       expect(routes, contains(Routes.tasks));
       expect(routes, contains(Routes.taskBoards));
-      expect(routes, contains(Routes.taskEstimates));
+      expect(routes, contains(Routes.taskPlanning));
+      expect(routes, isNot(contains(Routes.taskEstimates)));
+      expect(routes, isNot(contains(Routes.taskPortfolio)));
     });
 
     test('habits module exposes today, activity, and library nav items', () {

@@ -15,6 +15,7 @@ import 'package:mobile/data/repositories/workspace_permissions_repository.dart';
 import 'package:mobile/data/sources/api_client.dart';
 import 'package:mobile/features/shell/cubit/shell_chrome_actions_cubit.dart';
 import 'package:mobile/features/shell/view/shell_chrome_actions.dart';
+import 'package:mobile/features/tasks/utils/task_board_navigation.dart';
 import 'package:mobile/features/tasks/widgets/task_surface.dart';
 import 'package:mobile/features/tasks_boards/cubit/task_boards_cubit.dart';
 import 'package:mobile/features/tasks_boards/view/task_board_form_dialog.dart';
@@ -341,23 +342,16 @@ class _TaskBoardsViewState extends State<TaskBoardsView> {
     if (workspace == null || !workspace.personal) return;
     if (_defaultNavigationAttemptedWorkspaceIds.contains(workspace.id)) return;
 
-    TaskBoardSummary? defaultBoard;
-    for (final board in state.boards) {
-      if (_isDefaultActiveBoard(board)) {
-        defaultBoard = board;
-        break;
-      }
-    }
+    final defaultBoard = preferredPersonalTaskBoard(state.boards);
     if (defaultBoard == null) return;
 
     _defaultNavigationAttemptedWorkspaceIds.add(workspace.id);
-    context.go(Routes.taskBoardDetailPath(defaultBoard.id));
-  }
-
-  bool _isDefaultActiveBoard(TaskBoardSummary board) {
-    return board.name?.trim().toLowerCase() == 'tasks' &&
-        !board.isArchived &&
-        !board.isRecentlyDeleted;
+    context.go(
+      taskBoardViewLocation(
+        boardId: defaultBoard.id,
+        view: taskBoardDetailViewList,
+      ),
+    );
   }
 
   bool _canUpdatePermissionsState(String? capturedWsId) {
