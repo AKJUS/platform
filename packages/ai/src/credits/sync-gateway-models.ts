@@ -1,8 +1,11 @@
 import type { SupabaseClient } from '@tuturuuu/supabase';
+import type { Json, TablesInsert } from '@tuturuuu/types';
 
 export type GatewayModelSyncSource =
   | 'tuturuuu-production-public'
   | 'vercel-gateway';
+
+type AIGatewayModelInsert = TablesInsert<'ai_gateway_models'>;
 
 interface GatewayPricingTier {
   cost: string;
@@ -119,6 +122,10 @@ function toNullableNumber(
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+function toNullableJson(value: unknown): Json | null {
+  return value === null || value === undefined ? null : (value as Json);
+}
+
 async function fetchVercelGatewayModels(): Promise<GatewayModel[]> {
   const response = await fetch(GATEWAY_URL);
   if (!response.ok) {
@@ -205,7 +212,7 @@ async function fetchExistingModelIds(
   return existingIdSet;
 }
 
-function mapVercelGatewayModel(m: GatewayModel) {
+function mapVercelGatewayModel(m: GatewayModel): AIGatewayModelInsert {
   const provider = m.owned_by || m.id.split('/')[0] || 'unknown';
   const modelName = m.id.split('/').slice(1).join('/') || m.id;
 
@@ -220,8 +227,8 @@ function mapVercelGatewayModel(m: GatewayModel) {
     tags: m.tags ?? [],
     input_price_per_token: parseFloat(m.pricing?.input ?? '0'),
     output_price_per_token: parseFloat(m.pricing?.output ?? '0'),
-    input_tiers: m.pricing?.input_tiers ?? null,
-    output_tiers: m.pricing?.output_tiers ?? null,
+    input_tiers: toNullableJson(m.pricing?.input_tiers),
+    output_tiers: toNullableJson(m.pricing?.output_tiers),
     cache_read_price_per_token: m.pricing?.input_cache_read
       ? parseFloat(m.pricing.input_cache_read)
       : null,
@@ -238,12 +245,14 @@ function mapVercelGatewayModel(m: GatewayModel) {
         ? 0.0001
         : null,
     released_at: m.released ? new Date(m.released * 1000).toISOString() : null,
-    pricing_raw: m.pricing ?? null,
+    pricing_raw: toNullableJson(m.pricing),
     synced_at: new Date().toISOString(),
   };
 }
 
-function mapTuturuuuProductionPublicModel(m: PublicGatewayModel) {
+function mapTuturuuuProductionPublicModel(
+  m: PublicGatewayModel
+): AIGatewayModelInsert {
   const provider = m.provider || m.id.split('/')[0] || 'unknown';
   const modelName = m.id.split('/').slice(1).join('/') || m.id;
 
@@ -258,8 +267,8 @@ function mapTuturuuuProductionPublicModel(m: PublicGatewayModel) {
     tags: m.tags ?? [],
     input_price_per_token: toNumber(m.input_price_per_token),
     output_price_per_token: toNumber(m.output_price_per_token),
-    input_tiers: m.input_tiers ?? null,
-    output_tiers: m.output_tiers ?? null,
+    input_tiers: toNullableJson(m.input_tiers),
+    output_tiers: toNullableJson(m.output_tiers),
     cache_read_price_per_token: toNullableNumber(m.cache_read_price_per_token),
     cache_write_price_per_token: toNullableNumber(
       m.cache_write_price_per_token
@@ -269,7 +278,7 @@ function mapTuturuuuProductionPublicModel(m: PublicGatewayModel) {
       toNullableNumber(m.image_gen_price) ??
       (isImageGenModelId(m.id) ? 0.0001 : null),
     released_at: m.released_at ?? null,
-    pricing_raw: m.pricing_raw ?? null,
+    pricing_raw: toNullableJson(m.pricing_raw),
     search_price: toNullableNumber(m.search_price),
     synced_at: new Date().toISOString(),
     ...(typeof m.is_enabled === 'boolean' ? { is_enabled: m.is_enabled } : {}),
