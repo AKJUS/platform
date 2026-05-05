@@ -7,6 +7,7 @@ import 'package:mobile/features/apps/cubit/app_tab_cubit.dart';
 import 'package:mobile/features/apps/view/apps_hub_page.dart';
 import 'package:mobile/features/habits/cubit/habits_access_cubit.dart';
 import 'package:mobile/features/inventory/cubit/inventory_access_cubit.dart';
+import 'package:mobile/features/settings/cubit/experimental_apps_cubit.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../helpers/helpers.dart';
@@ -24,7 +25,9 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  testWidgets('Apps hub shows one ordered feed without search', (tester) async {
+  testWidgets('Apps hub shows core apps by default without search', (
+    tester,
+  ) async {
     tester.view
       ..devicePixelRatio = 1
       ..physicalSize = const Size(430, 2400);
@@ -34,6 +37,71 @@ void main() {
     });
 
     final cubit = AppTabCubit(settingsRepository: SettingsRepository());
+    final experimentalAppsCubit = ExperimentalAppsCubit(
+      settingsRepository: SettingsRepository(),
+    );
+    await experimentalAppsCubit.load();
+    addTearDown(cubit.close);
+    addTearDown(experimentalAppsCubit.close);
+
+    await tester.pumpApp(
+      MultiBlocProvider(
+        providers: [
+          BlocProvider.value(value: cubit),
+          BlocProvider.value(value: experimentalAppsCubit),
+        ],
+        child: const AppsHubPage(),
+      ),
+    );
+
+    for (var i = 0; i < 12; i++) {
+      await tester.pump(const Duration(milliseconds: 60));
+      if (find.text('Tasks').evaluate().isNotEmpty) {
+        break;
+      }
+    }
+    await tester.pumpAndSettle();
+
+    final labels = <String>[
+      'Tasks',
+      'Calendar',
+      'Finance',
+    ];
+
+    for (final label in labels) {
+      expect(find.text(label), findsOneWidget);
+    }
+    for (final label in ['Timer', 'Drive', 'Education', 'Inventory', 'CRM']) {
+      expect(find.text(label), findsNothing);
+    }
+
+    for (var index = 1; index < labels.length; index += 1) {
+      final previousY = tester.getTopLeft(find.text(labels[index - 1])).dy;
+      final currentY = tester.getTopLeft(find.text(labels[index])).dy;
+      expect(previousY, lessThan(currentY));
+    }
+
+    expect(find.text('Workspace tools'), findsNothing);
+    expect(find.text('Choose a tool to open.'), findsNothing);
+    expect(find.text('Open'), findsNothing);
+    expect(find.byType(TextField), findsNothing);
+  });
+
+  testWidgets('Apps hub shows enabled experimental apps after core apps', (
+    tester,
+  ) async {
+    tester.view
+      ..devicePixelRatio = 1
+      ..physicalSize = const Size(430, 2400);
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    final cubit = AppTabCubit(settingsRepository: SettingsRepository());
+    final experimentalAppsCubit = ExperimentalAppsCubit(
+      settingsRepository: SettingsRepository(),
+    );
     final habitsAccessCubit = _MockHabitsAccessCubit();
     final inventoryAccessCubit = _MockInventoryAccessCubit();
     whenListen(
@@ -54,7 +122,15 @@ void main() {
         wsId: 'team-1',
       ),
     );
+    await experimentalAppsCubit.load();
+    for (final moduleId in ['timer', 'drive', 'inventory', 'crm']) {
+      await experimentalAppsCubit.setModuleEnabled(
+        moduleId: moduleId,
+        enabled: true,
+      );
+    }
     addTearDown(cubit.close);
+    addTearDown(experimentalAppsCubit.close);
     addTearDown(habitsAccessCubit.close);
     addTearDown(inventoryAccessCubit.close);
 
@@ -62,6 +138,7 @@ void main() {
       MultiBlocProvider(
         providers: [
           BlocProvider.value(value: cubit),
+          BlocProvider.value(value: experimentalAppsCubit),
           BlocProvider<HabitsAccessCubit>.value(value: habitsAccessCubit),
           BlocProvider<InventoryAccessCubit>.value(value: inventoryAccessCubit),
         ],
@@ -69,12 +146,6 @@ void main() {
       ),
     );
 
-    for (var i = 0; i < 12; i++) {
-      await tester.pump(const Duration(milliseconds: 60));
-      if (find.text('Tasks').evaluate().isNotEmpty) {
-        break;
-      }
-    }
     await tester.pumpAndSettle();
 
     final labels = <String>[
@@ -83,7 +154,6 @@ void main() {
       'Finance',
       'Timer',
       'Drive',
-      'Education',
       'Inventory',
       'CRM',
     ];
@@ -97,10 +167,5 @@ void main() {
       final currentY = tester.getTopLeft(find.text(labels[index])).dy;
       expect(previousY, lessThan(currentY));
     }
-
-    expect(find.text('Workspace tools'), findsNothing);
-    expect(find.text('Choose a tool to open.'), findsNothing);
-    expect(find.text('Open'), findsNothing);
-    expect(find.byType(TextField), findsNothing);
   });
 }

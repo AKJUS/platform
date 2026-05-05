@@ -2030,6 +2030,18 @@
     "settingsDefaultTaskBoardNavigationBoardPicker": "Board picker",
     "settingsDefaultTaskBoardNavigationDefaultBoard": "Tasks board",
     "settingsDefaultTaskBoardNavigationDescription": "Open your personal Tasks board directly from Boards. Tasks always opens the board list view.",
+    "settingsExperimentalAppsDisabled": "Disabled",
+    "settingsExperimentalAppsEnabled": "Enabled",
+    "settingsExperimentalAppsSectionDescription": "Enable non-core apps in the Apps Hub. Tasks, Calendar, and Finance stay available by default.",
+    "settingsExperimentalAppsSectionTitle": "Experimental",
+    "settingsExperimentalAppsTileDescription": "Show {appName} in the Apps Hub.",
+    "@settingsExperimentalAppsTileDescription": {
+        "placeholders": {
+            "appName": {
+                "type": "String"
+            }
+        }
+    },
     "settingsDefaultWorkspace": "Default workspace",
     "settingsDefaultWorkspaceDescription": "The app opens here by default on every launch.",
     "settingsWorkspacePropertiesTitle": "Workspace information",

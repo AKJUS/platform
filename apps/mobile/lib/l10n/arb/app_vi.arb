@@ -2034,6 +2034,18 @@
     "settingsDefaultTaskBoardNavigationBoardPicker": "Bộ chọn bảng",
     "settingsDefaultTaskBoardNavigationDefaultBoard": "Bảng Tasks",
     "settingsDefaultTaskBoardNavigationDescription": "Mở thẳng bảng Tasks cá nhân từ Bảng. Công việc luôn mở chế độ danh sách của bảng.",
+    "settingsExperimentalAppsDisabled": "Đã tắt",
+    "settingsExperimentalAppsEnabled": "Đã bật",
+    "settingsExperimentalAppsSectionDescription": "Bật các ứng dụng không cốt lõi trong Trung tâm ứng dụng. Tasks, Calendar và Finance luôn có sẵn theo mặc định.",
+    "settingsExperimentalAppsSectionTitle": "Thử nghiệm",
+    "settingsExperimentalAppsTileDescription": "Hiển thị {appName} trong Trung tâm ứng dụng.",
+    "@settingsExperimentalAppsTileDescription": {
+        "placeholders": {
+            "appName": {
+                "type": "String"
+            }
+        }
+    },
     "settingsDefaultWorkspace": "Không gian mặc định",
     "settingsDefaultWorkspaceDescription": "Ứng dụng sẽ mở vào đây mặc định mỗi lần khởi động.",
     "settingsWorkspacePropertiesTitle": "Thông tin không gian làm việc",

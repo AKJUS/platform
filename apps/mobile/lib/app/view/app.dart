@@ -43,6 +43,7 @@ import 'package:mobile/features/inventory/cubit/inventory_access_cubit.dart';
 import 'package:mobile/features/notifications/push/push_notification_service.dart';
 import 'package:mobile/features/profile/cubit/profile_cubit.dart';
 import 'package:mobile/features/settings/cubit/calendar_settings_cubit.dart';
+import 'package:mobile/features/settings/cubit/experimental_apps_cubit.dart';
 import 'package:mobile/features/settings/cubit/finance_preferences_cubit.dart';
 import 'package:mobile/features/settings/cubit/locale_cubit.dart';
 import 'package:mobile/features/settings/cubit/locale_state.dart';
@@ -103,6 +104,7 @@ class _AppState extends State<App> {
   late final LocaleCubit _localeCubit;
   late final ThemeCubit _themeCubit;
   late final CalendarSettingsCubit _calendarSettingsCubit;
+  late final ExperimentalAppsCubit _experimentalAppsCubit;
   late final FinancePreferencesCubit _financePreferencesCubit;
   late final HabitsAccessCubit _habitsAccessCubit;
   late final InventoryAccessCubit _inventoryAccessCubit;
@@ -156,6 +158,9 @@ class _AppState extends State<App> {
       initialThemeMode: widget.initialThemeMode,
     );
     _calendarSettingsCubit = CalendarSettingsCubit();
+    _experimentalAppsCubit = ExperimentalAppsCubit(
+      settingsRepository: _settingsRepo,
+    );
     _financePreferencesCubit = FinancePreferencesCubit(
       settingsRepository: _settingsRepo,
     );
@@ -190,6 +195,7 @@ class _AppState extends State<App> {
     _initializeDeepLinks();
     unawaited(_localeCubit.loadLocale());
     unawaited(_calendarSettingsCubit.loadUserPreference());
+    unawaited(_experimentalAppsCubit.load());
     unawaited(_financePreferencesCubit.load());
     unawaited(_appVersionCubit.checkVersion());
     // If auth resolved synchronously to authenticated, load workspaces now.
@@ -540,6 +546,7 @@ class _AppState extends State<App> {
     unawaited(_localeCubit.close());
     unawaited(_themeCubit.close());
     unawaited(_calendarSettingsCubit.close());
+    unawaited(_experimentalAppsCubit.close());
     unawaited(_financePreferencesCubit.close());
     unawaited(_habitsAccessCubit.close());
     unawaited(_inventoryAccessCubit.close());
@@ -562,6 +569,7 @@ class _AppState extends State<App> {
         BlocProvider.value(value: _localeCubit),
         BlocProvider.value(value: _themeCubit),
         BlocProvider.value(value: _calendarSettingsCubit),
+        BlocProvider.value(value: _experimentalAppsCubit),
         BlocProvider.value(value: _financePreferencesCubit),
         BlocProvider.value(value: _habitsAccessCubit),
         BlocProvider.value(value: _inventoryAccessCubit),

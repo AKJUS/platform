@@ -10,10 +10,12 @@ import 'package:mobile/core/router/routes.dart';
 import 'package:mobile/data/repositories/profile_repository.dart';
 import 'package:mobile/data/repositories/settings_repository.dart';
 import 'package:mobile/data/repositories/workspace_permissions_repository.dart';
+import 'package:mobile/features/apps/registry/app_registry.dart';
 import 'package:mobile/features/auth/cubit/auth_cubit.dart';
 import 'package:mobile/features/profile/cubit/profile_cubit.dart';
 import 'package:mobile/features/profile/cubit/profile_state.dart';
 import 'package:mobile/features/settings/cubit/calendar_settings_cubit.dart';
+import 'package:mobile/features/settings/cubit/experimental_apps_cubit.dart';
 import 'package:mobile/features/settings/cubit/finance_preferences_cubit.dart';
 import 'package:mobile/features/settings/cubit/locale_cubit.dart';
 import 'package:mobile/features/settings/cubit/theme_cubit.dart';
@@ -128,6 +130,9 @@ class _SettingsViewState extends State<_SettingsView> {
             final packageInfo = snapshot.data;
             final financePreferencesCubit = context
                 .watch<FinancePreferencesCubit?>();
+            final experimentalAppsState =
+                context.watch<ExperimentalAppsCubit?>()?.state ??
+                const ExperimentalAppsState();
 
             return RefreshIndicator.adaptive(
               onRefresh: () => _refresh(context),
@@ -196,10 +201,20 @@ class _SettingsViewState extends State<_SettingsView> {
                             unawaited(_showCalendarDialog()),
                       ),
                     ),
+                    const shad.Gap(32),
+                    StaggeredEntry(
+                      index: 2,
+                      playOnceKey: 'settings-experimental-apps',
+                      child: _ExperimentalAppsSection(
+                        enabledModuleIds:
+                            experimentalAppsState.enabledModuleIds,
+                        onToggleModule: _toggleExperimentalApp,
+                      ),
+                    ),
                     if (_canManageMobileVersions) ...[
                       const shad.Gap(32),
                       StaggeredEntry(
-                        index: 2,
+                        index: 3,
                         playOnceKey: 'settings-infrastructure',
                         child: SettingsSection(
                           title:
@@ -223,13 +238,13 @@ class _SettingsViewState extends State<_SettingsView> {
                     ],
                     const shad.Gap(32),
                     StaggeredEntry(
-                      index: _canManageMobileVersions ? 3 : 2,
+                      index: _canManageMobileVersions ? 4 : 3,
                       playOnceKey: 'settings-about',
                       child: _AboutSection(packageInfo: packageInfo),
                     ),
                     const shad.Gap(32),
                     StaggeredEntry(
-                      index: _canManageMobileVersions ? 4 : 3,
+                      index: _canManageMobileVersions ? 5 : 4,
                       playOnceKey: 'settings-danger',
                       child: SettingsSection(
                         title: context.l10n.settingsDangerSectionTitle,
@@ -325,6 +340,14 @@ class _SettingsViewState extends State<_SettingsView> {
     await _settingsRepository.setDisableDefaultTaskBoardNavigation(
       value: nextValue,
     );
+  }
+
+  void _toggleExperimentalApp(String moduleId) {
+    final cubit = context.read<ExperimentalAppsCubit?>();
+    if (cubit == null) {
+      return;
+    }
+    unawaited(cubit.toggleModule(moduleId));
   }
 
   Future<void> _loadMobileVersionsAccess(
@@ -538,6 +561,47 @@ class _AboutSection extends StatelessWidget {
           subtitle: l10n.settingsVersionTileDescription,
           showChevron: false,
         ),
+      ],
+    );
+  }
+}
+
+class _ExperimentalAppsSection extends StatelessWidget {
+  const _ExperimentalAppsSection({
+    required this.enabledModuleIds,
+    required this.onToggleModule,
+  });
+
+  final Set<String> enabledModuleIds;
+  final ValueChanged<String> onToggleModule;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+
+    return SettingsSection(
+      title: l10n.settingsExperimentalAppsSectionTitle,
+      description: l10n.settingsExperimentalAppsSectionDescription,
+      children: [
+        for (final module in AppRegistry.experimentalModules)
+          SettingsTile(
+            icon: module.icon,
+            title: module.label(l10n),
+            subtitle: l10n.settingsExperimentalAppsTileDescription(
+              module.label(l10n),
+            ),
+            value: enabledModuleIds.contains(module.id)
+                ? l10n.settingsExperimentalAppsEnabled
+                : l10n.settingsExperimentalAppsDisabled,
+            onTap: () => onToggleModule(module.id),
+            showChevron: false,
+            trailing: IgnorePointer(
+              child: shad.Switch(
+                value: enabledModuleIds.contains(module.id),
+                onChanged: (_) {},
+              ),
+            ),
+          ),
       ],
     );
   }

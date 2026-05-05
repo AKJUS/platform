@@ -7,6 +7,8 @@ import 'package:mobile/core/cache/cache_warmup_coordinator.dart';
 import 'package:mobile/core/responsive/responsive_padding.dart';
 import 'package:mobile/core/responsive/responsive_values.dart';
 import 'package:mobile/core/responsive/responsive_wrapper.dart';
+import 'package:mobile/data/models/workspace.dart';
+import 'package:mobile/data/repositories/settings_repository.dart';
 import 'package:mobile/data/repositories/task_repository.dart';
 import 'package:mobile/features/auth/cubit/auth_cubit.dart';
 import 'package:mobile/features/auth/cubit/auth_state.dart';
@@ -15,6 +17,7 @@ import 'package:mobile/features/tasks/utils/task_board_navigation.dart';
 import 'package:mobile/features/tasks/widgets/my_tasks_header.dart';
 import 'package:mobile/features/tasks/widgets/task_section_accordion.dart';
 import 'package:mobile/features/tasks/widgets/task_surface.dart';
+import 'package:mobile/features/tasks_boards/cubit/task_boards_cubit.dart';
 import 'package:mobile/features/tasks_boards/view/task_boards_page.dart';
 import 'package:mobile/features/workspace/cubit/workspace_cubit.dart';
 import 'package:mobile/features/workspace/cubit/workspace_state.dart';
@@ -34,21 +37,36 @@ Future<void> _reload(BuildContext context) async {
 }
 
 class TaskListPage extends StatelessWidget {
-  const TaskListPage({super.key});
+  const TaskListPage({
+    super.key,
+    this.taskRepository,
+    this.settingsRepository,
+  });
+
+  final TaskRepository? taskRepository;
+  final SettingsRepository? settingsRepository;
 
   @override
   Widget build(BuildContext context) {
-    final workspace = context.read<WorkspaceCubit>().state.currentWorkspace;
+    final workspace = context.select<WorkspaceCubit, Workspace?>(
+      (cubit) => cubit.state.currentWorkspace,
+    );
     if (workspace?.personal ?? false) {
-      return _DefaultPersonalTaskBoardGate(workspaceId: workspace!.id);
+      return _DefaultPersonalTaskBoardGate(
+        workspaceId: workspace!.id,
+        taskRepository: taskRepository,
+        settingsRepository: settingsRepository,
+      );
     }
 
-    return const _ClassicTaskListPage();
+    return _ClassicTaskListPage(taskRepository: taskRepository);
   }
 }
 
 class _ClassicTaskListPage extends StatelessWidget {
-  const _ClassicTaskListPage();
+  const _ClassicTaskListPage({this.taskRepository});
+
+  final TaskRepository? taskRepository;
 
   @override
   Widget build(BuildContext context) {
@@ -62,7 +80,7 @@ class _ClassicTaskListPage extends StatelessWidget {
                 isPersonal: workspace.personal,
               );
         final cubit = TaskListCubit(
-          taskRepository: TaskRepository(),
+          taskRepository: taskRepository ?? TaskRepository(),
           initialState: seededState,
         );
         _loadIfReady(context, cubit);
@@ -87,9 +105,15 @@ class _ClassicTaskListPage extends StatelessWidget {
 }
 
 class _DefaultPersonalTaskBoardGate extends StatefulWidget {
-  const _DefaultPersonalTaskBoardGate({required this.workspaceId});
+  const _DefaultPersonalTaskBoardGate({
+    required this.workspaceId,
+    this.taskRepository,
+    this.settingsRepository,
+  });
 
   final String workspaceId;
+  final TaskRepository? taskRepository;
+  final SettingsRepository? settingsRepository;
 
   @override
   State<_DefaultPersonalTaskBoardGate> createState() =>
@@ -98,59 +122,182 @@ class _DefaultPersonalTaskBoardGate extends StatefulWidget {
 
 class _DefaultPersonalTaskBoardGateState
     extends State<_DefaultPersonalTaskBoardGate> {
-  late Future<String?> _defaultBoardIdFuture;
+  static final Map<String, String?> _memoryDefaultBoardIds = {};
+
+  late final TaskRepository _taskRepository;
+  late final SettingsRepository _settingsRepository;
+  int _resolveToken = 0;
+  String? _defaultBoardId;
+  String? _pendingRedirectBoardId;
+  bool _hasResolvedDefaultBoard = false;
 
   @override
   void initState() {
     super.initState();
-    _defaultBoardIdFuture = _loadDefaultBoardId();
+    _taskRepository = widget.taskRepository ?? TaskRepository();
+    _settingsRepository = widget.settingsRepository ?? SettingsRepository();
+    _resolveDefaultBoardId(notify: false);
   }
 
   @override
   void didUpdateWidget(covariant _DefaultPersonalTaskBoardGate oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.workspaceId != widget.workspaceId) {
-      _defaultBoardIdFuture = _loadDefaultBoardId();
+      _resolveDefaultBoardId(notify: true);
     }
   }
 
-  Future<String?> _loadDefaultBoardId() async {
-    final page = await TaskRepository().getTaskBoards(
-      widget.workspaceId,
-      pageSize: 50,
-      status: 'active',
-    );
-    return preferredPersonalTaskBoard(page.boards)?.id;
+  void _resolveDefaultBoardId({required bool notify}) {
+    final requestToken = ++_resolveToken;
+    final workspaceId = widget.workspaceId;
+
+    if (_memoryDefaultBoardIds.containsKey(workspaceId)) {
+      _applyDefaultBoardId(
+        _memoryDefaultBoardIds[workspaceId],
+        notify: notify,
+      );
+      unawaited(_refreshDefaultBoardId(requestToken, workspaceId));
+      return;
+    }
+
+    final seededState = TaskBoardsCubit.seedStateFor(workspaceId);
+    final seededBoardId = seededState == null
+        ? null
+        : preferredPersonalTaskBoard(seededState.boards)?.id;
+    if (seededBoardId != null) {
+      _memoryDefaultBoardIds[workspaceId] = seededBoardId;
+      _applyDefaultBoardId(seededBoardId, notify: notify);
+      unawaited(
+        _settingsRepository.setPersonalDefaultTaskBoardId(
+          workspaceId,
+          seededBoardId,
+        ),
+      );
+      unawaited(_refreshDefaultBoardId(requestToken, workspaceId));
+      return;
+    }
+
+    _applyUnresolvedDefaultBoard(notify: notify);
+    unawaited(_loadPersistedThenRefresh(requestToken, workspaceId));
+  }
+
+  Future<void> _loadPersistedThenRefresh(
+    int requestToken,
+    String workspaceId,
+  ) async {
+    final persistedBoardId = await _settingsRepository
+        .getPersonalDefaultTaskBoardId(workspaceId);
+    if (!mounted || requestToken != _resolveToken) {
+      return;
+    }
+
+    final normalizedBoardId = _normalizeBoardId(persistedBoardId);
+    _memoryDefaultBoardIds[workspaceId] = normalizedBoardId;
+    _applyDefaultBoardId(normalizedBoardId, notify: true);
+    unawaited(_refreshDefaultBoardId(requestToken, workspaceId));
+  }
+
+  Future<void> _refreshDefaultBoardId(
+    int requestToken,
+    String workspaceId,
+  ) async {
+    try {
+      final page = await _taskRepository.getTaskBoards(
+        workspaceId,
+        pageSize: 50,
+        status: 'active',
+      );
+      final boardId = preferredPersonalTaskBoard(page.boards)?.id;
+      _memoryDefaultBoardIds[workspaceId] = boardId;
+      await _settingsRepository.setPersonalDefaultTaskBoardId(
+        workspaceId,
+        boardId,
+      );
+      if (!mounted || requestToken != _resolveToken) {
+        return;
+      }
+      _applyDefaultBoardId(boardId, notify: true);
+    } on Object {
+      if (!mounted ||
+          requestToken != _resolveToken ||
+          _hasResolvedDefaultBoard) {
+        return;
+      }
+      _applyDefaultBoardId(null, notify: true);
+    }
+  }
+
+  void _applyUnresolvedDefaultBoard({required bool notify}) {
+    if (!notify) {
+      _defaultBoardId = null;
+      _hasResolvedDefaultBoard = false;
+      _pendingRedirectBoardId = null;
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _defaultBoardId = null;
+      _hasResolvedDefaultBoard = false;
+      _pendingRedirectBoardId = null;
+    });
+  }
+
+  void _applyDefaultBoardId(String? boardId, {required bool notify}) {
+    final normalizedBoardId = _normalizeBoardId(boardId);
+    if (_hasResolvedDefaultBoard && _defaultBoardId == normalizedBoardId) {
+      return;
+    }
+
+    if (!notify) {
+      _defaultBoardId = normalizedBoardId;
+      _hasResolvedDefaultBoard = true;
+      _pendingRedirectBoardId = null;
+      return;
+    }
+
+    if (!mounted) return;
+    setState(() {
+      _defaultBoardId = normalizedBoardId;
+      _hasResolvedDefaultBoard = true;
+      _pendingRedirectBoardId = null;
+    });
+  }
+
+  String? _normalizeBoardId(String? boardId) {
+    final trimmed = boardId?.trim();
+    if (trimmed == null || trimmed.isEmpty) {
+      return null;
+    }
+    return trimmed;
+  }
+
+  void _scheduleBoardRedirect(String boardId) {
+    if (_pendingRedirectBoardId == boardId) {
+      return;
+    }
+    _pendingRedirectBoardId = boardId;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _pendingRedirectBoardId != boardId) {
+        return;
+      }
+      _pendingRedirectBoardId = null;
+      context.go(
+        taskBoardViewLocation(
+          boardId: boardId,
+          view: taskBoardDetailViewList,
+        ),
+      );
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<String?>(
-      future: _defaultBoardIdFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const shad.Scaffold(
-            child: Center(child: NovaLoadingIndicator()),
-          );
-        }
-        final boardId = snapshot.data;
-        if (boardId == null) {
-          return const TaskBoardsPage();
-        }
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!context.mounted) return;
-          context.go(
-            taskBoardViewLocation(
-              boardId: boardId,
-              view: taskBoardDetailViewList,
-            ),
-          );
-        });
-        return const shad.Scaffold(
-          child: Center(child: NovaLoadingIndicator()),
-        );
-      },
-    );
+    final boardId = _defaultBoardId;
+    if (boardId != null) {
+      _scheduleBoardRedirect(boardId);
+    }
+    return TaskBoardsPage(taskRepository: _taskRepository);
   }
 }
 

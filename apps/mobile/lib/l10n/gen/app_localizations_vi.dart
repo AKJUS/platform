@@ -4871,6 +4871,23 @@ class AppLocalizationsVi extends AppLocalizations {
   String get settingsDefaultTaskBoardNavigationDescription => 'Mở thẳng bảng Tasks cá nhân từ Bảng. Công việc luôn mở chế độ danh sách của bảng.';
 
   @override
+  String get settingsExperimentalAppsDisabled => 'Đã tắt';
+
+  @override
+  String get settingsExperimentalAppsEnabled => 'Đã bật';
+
+  @override
+  String get settingsExperimentalAppsSectionDescription => 'Bật các ứng dụng không cốt lõi trong Trung tâm ứng dụng. Tasks, Calendar và Finance luôn có sẵn theo mặc định.';
+
+  @override
+  String get settingsExperimentalAppsSectionTitle => 'Thử nghiệm';
+
+  @override
+  String settingsExperimentalAppsTileDescription(String appName) {
+    return 'Hiển thị $appName trong Trung tâm ứng dụng.';
+  }
+
+  @override
   String get settingsDefaultWorkspace => 'Không gian mặc định';
 
   @override

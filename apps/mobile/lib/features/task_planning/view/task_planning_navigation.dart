@@ -12,7 +12,7 @@ extension _TaskPlanningNavigation on _TaskPlanningViewState {
           icon: Icons.chevron_left,
           label: context.l10n.navBack,
           callbackToken: 'back',
-          onPressed: () => context.go(Routes.tasks),
+          onPressed: _openTasksApp,
         ),
         ShellMiniNavItemSpec(
           id: 'estimates',
@@ -48,5 +48,12 @@ extension _TaskPlanningNavigation on _TaskPlanningViewState {
         ),
       ],
     );
+  }
+
+  void _openTasksApp() {
+    if (!mounted) {
+      return;
+    }
+    context.go(Routes.tasks);
   }
 }

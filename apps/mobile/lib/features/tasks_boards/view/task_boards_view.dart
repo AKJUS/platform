@@ -346,6 +346,7 @@ class _TaskBoardsViewState extends State<TaskBoardsView> {
     if (defaultBoard == null) return;
 
     _defaultNavigationAttemptedWorkspaceIds.add(workspace.id);
+    if (!context.mounted) return;
     context.go(
       taskBoardViewLocation(
         boardId: defaultBoard.id,

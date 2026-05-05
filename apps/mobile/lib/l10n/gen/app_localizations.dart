@@ -9343,6 +9343,36 @@ abstract class AppLocalizations {
   /// **'Open your personal Tasks board directly from Boards. Tasks always opens the board list view.'**
   String get settingsDefaultTaskBoardNavigationDescription;
 
+  /// No description provided for @settingsExperimentalAppsDisabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Disabled'**
+  String get settingsExperimentalAppsDisabled;
+
+  /// No description provided for @settingsExperimentalAppsEnabled.
+  ///
+  /// In en, this message translates to:
+  /// **'Enabled'**
+  String get settingsExperimentalAppsEnabled;
+
+  /// No description provided for @settingsExperimentalAppsSectionDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Enable non-core apps in the Apps Hub. Tasks, Calendar, and Finance stay available by default.'**
+  String get settingsExperimentalAppsSectionDescription;
+
+  /// No description provided for @settingsExperimentalAppsSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Experimental'**
+  String get settingsExperimentalAppsSectionTitle;
+
+  /// No description provided for @settingsExperimentalAppsTileDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Show {appName} in the Apps Hub.'**
+  String settingsExperimentalAppsTileDescription(String appName);
+
   /// No description provided for @settingsDefaultWorkspace.
   ///
   /// In en, this message translates to:

@@ -15,6 +15,7 @@ import 'package:mobile/features/inventory/cubit/inventory_access_cubit.dart';
 import 'package:mobile/features/inventory/view/inventory_page.dart';
 import 'package:mobile/features/meet/view/meet_page.dart';
 import 'package:mobile/features/notifications/view/notifications_page.dart';
+import 'package:mobile/features/settings/cubit/experimental_apps_cubit.dart';
 import 'package:mobile/features/settings/view/settings_page.dart';
 import 'package:mobile/features/tasks/view/task_list_page.dart';
 import 'package:mobile/features/time_tracker/view/time_tracker_page.dart';
@@ -24,6 +25,25 @@ import 'package:shadcn_flutter/shadcn_flutter.dart' as shad;
 
 class AppRegistry {
   const AppRegistry._();
+
+  static const Set<String> coreModuleIds = {
+    'tasks',
+    'calendar',
+    'finance',
+  };
+
+  static const Set<String> experimentalModuleIds = {
+    'habits',
+    'drive',
+    'documents',
+    'cms',
+    'education',
+    'crm',
+    'meet',
+    'inventory',
+    'notifications',
+    'timer',
+  };
 
   static const List<AppModule> allModules = [
     AppModule(
@@ -134,7 +154,7 @@ class AppRegistry {
       labelBuilder: _labelNotifications,
       pageBuilder: _pageNotifications,
       miniAppNavItems: _notificationsMiniNav,
-      isVisible: _hideNotificationsFromAppsHub,
+      isVisible: _showNotificationsModule,
     ),
     AppModule(
       id: 'timer',
@@ -144,6 +164,7 @@ class AppRegistry {
       pageBuilder: _pageTimer,
       miniAppNavItems: _timerMiniNav,
       isPinned: true,
+      isVisible: _showTimerModule,
     ),
     AppModule(
       id: 'settings',
@@ -393,7 +414,7 @@ class AppRegistry {
   }
 
   static bool _showInventoryModule(BuildContext context) {
-    if (_isModuleHiddenByWorkspaceSecret(context, 'inventory')) {
+    if (!_isExperimentalModuleAvailable(context, 'inventory')) {
       return false;
     }
 
@@ -410,24 +431,28 @@ class AppRegistry {
   }
 
   static bool _showDriveModule(BuildContext context) =>
-      !_isModuleHiddenByWorkspaceSecret(context, 'drive');
+      _isExperimentalModuleAvailable(context, 'drive');
 
   static bool _showDocumentsModule(BuildContext context) =>
-      !_isModuleHiddenByWorkspaceSecret(context, 'documents');
+      _isExperimentalModuleAvailable(context, 'documents');
 
   static bool _showCmsModule(BuildContext context) =>
-      !_isModuleHiddenByWorkspaceSecret(context, 'cms');
+      _isExperimentalModuleAvailable(context, 'cms');
 
   static bool _showEducationModule(BuildContext context) =>
-      !_isModuleHiddenByWorkspaceSecret(context, 'education');
+      _isExperimentalModuleAvailable(context, 'education');
 
   static bool _showCrmModule(BuildContext context) =>
-      !_isModuleHiddenByWorkspaceSecret(context, 'crm');
+      _isExperimentalModuleAvailable(context, 'crm');
 
   static bool _showMeetModule(BuildContext context) =>
-      !_isModuleHiddenByWorkspaceSecret(context, 'meet');
+      _isExperimentalModuleAvailable(context, 'meet');
 
   static bool _showHabitsModule(BuildContext context) {
+    if (!_isExperimentalModuleAvailable(context, 'habits')) {
+      return false;
+    }
+
     final accessState = context.select<HabitsAccessCubit?, HabitsAccessState?>(
       (cubit) => cubit?.state,
     );
@@ -439,9 +464,32 @@ class AppRegistry {
         accessState.enabled;
   }
 
-  static bool _hideNotificationsFromAppsHub(BuildContext context) => false;
+  static bool _showNotificationsModule(BuildContext context) =>
+      _isExperimentalModuleAvailable(context, 'notifications');
+
+  static bool _showTimerModule(BuildContext context) =>
+      _isExperimentalModuleAvailable(context, 'timer');
 
   static bool _hideSettingsModuleFromAppsHub(BuildContext context) => false;
+
+  static bool _isExperimentalModuleAvailable(
+    BuildContext context,
+    String moduleId,
+  ) {
+    return _isExperimentalModuleEnabled(context, moduleId) &&
+        !_isModuleHiddenByWorkspaceSecret(context, moduleId);
+  }
+
+  static bool _isExperimentalModuleEnabled(
+    BuildContext context,
+    String moduleId,
+  ) {
+    final state = context
+        .select<ExperimentalAppsCubit?, ExperimentalAppsState?>(
+          (cubit) => cubit?.state,
+        );
+    return state?.isEnabled(moduleId) ?? false;
+  }
 
   static bool _isModuleHiddenByWorkspaceSecret(
     BuildContext context,
@@ -456,6 +504,12 @@ class AppRegistry {
   static List<AppModule> modules(BuildContext context) {
     return allModules
         .where((module) => module.visibleIn(context))
+        .toList(growable: false);
+  }
+
+  static List<AppModule> get experimentalModules {
+    return allModules
+        .where((module) => experimentalModuleIds.contains(module.id))
         .toList(growable: false);
   }
 

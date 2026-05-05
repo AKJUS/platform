@@ -867,7 +867,7 @@ class _TaskBoardDetailPageViewState extends State<_TaskBoardDetailPageView> {
         icon: Icons.chevron_left,
         label: context.l10n.navBack,
         callbackToken: 'back',
-        onPressed: () => context.go(Routes.taskBoards),
+        onPressed: () => _goIfMounted(context, Routes.taskBoards),
       ),
       ShellMiniNavItemSpec(
         id: 'kanban',
@@ -906,7 +906,7 @@ class _TaskBoardDetailPageViewState extends State<_TaskBoardDetailPageView> {
         icon: Icons.chevron_left,
         label: context.l10n.navBack,
         callbackToken: 'back',
-        onPressed: () => context.go(Routes.apps),
+        onPressed: () => _goIfMounted(context, Routes.apps),
       ),
       ShellMiniNavItemSpec(
         id: 'tasks',
@@ -946,12 +946,22 @@ class _TaskBoardDetailPageViewState extends State<_TaskBoardDetailPageView> {
         icon: Icons.route_outlined,
         label: context.l10n.taskPlanningTitle,
         callbackToken: 'planning',
-        onPressed: () => context.go(Routes.taskPlanning),
+        onPressed: () => _goIfMounted(context, Routes.taskPlanning),
       ),
     ];
   }
 
+  void _goIfMounted(BuildContext context, String location) {
+    if (!mounted || !context.mounted) {
+      return;
+    }
+    context.go(location);
+  }
+
   void _openBoardViewRoute(BuildContext context, TaskBoardDetailView view) {
+    if (!mounted || !context.mounted) {
+      return;
+    }
     final viewName = switch (view) {
       TaskBoardDetailView.list => taskBoardDetailViewList,
       TaskBoardDetailView.kanban => taskBoardDetailViewKanban,
@@ -1168,6 +1178,9 @@ class _TaskBoardDetailPageViewState extends State<_TaskBoardDetailPageView> {
   }
 
   void _setBoardView(BuildContext context, TaskBoardDetailView view) {
+    if (!mounted || !context.mounted) {
+      return;
+    }
     final cubit = context.read<TaskBoardDetailCubit>();
     if (cubit.state.currentView == view) {
       _restoreScrollOffsetsForCurrentBoard();

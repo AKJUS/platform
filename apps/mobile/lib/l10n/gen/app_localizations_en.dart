@@ -4901,6 +4901,23 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsDefaultTaskBoardNavigationDescription => 'Open your personal Tasks board directly from Boards. Tasks always opens the board list view.';
 
   @override
+  String get settingsExperimentalAppsDisabled => 'Disabled';
+
+  @override
+  String get settingsExperimentalAppsEnabled => 'Enabled';
+
+  @override
+  String get settingsExperimentalAppsSectionDescription => 'Enable non-core apps in the Apps Hub. Tasks, Calendar, and Finance stay available by default.';
+
+  @override
+  String get settingsExperimentalAppsSectionTitle => 'Experimental';
+
+  @override
+  String settingsExperimentalAppsTileDescription(String appName) {
+    return 'Show $appName in the Apps Hub.';
+  }
+
+  @override
   String get settingsDefaultWorkspace => 'Default workspace';
 
   @override
