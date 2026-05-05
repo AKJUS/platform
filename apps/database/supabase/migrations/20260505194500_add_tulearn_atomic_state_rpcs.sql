@@ -20,6 +20,7 @@ set search_path = public
 as $$
 declare
   v_state public.tulearn_learner_state%rowtype;
+  -- Tulearn streak dates currently use UTC boundaries until learner or workspace time zones are persisted.
   v_today date := (now() at time zone 'utc')::date;
   v_yesterday date := ((now() at time zone 'utc')::date - 1);
   v_next_streak integer;
@@ -53,7 +54,8 @@ begin
       into v_state
       from public.tulearn_learner_state
       where ws_id = p_ws_id
-        and user_id = p_user_id;
+        and user_id = p_user_id
+      for update;
 
       return query select
         false,
@@ -136,11 +138,18 @@ begin
 
   v_next_hearts := greatest(0, v_state.hearts - 1);
 
+  if v_next_hearts = v_state.hearts then
+    return query select v_state.hearts;
+    return;
+  end if;
+
   update public.tulearn_learner_state
   set
     hearts = v_next_hearts,
     last_heart_refill_at = case
-      when v_next_hearts < v_state.max_hearts then now()
+      when v_state.hearts >= v_state.max_hearts
+        and v_next_hearts < v_state.max_hearts
+        and v_next_hearts < v_state.hearts then now()
       else v_state.last_heart_refill_at
     end,
     updated_at = now()

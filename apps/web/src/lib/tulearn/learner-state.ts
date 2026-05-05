@@ -18,6 +18,26 @@ type LoseTulearnHeartRpc = (
   }
 ) => Promise<{ data: { hearts: number }[] | null; error: unknown | null }>;
 
+async function readPublicLearnerState({
+  sbAdmin,
+  userId,
+  wsId,
+}: {
+  sbAdmin: Db;
+  userId: string;
+  wsId: string;
+}) {
+  const { data, error } = await sbAdmin
+    .from('tulearn_learner_state')
+    .select(LEARNER_STATE_PUBLIC_SELECT)
+    .eq('ws_id', wsId)
+    .eq('user_id', userId)
+    .single();
+
+  if (error) throw error;
+  return data;
+}
+
 export async function getLearnerState({
   db,
   userId,
@@ -44,37 +64,44 @@ export async function getLearnerState({
       hearts: DEFAULT_HEARTS,
       max_hearts: DEFAULT_HEARTS,
     };
-    const { data: created, error: createError } = await sbAdmin
+    const { error: createError } = await sbAdmin
       .from('tulearn_learner_state')
-      .insert(initial)
-      .select(LEARNER_STATE_PUBLIC_SELECT)
-      .single();
+      .upsert(initial, {
+        ignoreDuplicates: true,
+        onConflict: 'ws_id,user_id',
+      });
     if (createError) throw createError;
-    return created;
+    return readPublicLearnerState({ sbAdmin, userId, wsId });
   }
 
-  const lastRefill = data.last_heart_refill_at
-    ? new Date(data.last_heart_refill_at).getTime()
+  const lastHeartRefillAt = data.last_heart_refill_at;
+  const lastRefill = lastHeartRefillAt
+    ? new Date(lastHeartRefillAt).getTime()
     : Number.NaN;
   if (
     data.hearts < data.max_hearts &&
+    lastHeartRefillAt &&
     Number.isFinite(lastRefill) &&
     lastRefill > 0 &&
     Date.now() - lastRefill >= HEART_REFILL_MS
   ) {
+    const now = new Date().toISOString();
     const refillPayload: TablesUpdate<'tulearn_learner_state'> = {
       hearts: data.max_hearts,
-      last_heart_refill_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      last_heart_refill_at: now,
+      updated_at: now,
     };
     const { data: refilled, error: refillError } = await sbAdmin
       .from('tulearn_learner_state')
       .update(refillPayload)
       .eq('ws_id', wsId)
       .eq('user_id', userId)
+      .eq('hearts', data.hearts)
+      .eq('last_heart_refill_at', lastHeartRefillAt)
       .select(LEARNER_STATE_PUBLIC_SELECT)
-      .single();
+      .maybeSingle();
     if (refillError) throw refillError;
+    if (!refilled) return readPublicLearnerState({ sbAdmin, userId, wsId });
     return refilled;
   }
 
@@ -91,7 +118,9 @@ export async function loseHeart({
   wsId: string;
 }) {
   const sbAdmin = await getAdmin(db);
-  const loseTulearnHeart = sbAdmin.rpc as unknown as LoseTulearnHeartRpc;
+  const loseTulearnHeart = sbAdmin.rpc.bind(
+    sbAdmin
+  ) as unknown as LoseTulearnHeartRpc;
   const { data, error } = await loseTulearnHeart('lose_tulearn_heart', {
     p_user_id: userId,
     p_ws_id: wsId,
@@ -99,5 +128,6 @@ export async function loseHeart({
 
   if (error) throw error;
   const [result] = (data ?? []) as { hearts: number }[];
-  return result?.hearts ?? 0;
+  if (!result) throw new Error('lose_tulearn_heart returned no rows');
+  return result.hearts;
 }

@@ -198,6 +198,7 @@ export async function getLearnerCourseDetail({
       .from('workspace_course_modules')
       .select('id, name, sort_key, is_published')
       .eq('group_id', courseId)
+      .eq('is_published', true)
       .order('sort_key', { ascending: true }),
   ]);
 

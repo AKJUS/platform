@@ -41,7 +41,7 @@ export async function awardTulearnXp({
   xp: number;
 }) {
   const sbAdmin = await getAdmin(db);
-  const awardXp = sbAdmin.rpc as unknown as AwardTulearnXpRpc;
+  const awardXp = sbAdmin.rpc.bind(sbAdmin) as unknown as AwardTulearnXpRpc;
   const { data, error } = await awardXp('award_tulearn_xp', {
     p_idempotency_key: idempotencyKey,
     p_metadata: metadata as Json,
@@ -55,8 +55,10 @@ export async function awardTulearnXp({
   if (error) throw error;
 
   const [result] = (data ?? []) as AwardTulearnXpRow[];
+  if (!result) throw new Error('award_tulearn_xp returned no rows');
+
   return {
-    awarded: Boolean(result?.awarded),
-    xp: result?.xp ?? 0,
+    awarded: result.awarded,
+    xp: result.xp,
   };
 }

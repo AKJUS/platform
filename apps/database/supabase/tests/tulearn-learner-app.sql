@@ -1,6 +1,6 @@
 begin;
 
-select plan(16);
+select plan(20);
 
 select has_table('public', 'tulearn_parent_student_links', 'parent student links table exists');
 select has_table('public', 'tulearn_parent_invites', 'parent invites table exists');
@@ -72,6 +72,91 @@ select isnt_empty(
       and proname = 'lose_tulearn_heart'
   $$,
   'Tulearn heart loss uses an atomic RPC'
+);
+
+insert into public.users (id)
+values ('00000000-0000-0000-0000-000000000801')
+on conflict (id) do nothing;
+
+insert into public.workspaces (id, name, personal, creator_id)
+values (
+  '00000000-0000-0000-0000-000000000810',
+  'Tulearn RPC Workspace',
+  false,
+  '00000000-0000-0000-0000-000000000801'
+)
+on conflict (id) do nothing;
+
+select results_eq(
+  $$
+    select awarded, xp, xp_total, current_streak, longest_streak
+    from public.award_tulearn_xp(
+      '00000000-0000-0000-0000-000000000810',
+      '00000000-0000-0000-0000-000000000801',
+      'manual',
+      'manual-review-test',
+      10,
+      'review-thread-test',
+      '{}'::jsonb
+    )
+  $$,
+  $$ values (true, 10::integer, 10::integer, 1::integer, 1::integer) $$,
+  'award_tulearn_xp creates learner state and awards XP once'
+);
+
+select results_eq(
+  $$
+    select awarded, xp, xp_total, current_streak, longest_streak
+    from public.award_tulearn_xp(
+      '00000000-0000-0000-0000-000000000810',
+      '00000000-0000-0000-0000-000000000801',
+      'manual',
+      'manual-review-test',
+      10,
+      'review-thread-test',
+      '{}'::jsonb
+    )
+  $$,
+  $$ values (false, 0::integer, 10::integer, 1::integer, 1::integer) $$,
+  'duplicate XP awards return the existing learner state without a second award'
+);
+
+select results_eq(
+  $$
+    select hearts
+    from public.lose_tulearn_heart(
+      '00000000-0000-0000-0000-000000000810',
+      '00000000-0000-0000-0000-000000000801'
+    )
+  $$,
+  $$ values (4::integer) $$,
+  'lose_tulearn_heart decrements hearts atomically'
+);
+
+update public.tulearn_learner_state
+set
+  hearts = 0,
+  last_heart_refill_at = '2026-01-01 00:00:00+00'::timestamp with time zone
+where ws_id = '00000000-0000-0000-0000-000000000810'
+  and user_id = '00000000-0000-0000-0000-000000000801';
+
+select results_eq(
+  $$
+    with lost as (
+      select hearts
+      from public.lose_tulearn_heart(
+        '00000000-0000-0000-0000-000000000810',
+        '00000000-0000-0000-0000-000000000801'
+      )
+    )
+    select lost.hearts, state.last_heart_refill_at
+    from lost
+    cross join public.tulearn_learner_state state
+    where state.ws_id = '00000000-0000-0000-0000-000000000810'
+      and state.user_id = '00000000-0000-0000-0000-000000000801'
+  $$,
+  $$ values (0::integer, '2026-01-01 00:00:00+00'::timestamp with time zone) $$,
+  'lose_tulearn_heart is a no-op at zero hearts and keeps the refill timer'
 );
 
 select * from finish();

@@ -47,7 +47,7 @@ Tulearn-owned gamification tables are separate from teacher-owned course data:
 - `tulearn_gamification_events` stores XP events with an idempotency key per workspace and learner.
 - `tulearn_learner_state` stores hearts, max hearts, total XP, streaks, freezes, selected workspace, and UI preferences.
 
-XP awards and heart loss must go through the database RPCs `award_tulearn_xp` and `lose_tulearn_heart`. Those functions lock the learner state row and keep event insertion, streak updates, XP totals, heart decrements, and refill timer resets atomic under concurrent practice or assignment submissions.
+XP awards and heart loss must go through the database RPCs `award_tulearn_xp` and `lose_tulearn_heart`. Those functions lock the learner state row and keep event insertion, streak updates, XP totals, heart decrements, and refill timer resets atomic under concurrent practice or assignment submissions. Streak dates currently use UTC day boundaries until Tulearn stores learner or workspace time zones.
 
 Courses, modules, quiz sets, flashcards, assignments, monthly reports, and marks continue to reuse existing education and user-group tables.
 

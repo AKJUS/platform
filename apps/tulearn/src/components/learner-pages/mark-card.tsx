@@ -35,9 +35,9 @@ export function MarkCard({
           </span>
         ) : null}
       </p>
-      <p className="mt-4 text-muted-foreground text-sm">
-        {mark.course?.name ?? t('courses.untitled')}
-      </p>
+      {mark.course ? (
+        <p className="mt-4 text-muted-foreground text-sm">{mark.course.name}</p>
+      ) : null}
     </article>
   );
 }
