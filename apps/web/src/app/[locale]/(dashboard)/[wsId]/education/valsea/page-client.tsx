@@ -184,10 +184,10 @@ export function ValseaClassroomClient({ wsId }: { wsId: string }) {
     mutationFn: () =>
       synthesizeValseaClassroomSpeech(wsId, {
         language: scenario?.voice.language || language,
-        pace: scenario?.voice.pace ?? 1,
+        pace: scenario?.voice.pace ?? 0.9,
         speakerId: scenario?.voice.speakerId,
         text: transcript.trim(),
-        voiceId: scenario?.voice.voiceId || 'en_US-lessac-medium',
+        voiceId: scenario?.voice.voiceId || 'en_US-lessac-high',
       }),
     onSuccess: (speech) => {
       setGeneratedSpeech(speech);

@@ -106,8 +106,10 @@ For text and transcribed audio, the server runs this Valsea pipeline:
 
 The response includes a session-only `observability.stages` array with provider,
 model, timing, summaries, and raw payloads for each layer. The client renders
-that data in a researcher drawer and can export the complete run as JSON. Runs
-are not persisted beyond browser session state.
+that data in a fullscreen research console with a run replay timeline, source
+trace, sentiment layers, pronunciation trace, and a fullscreen JSON viewer. Runs
+are not persisted beyond browser session state, but the complete browser payload
+can be exported as JSON.
 
 ## Voice Grading
 
@@ -164,10 +166,10 @@ The same helper also exposes Piper text-to-speech endpoints:
 
 Piper voice models are cached under `PIPER_DATA_DIR` (`/root/.cache/piper` in
 Docker) and the default voice is controlled by `PIPER_DEFAULT_VOICE`
-(`en_US-lessac-medium`). The Compose files mount `platform-voice-lab-cache` so
+(`en_US-lessac-high`). The Compose files mount `platform-voice-lab-cache` so
 voice downloads survive container restarts. Each Piper voice must have both its
 `.onnx` model file and adjacent `.onnx.json` config file. The helper resolves
-known voice IDs such as `en_US-lessac-medium`, downloads missing assets from
+known voice IDs such as `en_US-lessac-high`, downloads missing assets from
 `PIPER_VOICE_REPOSITORY_URL` (defaulting to the Rhasspy Piper voices repository),
 and then calls Piper with the cached model path instead of passing a bare voice
 ID to the CLI.

@@ -62,12 +62,17 @@ SUPPORTED_ASSESSOR_MODELS = {
 }
 PIPER_DATA_DIR = os.getenv("PIPER_DATA_DIR", "/root/.cache/piper")
 PIPER_EXECUTABLE = os.getenv("PIPER_EXECUTABLE", "piper")
-PIPER_DEFAULT_VOICE = os.getenv("PIPER_DEFAULT_VOICE", "en_US-lessac-medium")
+PIPER_DEFAULT_VOICE = os.getenv("PIPER_DEFAULT_VOICE", "en_US-lessac-high")
 PIPER_VOICE_REPOSITORY_URL = os.getenv(
     "PIPER_VOICE_REPOSITORY_URL",
     "https://huggingface.co/rhasspy/piper-voices/resolve/main",
 ).rstrip("/")
 PIPER_VOICES = {
+    "en_US-lessac-high": {
+        "language": "english",
+        "label": "English classroom narrator high",
+        "path": "en/en_US/lessac/high",
+    },
     "en_US-lessac-medium": {
         "language": "english",
         "label": "English classroom narrator",
@@ -100,7 +105,7 @@ class ModelRequest(BaseModel):
 
 class TtsRequest(BaseModel):
     language: str = "english"
-    pace: float = 1.0
+    pace: float = 0.9
     speakerId: int | None = None
     text: str
     voiceId: str = PIPER_DEFAULT_VOICE
@@ -563,12 +568,12 @@ def build_grade(
         valsea_score = compare_tokens(expected, valsea_heard)
         local_score = compare_tokens(expected, local_heard)
         score = clamp_score(
-            (valsea_score * 0.5) + (local_score * 0.35) + (acoustic_confidence * 0.15)
+            (local_score * 0.62) + (valsea_score * 0.23) + (acoustic_confidence * 0.15)
         )
         native_score = clamp_score(
             (score * 0.72) + (acoustic_confidence * 0.28) - correction_penalty
         )
-        heard = valsea_heard or local_heard
+        heard = local_heard or valsea_heard
         words.append(
             {
                 "characters": build_character_grades(expected, heard, score),
@@ -598,7 +603,7 @@ def build_grade(
 
     return {
         "assessorModel": assessor_model,
-        "heardText": valsea_transcript or local_transcript,
+        "heardText": local_transcript or valsea_transcript,
         "nativeSimilarity": native_similarity,
         "overallScore": overall_score,
         "provider": provider,

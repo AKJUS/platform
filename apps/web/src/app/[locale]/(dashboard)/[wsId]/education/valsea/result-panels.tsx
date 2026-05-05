@@ -4,9 +4,8 @@ import {
   BookOpen,
   Brain,
   CheckCircle2,
-  Download,
-  Eye,
   FileAudio,
+  FileJson,
   Flame,
   Languages,
   Loader2,
@@ -23,13 +22,16 @@ import { Badge } from '@tuturuuu/ui/badge';
 import { Button } from '@tuturuuu/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@tuturuuu/ui/card';
 import type { useTranslations } from 'next-intl';
-import { useMemo } from 'react';
 import { STUDIO_STEPS } from './constants';
 import {
   getResultInsights,
   getTeachingMoves,
   type ValseaTranslate,
 } from './insights';
+import {
+  ResearchObservabilityPanel,
+  RunJsonDialog,
+} from './research-observability';
 
 const STEP_ICONS = [
   FileAudio,
@@ -98,24 +100,6 @@ export function ResultsGrid({
     typeof confidence === 'number'
       ? `${Math.round(confidence * 100)}%`
       : t('not_available');
-
-  const rawSummary = useMemo(
-    () =>
-      JSON.stringify(
-        {
-          annotations: result.annotations.raw,
-          artifact: result.artifact.raw,
-          clarification: result.clarification.raw,
-          pronunciation: result.pronunciation?.raw,
-          sentiment: result.sentiment.raw,
-          source: result.source,
-          translation: result.translation.raw,
-        },
-        null,
-        2
-      ),
-    [result]
-  );
 
   return (
     <div className="grid grid-flow-dense gap-4 lg:grid-cols-6">
@@ -217,15 +201,19 @@ export function ResultsGrid({
           <CardTitle>{t('raw_title')}</CardTitle>
         </CardHeader>
         <CardContent>
-          <details className="group rounded-md border border-foreground/10 bg-background/70">
-            <summary className="flex cursor-pointer items-center justify-between gap-3 p-4 font-medium text-sm">
-              <span>{t('raw_summary')}</span>
-              <Badge variant="outline">{t('raw_collapsed')}</Badge>
-            </summary>
-            <pre className="max-h-80 overflow-auto border-foreground/10 border-t bg-foreground/5 p-4 text-xs leading-5">
-              {rawSummary}
-            </pre>
-          </details>
+          <RunJsonDialog result={result} t={t}>
+            <Button
+              className="h-auto w-full justify-between border-foreground/10 bg-background/70 p-4 text-left hover:bg-background"
+              type="button"
+              variant="outline"
+            >
+              <span className="flex items-center gap-2">
+                <FileJson className="h-4 w-4" />
+                {t('raw_summary')}
+              </span>
+              <Badge variant="outline">{t('research_open_fullscreen')}</Badge>
+            </Button>
+          </RunJsonDialog>
         </CardContent>
       </Card>
     </div>
@@ -330,7 +318,7 @@ function TeachingMovesPanel({
   t: ReturnType<typeof useTranslations>;
 }) {
   return (
-    <Card className="valsea-stack-card border-dynamic-yellow/20 bg-dynamic-yellow/5 lg:col-span-4">
+    <Card className="valsea-stack-card border-dynamic-yellow/20 bg-dynamic-yellow/5 lg:col-span-6">
       <CardHeader>
         <div className="flex items-center gap-2">
           <Route className="h-4 w-4 text-dynamic-yellow" />
@@ -374,14 +362,26 @@ function SentimentCompass({
   if (!mira) return null;
 
   const metrics = [
-    { label: t('sentiment_valence'), value: Math.round(mira.valence ?? 0) },
-    { label: t('sentiment_arousal'), value: Math.round(mira.arousal ?? 0) },
-    { label: t('sentiment_urgency'), value: Math.round(mira.urgency ?? 0) },
-    { label: t('sentiment_confusion'), value: Math.round(mira.confusion ?? 0) },
+    {
+      label: t('sentiment_valence'),
+      value: normalizeSentimentMetric(mira.valence),
+    },
+    {
+      label: t('sentiment_arousal'),
+      value: normalizeSentimentMetric(mira.arousal),
+    },
+    {
+      label: t('sentiment_urgency'),
+      value: normalizeSentimentMetric(mira.urgency),
+    },
+    {
+      label: t('sentiment_confusion'),
+      value: normalizeSentimentMetric(mira.confusion),
+    },
   ];
 
   return (
-    <Card className="valsea-stack-card border-dynamic-cyan/20 bg-dynamic-cyan/5 lg:col-span-4">
+    <Card className="valsea-stack-card border-dynamic-cyan/20 bg-dynamic-cyan/5 lg:col-span-6">
       <CardHeader>
         <div className="flex flex-wrap items-center gap-2">
           <Badge className="border-dynamic-cyan/25 bg-dynamic-cyan/10 text-dynamic-cyan hover:bg-dynamic-cyan/15">
@@ -395,8 +395,8 @@ function SentimentCompass({
         </div>
         <CardTitle>{t('sentiment_compass_title')}</CardTitle>
       </CardHeader>
-      <CardContent className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-        <div className="grid gap-2">
+      <CardContent className="grid gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(22rem,0.85fr)]">
+        <div className="grid gap-2 sm:grid-cols-2">
           {metrics.map((metric) => (
             <div
               className="rounded-md border border-foreground/10 bg-background/70 p-3"
@@ -404,14 +404,12 @@ function SentimentCompass({
             >
               <div className="flex items-center justify-between gap-3 text-sm">
                 <span>{metric.label}</span>
-                <span className="font-mono">{metric.value}</span>
+                <span className="font-mono">{metric.value}%</span>
               </div>
               <div className="mt-2 h-1.5 overflow-hidden rounded bg-foreground/10">
                 <div
                   className="h-full rounded bg-dynamic-cyan"
-                  style={{
-                    width: `${Math.min(100, Math.max(0, metric.value < 0 ? metric.value + 100 : metric.value))}%`,
-                  }}
+                  style={{ width: `${metric.value}%` }}
                 />
               </div>
             </div>
@@ -450,94 +448,13 @@ function SentimentCompass({
   );
 }
 
-function ResearchObservabilityPanel({
-  result,
-  t,
-}: {
-  result: ValseaClassroomArtifactResponse;
-  t: ReturnType<typeof useTranslations>;
-}) {
-  const exportRun = () => {
-    const blob = new Blob([JSON.stringify(result, null, 2)], {
-      type: 'application/json',
-    });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = `valsea-mira-run-${Date.now()}.json`;
-    anchor.click();
-    URL.revokeObjectURL(url);
-  };
+function normalizeSentimentMetric(value: number | undefined) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return 0;
+  }
 
-  return (
-    <Card className="valsea-stack-card border-dynamic-green/20 bg-dynamic-green/5 lg:col-span-6">
-      <CardHeader>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Eye className="h-4 w-4 text-dynamic-green" />
-            <CardTitle>{t('research_observability_title')}</CardTitle>
-          </div>
-          <Button className="gap-2" onClick={exportRun} size="sm" type="button">
-            <Download className="h-4 w-4" />
-            {t('research_export_json')}
-          </Button>
-        </div>
-      </CardHeader>
-      <CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-        {result.observability?.stages.map((stage) => (
-          <details
-            className="rounded-md border border-foreground/10 bg-background/70 p-3"
-            key={stage.id}
-          >
-            <summary className="cursor-pointer">
-              <div className="inline-flex w-full items-start justify-between gap-3">
-                <div>
-                  <div className="font-semibold text-sm">{stage.label}</div>
-                  <div className="mt-1 text-foreground/55 text-xs">
-                    {[
-                      stage.provider,
-                      stage.model,
-                      stage.durationMs ? `${stage.durationMs}ms` : null,
-                    ]
-                      .filter(Boolean)
-                      .join(' / ')}
-                  </div>
-                </div>
-                <Badge
-                  variant={stage.status === 'success' ? 'secondary' : 'outline'}
-                >
-                  {stage.status}
-                </Badge>
-              </div>
-            </summary>
-            <div className="mt-3 grid gap-2 border-foreground/10 border-t pt-3 text-xs">
-              {stage.inputSummary ? (
-                <div>
-                  <span className="text-foreground/45">
-                    {t('research_stage_input')}:
-                  </span>{' '}
-                  {stage.inputSummary}
-                </div>
-              ) : null}
-              {stage.outputSummary ? (
-                <div>
-                  <span className="text-foreground/45">
-                    {t('research_stage_output')}:
-                  </span>{' '}
-                  {stage.outputSummary}
-                </div>
-              ) : null}
-              {stage.raw ? (
-                <pre className="max-h-44 overflow-auto rounded bg-foreground/5 p-2">
-                  {JSON.stringify(stage.raw, null, 2)}
-                </pre>
-              ) : null}
-            </div>
-          </details>
-        ))}
-      </CardContent>
-    </Card>
-  );
+  const percent = Math.abs(value) <= 1 ? value * 100 : value;
+  return Math.round(Math.min(100, Math.max(0, percent)));
 }
 
 function VoiceGradePanel({

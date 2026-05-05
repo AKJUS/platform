@@ -193,7 +193,7 @@ services:
       - PRONUNCIATION_ASSESSOR_WHISPER_SMALL_MODEL=${PRONUNCIATION_ASSESSOR_WHISPER_SMALL_MODEL:-openai/whisper-small}
       - PRONUNCIATION_ASSESSOR_WHISPER_TINY_MODEL=${PRONUNCIATION_ASSESSOR_WHISPER_TINY_MODEL:-openai/whisper-tiny}
       - PIPER_DATA_DIR=/root/.cache/piper
-      - PIPER_DEFAULT_VOICE=${PIPER_DEFAULT_VOICE:-en_US-lessac-medium}
+      - PIPER_DEFAULT_VOICE=${PIPER_DEFAULT_VOICE:-en_US-lessac-high}
     expose:
       - "8010"
     ports:

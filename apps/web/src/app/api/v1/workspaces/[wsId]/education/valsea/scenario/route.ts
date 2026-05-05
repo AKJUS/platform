@@ -92,7 +92,7 @@ const ScenarioSchema = z.object({
   voice: VoicePresetSchema,
 });
 
-const DEFAULT_PIPER_VOICE_ID = 'en_US-lessac-medium';
+const DEFAULT_PIPER_VOICE_ID = 'en_US-lessac-high';
 
 const FALLBACK_SCENARIOS: z.infer<typeof ScenarioSchema>[] = [
   {
@@ -213,7 +213,7 @@ const FALLBACK_SCENARIOS: z.infer<typeof ScenarioSchema>[] = [
     voice: {
       engine: 'piper',
       language: 'english',
-      pace: 0.96,
+      pace: 0.92,
       voiceId: DEFAULT_PIPER_VOICE_ID,
     },
   },
@@ -308,7 +308,7 @@ User prompt: ${parsed.data.prompt || 'none'}
 The result must include:
 - a learner voice phrase that can be pasted as a reference transcript,
 - learnerLine equal to the exact phrase the generated voice should speak,
-- a Piper voice preset using engine "piper", voiceId "${DEFAULT_PIPER_VOICE_ID}" unless another Piper voice is clearly better, and a natural pace from 0.85 to 1.1,
+- a Piper voice preset using engine "piper", voiceId "${DEFAULT_PIPER_VOICE_ID}" unless another Piper voice is clearly better, and a clear STT-friendly pace from 0.85 to 0.95,
 - a sentiment hypothesis with mood, emotions, intent, and risk,
 - a research question for the observability drawer,
 - tags for the UI,
