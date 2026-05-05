@@ -328,6 +328,10 @@ apps/web/src/
 
 Each module is self-contained with clear boundaries, yet benefits from shared infrastructure.
 
+#### Module Size Guardrail
+
+Code that crosses 400 LOC per file or 200 LOC per component/widget should be split automatically before final verification. Prefer focused route modules, cards, panels, hooks, data loaders, and helper modules over monolithic files. When other modules already import an entrypoint, keep that entrypoint as a thin barrel re-export so the refactor improves maintainability without forcing unrelated import churn.
+
 #### UI and Logic Separation (Headless UI)
 
 In this pattern, React components are split into two parts:

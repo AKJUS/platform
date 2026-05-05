@@ -28,6 +28,7 @@ Reference these guidelines when:
 - Designing flexible component APIs
 - Reviewing component architecture
 - Working with compound components or context providers
+- Splitting large component files automatically when they exceed 400 LOC, or when one component exceeds 200 LOC. Keep the public entrypoint stable with a thin re-export file if existing callers import from it.
 
 ## Rule Categories by Priority
 
